@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAL — The AI Operating System for Salons</title>
+    <meta name="description" content="10 AI agents that run your salon through WhatsApp. No dashboards. No complexity. Just results.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --black: #0a0a0a;
+            --white: #fafafa;
+            --cream: #f5f0e8;
+            --gold: #c9a227;
+            --gold-light: #e8d48a;
+            --gold-dark: #9a7b1a;
+            --charcoal: #1a1a1a;
+            --gray: #6b6b6b;
+            --gray-light: #a3a3a3;
+            
+            --font-display: 'Instrument Serif', serif;
+            --font-heading: 'Syne', sans-serif;
+            --font-body: 'DM Sans', sans-serif;
+            
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            font-size: 16px;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--black);
+            color: var(--white);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Noise texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Selection */
+        ::selection {
+            background: var(--gold);
+            color: var(--black);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--black);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--gold-dark);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gold);
+        }
+
+        /* Utility */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 clamp(1.5rem, 5vw, 4rem);
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 1.5rem 0;
+            background: linear-gradient(180deg, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: var(--font-heading);
+            font-size: 1.75rem;
+            font-weight: 800;
+            letter-spacing: 0.15em;
+            color: var(--gold);
+            text-decoration: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .logo:hover {
+            opacity: 0.8;
+        }
+
+        .nav-cta {
+            font-family: var(--font-heading);
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 0.9rem 2rem;
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            cursor: pointer;
+            transition: all 0.4s var(--ease-out-expo);
+            text-decoration: none;
+        }
+
+        .nav-cta:hover {
+            background: var(--gold);
+            color: var(--black);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(201, 162, 39, 0.3);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 8rem 2rem 6rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150%;
+            height: 150%;
+            background: radial-gradient(ellipse at center, rgba(201, 162, 39, 0.08) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-heading);
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--gold);
+            padding: 0.75rem 1.5rem;
+            border: 1px solid rgba(201, 162, 39, 0.3);
+            margin-bottom: 2.5rem;
+            opacity: 0;
+            animation: fadeInUp 1s var(--ease-out-expo) 0.2s forwards;
+        }
+
+        .hero-badge span {
+            width: 6px;
+            height: 6px;
+            background: var(--gold);
+            border-radius: 50%;
+            animation: pulse 2s ease infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(3.5rem, 12vw, 10rem);
+            font-weight: 400;
+            line-height: 0.95;
+            letter-spacing: -0.03em;
+            margin-bottom: 2rem;
+            opacity: 0;
+            animation: fadeInUp 1s var(--ease-out-expo) 0.4s forwards;
+        }
+
+        .hero h1 em {
+            font-style: italic;
+            color: var(--gold);
+        }
+
+        .hero-sub {
+            font-family: var(--font-body);
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            font-weight: 300;
+            color: var(--gray-light);
+            max-width: 600px;
+            margin: 0 auto 3rem;
+            opacity: 0;
+            animation: fadeInUp 1s var(--ease-out-expo) 0.6s forwards;
+        }
+
+        .hero-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            font-family: var(--font-heading);
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 1.25rem 3rem;
+            background: var(--gold);
+            border: none;
+            color: var(--black);
+            cursor: pointer;
+            transition: all 0.4s var(--ease-out-expo);
+            text-decoration: none;
+            opacity: 0;
+            animation: fadeInUp 1s var(--ease-out-expo) 0.8s forwards;
+        }
+
+        .hero-cta:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(201, 162, 39, 0.4);
+        }
+
+        .hero-cta svg {
+            transition: transform 0.3s ease;
+        }
+
+        .hero-cta:hover svg {
+            transform: translateX(5px);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero-scroll {
+            position: absolute;
+            bottom: 3rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--gray);
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            opacity: 0;
+            animation: fadeIn 1s var(--ease-out-expo) 1.5s forwards;
+        }
+
+        .hero-scroll .line {
+            width: 1px;
+            height: 60px;
+            background: linear-gradient(180deg, var(--gold) 0%, transparent 100%);
+            animation: scrollLine 2s ease infinite;
+        }
+
+        @keyframes scrollLine {
+            0% { transform: scaleY(0); transform-origin: top; }
+            50% { transform: scaleY(1); transform-origin: top; }
+            51% { transform-origin: bottom; }
+            100% { transform: scaleY(0); transform-origin: bottom; }
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        /* Problem Section */
+        .problem {
+            padding: 10rem 0;
+            background: var(--charcoal);
+            position: relative;
+        }
+
+        .problem::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold-dark), transparent);
+        }
+
+        .section-label {
+            font-family: var(--font-heading);
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 3rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .section-label::before {
+            content: '';
+            width: 40px;
+            height: 1px;
+            background: var(--gold);
+        }
+
+        .problem h2 {
+            font-family: var(--font-display);
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 400;
+            line-height: 1.1;
+            margin-bottom: 4rem;
+            max-width: 900px;
+        }
+
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .problem-card {
+            padding: 2.5rem;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.4s var(--ease-out-expo);
+        }
+
+        .problem-card:hover {
+            background: rgba(255,255,255,0.04);
+            border-color: rgba(201, 162, 39, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .problem-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .problem-card h3 {
+            font-family: var(--font-heading);
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .problem-card p {
+            color: var(--gray-light);
+            font-size: 0.95rem;
+        }
+
+        /* Solution Section */
+        .solution {
+            padding: 10rem 0;
+            position: relative;
+        }
+
+        .solution-header {
+            text-align: center;
+            margin-bottom: 6rem;
+        }
+
+        .solution h2 {
+            font-family: var(--font-display);
+            font-size: clamp(2.5rem, 6vw, 5rem);
+            font-weight: 400;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+        }
+
+        .solution h2 em {
+            color: var(--gold);
+            font-style: italic;
+        }
+
+        .solution-sub {
+            font-size: 1.25rem;
+            color: var(--gray-light);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .solution-visual {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4rem;
+            flex-wrap: wrap;
+            margin-bottom: 6rem;
+        }
+
+        .phone-mockup {
+            width: 280px;
+            height: 560px;
+            background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+            position: relative;
+        }
+
+        .phone-mockup::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 25px;
+            background: #000;
+            border-radius: 20px;
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #075e54;
+            border-radius: 30px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .phone-header {
+            background: #075e54;
+            padding: 2.5rem 1rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .phone-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--black);
+        }
+
+        .phone-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .phone-chat {
+            flex: 1;
+            background: linear-gradient(180deg, #ece5dd 0%, #d9d2c5 100%);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            overflow-y: auto;
+        }
+
+        .chat-bubble {
+            max-width: 85%;
+            padding: 0.6rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #000;
+            line-height: 1.4;
+        }
+
+        .chat-bubble.user {
+            background: #dcf8c6;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .chat-bubble.sal {
+            background: #fff;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .solution-arrow {
+            font-size: 3rem;
+            color: var(--gold);
+            animation: bounceX 2s ease infinite;
+        }
+
+        @keyframes bounceX {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(10px); }
+        }
+
+        .result-box {
+            background: rgba(201, 162, 39, 0.1);
+            border: 1px solid var(--gold-dark);
+            padding: 3rem;
+            max-width: 350px;
+        }
+
+        .result-box h3 {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--gold);
+        }
+
+        .result-box ul {
+            list-style: none;
+        }
+
+        .result-box li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .result-box li span {
+            color: var(--gold);
+            font-size: 1.2rem;
+        }
+
+        /* Agents Section */
+        .agents {
+            padding: 10rem 0;
+            background: var(--charcoal);
+            position: relative;
+        }
+
+        .agents::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold-dark), transparent);
+        }
+
+        .agents-header {
+            text-align: center;
+            margin-bottom: 5rem;
+        }
+
+        .agents h2 {
+            font-family: var(--font-display);
+            font-size: clamp(2.5rem, 6vw, 5rem);
+            font-weight: 400;
+            margin-bottom: 1.5rem;
+        }
+
+        .agents h2 em {
+            color: var(--gold);
+            font-style: italic;
+        }
+
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .agent-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 2.5rem;
+            transition: all 0.5s var(--ease-out-expo);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .agent-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--gold);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s var(--ease-out-expo);
+        }
+
+        .agent-card:hover {
+            background: rgba(255,255,255,0.04);
+            transform: translateY(-8px);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+        }
+
+        .agent-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .agent-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .agent-name {
+            font-family: var(--font-heading);
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--gold-light);
+        }
+
+        .agent-job {
+            font-family: var(--font-heading);
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--gray);
+            margin-bottom: 1.5rem;
+        }
+
+        .agent-desc {
+            color: var(--gray-light);
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .agent-example {
+            background: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-left: 2px solid var(--gold-dark);
+            font-size: 0.85rem;
+            color: var(--cream);
+            font-style: italic;
+        }
+
+        /* Comparison Section */
+        .comparison {
+            padding: 10rem 0;
+        }
+
+        .comparison-header {
+            text-align: center;
+            margin-bottom: 5rem;
+        }
+
+        .comparison h2 {
+            font-family: var(--font-display);
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 400;
+            margin-bottom: 1rem;
+        }
+
+        .comparison-sub {
+            color: var(--gray-light);
+            font-size: 1.1rem;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        .comparison-table thead {
+            position: sticky;
+            top: 80px;
+            z-index: 10;
+        }
+
+        .comparison-table th {
+            font-family: var(--font-heading);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.85rem;
+            padding: 1.5rem 1rem;
+            background: var(--charcoal);
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .comparison-table th:first-child {
+            width: 35%;
+        }
+
+        .comparison-table th.sal-col {
+            background: linear-gradient(180deg, rgba(201, 162, 39, 0.2) 0%, rgba(201, 162, 39, 0.05) 100%);
+            color: var(--gold);
+        }
+
+        .comparison-table td {
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            vertical-align: top;
+        }
+
+        .comparison-table tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .comparison-table td:first-child {
+            font-weight: 500;
+        }
+
+        .comparison-table td.sal-col {
+            background: rgba(201, 162, 39, 0.05);
+            color: var(--cream);
+        }
+
+        .check {
+            color: var(--gold);
+            font-weight: bold;
+        }
+
+        .cross {
+            color: #666;
+        }
+
+        /* Benefits Section */
+        .benefits {
+            padding: 10rem 0;
+            background: linear-gradient(180deg, var(--charcoal) 0%, var(--black) 100%);
+        }
+
+        .benefits-header {
+            text-align: center;
+            margin-bottom: 5rem;
+        }
+
+        .benefits h2 {
+            font-family: var(--font-display);
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 400;
+            margin-bottom: 1rem;
+        }
+
+        .benefits h2 em {
+            color: var(--gold);
+            font-style: italic;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 3rem;
+        }
+
+        .benefit-item {
+            text-align: center;
+            padding: 3rem 2rem;
+        }
+
+        .benefit-number {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-style: italic;
+            color: var(--gold);
+            line-height: 1;
+            margin-bottom: 1rem;
+        }
+
+        .benefit-stat {
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .benefit-desc {
+            color: var(--gray-light);
+            font-size: 0.9rem;
+        }
+
+        /* CTA Section */
+        .cta {
+            padding: 10rem 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(201, 162, 39, 0.15) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .cta h2 {
+            font-family: var(--font-display);
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 400;
+            line-height: 1.05;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .cta h2 em {
+            color: var(--gold);
+            font-style: italic;
+        }
+
+        .cta p {
+            font-size: 1.25rem;
+            color: var(--gray-light);
+            margin-bottom: 3rem;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-form {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            max-width: 500px;
+            margin: 0 auto 2rem;
+        }
+
+        .cta-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 1.25rem 1.5rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--white);
+            font-family: var(--font-body);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .cta-input::placeholder {
+            color: var(--gray);
+        }
+
+        .cta-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            background: rgba(201, 162, 39, 0.05);
+        }
+
+        .cta-button {
+            font-family: var(--font-heading);
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 1.25rem 2.5rem;
+            background: var(--gold);
+            border: none;
+            color: var(--black);
+            cursor: pointer;
+            transition: all 0.4s var(--ease-out-expo);
+            white-space: nowrap;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 60px rgba(201, 162, 39, 0.4);
+        }
+
+        .cta-note {
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        /* Footer */
+        footer {
+            padding: 4rem 0;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        footer .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .footer-logo {
+            font-family: var(--font-heading);
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: 0.15em;
+            color: var(--gold);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .footer-links a {
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--gold);
+        }
+
+        .footer-copy {
+            color: var(--gray);
+            font-size: 0.85rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .solution-visual {
+                flex-direction: column;
+            }
+
+            .solution-arrow {
+                transform: rotate(90deg);
+            }
+
+            @keyframes bounceX {
+                0%, 100% { transform: rotate(90deg) translateX(0); }
+                50% { transform: rotate(90deg) translateX(10px); }
+            }
+
+            .comparison-table {
+                font-size: 0.8rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 1rem 0.5rem;
+            }
+
+            footer .container {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
+        /* Animation on scroll */
+        .reveal {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.8s var(--ease-out-expo);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <a href="#" class="logo">SAL</a>
+            <a href="#waitlist" class="nav-cta">Join Waitlist</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-badge">
+            <span></span>
+            Coming Soon to Dubai
+        </div>
+        <h1>The <em>AI</em> Operating<br>System for Salons</h1>
+        <p class="hero-sub">10 AI agents that run your salon through WhatsApp. No dashboards. No complexity. Just results.</p>
+        <a href="#waitlist" class="hero-cta">
+            Join the Waitlist
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+        </a>
+        <div class="hero-scroll">
+            <span>Scroll</span>
+            <div class="line"></div>
+        </div>
+    </section>
+
+    <!-- Problem -->
+    <section class="problem">
+        <div class="container">
+            <div class="section-label reveal">The Problem</div>
+            <h2 class="reveal">You're a salon owner, not a software expert. Why does running your business feel like a second job?</h2>
+            <div class="problem-grid">
+                <div class="problem-card reveal">
+                    <div class="icon">📞</div>
+                    <h3>Missed Calls = Missed Money</h3>
+                    <p>You're cutting hair. The phone rings. You can't answer. That client books somewhere else. Gone forever.</p>
+                </div>
+                <div class="problem-card reveal">
+                    <div class="icon">😴</div>
+                    <h3>No-Shows Killing Your Revenue</h3>
+                    <p>20% of clients don't show up. You blocked time, prepared space, and got nothing. Every week.</p>
+                </div>
+                <div class="problem-card reveal">
+                    <div class="icon">📊</div>
+                    <h3>Complex Dashboards You Never Open</h3>
+                    <p>You paid for Fresha. Or Vagaro. Or Booksy. The dashboard has 50 buttons. You use 3.</p>
+                </div>
+                <div class="problem-card reveal">
+                    <div class="icon">🧠</div>
+                    <h3>No Time to Think About Growth</h3>
+                    <p>Marketing? Reviews? Client retention? You know you should. But when? You're exhausted.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solution -->
+    <section class="solution">
+        <div class="container">
+            <div class="solution-header">
+                <div class="section-label reveal">The Solution</div>
+                <h2 class="reveal">Meet <em>SAL</em> — Your AI Team</h2>
+                <p class="solution-sub reveal">10 intelligent agents working 24/7 through WhatsApp. They handle everything so you can focus on your craft.</p>
+            </div>
+
+            <div class="solution-visual reveal">
+                <div class="phone-mockup">
+                    <div class="phone-screen">
+                        <div class="phone-header">
+                            <div class="phone-avatar">S</div>
+                            <div class="phone-name">SAL</div>
+                        </div>
+                        <div class="phone-chat">
+                            <div class="chat-bubble user">How was today?</div>
+                            <div class="chat-bubble sal">💰 Today: 2,350 AED<br><br>📊 12 clients served<br>👨‍💼 Top earner: Ahmed<br>📈 +15% vs yesterday<br><br>⭐ You got 2 new 5-star reviews!</div>
+                            <div class="chat-bubble user">Any no-shows?</div>
+                            <div class="chat-bubble sal">Just 1 — Sarah at 3pm. I've already sent her a rebooking message with a small discount. She replied and rebooked for Saturday! ✅</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="solution-arrow">→</div>
+
+                <div class="result-box">
+                    <h3>The Result</h3>
+                    <ul>
+                        <li><span>✓</span> Never miss a booking again</li>
+                        <li><span>✓</span> 30% fewer no-shows</li>
+                        <li><span>✓</span> More 5-star reviews</li>
+                        <li><span>✓</span> Clients come back automatically</li>
+                        <li><span>✓</span> Know your numbers instantly</li>
+                        <li><span>✓</span> Zero learning curve</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Agents -->
+    <section class="agents" id="agents">
+        <div class="container">
+            <div class="agents-header">
+                <div class="section-label reveal">Your AI Team</div>
+                <h2 class="reveal">10 Agents. <em>One Chat.</em></h2>
+            </div>
+
+            <div class="agents-grid">
+                <div class="agent-card reveal">
+                    <div class="agent-icon">🗓️</div>
+                    <div class="agent-name">Booking Agent</div>
+                    <div class="agent-job">Takes appointments 24/7</div>
+                    <p class="agent-desc">Clients text your salon WhatsApp. SAL checks availability, confirms booking, sends reminders. You never lift a finger.</p>
+                    <div class="agent-example">"Book me Saturday 3pm" → Done in 10 seconds</div>
+                </div>
+
+                <div class="agent-card reveal">
+                    <div class="agent-icon">📱</div>
+                    <div class="agent-name">Reminder Agent</div>
+                    <div class="agent-job">Eliminates no-shows</div>
+                    <p class="agent-desc">Sends smart reminders 24h and 2h before appointments. Clients can confirm, reschedule, or cancel with one tap.</p>
+                    <div class="agent-example">30% reduction in no-shows</div>
+                </div>
+
+                <div class="agent-card reveal">
+                    <div class="agent-icon">💬</div>
+                    <div class="agent-name">Follow-up Agent</div>
+                    <div class="agent-job">Brings clients back</div>
+                    <p class="agent-desc">Tracks when clients are due for their next visit. Sends personalized messages to get them back in your chair.</p>
+                    <div class="agent-example">"It's been 4 weeks! Ready for a fresh cut?"</div>
+                </div>
+
+                <div class="agent-card reveal">
+                    <div class="agent-icon">⭐</div>
+                    <div class="agent-name">Review Agent</div>
+                    <div class="agent-job">Protects your reputation</div>
+                    <p class="agent-desc">Asks happy clients for Google reviews. Catches unhappy ones privately before they complain publicly. Auto-replies to reviews.</p>
+                    <div class="agent-example">Happy → Google review. Unhappy → Private feedback.</div>
+                </div>
+
+                <div class="agent-card reveal">
+                    <div class="agent-icon">💰</div>
+                    <div class="agent-name">Money Agent</div>
+                    <div class="agent-job">Tracks your revenue</div>
+                    <p class="agent-desc">Ask "How was today?" and get instant revenue breakdown by service, staff, and time. Daily, weekly, monthly reports on demand.</p>
+                    <div class="agent-example">"Today: 2,350 AED — up 15% from yesterday"</div>
+                </div>
+
+                <div class="agent-card reveal">
+                    <div class="agent-icon">📊</div>
+                    <div class="agent-name">Insights Agent</div>
+                    <div class="agent-job">Spots patterns & trends</div>
+                    <p class="agent-desc">Tells you which days are slow, which services are trending, which staff perform best. Actionable insights every week.</p>
+                    <div class="agent-example">"Tuesdays are 40% empty. Try a discount."</div>
+                </div>
+
+                <div class="agent-card reveal">
+                    <div class="agent-icon">🛒</div>
+                    <div class="agent-name">Upsell Agent</div>
+                    <div class="agent-job">Increases ticket size</div>
+                    <p class="agent-desc">Suggests add-ons when clients book. Beard trim with haircut? Deep conditioning with color? More revenue, zero pressure.</p>
+                    <div class="agent-example">+30 AED average per booking</div>
+                </div>
+
+                <div class="agent-card reveal">
+                    <div class="agent-icon">📦</div>
+                    <div class="agent-name">Inventory Agent</div>
+                    <div class="agent-job">Never run out of supplies</div>
+                    <p class="agent-desc">Tracks product usage based on services done. Alerts you before you run low. Can even reorder automatically.</p>
+                    <div class="agent-example">"Low stock: 3 hair gels left. Reorder?"</div>
+                </div>
+
+                <div class="agent-card reveal">
+                    <div class="agent-icon">👨‍💼</div>
+                    <div class="agent-name">Staff Agent</div>
+                    <div class="agent-job">Manages your team</div>
+                    <p class="agent-desc">Handles time-off requests, tracks performance, monitors punctuality. Staff requests, you approve. Simple.</p>
+                    <div class="agent-example">"Ahmed wants Thursday off. Approve?"</div>
+                </div>
+
+                <div class="agent-card reveal">
+                    <div class="agent-icon">🎓</div>
+                    <div class="agent-name">Coach Agent</div>
+                    <div class="agent-job">Grows your business</div>
+                    <p class="agent-desc">Your personal business advisor. Sends weekly tips based on your data. Helps you make smarter decisions.</p>
+                    <div class="agent-example">"You're at 85% capacity. Time to hire?"</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison -->
+    <section class="comparison">
+        <div class="container">
+            <div class="comparison-header">
+                <div class="section-label reveal">Why SAL?</div>
+                <h2 class="reveal">Not Another Dashboard</h2>
+                <p class="comparison-sub reveal">SAL isn't competing with Fresha. It's replacing it.</p>
+            </div>
+
+            <table class="comparison-table reveal">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Fresha / Vagaro / Booksy</th>
+                        <th class="sal-col">SAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Interface</td>
+                        <td>Complex dashboard with 50+ buttons</td>
+                        <td class="sal-col">WhatsApp chat you already use</td>
+                    </tr>
+                    <tr>
+                        <td>Learning curve</td>
+                        <td>Hours of training needed</td>
+                        <td class="sal-col">Zero. Just chat naturally.</td>
+                    </tr>
+                    <tr>
+                        <td>Client booking</td>
+                        <td>Client uses app or website</td>
+                        <td class="sal-col">Client texts WhatsApp — AI handles it</td>
+                    </tr>
+                    <tr>
+                        <td>Reminders</td>
+                        <td><span class="check">✓</span> Basic automated</td>
+                        <td class="sal-col"><span class="check">✓</span> Smart + handles reschedules</td>
+                    </tr>
+                    <tr>
+                        <td>Follow-ups</td>
+                        <td><span class="cross">✗</span> Manual or none</td>
+                        <td class="sal-col"><span class="check">✓</span> Automatic win-back messages</td>
+                    </tr>
+                    <tr>
+                        <td>Review management</td>
+                        <td><span class="cross">✗</span> External tool needed</td>
+                        <td class="sal-col"><span class="check">✓</span> Built-in auto-reply to Google</td>
+                    </tr>
+                    <tr>
+                        <td>Revenue insights</td>
+                        <td>Check dashboard manually</td>
+                        <td class="sal-col">"How was today?" → Instant answer</td>
+                    </tr>
+                    <tr>
+                        <td>Business coaching</td>
+                        <td><span class="cross">✗</span> Not included</td>
+                        <td class="sal-col"><span class="check">✓</span> Weekly AI-powered tips</td>
+                    </tr>
+                    <tr>
+                        <td>Upselling</td>
+                        <td><span class="cross">✗</span> Not included</td>
+                        <td class="sal-col"><span class="check">✓</span> Automatic add-on suggestions</td>
+                    </tr>
+                    <tr>
+                        <td>Staff management</td>
+                        <td>Through dashboard</td>
+                        <td class="sal-col">Through chat + staff can self-serve</td>
+                    </tr>
+                    <tr>
+                        <td>Proactive alerts</td>
+                        <td><span class="cross">✗</span> You check, it doesn't tell</td>
+                        <td class="sal-col"><span class="check">✓</span> SAL tells you before problems</td>
+                    </tr>
+                    <tr>
+                        <td>Works at 2am</td>
+                        <td><span class="cross">✗</span> Client has to wait</td>
+                        <td class="sal-col"><span class="check">✓</span> AI never sleeps</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Benefits -->
+    <section class="benefits">
+        <div class="container">
+            <div class="benefits-header">
+                <div class="section-label reveal">The Impact</div>
+                <h2 class="reveal">What Salon Owners <em>Get</em></h2>
+            </div>
+
+            <div class="benefits-grid">
+                <div class="benefit-item reveal">
+                    <div class="benefit-number">30%</div>
+                    <div class="benefit-stat">Fewer No-Shows</div>
+                    <div class="benefit-desc">Smart reminders + easy rescheduling means clients show up</div>
+                </div>
+                <div class="benefit-item reveal">
+                    <div class="benefit-number">24/7</div>
+                    <div class="benefit-stat">Booking Availability</div>
+                    <div class="benefit-desc">Never miss a booking again — AI answers while you sleep</div>
+                </div>
+                <div class="benefit-item reveal">
+                    <div class="benefit-number">5×</div>
+                    <div class="benefit-stat">More Google Reviews</div>
+                    <div class="benefit-desc">Automatic review requests after every happy visit</div>
+                </div>
+                <div class="benefit-item reveal">
+                    <div class="benefit-number">15%</div>
+                    <div class="benefit-stat">Revenue Increase</div>
+                    <div class="benefit-desc">From upsells, follow-ups, and filling empty slots</div>
+                </div>
+                <div class="benefit-item reveal">
+                    <div class="benefit-number">0</div>
+                    <div class="benefit-stat">Hours Spent on Admin</div>
+                    <div class="benefit-desc">SAL handles the busywork — you focus on clients</div>
+                </div>
+                <div class="benefit-item reveal">
+                    <div class="benefit-number">1</div>
+                    <div class="benefit-stat">App to Manage Everything</div>
+                    <div class="benefit-desc">WhatsApp. That's it. Nothing new to learn.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta" id="waitlist">
+        <div class="container">
+            <h2 class="reveal">Ready to Run Your<br>Salon <em>Smarter?</em></h2>
+            <p class="reveal">Join the waitlist. Be first in Dubai to get SAL.</p>
+            
+            <form class="cta-form reveal" id="waitlistForm">
+                <input type="email" class="cta-input" placeholder="Enter your email" required>
+                <button type="submit" class="cta-button">Join the Waitlist</button>
+            </form>
+            <p class="cta-note reveal">No spam. We'll notify you when SAL launches.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-logo">SAL</div>
+            <div class="footer-links">
+                <a href="#agents">Features</a>
+                <a href="#waitlist">Join Waitlist</a>
+                <a href="mailto:hello@meetsal.ai">Contact</a>
+            </div>
+            <div class="footer-copy">© 2026 SAL. Dubai, UAE.</div>
+        </div>
+    </footer>
+
+    <script>
+        // Scroll reveal animation
+        const reveals = document.querySelectorAll('.reveal');
+        
+        const revealOnScroll = () => {
+            reveals.forEach(el => {
+                const windowHeight = window.innerHeight;
+                const elementTop = el.getBoundingClientRect().top;
+                const revealPoint = 100;
+                
+                if (elementTop < windowHeight - revealPoint) {
+                    el.classList.add('visible');
+                }
+            });
+        };
+
+        window.addEventListener('scroll', revealOnScroll);
+        window.addEventListener('load', revealOnScroll);
+
+        // Form submission
+        document.getElementById('waitlistForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = this.querySelector('input').value;
+            const button = this.querySelector('button');
+            
+            button.textContent = 'Joining...';
+            
+            // Simulate API call
+            setTimeout(() => {
+                button.textContent = 'You\'re on the list! ✓';
+                button.style.background = '#22c55e';
+                this.querySelector('input').value = '';
+                
+                setTimeout(() => {
+                    button.textContent = 'Join the Waitlist';
+                    button.style.background = '';
+                }, 3000);
+            }, 1000);
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
