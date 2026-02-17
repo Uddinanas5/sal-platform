@@ -1,0 +1,48 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Friendly Rounded Owl - Approachable & Cute -->
+  
+  <!-- Body (rounded blob) -->
+  <ellipse cx="100" cy="110" rx="55" ry="65" fill="url(#orangeGradient2)"/>
+  
+  <!-- Head (circle) -->
+  <circle cx="100" cy="70" r="45" fill="url(#orangeGradient2)"/>
+  
+  <!-- Eyes (large friendly circles) -->
+  <circle cx="85" cy="70" r="16" fill="white"/>
+  <circle cx="115" cy="70" r="16" fill="white"/>
+  <circle cx="85" cy="70" r="10" fill="#2D1B00"/>
+  <circle cx="115" cy="70" r="10" fill="#2D1B00"/>
+  <circle cx="88" cy="66" r="4" fill="white" opacity="0.9"/>
+  <circle cx="118" cy="66" r="4" fill="white" opacity="0.9"/>
+  
+  <!-- Beak (curved triangle) -->
+  <path d="M100 85 Q95 92 100 95 Q105 92 100 85" fill="#FF6B00"/>
+  
+  <!-- Ear tufts (rounded) -->
+  <ellipse cx="70" cy="45" rx="8" ry="20" fill="#FF8C42" transform="rotate(-25 70 45)"/>
+  <ellipse cx="130" cy="45" rx="8" ry="20" fill="#FF8C42" transform="rotate(25 130 45)"/>
+  
+  <!-- Wings (rounded shapes) -->
+  <ellipse cx="55" cy="115" rx="15" ry="30" fill="url(#orangeLight2)" opacity="0.8"/>
+  <ellipse cx="145" cy="115" rx="15" ry="30" fill="url(#orangeLight2)" opacity="0.8"/>
+  
+  <!-- Belly (lighter circle) -->
+  <ellipse cx="100" cy="125" rx="30" ry="35" fill="white" opacity="0.2"/>
+  
+  <!-- Feet (simple circles) -->
+  <circle cx="88" cy="170" r="8" fill="#FF6B00"/>
+  <circle cx="112" cy="170" r="8" fill="#FF6B00"/>
+  
+  <!-- Gradient Definitions -->
+  <defs>
+    <linearGradient id="orangeGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFA566;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FF8C42;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF6B00;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="orangeLight2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFB885;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFA566;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

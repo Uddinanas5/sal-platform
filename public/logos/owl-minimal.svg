@@ -1,0 +1,38 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Minimalist Geometric Owl - Clean & Modern -->
+  
+  <!-- Body (rounded triangle) -->
+  <path d="M100 40 L150 140 Q150 160 130 165 L70 165 Q50 160 50 140 Z" 
+        fill="url(#orangeGradient)" />
+  
+  <!-- Eyes (circles with white highlights) -->
+  <circle cx="75" cy="80" r="18" fill="#2D1B00" opacity="0.9"/>
+  <circle cx="125" cy="80" r="18" fill="#2D1B00" opacity="0.9"/>
+  <circle cx="78" cy="75" r="6" fill="white" opacity="0.8"/>
+  <circle cx="128" cy="75" r="6" fill="white" opacity="0.8"/>
+  
+  <!-- Beak (triangle) -->
+  <path d="M100 95 L90 105 L110 105 Z" fill="#FF6B00"/>
+  
+  <!-- Wings (geometric shapes) -->
+  <path d="M50 100 L35 120 L45 140 L55 130 Z" 
+        fill="url(#orangeLight)" opacity="0.85"/>
+  <path d="M150 100 L165 120 L155 140 L145 130 Z" 
+        fill="url(#orangeLight)" opacity="0.85"/>
+  
+  <!-- Ear tufts (triangles) -->
+  <path d="M65 40 L55 20 L75 35 Z" fill="#FF8C42"/>
+  <path d="M135 40 L145 20 L125 35 Z" fill="#FF8C42"/>
+  
+  <!-- Gradient Definitions -->
+  <defs>
+    <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8C42;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF6B00;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="orangeLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFA566;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF8C42;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

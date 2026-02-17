@@ -1,0 +1,47 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Professional Sleek Owl - Business & Premium -->
+  
+  <!-- Body (streamlined shape) -->
+  <path d="M100 30 C120 30 140 50 145 80 L145 140 C145 155 130 170 100 170 C70 170 55 155 55 140 L55 80 C60 50 80 30 100 30 Z" 
+        fill="url(#orangeGradient3)"/>
+  
+  <!-- Head accent (sharp geometric) -->
+  <path d="M70 55 L75 35 L80 55 Z" fill="#FF6B00" opacity="0.9"/>
+  <path d="M130 55 L125 35 L120 55 Z" fill="#FF6B00" opacity="0.9"/>
+  
+  <!-- Eyes (sharp almond shapes) -->
+  <ellipse cx="82" cy="75" rx="14" ry="18" fill="white"/>
+  <ellipse cx="118" cy="75" rx="14" ry="18" fill="white"/>
+  <ellipse cx="82" cy="75" rx="8" ry="12" fill="#2D1B00"/>
+  <ellipse cx="118" cy="75" rx="8" ry="12" fill="#2D1B00"/>
+  <circle cx="84" cy="70" r="3" fill="white" opacity="0.9"/>
+  <circle cx="120" cy="70" r="3" fill="white" opacity="0.9"/>
+  
+  <!-- Beak (sharp triangle) -->
+  <path d="M100 90 L92 100 L108 100 Z" fill="#E65A00"/>
+  
+  <!-- Wings (angular sleek) -->
+  <path d="M55 95 L40 110 L45 135 L58 125 Z" 
+        fill="url(#orangeDark3)" opacity="0.7"/>
+  <path d="M145 95 L160 110 L155 135 L142 125 Z" 
+        fill="url(#orangeDark3)" opacity="0.7"/>
+  
+  <!-- Chest accent (subtle highlight) -->
+  <ellipse cx="100" cy="120" rx="25" ry="40" fill="white" opacity="0.1"/>
+  
+  <!-- Bottom detail (sharp cut) -->
+  <path d="M75 165 L100 155 L125 165 L100 170 Z" fill="#E65A00" opacity="0.4"/>
+  
+  <!-- Gradient Definitions -->
+  <defs>
+    <linearGradient id="orangeGradient3" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8C42;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#FF6B00;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E65A00;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="orangeDark3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B00;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E65A00;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

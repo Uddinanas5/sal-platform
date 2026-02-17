@@ -1,0 +1,23 @@
+<svg width="250" height="80" viewBox="0 0 250 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- SAL Wordmark Only - Bold Geometric Typography -->
+  
+  <!-- S -->
+  <path d="M10 35 Q10 15 30 15 L60 15 Q80 15 80 35 Q80 48 67 52 Q80 56 80 70 Q80 90 60 90 L30 90 Q10 90 10 70 L10 64 L30 64 L30 70 Q30 73 34 73 L56 73 Q60 73 60 70 Q60 64 53 61 L40 61 Q20 61 20 43 Q20 37 24 35 L37 35 Q40 32 40 28 Q40 25 36 25 L30 25 Q26 25 26 28 L26 35 Z" 
+        fill="url(#wordGradient)"/>
+  
+  <!-- A -->
+  <path d="M110 90 L130 15 L150 15 L170 90 L150 90 L145 67 L135 67 L130 90 Z M138 50 L143 28 L148 50 Z" 
+        fill="url(#wordGradient)"/>
+  
+  <!-- L -->
+  <path d="M200 15 L220 15 L220 73 L250 73 L250 90 L200 90 Z" 
+        fill="url(#wordGradient)"/>
+  
+  <!-- Gradient Definition -->
+  <defs>
+    <linearGradient id="wordGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FF8C42;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF6B00;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>
