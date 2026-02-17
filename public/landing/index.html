@@ -92,6 +92,46 @@
             padding: 0 clamp(1.5rem, 5vw, 4rem);
         }
 
+        /* Icon styles */
+        .icon-wrap {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .icon-wrap svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--gold);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .agent-icon-wrap {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.05) 100%);
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .agent-icon-wrap svg {
+            width: 28px;
+            height: 28px;
+            stroke: var(--gold);
+            stroke-width: 1.5;
+            fill: none;
+        }
+
         /* Navigation */
         nav {
             position: fixed;
@@ -144,7 +184,7 @@
             background: var(--gold);
             color: var(--black);
             transform: translateY(-2px);
-            box-shadow: 0 10px 40px rgba(201, 162, 39, 0.3);
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.3);
         }
 
         /* Hero Section */
@@ -168,7 +208,7 @@
             transform: translateX(-50%);
             width: 150%;
             height: 150%;
-            background: radial-gradient(ellipse at center, rgba(201, 162, 39, 0.08) 0%, transparent 60%);
+            background: radial-gradient(ellipse at center, rgba(34, 197, 94, 0.08) 0%, transparent 60%);
             pointer-events: none;
         }
 
@@ -183,7 +223,7 @@
             text-transform: uppercase;
             color: var(--gold);
             padding: 0.75rem 1.5rem;
-            border: 1px solid rgba(201, 162, 39, 0.3);
+            border: 1px solid rgba(34, 197, 94, 0.3);
             margin-bottom: 2.5rem;
             opacity: 0;
             animation: fadeInUp 1s var(--ease-out-expo) 0.2s forwards;
@@ -251,10 +291,15 @@
 
         .hero-cta:hover {
             transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 20px 60px rgba(201, 162, 39, 0.4);
+            box-shadow: 0 20px 60px rgba(34, 197, 94, 0.4);
         }
 
         .hero-cta svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
             transition: transform 0.3s ease;
         }
 
@@ -369,13 +414,8 @@
 
         .problem-card:hover {
             background: rgba(255,255,255,0.04);
-            border-color: rgba(201, 162, 39, 0.2);
+            border-color: rgba(34, 197, 94, 0.2);
             transform: translateY(-5px);
-        }
-
-        .problem-card .icon {
-            font-size: 2.5rem;
-            margin-bottom: 1.5rem;
         }
 
         .problem-card h3 {
@@ -519,9 +559,16 @@
         }
 
         .solution-arrow {
-            font-size: 3rem;
             color: var(--gold);
             animation: bounceX 2s ease infinite;
+        }
+
+        .solution-arrow svg {
+            width: 48px;
+            height: 48px;
+            stroke: var(--gold);
+            stroke-width: 2;
+            fill: none;
         }
 
         @keyframes bounceX {
@@ -530,7 +577,7 @@
         }
 
         .result-box {
-            background: rgba(201, 162, 39, 0.1);
+            background: rgba(34, 197, 94, 0.1);
             border: 1px solid var(--gold-dark);
             padding: 3rem;
             max-width: 350px;
@@ -556,9 +603,14 @@
             font-size: 0.95rem;
         }
 
-        .result-box li span {
-            color: var(--gold);
-            font-size: 1.2rem;
+        .result-box li svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--gold);
+            stroke-width: 2;
+            fill: none;
+            flex-shrink: 0;
+            margin-top: 2px;
         }
 
         /* Agents Section */
@@ -631,11 +683,6 @@
 
         .agent-card:hover::before {
             transform: scaleX(1);
-        }
-
-        .agent-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1.5rem;
         }
 
         .agent-name {
@@ -723,7 +770,7 @@
         }
 
         .comparison-table th.sal-col {
-            background: linear-gradient(180deg, rgba(201, 162, 39, 0.2) 0%, rgba(201, 162, 39, 0.05) 100%);
+            background: linear-gradient(180deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.05) 100%);
             color: var(--gold);
         }
 
@@ -742,17 +789,38 @@
         }
 
         .comparison-table td.sal-col {
-            background: rgba(201, 162, 39, 0.05);
+            background: rgba(34, 197, 94, 0.05);
             color: var(--cream);
         }
 
         .check {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
             color: var(--gold);
-            font-weight: bold;
+        }
+
+        .check svg {
+            width: 18px;
+            height: 18px;
+            stroke: var(--gold);
+            stroke-width: 2;
+            fill: none;
         }
 
         .cross {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
             color: #666;
+        }
+
+        .cross svg {
+            width: 18px;
+            height: 18px;
+            stroke: #666;
+            stroke-width: 2;
+            fill: none;
         }
 
         /* Benefits Section */
@@ -826,7 +894,7 @@
             transform: translate(-50%, -50%);
             width: 800px;
             height: 800px;
-            background: radial-gradient(circle, rgba(201, 162, 39, 0.15) 0%, transparent 60%);
+            background: radial-gradient(circle, rgba(34, 197, 94, 0.15) 0%, transparent 60%);
             pointer-events: none;
         }
 
@@ -881,7 +949,7 @@
         .cta-input:focus {
             outline: none;
             border-color: var(--gold);
-            background: rgba(201, 162, 39, 0.05);
+            background: rgba(34, 197, 94, 0.05);
         }
 
         .cta-button {
@@ -901,7 +969,7 @@
 
         .cta-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 20px 60px rgba(201, 162, 39, 0.4);
+            box-shadow: 0 20px 60px rgba(34, 197, 94, 0.4);
         }
 
         .cta-note {
@@ -1014,9 +1082,7 @@
         <p class="hero-sub">10 AI agents that run your salon through WhatsApp. No dashboards. No complexity. Just results.</p>
         <a href="#waitlist" class="hero-cta">
             Join the Waitlist
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
         <div class="hero-scroll">
             <span>Scroll</span>
@@ -1031,22 +1097,30 @@
             <h2 class="reveal">You're a salon owner, not a software expert. Why does running your business feel like a second job?</h2>
             <div class="problem-grid">
                 <div class="problem-card reveal">
-                    <div class="icon">📞</div>
+                    <div class="icon-wrap">
+                        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><line x1="23" y1="1" x2="17" y2="7"/><line x1="17" y1="1" x2="23" y2="7"/></svg>
+                    </div>
                     <h3>Missed Calls = Missed Money</h3>
                     <p>You're cutting hair. The phone rings. You can't answer. That client books somewhere else. Gone forever.</p>
                 </div>
                 <div class="problem-card reveal">
-                    <div class="icon">😴</div>
+                    <div class="icon-wrap">
+                        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="12" y1="2" x2="12" y2="2"/></svg>
+                    </div>
                     <h3>No-Shows Killing Your Revenue</h3>
                     <p>20% of clients don't show up. You blocked time, prepared space, and got nothing. Every week.</p>
                 </div>
                 <div class="problem-card reveal">
-                    <div class="icon">📊</div>
+                    <div class="icon-wrap">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                    </div>
                     <h3>Complex Dashboards You Never Open</h3>
                     <p>You paid for Fresha. Or Vagaro. Or Booksy. The dashboard has 50 buttons. You use 3.</p>
                 </div>
                 <div class="problem-card reveal">
-                    <div class="icon">🧠</div>
+                    <div class="icon-wrap">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </div>
                     <h3>No Time to Think About Growth</h3>
                     <p>Marketing? Reviews? Client retention? You know you should. But when? You're exhausted.</p>
                 </div>
@@ -1072,24 +1146,26 @@
                         </div>
                         <div class="phone-chat">
                             <div class="chat-bubble user">How was today?</div>
-                            <div class="chat-bubble sal">💰 Today: 2,350 AED<br><br>📊 12 clients served<br>👨‍💼 Top earner: Ahmed<br>📈 +15% vs yesterday<br><br>⭐ You got 2 new 5-star reviews!</div>
+                            <div class="chat-bubble sal">Today: 2,350 AED<br><br>12 clients served<br>Top earner: Ahmed<br>+15% vs yesterday<br><br>You got 2 new 5-star reviews!</div>
                             <div class="chat-bubble user">Any no-shows?</div>
-                            <div class="chat-bubble sal">Just 1 — Sarah at 3pm. I've already sent her a rebooking message with a small discount. She replied and rebooked for Saturday! ✅</div>
+                            <div class="chat-bubble sal">Just 1 — Sarah at 3pm. I've already sent her a rebooking message with a small discount. She replied and rebooked for Saturday!</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="solution-arrow">→</div>
+                <div class="solution-arrow">
+                    <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
 
                 <div class="result-box">
                     <h3>The Result</h3>
                     <ul>
-                        <li><span>✓</span> Never miss a booking again</li>
-                        <li><span>✓</span> 30% fewer no-shows</li>
-                        <li><span>✓</span> More 5-star reviews</li>
-                        <li><span>✓</span> Clients come back automatically</li>
-                        <li><span>✓</span> Know your numbers instantly</li>
-                        <li><span>✓</span> Zero learning curve</li>
+                        <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Never miss a booking again</li>
+                        <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> 30% fewer no-shows</li>
+                        <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> More 5-star reviews</li>
+                        <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Clients come back automatically</li>
+                        <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Know your numbers instantly</li>
+                        <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Zero learning curve</li>
                     </ul>
                 </div>
             </div>
@@ -1106,7 +1182,9 @@
 
             <div class="agents-grid">
                 <div class="agent-card reveal">
-                    <div class="agent-icon">🗓️</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+                    </div>
                     <div class="agent-name">Booking Agent</div>
                     <div class="agent-job">Takes appointments 24/7</div>
                     <p class="agent-desc">Clients text your salon WhatsApp. SAL checks availability, confirms booking, sends reminders. You never lift a finger.</p>
@@ -1114,7 +1192,9 @@
                 </div>
 
                 <div class="agent-card reveal">
-                    <div class="agent-icon">📱</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    </div>
                     <div class="agent-name">Reminder Agent</div>
                     <div class="agent-job">Eliminates no-shows</div>
                     <p class="agent-desc">Sends smart reminders 24h and 2h before appointments. Clients can confirm, reschedule, or cancel with one tap.</p>
@@ -1122,7 +1202,9 @@
                 </div>
 
                 <div class="agent-card reveal">
-                    <div class="agent-icon">💬</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
                     <div class="agent-name">Follow-up Agent</div>
                     <div class="agent-job">Brings clients back</div>
                     <p class="agent-desc">Tracks when clients are due for their next visit. Sends personalized messages to get them back in your chair.</p>
@@ -1130,7 +1212,9 @@
                 </div>
 
                 <div class="agent-card reveal">
-                    <div class="agent-icon">⭐</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
                     <div class="agent-name">Review Agent</div>
                     <div class="agent-job">Protects your reputation</div>
                     <p class="agent-desc">Asks happy clients for Google reviews. Catches unhappy ones privately before they complain publicly. Auto-replies to reviews.</p>
@@ -1138,7 +1222,9 @@
                 </div>
 
                 <div class="agent-card reveal">
-                    <div class="agent-icon">💰</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
                     <div class="agent-name">Money Agent</div>
                     <div class="agent-job">Tracks your revenue</div>
                     <p class="agent-desc">Ask "How was today?" and get instant revenue breakdown by service, staff, and time. Daily, weekly, monthly reports on demand.</p>
@@ -1146,7 +1232,9 @@
                 </div>
 
                 <div class="agent-card reveal">
-                    <div class="agent-icon">📊</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    </div>
                     <div class="agent-name">Insights Agent</div>
                     <div class="agent-job">Spots patterns & trends</div>
                     <p class="agent-desc">Tells you which days are slow, which services are trending, which staff perform best. Actionable insights every week.</p>
@@ -1154,7 +1242,9 @@
                 </div>
 
                 <div class="agent-card reveal">
-                    <div class="agent-icon">🛒</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                    </div>
                     <div class="agent-name">Upsell Agent</div>
                     <div class="agent-job">Increases ticket size</div>
                     <p class="agent-desc">Suggests add-ons when clients book. Beard trim with haircut? Deep conditioning with color? More revenue, zero pressure.</p>
@@ -1162,7 +1252,9 @@
                 </div>
 
                 <div class="agent-card reveal">
-                    <div class="agent-icon">📦</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    </div>
                     <div class="agent-name">Inventory Agent</div>
                     <div class="agent-job">Never run out of supplies</div>
                     <p class="agent-desc">Tracks product usage based on services done. Alerts you before you run low. Can even reorder automatically.</p>
@@ -1170,7 +1262,9 @@
                 </div>
 
                 <div class="agent-card reveal">
-                    <div class="agent-icon">👨‍💼</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
                     <div class="agent-name">Staff Agent</div>
                     <div class="agent-job">Manages your team</div>
                     <p class="agent-desc">Handles time-off requests, tracks performance, monitors punctuality. Staff requests, you approve. Simple.</p>
@@ -1178,7 +1272,9 @@
                 </div>
 
                 <div class="agent-card reveal">
-                    <div class="agent-icon">🎓</div>
+                    <div class="agent-icon-wrap">
+                        <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    </div>
                     <div class="agent-name">Coach Agent</div>
                     <div class="agent-job">Grows your business</div>
                     <p class="agent-desc">Your personal business advisor. Sends weekly tips based on your data. Helps you make smarter decisions.</p>
@@ -1223,18 +1319,18 @@
                     </tr>
                     <tr>
                         <td>Reminders</td>
-                        <td><span class="check">✓</span> Basic automated</td>
-                        <td class="sal-col"><span class="check">✓</span> Smart + handles reschedules</td>
+                        <td><span class="check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span> Basic automated</td>
+                        <td class="sal-col"><span class="check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span> Smart + handles reschedules</td>
                     </tr>
                     <tr>
                         <td>Follow-ups</td>
-                        <td><span class="cross">✗</span> Manual or none</td>
-                        <td class="sal-col"><span class="check">✓</span> Automatic win-back messages</td>
+                        <td><span class="cross"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span> Manual or none</td>
+                        <td class="sal-col"><span class="check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span> Automatic win-back messages</td>
                     </tr>
                     <tr>
                         <td>Review management</td>
-                        <td><span class="cross">✗</span> External tool needed</td>
-                        <td class="sal-col"><span class="check">✓</span> Built-in auto-reply to Google</td>
+                        <td><span class="cross"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span> External tool needed</td>
+                        <td class="sal-col"><span class="check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span> Built-in auto-reply to Google</td>
                     </tr>
                     <tr>
                         <td>Revenue insights</td>
@@ -1243,13 +1339,13 @@
                     </tr>
                     <tr>
                         <td>Business coaching</td>
-                        <td><span class="cross">✗</span> Not included</td>
-                        <td class="sal-col"><span class="check">✓</span> Weekly AI-powered tips</td>
+                        <td><span class="cross"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span> Not included</td>
+                        <td class="sal-col"><span class="check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span> Weekly AI-powered tips</td>
                     </tr>
                     <tr>
                         <td>Upselling</td>
-                        <td><span class="cross">✗</span> Not included</td>
-                        <td class="sal-col"><span class="check">✓</span> Automatic add-on suggestions</td>
+                        <td><span class="cross"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span> Not included</td>
+                        <td class="sal-col"><span class="check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span> Automatic add-on suggestions</td>
                     </tr>
                     <tr>
                         <td>Staff management</td>
@@ -1258,13 +1354,13 @@
                     </tr>
                     <tr>
                         <td>Proactive alerts</td>
-                        <td><span class="cross">✗</span> You check, it doesn't tell</td>
-                        <td class="sal-col"><span class="check">✓</span> SAL tells you before problems</td>
+                        <td><span class="cross"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span> You check, it doesn't tell</td>
+                        <td class="sal-col"><span class="check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span> SAL tells you before problems</td>
                     </tr>
                     <tr>
                         <td>Works at 2am</td>
-                        <td><span class="cross">✗</span> Client has to wait</td>
-                        <td class="sal-col"><span class="check">✓</span> AI never sleeps</td>
+                        <td><span class="cross"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span> Client has to wait</td>
+                        <td class="sal-col"><span class="check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span> AI never sleeps</td>
                     </tr>
                 </tbody>
             </table>
@@ -1370,7 +1466,7 @@
             
             // Simulate API call
             setTimeout(() => {
-                button.textContent = 'You\'re on the list! ✓';
+                button.textContent = 'You\'re on the list!';
                 button.style.background = '#22c55e';
                 this.querySelector('input').value = '';
                 
