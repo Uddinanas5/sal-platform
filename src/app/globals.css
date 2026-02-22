@@ -121,3 +121,30 @@
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Mobile touch target improvements */
+@media (max-width: 768px) {
+  /* Ensure minimum touch target size */
+  button,
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Make navigation links more tappable */
+  nav a,
+  nav button {
+    padding: 12px 16px;
+  }
+  
+  /* Larger form inputs on mobile */
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+}
