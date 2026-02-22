@@ -291,6 +291,9 @@ model Business {
   subscriptionTier   SubscriptionTier   @default(free) @map("subscription_tier")
   subscriptionStatus SubscriptionStatus @default(active) @map("subscription_status")
   trialEndsAt        DateTime?          @map("trial_ends_at") @db.Timestamptz
+  stripeAccountId    String?            @map("stripe_account_id") @db.VarChar(255)
+  stripeAccountStatus String?           @map("stripe_account_status") @db.VarChar(50)
+  stripeOnboardedAt  DateTime?          @map("stripe_onboarded_at") @db.Timestamptz
   settings           Json               @default("{}")
   createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz
