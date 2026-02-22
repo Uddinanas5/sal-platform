@@ -147,7 +147,7 @@ export function CalendarHeader({
               <Calendar
                 mode="single"
                 selected={currentDate}
-                onSelect={(date) => {
+                onSelect={(date: Date | undefined) => {
                   if (date) {
                     onDateChange(date)
                     setMiniCalOpen(false)

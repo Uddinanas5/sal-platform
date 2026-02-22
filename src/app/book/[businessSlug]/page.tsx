@@ -27,7 +27,7 @@ export default async function PublicBookingPage({
     orderBy: { sortOrder: "asc" },
   })
 
-  const services = dbServices.map((s) => ({
+  const services = dbServices.map((s: typeof dbServices[number]) => ({
     id: s.id,
     name: s.name,
     description: s.description || "",
@@ -59,7 +59,7 @@ export default async function PublicBookingPage({
     phone: s.user.phone || "",
     avatar: s.user.avatarUrl || undefined,
     role: s.user.role === "admin" ? "admin" as const : s.user.role === "owner" ? "admin" as const : "staff" as const,
-    services: s.staffServices.map((ss) => ss.serviceId),
+    services: s.staffServices.map((ss: typeof s.staffServices[number]) => ss.serviceId),
     workingHours: {} as Record<string, { start: string; end: string } | null>,
     color: s.color || "#059669",
     isActive: s.isActive,

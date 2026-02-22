@@ -130,7 +130,7 @@ export function CalendarSettingsPopover({
             </div>
             <Slider
               value={[zoom * 100]}
-              onValueChange={([val]) => onZoomChange(val / 100)}
+              onValueChange={([val]: number[]) => onZoomChange(val / 100)}
               min={50}
               max={150}
               step={10}
