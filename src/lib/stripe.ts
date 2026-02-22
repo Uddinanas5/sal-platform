@@ -193,6 +193,62 @@ export async function createRefund({
   }
 }
 
+// Create a Stripe Connect account for a business
+export async function createConnectAccount(
+  businessId: string,
+  email: string,
+  businessName: string,
+  country: string = 'US'
+) {
+  try {
+    // Create a Stripe Connect Express account
+    const account = await stripe.accounts.create({
+      type: 'express',
+      country,
+      email,
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      business_type: 'individual',
+      business_profile: {
+        name: businessName,
+        mcc: '7230', // Barber and beauty shops
+      },
+      metadata: {
+        businessId,
+      },
+    })
+
+    // Create account link for onboarding
+    const accountLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=payments&stripe_refresh=true`,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=payments&stripe_return=true`,
+      type: 'account_onboarding',
+    })
+
+    return {
+      accountId: account.id,
+      onboardingUrl: accountLink.url,
+    }
+  } catch (error) {
+    console.error('Stripe Connect account creation error:', error)
+    return null
+  }
+}
+
+// Create a login link for Stripe dashboard
+export async function createDashboardLink(accountId: string) {
+  try {
+    const loginLink = await stripe.accounts.createLoginLink(accountId)
+    return loginLink.url
+  } catch (error) {
+    console.error('Stripe dashboard link error:', error)
+    return null
+  }
+}
+
 // Verify webhook signature
 export function verifyWebhookSignature(
   payload: string | Buffer,
