@@ -17,7 +17,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "SAL - AI Operations Partner",
+  title: "SAL - The All-in-One Platform for Salons & Spas",
   description: "The all-in-one platform for salons & spas. Manage appointments, clients, staff, and payments — all in one beautiful dashboard. Free to get started.",
   keywords: ["salon software", "spa management", "booking system", "appointment scheduling", "salon POS", "beauty business"],
   authors: [{ name: "SAL Platform" }],
