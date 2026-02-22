@@ -24,6 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { StripeConnectSection } from "./stripe-connect-section"
+
+interface PaymentsSettingsTabProps {
+  businessId?: string
+  businessName?: string
+  businessEmail?: string
+  stripeAccountId?: string | null
+  stripeAccountStatus?: string | null
+}
 
 function SettingRow({
   label,
@@ -47,7 +56,13 @@ function SettingRow({
   )
 }
 
-export function PaymentsSettingsTab() {
+export function PaymentsSettingsTab({
+  businessId = "",
+  businessName = "Your Business",
+  businessEmail = "",
+  stripeAccountId = null,
+  stripeAccountStatus = null,
+}: PaymentsSettingsTabProps = {}) {
   const [paymentMethods, setPaymentMethods] = useState({
     cash: true,
     card: true,
@@ -73,6 +88,17 @@ export function PaymentsSettingsTab() {
 
   return (
     <div className="grid gap-6 max-w-4xl">
+      {/* Stripe Connect */}
+      {businessId && (
+        <StripeConnectSection
+          businessId={businessId}
+          businessName={businessName}
+          businessEmail={businessEmail}
+          stripeAccountId={stripeAccountId}
+          stripeAccountStatus={stripeAccountStatus}
+        />
+      )}
+
       {/* Payment Methods */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
