@@ -103,6 +103,7 @@ export async function processPayment(data: {
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
     }
+    console.error("processPayment error:", e)
     return { success: false, error: msg }
   }
 }

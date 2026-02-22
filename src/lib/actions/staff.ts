@@ -1,16 +1,52 @@
 "use server"
 
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
+const updateStaffScheduleSchema = z.object({
+  staffId: z.string().uuid(),
+  schedule: z.array(z.object({
+    dayOfWeek: z.number().int().min(0).max(6),
+    startTime: z.string(),
+    endTime: z.string(),
+    isWorking: z.boolean(),
+  })),
+})
+
+const requestTimeOffSchema = z.object({
+  staffId: z.string().uuid(),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  type: z.enum(["vacation", "sick", "personal", "other"]),
+  notes: z.string().optional(),
+})
+
+const createStaffSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().optional(),
+  role: z.string().min(1),
+  serviceIds: z.array(z.string().uuid()).optional(),
+})
+
+const deleteStaffSchema = z.object({
+  id: z.string().uuid(),
+})
+
 export async function updateStaffSchedule(
   staffId: string,
   schedule: { dayOfWeek: number; startTime: string; endTime: string; isWorking: boolean }[]
 ): Promise<ActionResult> {
   try {
+    const parsed = updateStaffScheduleSchema.parse({ staffId, schedule })
+    staffId = parsed.staffId
+    schedule = parsed.schedule
+
     const { businessId } = await getBusinessContext()
 
     const staff = await prisma.staff.findFirst({
@@ -41,6 +77,8 @@ export async function updateStaffSchedule(
     revalidatePath("/calendar")
     return { success: true, data: undefined }
   } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    console.error("updateStaffSchedule error:", e)
     return { success: false, error: (e as Error).message }
   }
 }
@@ -53,20 +91,24 @@ export async function requestTimeOff(data: {
   notes?: string
 }): Promise<ActionResult> {
   try {
+    const parsed = requestTimeOffSchema.parse(data)
+
     await prisma.staffTimeOff.create({
       data: {
-        staffId: data.staffId,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
-        type: data.type,
+        staffId: parsed.staffId,
+        startDate: new Date(parsed.startDate),
+        endDate: new Date(parsed.endDate),
+        type: parsed.type,
         status: "pending",
-        notes: data.notes,
+        notes: parsed.notes,
       },
     })
 
-    revalidatePath(`/staff/${data.staffId}`)
+    revalidatePath(`/staff/${parsed.staffId}`)
     return { success: true, data: undefined }
   } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    console.error("requestTimeOff error:", e)
     return { success: false, error: (e as Error).message }
   }
 }
@@ -80,20 +122,22 @@ export async function createStaff(data: {
   serviceIds?: string[]
 }): Promise<ActionResult<{ id: string }>> {
   try {
+    const parsed = createStaffSchema.parse(data)
+
     const { businessId } = await getBusinessContext()
 
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!location) return { success: false, error: "Business not configured" }
 
-    const existingUser = await prisma.user.findUnique({ where: { email: data.email } })
+    const existingUser = await prisma.user.findUnique({ where: { email: parsed.email } })
     if (existingUser) return { success: false, error: "A user with this email already exists" }
 
     const user = await prisma.user.create({
       data: {
-        email: data.email,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phone: data.phone,
+        email: parsed.email,
+        firstName: parsed.firstName,
+        lastName: parsed.lastName,
+        phone: parsed.phone,
         role: "staff",
       },
     })
@@ -102,13 +146,13 @@ export async function createStaff(data: {
       data: {
         userId: user.id,
         locationId: location.id,
-        title: data.role,
+        title: parsed.role,
         isActive: true,
       },
     })
 
-    if (data.serviceIds?.length) {
-      for (const serviceId of data.serviceIds) {
+    if (parsed.serviceIds?.length) {
+      for (const serviceId of parsed.serviceIds) {
         await prisma.staffService.create({
           data: { staffId: staff.id, serviceId },
         })
@@ -119,16 +163,21 @@ export async function createStaff(data: {
     revalidatePath("/calendar")
     return { success: true, data: { id: staff.id } }
   } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     const msg = (e as Error).message
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
     }
+    console.error("createStaff error:", e)
     return { success: false, error: msg }
   }
 }
 
 export async function deleteStaff(id: string): Promise<ActionResult> {
   try {
+    const parsed = deleteStaffSchema.parse({ id })
+    id = parsed.id
+
     const { businessId } = await getBusinessContext()
 
     // Verify staff belongs to this business before updating
@@ -145,6 +194,8 @@ export async function deleteStaff(id: string): Promise<ActionResult> {
     revalidatePath("/calendar")
     return { success: true, data: undefined }
   } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    console.error("deleteStaff error:", e)
     return { success: false, error: (e as Error).message }
   }
 }

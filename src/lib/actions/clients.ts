@@ -72,6 +72,7 @@ export async function createClient(data: {
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
     }
+    console.error("createClient error:", e)
     return { success: false, error: msg }
   }
 }
@@ -116,6 +117,7 @@ export async function updateClient(
     revalidatePath(`/clients/${id}`)
     return { success: true, data: undefined }
   } catch (e) {
+    console.error("updateClient error:", e)
     return { success: false, error: (e as Error).message }
   }
 }
@@ -132,6 +134,7 @@ export async function deleteClient(id: string): Promise<ActionResult> {
     revalidatePath("/clients")
     return { success: true, data: undefined }
   } catch (e) {
+    console.error("deleteClient error:", e)
     return { success: false, error: (e as Error).message }
   }
 }

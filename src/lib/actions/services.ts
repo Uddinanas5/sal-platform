@@ -65,6 +65,7 @@ export async function createService(data: {
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
     }
+    console.error("createService error:", e)
     return { success: false, error: msg }
   }
 }
@@ -108,6 +109,7 @@ export async function updateService(
     revalidatePath("/services")
     return { success: true, data: undefined }
   } catch (e) {
+    console.error("updateService error:", e)
     return { success: false, error: (e as Error).message }
   }
 }
@@ -127,6 +129,7 @@ export async function toggleServiceActive(id: string): Promise<ActionResult> {
     revalidatePath("/services")
     return { success: true, data: undefined }
   } catch (e) {
+    console.error("toggleServiceActive error:", e)
     return { success: false, error: (e as Error).message }
   }
 }
@@ -142,6 +145,7 @@ export async function deleteService(id: string): Promise<ActionResult> {
     revalidatePath("/services")
     return { success: true, data: undefined }
   } catch (e) {
+    console.error("deleteService error:", e)
     return { success: false, error: (e as Error).message }
   }
 }

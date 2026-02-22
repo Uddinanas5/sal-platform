@@ -1,11 +1,33 @@
 "use server"
 
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { addWeeks, addMonths } from "date-fns"
 import { getBusinessContext } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
+
+const idSchema = z.string().uuid("Invalid ID")
+
+const createRecurringSchema = z.object({
+  clientId: z.string().uuid(),
+  serviceId: z.string().uuid(),
+  staffId: z.string().uuid(),
+  startTime: z.string().min(1, "Start time is required"),
+  notes: z.string().optional(),
+  recurrenceRule: z.enum(["weekly", "biweekly", "monthly"]),
+  recurrenceEndDate: z.string().min(1, "End date is required"),
+})
+
+const createGroupBookingSchema = z.object({
+  serviceId: z.string().uuid(),
+  staffId: z.string().uuid(),
+  startTime: z.string().min(1, "Start time is required"),
+  maxParticipants: z.number().int().positive(),
+  clientIds: z.array(z.string().uuid()).min(1, "At least one participant required"),
+  notes: z.string().optional(),
+})
 
 export async function createRecurringAppointment(data: {
   clientId: string
@@ -17,25 +39,27 @@ export async function createRecurringAppointment(data: {
   recurrenceEndDate: string
 }): Promise<ActionResult<{ ids: string[]; count: number }>> {
   try {
+    const parsed = createRecurringSchema.parse(data)
     const { businessId } = await getBusinessContext()
 
-    const service = await prisma.service.findUnique({ where: { id: data.serviceId } })
+    const service = await prisma.service.findUnique({ where: { id: parsed.serviceId } })
     if (!service) return { success: false, error: "Service not found" }
 
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!location) return { success: false, error: "Business not configured" }
 
-    const baseStart = new Date(data.startTime)
-    const endDate = new Date(data.recurrenceEndDate)
+    const baseStart = new Date(parsed.startTime)
+    const endDate = new Date(parsed.recurrenceEndDate)
     const price = Number(service.price)
-    const tax = Math.round(price * 0.08875 * 100) / 100
+    const taxRate = service.isTaxable && service.taxRate ? Number(service.taxRate) / 100 : 0
+    const tax = Math.round(price * taxRate * 100) / 100
     const seriesId = crypto.randomUUID()
 
     // Generate all occurrence dates
     const dates: Date[] = [baseStart]
     let next = baseStart
     while (true) {
-      switch (data.recurrenceRule) {
+      switch (parsed.recurrenceRule) {
         case "weekly":
           next = addWeeks(next, 1)
           break
@@ -66,7 +90,7 @@ export async function createRecurringAppointment(data: {
         data: {
           businessId,
           locationId: location.id,
-          clientId: data.clientId,
+          clientId: parsed.clientId,
           bookingReference: bookingRef,
           status: "confirmed",
           source: "pos",
@@ -76,8 +100,8 @@ export async function createRecurringAppointment(data: {
           subtotal: price,
           taxAmount: tax,
           totalAmount: price + tax,
-          notes: data.notes,
-          recurrenceRule: data.recurrenceRule,
+          notes: parsed.notes,
+          recurrenceRule: parsed.recurrenceRule,
           recurrenceEndDate: endDate,
           seriesId,
           parentAppointmentId: parentId,
@@ -89,8 +113,8 @@ export async function createRecurringAppointment(data: {
       await prisma.appointmentService.create({
         data: {
           appointmentId: appointment.id,
-          serviceId: data.serviceId,
-          staffId: data.staffId,
+          serviceId: parsed.serviceId,
+          staffId: parsed.staffId,
           name: service.name,
           durationMinutes: service.durationMinutes,
           price,
@@ -107,10 +131,14 @@ export async function createRecurringAppointment(data: {
     revalidatePath("/dashboard")
     return { success: true, data: { ids, count: ids.length } }
   } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
     const msg = (e as Error).message
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
     }
+    console.error("createRecurringAppointment error:", e)
     return { success: false, error: msg }
   }
 }
@@ -120,18 +148,19 @@ export async function cancelRecurringSeries(
   cancelFrom?: string
 ): Promise<ActionResult<{ count: number }>> {
   try {
+    const parsedSeriesId = idSchema.parse(seriesId)
     const { businessId } = await getBusinessContext()
 
     // Verify the series belongs to this business
     const seriesAppointment = await prisma.appointment.findFirst({
-      where: { seriesId, businessId },
+      where: { seriesId: parsedSeriesId, businessId },
     })
     if (!seriesAppointment) {
       return { success: false, error: "Series not found" }
     }
 
     const where: Record<string, unknown> = {
-      seriesId,
+      seriesId: parsedSeriesId,
       businessId,
       status: { notIn: ["completed", "cancelled"] },
     }
@@ -152,6 +181,10 @@ export async function cancelRecurringSeries(
     revalidatePath("/calendar")
     return { success: true, data: { count: result.count } }
   } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
+    console.error("cancelRecurringSeries error:", e)
     return { success: false, error: (e as Error).message }
   }
 }
@@ -165,27 +198,27 @@ export async function createGroupBooking(data: {
   notes?: string
 }): Promise<ActionResult<{ id: string; participantCount: number }>> {
   try {
-    if (data.clientIds.length === 0) {
-      return { success: false, error: "At least one participant required" }
-    }
-    if (data.clientIds.length > data.maxParticipants) {
+    const parsed = createGroupBookingSchema.parse(data)
+
+    if (parsed.clientIds.length > parsed.maxParticipants) {
       return { success: false, error: "Too many participants" }
     }
 
     const { businessId } = await getBusinessContext()
 
-    const service = await prisma.service.findUnique({ where: { id: data.serviceId } })
+    const service = await prisma.service.findUnique({ where: { id: parsed.serviceId } })
     if (!service) return { success: false, error: "Service not found" }
 
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!location) return { success: false, error: "Business not configured" }
 
-    const startTime = new Date(data.startTime)
+    const startTime = new Date(parsed.startTime)
     const endTime = new Date(startTime)
     endTime.setMinutes(endTime.getMinutes() + service.durationMinutes)
 
     const price = Number(service.price)
-    const tax = Math.round(price * 0.08875 * 100) / 100
+    const taxRate = service.isTaxable && service.taxRate ? Number(service.taxRate) / 100 : 0
+    const tax = Math.round(price * taxRate * 100) / 100
     const count = await prisma.appointment.count({ where: { businessId } })
     const bookingRef = `SAL-${String(count + 1).padStart(4, "0")}`
 
@@ -194,19 +227,19 @@ export async function createGroupBooking(data: {
       data: {
         businessId,
         locationId: location.id,
-        clientId: data.clientIds[0],
+        clientId: parsed.clientIds[0],
         bookingReference: bookingRef,
         status: "confirmed",
         source: "pos",
         startTime,
         endTime,
         totalDuration: service.durationMinutes,
-        subtotal: price * data.clientIds.length,
-        taxAmount: tax * data.clientIds.length,
-        totalAmount: (price + tax) * data.clientIds.length,
-        notes: data.notes,
+        subtotal: price * parsed.clientIds.length,
+        taxAmount: tax * parsed.clientIds.length,
+        totalAmount: (price + tax) * parsed.clientIds.length,
+        notes: parsed.notes,
         isGroupBooking: true,
-        maxParticipants: data.maxParticipants,
+        maxParticipants: parsed.maxParticipants,
       },
     })
 
@@ -214,8 +247,8 @@ export async function createGroupBooking(data: {
     await prisma.appointmentService.create({
       data: {
         appointmentId: appointment.id,
-        serviceId: data.serviceId,
-        staffId: data.staffId,
+        serviceId: parsed.serviceId,
+        staffId: parsed.staffId,
         name: service.name,
         durationMinutes: service.durationMinutes,
         price,
@@ -226,7 +259,7 @@ export async function createGroupBooking(data: {
     })
 
     // Add all participants
-    for (const clientId of data.clientIds) {
+    for (const clientId of parsed.clientIds) {
       await prisma.groupParticipant.create({
         data: {
           appointmentId: appointment.id,
@@ -237,12 +270,16 @@ export async function createGroupBooking(data: {
 
     revalidatePath("/calendar")
     revalidatePath("/dashboard")
-    return { success: true, data: { id: appointment.id, participantCount: data.clientIds.length } }
+    return { success: true, data: { id: appointment.id, participantCount: parsed.clientIds.length } }
   } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
     const msg = (e as Error).message
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
     }
+    console.error("createGroupBooking error:", e)
     return { success: false, error: msg }
   }
 }
@@ -252,8 +289,11 @@ export async function addGroupParticipant(
   clientId: string
 ): Promise<ActionResult> {
   try {
+    const parsedAppointmentId = idSchema.parse(appointmentId)
+    const parsedClientId = idSchema.parse(clientId)
+
     const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+      where: { id: parsedAppointmentId },
       include: { groupParticipants: true },
     })
 
@@ -264,12 +304,16 @@ export async function addGroupParticipant(
     }
 
     await prisma.groupParticipant.create({
-      data: { appointmentId, clientId },
+      data: { appointmentId: parsedAppointmentId, clientId: parsedClientId },
     })
 
     revalidatePath("/calendar")
     return { success: true, data: undefined }
   } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
+    console.error("addGroupParticipant error:", e)
     return { success: false, error: (e as Error).message }
   }
 }
@@ -279,13 +323,20 @@ export async function removeGroupParticipant(
   clientId: string
 ): Promise<ActionResult> {
   try {
+    const parsedAppointmentId = idSchema.parse(appointmentId)
+    const parsedClientId = idSchema.parse(clientId)
+
     await prisma.groupParticipant.delete({
-      where: { appointmentId_clientId: { appointmentId, clientId } },
+      where: { appointmentId_clientId: { appointmentId: parsedAppointmentId, clientId: parsedClientId } },
     })
 
     revalidatePath("/calendar")
     return { success: true, data: undefined }
   } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
+    console.error("removeGroupParticipant error:", e)
     return { success: false, error: (e as Error).message }
   }
 }

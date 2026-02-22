@@ -1,8 +1,44 @@
 "use server"
 
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext } from "@/lib/auth-utils"
+
+const billingCycleEnum = z.enum(["monthly", "quarterly", "yearly", "one_time"])
+
+const createMembershipPlanSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  price: z.number().nonnegative(),
+  billingCycle: billingCycleEnum,
+  sessionsIncluded: z.number().int().nonnegative().optional(),
+  discountPercent: z.number().nonnegative().optional(),
+  serviceIds: z.array(z.string().uuid()).optional(),
+  benefits: z.array(z.string()).optional(),
+})
+
+const updateMembershipPlanSchema = z.object({
+  id: z.string().uuid(),
+  data: z.object({
+    name: z.string().min(1).optional(),
+    description: z.string().optional(),
+    price: z.number().nonnegative().optional(),
+    billingCycle: billingCycleEnum.optional(),
+    sessionsIncluded: z.number().int().nonnegative().nullable().optional(),
+    discountPercent: z.number().nonnegative().nullable().optional(),
+    benefits: z.array(z.string()).optional(),
+    isActive: z.boolean().optional(),
+  }),
+})
+
+const idSchema = z.object({ id: z.string().uuid() })
+
+const createMembershipSchema = z.object({
+  clientId: z.string().uuid(),
+  planId: z.string().uuid(),
+  startDate: z.coerce.date(),
+})
 
 export async function createMembershipPlan(data: {
   name: string
@@ -14,23 +50,30 @@ export async function createMembershipPlan(data: {
   serviceIds?: string[]
   benefits?: string[]
 }) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = createMembershipPlanSchema.parse(data)
 
-  const plan = await prisma.membershipPlan.create({
-    data: {
-      businessId,
-      name: data.name,
-      description: data.description,
-      price: data.price,
-      billingCycle: data.billingCycle,
-      sessionsIncluded: data.sessionsIncluded,
-      discountPercent: data.discountPercent,
-      serviceIds: data.serviceIds || [],
-      benefits: data.benefits || [],
-    },
-  })
-  revalidatePath("/memberships")
-  return plan
+    const { businessId } = await getBusinessContext()
+
+    const plan = await prisma.membershipPlan.create({
+      data: {
+        businessId,
+        name: parsed.name,
+        description: parsed.description,
+        price: parsed.price,
+        billingCycle: parsed.billingCycle,
+        sessionsIncluded: parsed.sessionsIncluded,
+        discountPercent: parsed.discountPercent,
+        serviceIds: parsed.serviceIds || [],
+        benefits: parsed.benefits || [],
+      },
+    })
+    revalidatePath("/memberships")
+    return plan
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function updateMembershipPlan(
@@ -46,21 +89,35 @@ export async function updateMembershipPlan(
     isActive?: boolean
   }
 ) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = updateMembershipPlanSchema.parse({ id, data })
 
-  const plan = await prisma.membershipPlan.update({
-    where: { id, businessId },
-    data,
-  })
-  revalidatePath("/memberships")
-  return plan
+    const { businessId } = await getBusinessContext()
+
+    const plan = await prisma.membershipPlan.update({
+      where: { id: parsed.id, businessId },
+      data: parsed.data,
+    })
+    revalidatePath("/memberships")
+    return plan
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function deleteMembershipPlan(id: string) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = idSchema.parse({ id })
 
-  await prisma.membershipPlan.delete({ where: { id, businessId } })
-  revalidatePath("/memberships")
+    const { businessId } = await getBusinessContext()
+
+    await prisma.membershipPlan.delete({ where: { id: parsed.id, businessId } })
+    revalidatePath("/memberships")
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function createMembership(data: {
@@ -68,75 +125,103 @@ export async function createMembership(data: {
   planId: string
   startDate: Date
 }) {
-  const plan = await prisma.membershipPlan.findUnique({ where: { id: data.planId } })
-  if (!plan) throw new Error("Plan not found")
+  try {
+    const parsed = createMembershipSchema.parse(data)
 
-  const membership = await prisma.membership.create({
-    data: {
-      clientId: data.clientId,
-      planId: data.planId,
-      startDate: data.startDate,
-      sessionsRemaining: plan.sessionsIncluded,
-      nextBillingDate: plan.billingCycle === "one_time" ? null : data.startDate,
-    },
-  })
-  revalidatePath("/memberships")
-  return membership
+    const plan = await prisma.membershipPlan.findUnique({ where: { id: parsed.planId } })
+    if (!plan) throw new Error("Plan not found")
+
+    const membership = await prisma.membership.create({
+      data: {
+        clientId: parsed.clientId,
+        planId: parsed.planId,
+        startDate: parsed.startDate,
+        sessionsRemaining: plan.sessionsIncluded,
+        nextBillingDate: plan.billingCycle === "one_time" ? null : parsed.startDate,
+      },
+    })
+    revalidatePath("/memberships")
+    return membership
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function cancelMembership(id: string) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = idSchema.parse({ id })
 
-  // Verify membership belongs to this business through its plan
-  const membership = await prisma.membership.findFirst({
-    where: { id, plan: { businessId } },
-  })
-  if (!membership) throw new Error("Membership not found")
+    const { businessId } = await getBusinessContext()
 
-  await prisma.membership.update({
-    where: { id },
-    data: {
-      status: "cancelled_membership",
-      cancelledAt: new Date(),
-    },
-  })
-  revalidatePath("/memberships")
+    // Verify membership belongs to this business through its plan
+    const membership = await prisma.membership.findFirst({
+      where: { id: parsed.id, plan: { businessId } },
+    })
+    if (!membership) throw new Error("Membership not found")
+
+    await prisma.membership.update({
+      where: { id: parsed.id },
+      data: {
+        status: "cancelled_membership",
+        cancelledAt: new Date(),
+      },
+    })
+    revalidatePath("/memberships")
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function pauseMembership(id: string) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = idSchema.parse({ id })
 
-  // Verify membership belongs to this business through its plan
-  const membership = await prisma.membership.findFirst({
-    where: { id, plan: { businessId } },
-  })
-  if (!membership) throw new Error("Membership not found")
+    const { businessId } = await getBusinessContext()
 
-  await prisma.membership.update({
-    where: { id },
-    data: {
-      status: "paused_membership",
-      pausedAt: new Date(),
-    },
-  })
-  revalidatePath("/memberships")
+    // Verify membership belongs to this business through its plan
+    const membership = await prisma.membership.findFirst({
+      where: { id: parsed.id, plan: { businessId } },
+    })
+    if (!membership) throw new Error("Membership not found")
+
+    await prisma.membership.update({
+      where: { id: parsed.id },
+      data: {
+        status: "paused_membership",
+        pausedAt: new Date(),
+      },
+    })
+    revalidatePath("/memberships")
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function resumeMembership(id: string) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = idSchema.parse({ id })
 
-  // Verify membership belongs to this business through its plan
-  const membership = await prisma.membership.findFirst({
-    where: { id, plan: { businessId } },
-  })
-  if (!membership) throw new Error("Membership not found")
+    const { businessId } = await getBusinessContext()
 
-  await prisma.membership.update({
-    where: { id },
-    data: {
-      status: "active_membership",
-      pausedAt: null,
-    },
-  })
-  revalidatePath("/memberships")
+    // Verify membership belongs to this business through its plan
+    const membership = await prisma.membership.findFirst({
+      where: { id: parsed.id, plan: { businessId } },
+    })
+    if (!membership) throw new Error("Membership not found")
+
+    await prisma.membership.update({
+      where: { id: parsed.id },
+      data: {
+        status: "active_membership",
+        pausedAt: null,
+      },
+    })
+    revalidatePath("/memberships")
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }

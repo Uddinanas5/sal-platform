@@ -1,8 +1,61 @@
 "use server"
 
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext } from "@/lib/auth-utils"
+
+const channelEnum = z.enum(["email", "sms", "both"])
+
+const createCampaignSchema = z.object({
+  name: z.string().min(1),
+  subject: z.string().optional(),
+  body: z.string().min(1),
+  channel: channelEnum,
+  audienceType: z.string().optional(),
+  scheduledAt: z.coerce.date().optional(),
+})
+
+const updateCampaignSchema = z.object({
+  id: z.string().uuid(),
+  data: z.object({
+    name: z.string().min(1).optional(),
+    subject: z.string().optional(),
+    body: z.string().min(1).optional(),
+    channel: channelEnum.optional(),
+    audienceType: z.string().optional(),
+    scheduledAt: z.coerce.date().nullable().optional(),
+  }),
+})
+
+const idSchema = z.object({ id: z.string().uuid() })
+
+const createDealSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  discountType: z.enum(["percentage", "fixed", "free_service"]),
+  discountValue: z.number().nonnegative(),
+  code: z.string().optional(),
+  validFrom: z.coerce.date(),
+  validUntil: z.coerce.date(),
+  appliesTo: z.enum(["all", "services", "products", "specific"]).optional(),
+  serviceIds: z.array(z.string().uuid()).optional(),
+  usageLimit: z.number().int().nonnegative().optional(),
+})
+
+const createAutomatedMessageSchema = z.object({
+  name: z.string().min(1),
+  trigger: z.string().min(1),
+  channel: channelEnum,
+  subject: z.string().optional(),
+  body: z.string().min(1),
+  delayHours: z.number().int().nonnegative().optional(),
+})
+
+const toggleAutomatedMessageSchema = z.object({
+  id: z.string().uuid(),
+  isActive: z.boolean(),
+})
 
 export async function createCampaign(data: {
   name: string
@@ -12,22 +65,29 @@ export async function createCampaign(data: {
   audienceType?: string
   scheduledAt?: Date
 }) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = createCampaignSchema.parse(data)
 
-  const campaign = await prisma.campaign.create({
-    data: {
-      businessId,
-      name: data.name,
-      subject: data.subject,
-      body: data.body,
-      channel: data.channel,
-      audienceType: data.audienceType || "all",
-      scheduledAt: data.scheduledAt,
-      status: data.scheduledAt ? "scheduled" : "draft",
-    },
-  })
-  revalidatePath("/marketing")
-  return campaign
+    const { businessId } = await getBusinessContext()
+
+    const campaign = await prisma.campaign.create({
+      data: {
+        businessId,
+        name: parsed.name,
+        subject: parsed.subject,
+        body: parsed.body,
+        channel: parsed.channel,
+        audienceType: parsed.audienceType || "all",
+        scheduledAt: parsed.scheduledAt,
+        status: parsed.scheduledAt ? "scheduled" : "draft",
+      },
+    })
+    revalidatePath("/marketing")
+    return campaign
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function updateCampaign(
@@ -41,42 +101,63 @@ export async function updateCampaign(
     scheduledAt?: Date | null
   }
 ) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = updateCampaignSchema.parse({ id, data })
 
-  const campaign = await prisma.campaign.update({
-    where: { id, businessId },
-    data: {
-      ...(data.name && { name: data.name }),
-      ...(data.subject !== undefined && { subject: data.subject }),
-      ...(data.body && { body: data.body }),
-      ...(data.channel && { channel: data.channel }),
-      ...(data.audienceType && { audienceType: data.audienceType }),
-      ...(data.scheduledAt !== undefined && { scheduledAt: data.scheduledAt }),
-    },
-  })
-  revalidatePath("/marketing")
-  return campaign
+    const { businessId } = await getBusinessContext()
+
+    const campaign = await prisma.campaign.update({
+      where: { id: parsed.id, businessId },
+      data: {
+        ...(parsed.data.name && { name: parsed.data.name }),
+        ...(parsed.data.subject !== undefined && { subject: parsed.data.subject }),
+        ...(parsed.data.body && { body: parsed.data.body }),
+        ...(parsed.data.channel && { channel: parsed.data.channel }),
+        ...(parsed.data.audienceType && { audienceType: parsed.data.audienceType }),
+        ...(parsed.data.scheduledAt !== undefined && { scheduledAt: parsed.data.scheduledAt }),
+      },
+    })
+    revalidatePath("/marketing")
+    return campaign
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function deleteCampaign(id: string) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = idSchema.parse({ id })
 
-  await prisma.campaign.delete({ where: { id, businessId } })
-  revalidatePath("/marketing")
+    const { businessId } = await getBusinessContext()
+
+    await prisma.campaign.delete({ where: { id: parsed.id, businessId } })
+    revalidatePath("/marketing")
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function sendCampaign(id: string) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = idSchema.parse({ id })
 
-  const campaign = await prisma.campaign.update({
-    where: { id, businessId },
-    data: {
-      status: "sent",
-      sentAt: new Date(),
-    },
-  })
-  revalidatePath("/marketing")
-  return campaign
+    const { businessId } = await getBusinessContext()
+
+    const campaign = await prisma.campaign.update({
+      where: { id: parsed.id, businessId },
+      data: {
+        status: "sent",
+        sentAt: new Date(),
+      },
+    })
+    revalidatePath("/marketing")
+    return campaign
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function createDeal(data: {
@@ -91,32 +172,46 @@ export async function createDeal(data: {
   serviceIds?: string[]
   usageLimit?: number
 }) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = createDealSchema.parse(data)
 
-  const deal = await prisma.deal.create({
-    data: {
-      businessId,
-      name: data.name,
-      description: data.description,
-      discountType: data.discountType,
-      discountValue: data.discountValue,
-      code: data.code,
-      validFrom: data.validFrom,
-      validUntil: data.validUntil,
-      appliesTo: data.appliesTo || "all",
-      serviceIds: data.serviceIds || [],
-      usageLimit: data.usageLimit,
-    },
-  })
-  revalidatePath("/marketing")
-  return deal
+    const { businessId } = await getBusinessContext()
+
+    const deal = await prisma.deal.create({
+      data: {
+        businessId,
+        name: parsed.name,
+        description: parsed.description,
+        discountType: parsed.discountType,
+        discountValue: parsed.discountValue,
+        code: parsed.code,
+        validFrom: parsed.validFrom,
+        validUntil: parsed.validUntil,
+        appliesTo: parsed.appliesTo || "all",
+        serviceIds: parsed.serviceIds || [],
+        usageLimit: parsed.usageLimit,
+      },
+    })
+    revalidatePath("/marketing")
+    return deal
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function deleteDeal(id: string) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = idSchema.parse({ id })
 
-  await prisma.deal.delete({ where: { id, businessId } })
-  revalidatePath("/marketing")
+    const { businessId } = await getBusinessContext()
+
+    await prisma.deal.delete({ where: { id: parsed.id, businessId } })
+    revalidatePath("/marketing")
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function createAutomatedMessage(data: {
@@ -127,36 +222,57 @@ export async function createAutomatedMessage(data: {
   body: string
   delayHours?: number
 }) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = createAutomatedMessageSchema.parse(data)
 
-  const msg = await prisma.automatedMessage.create({
-    data: {
-      businessId,
-      name: data.name,
-      trigger: data.trigger as "booking_confirmation" | "appointment_reminder" | "thank_you" | "no_show_followup" | "birthday" | "rebooking_reminder" | "win_back" | "welcome" | "review_request",
-      channel: data.channel,
-      subject: data.subject,
-      body: data.body,
-      delayHours: data.delayHours || 0,
-    },
-  })
-  revalidatePath("/marketing")
-  return msg
+    const { businessId } = await getBusinessContext()
+
+    const msg = await prisma.automatedMessage.create({
+      data: {
+        businessId,
+        name: parsed.name,
+        trigger: parsed.trigger as "booking_confirmation" | "appointment_reminder" | "thank_you" | "no_show_followup" | "birthday" | "rebooking_reminder" | "win_back" | "welcome" | "review_request",
+        channel: parsed.channel,
+        subject: parsed.subject,
+        body: parsed.body,
+        delayHours: parsed.delayHours || 0,
+      },
+    })
+    revalidatePath("/marketing")
+    return msg
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function toggleAutomatedMessage(id: string, isActive: boolean) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = toggleAutomatedMessageSchema.parse({ id, isActive })
 
-  await prisma.automatedMessage.update({
-    where: { id, businessId },
-    data: { isActive },
-  })
-  revalidatePath("/marketing")
+    const { businessId } = await getBusinessContext()
+
+    await prisma.automatedMessage.update({
+      where: { id: parsed.id, businessId },
+      data: { isActive: parsed.isActive },
+    })
+    revalidatePath("/marketing")
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }
 
 export async function deleteAutomatedMessage(id: string) {
-  const { businessId } = await getBusinessContext()
+  try {
+    const parsed = idSchema.parse({ id })
 
-  await prisma.automatedMessage.delete({ where: { id, businessId } })
-  revalidatePath("/marketing")
+    const { businessId } = await getBusinessContext()
+
+    await prisma.automatedMessage.delete({ where: { id: parsed.id, businessId } })
+    revalidatePath("/marketing")
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
 }

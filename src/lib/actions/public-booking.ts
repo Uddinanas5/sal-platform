@@ -90,7 +90,8 @@ export async function createPublicBooking(data: {
     const bookingRef = `SAL-${String(count + 1).padStart(4, "0")}`
 
     const price = Number(service.price)
-    const tax = Math.round(price * 0.08875 * 100) / 100
+    const taxRate = service.isTaxable && service.taxRate ? Number(service.taxRate) / 100 : 0
+    const tax = Math.round(price * taxRate * 100) / 100
 
     // 6. Create appointment
     const appointment = await prisma.appointment.create({
@@ -137,6 +138,7 @@ export async function createPublicBooking(data: {
     if (e instanceof ZodError) {
       return { success: false, error: "Invalid input" }
     }
+    console.error("createPublicBooking error:", e)
     return { success: false, error: (e as Error).message }
   }
 }

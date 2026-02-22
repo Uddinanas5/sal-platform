@@ -136,6 +136,7 @@ export async function createAppointment(data: {
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
     }
+    console.error("createAppointment error:", e)
     return { success: false, error: msg }
   }
 }
@@ -183,6 +184,7 @@ export async function updateAppointmentStatus(
     revalidatePath("/dashboard")
     return { success: true, data: undefined }
   } catch (e) {
+    console.error("updateAppointmentStatus error:", e)
     return { success: false, error: (e as Error).message }
   }
 }
@@ -232,6 +234,7 @@ export async function rescheduleAppointment(
     revalidatePath("/calendar")
     return { success: true, data: undefined }
   } catch (e) {
+    console.error("rescheduleAppointment error:", e)
     return { success: false, error: (e as Error).message }
   }
 }
