@@ -1,6 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
+import { rateLimit } from "@/lib/rate-limit"
 import { revalidatePath } from "next/cache"
 import { z, ZodError } from "zod"
 
@@ -33,6 +34,12 @@ export async function createPublicBooking(data: {
     // 0. Validate input
     const parsed = createPublicBookingSchema.parse(data)
     data = parsed
+
+    // Rate limit by email: 5 bookings per hour per email
+    const rl = rateLimit(`booking:${data.clientEmail}`, 5, 60 * 60 * 1000)
+    if (rl.limited) {
+      return { success: false, error: "Too many booking attempts. Please try again later." }
+    }
 
     // 1. Get business & location
     const business = await prisma.business.findUnique({

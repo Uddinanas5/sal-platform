@@ -3,6 +3,7 @@
 import { SignJWT, jwtVerify } from "jose"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { rateLimit } from "@/lib/rate-limit"
 import { sendEmail } from "@/lib/email"
 import { passwordResetEmail } from "@/lib/email-templates"
 
@@ -16,6 +17,12 @@ type ActionResult = { success: true } | { success: false; error: string }
 
 export async function requestPasswordReset(email: string): Promise<ActionResult> {
   try {
+    // Rate limit: 3 reset requests per email per hour
+    const rl = rateLimit(`reset:${email.toLowerCase().trim()}`, 3, 60 * 60 * 1000)
+    if (rl.limited) {
+      return { success: true } // Silent — don't reveal rate limiting to prevent enumeration
+    }
+
     // Always return success to prevent email enumeration
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
