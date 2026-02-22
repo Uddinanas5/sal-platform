@@ -18,9 +18,48 @@ const sora = Sora({
 
 export const metadata: Metadata = {
   title: "SAL - AI Operations Partner",
-  description: "Smart salon and wellness management platform powered by AI",
+  description: "The all-in-one platform for salons & spas. Manage appointments, clients, staff, and payments — all in one beautiful dashboard. Free to get started.",
+  keywords: ["salon software", "spa management", "booking system", "appointment scheduling", "salon POS", "beauty business"],
+  authors: [{ name: "SAL Platform" }],
+  creator: "SAL Platform",
+  publisher: "SAL Platform",
+  metadataBase: new URL("https://sal-platform.vercel.app"),
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://sal-platform.vercel.app",
+    siteName: "SAL Platform",
+    title: "SAL - The All-in-One Platform for Salons & Spas",
+    description: "Manage appointments, clients, staff, and payments — all in one beautiful dashboard. Free to get started.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "SAL Platform - Salon & Spa Management",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SAL - The All-in-One Platform for Salons & Spas",
+    description: "Manage appointments, clients, staff, and payments — all in one beautiful dashboard.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: "/logos/sal-icon.svg",
+    apple: "/logos/sal-icon.svg",
   },
 };
 
