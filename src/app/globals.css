@@ -1,53 +1,51 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 224 71% 4%;
+    --background: 50 20% 96%;
+    --foreground: 160 30% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
+    --card-foreground: 160 30% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
-    --primary: 24 95% 53%;
+    --popover-foreground: 160 30% 8%;
+    --primary: 160 97% 30%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 224 71% 4%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 220 14% 96%;
-    --accent-foreground: 224 71% 4%;
+    --secondary: 50 12% 93%;
+    --secondary-foreground: 160 30% 8%;
+    --muted: 50 12% 93%;
+    --muted-foreground: 160 5% 46%;
+    --accent: 50 12% 93%;
+    --accent-foreground: 160 30% 8%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 24 95% 53%;
+    --border: 50 10% 88%;
+    --input: 50 10% 88%;
+    --ring: 160 97% 30%;
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 210 20% 98%;
-    --card: 224 71% 4%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71% 4%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 24 95% 53%;
+    --background: 160 30% 4%;
+    --foreground: 50 20% 98%;
+    --card: 160 25% 7%;
+    --card-foreground: 50 20% 98%;
+    --popover: 160 25% 7%;
+    --popover-foreground: 50 20% 98%;
+    --primary: 160 97% 30%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 215 28% 17%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 28% 17%;
-    --muted-foreground: 217 11% 65%;
-    --accent: 215 28% 17%;
-    --accent-foreground: 210 20% 98%;
+    --secondary: 160 20% 14%;
+    --secondary-foreground: 50 20% 98%;
+    --muted: 160 20% 14%;
+    --muted-foreground: 160 8% 60%;
+    --accent: 160 20% 14%;
+    --accent-foreground: 50 20% 98%;
     --destructive: 0 63% 31%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
-    --ring: 24 95% 53%;
+    --destructive-foreground: 50 20% 98%;
+    --border: 160 20% 14%;
+    --input: 160 20% 14%;
+    --ring: 160 97% 30%;
   }
 }
 
@@ -58,12 +56,15 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sora), var(--font-dm-sans), system-ui, sans-serif;
+  }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -71,11 +72,11 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full;
+  @apply bg-cream-300 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  @apply bg-cream-400;
 }
 
 .dark ::-webkit-scrollbar-thumb {
@@ -104,5 +105,19 @@
 
 .appointment-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.08);
+}
+
+/* Warm card glow on hover */
+.card-warm:hover {
+  box-shadow: 0 8px 30px rgba(5, 150, 105, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Hide scrollbar utility */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

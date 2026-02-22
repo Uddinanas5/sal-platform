@@ -2,7 +2,12 @@ node_modules/
 .next/
 .env
 .env.local
+.env*.local
 *.log
 .vercel
 .DS_Store
 whatsapp/.env
+prisma/generated/
+supabase/.temp/
+tsconfig.tsbuildinfo
+.mcp.json

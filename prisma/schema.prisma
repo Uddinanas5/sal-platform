@@ -2,15 +2,12 @@
 // PostgreSQL via Supabase
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema", "fullTextSearch"]
+  provider = "prisma-client"
+  output   = "./generated/prisma/client"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-  schemas   = ["public", "auth"]
+  provider = "postgresql"
 }
 
 // ============================================================================
@@ -23,7 +20,7 @@ enum UserRole {
   staff
   client
 
-  @@schema("public")
+
 }
 
 enum UserStatus {
@@ -31,7 +28,7 @@ enum UserStatus {
   inactive
   suspended
 
-  @@schema("public")
+
 }
 
 enum SubscriptionTier {
@@ -40,7 +37,7 @@ enum SubscriptionTier {
   pro
   enterprise
 
-  @@schema("public")
+
 }
 
 enum SubscriptionStatus {
@@ -50,7 +47,7 @@ enum SubscriptionStatus {
   cancelled
   paused
 
-  @@schema("public")
+
 }
 
 enum EmploymentType {
@@ -58,7 +55,7 @@ enum EmploymentType {
   part_time
   contractor
 
-  @@schema("public")
+
 }
 
 enum PriceType {
@@ -66,14 +63,14 @@ enum PriceType {
   starting_at
   variable
 
-  @@schema("public")
+
 }
 
 enum DepositType {
   fixed
   percentage
 
-  @@schema("public")
+
 }
 
 enum AppointmentStatus {
@@ -85,7 +82,7 @@ enum AppointmentStatus {
   cancelled
   no_show
 
-  @@schema("public")
+
 }
 
 enum AppointmentSource {
@@ -95,7 +92,7 @@ enum AppointmentSource {
   app
   pos
 
-  @@schema("public")
+
 }
 
 enum ServiceStatus {
@@ -103,7 +100,7 @@ enum ServiceStatus {
   in_progress
   completed
 
-  @@schema("public")
+
 }
 
 enum PaymentType {
@@ -112,7 +109,7 @@ enum PaymentType {
   deposit
   tip
 
-  @@schema("public")
+
 }
 
 enum PaymentMethod {
@@ -122,7 +119,7 @@ enum PaymentMethod {
   gift_card
   other
 
-  @@schema("public")
+
 }
 
 enum PaymentStatus {
@@ -131,7 +128,7 @@ enum PaymentStatus {
   failed
   refunded
 
-  @@schema("public")
+
 }
 
 enum InvoiceStatus {
@@ -141,7 +138,7 @@ enum InvoiceStatus {
   overdue
   cancelled
 
-  @@schema("public")
+
 }
 
 enum TimeOffType {
@@ -150,7 +147,7 @@ enum TimeOffType {
   personal
   other
 
-  @@schema("public")
+
 }
 
 enum TimeOffStatus {
@@ -158,7 +155,7 @@ enum TimeOffStatus {
   approved
   rejected
 
-  @@schema("public")
+
 }
 
 enum InventoryTransactionType {
@@ -168,7 +165,7 @@ enum InventoryTransactionType {
   transfer
   restock
 
-  @@schema("public")
+
 }
 
 enum CommissionType {
@@ -176,7 +173,7 @@ enum CommissionType {
   product
   tip
 
-  @@schema("public")
+
 }
 
 enum CommissionStatus {
@@ -184,7 +181,7 @@ enum CommissionStatus {
   approved
   paid
 
-  @@schema("public")
+
 }
 
 enum PayrollStatus {
@@ -192,7 +189,7 @@ enum PayrollStatus {
   closed
   paid
 
-  @@schema("public")
+
 }
 
 enum NotificationChannel {
@@ -200,7 +197,7 @@ enum NotificationChannel {
   sms
   push
 
-  @@schema("public")
+
 }
 
 enum NotificationStatus {
@@ -209,7 +206,7 @@ enum NotificationStatus {
   delivered
   failed
 
-  @@schema("public")
+
 }
 
 enum DiscountType {
@@ -217,7 +214,7 @@ enum DiscountType {
   fixed
   free_service
 
-  @@schema("public")
+
 }
 
 enum DiscountAppliesTo {
@@ -226,7 +223,7 @@ enum DiscountAppliesTo {
   products
   specific
 
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -235,8 +232,9 @@ enum DiscountAppliesTo {
 
 model User {
   id                      String     @id @default(uuid()) @db.Uuid
-  authId                  String     @unique @map("auth_id") @db.Uuid
+  authId                  String?    @unique @map("auth_id") @db.Uuid
   email                   String     @unique @db.VarChar(255)
+  passwordHash            String?    @map("password_hash") @db.Text
   phone                   String?    @db.VarChar(20)
   firstName               String     @map("first_name") @db.VarChar(100)
   lastName                String     @map("last_name") @db.VarChar(100)
@@ -268,7 +266,7 @@ model User {
   @@index([email])
   @@index([role])
   @@map("users")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -314,11 +312,18 @@ model Business {
   reviews            Review[]
   discounts          Discount[]
   auditLogs          AuditLog[]
+  campaigns          Campaign[]
+  deals              Deal[]
+  automatedMessages  AutomatedMessage[]
+  membershipPlans    MembershipPlan[]
+  waitlistEntries    WaitlistEntry[]
+  resources          Resource[]
+  formTemplates      FormTemplate[]
 
   @@index([ownerId])
   @@index([slug])
   @@map("businesses")
-  @@schema("public")
+
 }
 
 model Location {
@@ -359,7 +364,7 @@ model Location {
   @@index([businessId])
   @@index([latitude, longitude])
   @@map("locations")
-  @@schema("public")
+
 }
 
 model BusinessHours {
@@ -377,7 +382,7 @@ model BusinessHours {
 
   @@unique([locationId, dayOfWeek])
   @@map("business_hours")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -423,7 +428,7 @@ model Staff {
   @@index([userId])
   @@index([locationId])
   @@map("staff")
-  @@schema("public")
+
 }
 
 model StaffLocation {
@@ -439,7 +444,7 @@ model StaffLocation {
 
   @@unique([staffId, locationId])
   @@map("staff_locations")
-  @@schema("public")
+
 }
 
 model StaffSchedule {
@@ -461,7 +466,7 @@ model StaffSchedule {
   breaks   StaffBreak[]
 
   @@map("staff_schedules")
-  @@schema("public")
+
 }
 
 model StaffBreak {
@@ -476,7 +481,7 @@ model StaffBreak {
   staffSchedule StaffSchedule @relation(fields: [staffScheduleId], references: [id], onDelete: Cascade)
 
   @@map("staff_breaks")
-  @@schema("public")
+
 }
 
 model StaffTimeOff {
@@ -499,7 +504,7 @@ model StaffTimeOff {
   approver User? @relation("ApprovedBy", fields: [approvedBy], references: [id])
 
   @@map("staff_time_off")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -523,8 +528,10 @@ model ServiceCategory {
   business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   services Service[]
 
+  @@unique([businessId, name])
+  @@index([businessId])
   @@map("service_categories")
-  @@schema("public")
+
 }
 
 model Service {
@@ -560,10 +567,12 @@ model Service {
   staffServices       StaffService[]
   appointmentServices AppointmentService[]
 
+  @@unique([businessId, name])
   @@index([businessId])
+  @@index([businessId, isActive])
   @@index([categoryId])
   @@map("services")
-  @@schema("public")
+
 }
 
 model ServiceVariation {
@@ -582,7 +591,7 @@ model ServiceVariation {
   appointmentServices AppointmentService[]
 
   @@map("service_variations")
-  @@schema("public")
+
 }
 
 model StaffService {
@@ -602,7 +611,7 @@ model StaffService {
 
   @@unique([staffId, serviceId])
   @@map("staff_services")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -656,13 +665,16 @@ model Client {
   giftCardsPurchased GiftCard[]    @relation("PurchasedBy")
   reviews           Review[]
   notifications     Notification[] @relation("ClientNotifications")
+  memberships       Membership[]
+  groupParticipations GroupParticipant[]
 
   @@index([businessId])
   @@index([userId])
   @@index([businessId, email])
   @@index([businessId, phone])
+  @@index([businessId, deletedAt])
   @@map("clients")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -702,6 +714,16 @@ model Appointment {
   createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz
 
+  // Recurring appointment fields
+  recurrenceRule     String?           @map("recurrence_rule") @db.VarChar(50) // weekly, biweekly, monthly, custom
+  recurrenceEndDate  DateTime?         @map("recurrence_end_date") @db.Date
+  seriesId           String?           @map("series_id") @db.Uuid
+  parentAppointmentId String?          @map("parent_appointment_id") @db.Uuid
+
+  // Group booking fields
+  isGroupBooking     Boolean           @default(false) @map("is_group_booking")
+  maxParticipants    Int               @default(1) @map("max_participants")
+
   // Relations
   business                Business             @relation(fields: [businessId], references: [id])
   location                Location             @relation(fields: [locationId], references: [id])
@@ -712,21 +734,26 @@ model Appointment {
   rescheduledToAppt       Appointment?         @relation("RescheduledTo", fields: [rescheduledTo], references: [id])
   rescheduledFromAppointments Appointment[]    @relation("RescheduledFrom")
   rescheduledToAppointments   Appointment[]    @relation("RescheduledTo")
+  parentAppointment       Appointment?         @relation("RecurringSeries", fields: [parentAppointmentId], references: [id])
+  childAppointments       Appointment[]        @relation("RecurringSeries")
   services                AppointmentService[]
   products                AppointmentProduct[]
   payments                Payment[]
   invoices                Invoice[]
   commissions             Commission[]
   reviews                 Review[]
+  groupParticipants       GroupParticipant[]
 
   @@index([businessId])
+  @@index([businessId, status])
   @@index([locationId])
   @@index([clientId])
   @@index([status])
   @@index([startTime])
   @@index([bookingReference])
+  @@index([seriesId])
   @@map("appointments")
-  @@schema("public")
+
 }
 
 model AppointmentService {
@@ -758,7 +785,7 @@ model AppointmentService {
   @@index([appointmentId])
   @@index([staffId])
   @@map("appointment_services")
-  @@schema("public")
+
 }
 
 model AppointmentProduct {
@@ -780,7 +807,30 @@ model AppointmentProduct {
   staff       Staff?      @relation(fields: [staffId], references: [id])
 
   @@map("appointment_products")
-  @@schema("public")
+
+}
+
+// ============================================================================
+// GROUP BOOKING PARTICIPANTS
+// ============================================================================
+
+model GroupParticipant {
+  id            String   @id @default(uuid()) @db.Uuid
+  appointmentId String   @map("appointment_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  status        String   @default("confirmed") @db.VarChar(20) // confirmed, cancelled, no_show
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  client      Client      @relation(fields: [clientId], references: [id])
+
+  @@unique([appointmentId, clientId])
+  @@index([appointmentId])
+  @@index([clientId])
+  @@map("group_participants")
+
 }
 
 // ============================================================================
@@ -821,10 +871,12 @@ model Payment {
   processedUser User?        @relation("ProcessedBy", fields: [processedBy], references: [id])
 
   @@index([businessId])
+  @@index([businessId, status])
+  @@index([businessId, createdAt])
   @@index([appointmentId])
   @@index([clientId])
   @@map("payments")
-  @@schema("public")
+
 }
 
 model Invoice {
@@ -854,7 +906,7 @@ model Invoice {
   client      Client?      @relation(fields: [clientId], references: [id])
 
   @@map("invoices")
-  @@schema("public")
+
 }
 
 model GiftCard {
@@ -879,7 +931,7 @@ model GiftCard {
   purchaser Client?  @relation("PurchasedBy", fields: [purchasedBy], references: [id])
 
   @@map("gift_cards")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -900,8 +952,10 @@ model ProductCategory {
   business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   products Product[]
 
+  @@unique([businessId, name])
+  @@index([businessId])
   @@map("product_categories")
-  @@schema("public")
+
 }
 
 model Product {
@@ -936,7 +990,7 @@ model Product {
   @@unique([businessId, sku])
   @@index([businessId])
   @@map("products")
-  @@schema("public")
+
 }
 
 model ProductInventory {
@@ -957,7 +1011,7 @@ model ProductInventory {
 
   @@unique([productId, locationId])
   @@map("product_inventory")
-  @@schema("public")
+
 }
 
 model InventoryTransaction {
@@ -979,7 +1033,7 @@ model InventoryTransaction {
   performedByUser User? @relation("PerformedBy", fields: [performedBy], references: [id])
 
   @@map("inventory_transactions")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -1005,10 +1059,12 @@ model Commission {
 
   // Relations
   staff       Staff        @relation(fields: [staffId], references: [id])
-  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
+  @@index([staffId])
+  @@index([appointmentId])
   @@map("commissions")
-  @@schema("public")
+
 }
 
 model PayrollPeriod {
@@ -1027,7 +1083,7 @@ model PayrollPeriod {
   business Business @relation(fields: [businessId], references: [id])
 
   @@map("payroll_periods")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -1052,7 +1108,7 @@ model NotificationTemplate {
   notifications Notification[]
 
   @@map("notification_templates")
-  @@schema("public")
+
 }
 
 model Notification {
@@ -1085,7 +1141,7 @@ model Notification {
   @@index([userId])
   @@index([status])
   @@map("notifications")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -1116,13 +1172,16 @@ model Review {
   // Relations
   business      Business     @relation(fields: [businessId], references: [id])
   location      Location     @relation(fields: [locationId], references: [id])
-  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   client        Client       @relation(fields: [clientId], references: [id])
   staff         Staff?       @relation(fields: [staffId], references: [id])
   respondedUser User?        @relation("RespondedBy", fields: [respondedBy], references: [id])
 
+  @@index([businessId])
+  @@index([appointmentId])
+  @@index([staffId])
   @@map("reviews")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -1157,7 +1216,7 @@ model Discount {
 
   @@unique([businessId, code])
   @@map("discounts")
-  @@schema("public")
+
 }
 
 // ============================================================================
@@ -1187,5 +1246,316 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
-  @@schema("public")
+
+}
+
+// ============================================================================
+// MARKETING — Campaigns, Deals, Automated Messages
+// ============================================================================
+
+enum CampaignStatus {
+  draft
+  scheduled
+  sending
+  sent
+  cancelled_campaign
+
+}
+
+enum CampaignChannel {
+  email
+  sms
+  both
+
+}
+
+enum DealStatus {
+  active_deal
+  scheduled_deal
+  expired
+  paused_deal
+
+}
+
+model Campaign {
+  id            String          @id @default(uuid()) @db.Uuid
+  businessId    String          @map("business_id") @db.Uuid
+  name          String          @db.VarChar(255)
+  subject       String?         @db.VarChar(255)
+  body          String          @db.Text
+  channel       CampaignChannel @default(email)
+  status        CampaignStatus  @default(draft)
+  audienceType  String          @default("all") @map("audience_type") @db.VarChar(50)
+  audienceFilter Json           @default("{}") @map("audience_filter")
+  scheduledAt   DateTime?       @map("scheduled_at") @db.Timestamptz
+  sentAt        DateTime?       @map("sent_at") @db.Timestamptz
+  recipientCount Int            @default(0) @map("recipient_count")
+  openCount     Int             @default(0) @map("open_count")
+  clickCount    Int             @default(0) @map("click_count")
+  bookingCount  Int             @default(0) @map("booking_count")
+  revenue       Decimal         @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@map("campaigns")
+
+}
+
+model Deal {
+  id            String     @id @default(uuid()) @db.Uuid
+  businessId    String     @map("business_id") @db.Uuid
+  name          String     @db.VarChar(255)
+  description   String?    @db.Text
+  discountType  DiscountType @map("discount_type")
+  discountValue Decimal    @map("discount_value") @db.Decimal(10, 2)
+  code          String?    @db.VarChar(50)
+  status        DealStatus @default(active_deal)
+  appliesTo     DiscountAppliesTo @default(all) @map("applies_to")
+  serviceIds    String[]   @default([]) @map("service_ids") @db.Uuid
+  usageLimit    Int?       @map("usage_limit")
+  usageCount    Int        @default(0) @map("usage_count")
+  validFrom     DateTime   @map("valid_from") @db.Timestamptz
+  validUntil    DateTime   @map("valid_until") @db.Timestamptz
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@map("deals")
+
+}
+
+enum AutomatedMessageTrigger {
+  booking_confirmation
+  appointment_reminder
+  thank_you
+  no_show_followup
+  birthday
+  rebooking_reminder
+  win_back
+  welcome
+  review_request
+
+}
+
+model AutomatedMessage {
+  id          String                  @id @default(uuid()) @db.Uuid
+  businessId  String                  @map("business_id") @db.Uuid
+  name        String                  @db.VarChar(255)
+  trigger     AutomatedMessageTrigger
+  channel     CampaignChannel         @default(email)
+  subject     String?                 @db.VarChar(255)
+  body        String                  @db.Text
+  delayHours  Int                     @default(0) @map("delay_hours")
+  isActive    Boolean                 @default(true) @map("is_active")
+  sendCount   Int                     @default(0) @map("send_count")
+  createdAt   DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@map("automated_messages")
+
+}
+
+// ============================================================================
+// MEMBERSHIPS
+// ============================================================================
+
+enum MembershipBillingCycle {
+  monthly
+  quarterly
+  yearly
+  one_time
+
+}
+
+enum MembershipStatus {
+  active_membership
+  paused_membership
+  cancelled_membership
+  expired_membership
+
+}
+
+model MembershipPlan {
+  id             String                 @id @default(uuid()) @db.Uuid
+  businessId     String                 @map("business_id") @db.Uuid
+  name           String                 @db.VarChar(255)
+  description    String?                @db.Text
+  price          Decimal                @db.Decimal(10, 2)
+  billingCycle   MembershipBillingCycle @map("billing_cycle")
+  sessionsIncluded Int?                 @map("sessions_included")
+  discountPercent Decimal?              @map("discount_percent") @db.Decimal(5, 2)
+  serviceIds     String[]               @default([]) @map("service_ids") @db.Uuid
+  benefits       String[]               @default([])
+  isActive       Boolean                @default(true) @map("is_active")
+  sortOrder      Int                    @default(0) @map("sort_order")
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+
+  @@index([businessId])
+  @@map("membership_plans")
+
+}
+
+model Membership {
+  id               String           @id @default(uuid()) @db.Uuid
+  clientId         String           @map("client_id") @db.Uuid
+  planId           String           @map("plan_id") @db.Uuid
+  status           MembershipStatus @default(active_membership)
+  startDate        DateTime         @map("start_date") @db.Date
+  endDate          DateTime?        @map("end_date") @db.Date
+  nextBillingDate  DateTime?        @map("next_billing_date") @db.Date
+  sessionsRemaining Int?            @map("sessions_remaining")
+  totalPaid        Decimal          @default(0) @map("total_paid") @db.Decimal(10, 2)
+  cancelledAt      DateTime?        @map("cancelled_at") @db.Timestamptz
+  pausedAt         DateTime?        @map("paused_at") @db.Timestamptz
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  client Client         @relation(fields: [clientId], references: [id])
+  plan   MembershipPlan @relation(fields: [planId], references: [id])
+
+  @@index([clientId])
+  @@index([planId])
+  @@map("memberships")
+
+}
+
+// ============================================================================
+// WAITLIST
+// ============================================================================
+
+enum WaitlistStatus {
+  waiting
+  notified
+  booked
+  expired_waitlist
+  cancelled_waitlist
+
+}
+
+model WaitlistEntry {
+  id             String         @id @default(uuid()) @db.Uuid
+  businessId     String         @map("business_id") @db.Uuid
+  clientId       String         @map("client_id") @db.Uuid
+  serviceId      String?        @map("service_id") @db.Uuid
+  staffId        String?        @map("staff_id") @db.Uuid
+  preferredDate  DateTime?      @map("preferred_date") @db.Date
+  preferredTimeStart DateTime?  @map("preferred_time_start") @db.Time
+  preferredTimeEnd   DateTime?  @map("preferred_time_end") @db.Time
+  status         WaitlistStatus @default(waiting)
+  notes          String?        @db.Text
+  notifiedAt     DateTime?      @map("notified_at") @db.Timestamptz
+  bookedAt       DateTime?      @map("booked_at") @db.Timestamptz
+  appointmentId  String?        @map("appointment_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([status])
+  @@map("waitlist_entries")
+
+}
+
+// ============================================================================
+// RESOURCES (Rooms / Equipment)
+// ============================================================================
+
+model Resource {
+  id           String   @id @default(uuid()) @db.Uuid
+  businessId   String   @map("business_id") @db.Uuid
+  locationId   String   @map("location_id") @db.Uuid
+  name         String   @db.VarChar(255)
+  type         String   @default("room") @db.VarChar(50)
+  description  String?  @db.Text
+  capacity     Int      @default(1)
+  isActive     Boolean  @default(true) @map("is_active")
+  sortOrder    Int      @default(0) @map("sort_order")
+  serviceIds   String[] @default([]) @map("service_ids") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([locationId])
+  @@map("resources")
+
+}
+
+// ============================================================================
+// CLIENT FORMS / INTAKE FORMS
+// ============================================================================
+
+enum FormFieldType {
+  text
+  textarea
+  number
+  date
+  select
+  checkbox
+  radio
+  file
+  signature
+
+}
+
+model FormTemplate {
+  id          String   @id @default(uuid()) @db.Uuid
+  businessId  String   @map("business_id") @db.Uuid
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  fields      Json     @default("[]")
+  serviceIds  String[] @default([]) @map("service_ids") @db.Uuid
+  isAutoSend  Boolean  @default(false) @map("is_auto_send")
+  isRequired  Boolean  @default(false) @map("is_required")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  business    Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  submissions FormSubmission[]
+
+  @@index([businessId])
+  @@map("form_templates")
+
+}
+
+model FormSubmission {
+  id            String    @id @default(uuid()) @db.Uuid
+  templateId    String    @map("template_id") @db.Uuid
+  clientId      String    @map("client_id") @db.Uuid
+  appointmentId String?   @map("appointment_id") @db.Uuid
+  data          Json      @default("{}")
+  submittedAt   DateTime? @map("submitted_at") @db.Timestamptz
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  template FormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([clientId])
+  @@map("form_submissions")
+
 }
