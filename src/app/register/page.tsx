@@ -37,7 +37,7 @@ export default function RegisterPage() {
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match")
+      // Inline validation already shows this error, just prevent submission
       return
     }
 
