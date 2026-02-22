@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
-import { Prisma } from '@prisma/client'
+import type { Prisma } from '@/generated/prisma'
 
 /**
  * GET /api/bookings

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { AppointmentStatus } from '@prisma/client'
+import { AppointmentStatus } from '@/generated/prisma'
 
 interface RouteParams {
   params: Promise<{ id: string }>
