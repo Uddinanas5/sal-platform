@@ -15,6 +15,11 @@ const publicRoutes = [
   /^\/api\/auth\/.*/,
   /^\/_next\/.*/,
   /^\/favicon\.ico$/,
+  /^\/api\/availability$/,
+  /^\/api\/services$/,
+  /^\/api\/staff$/,
+  /^\/api\/bookings(\/.*)?$/,
+  /^\/api\/health$/,
 ]
 
 export default auth((req) => {

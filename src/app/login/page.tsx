@@ -36,8 +36,8 @@ export default function LoginPage() {
     if (!password) {
       setPasswordError("Password is required")
       isValid = false
-    } else if (password.length < 6) {
-      setPasswordError("Password must be at least 6 characters")
+    } else if (password.length < 8) {
+      setPasswordError("Password must be at least 8 characters")
       isValid = false
     }
 
@@ -63,7 +63,11 @@ export default function LoginPage() {
     setLoading(false)
 
     if (result?.error) {
-      setError("Invalid email or password")
+      if (result.error.includes("Account temporarily locked")) {
+        setError("Account temporarily locked. Please try again in 15 minutes.")
+      } else {
+        setError("Invalid email or password")
+      }
     } else {
       router.push("/dashboard")
       router.refresh()

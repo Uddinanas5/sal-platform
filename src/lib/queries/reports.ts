@@ -150,44 +150,47 @@ export async function getReportSummary(businessId?: string) {
   const lastMonthEnd = startOfMonth(now)
   const businessFilter = businessId ? { businessId } : {}
 
-  // Current month payments
-  const currentPayments = await prisma.payment.findMany({
-    where: {
-      ...businessFilter,
-      status: "completed",
-      createdAt: { gte: thisMonthStart },
-    },
-    select: { totalAmount: true },
-  })
+  // Run independent queries in parallel
+  const [
+    currentPaymentAgg,
+    lastPaymentAgg,
+    currentAppointments,
+    lastAppointments,
+    newClients,
+    lastNewClients,
+  ] = await Promise.all([
+    prisma.payment.aggregate({
+      where: {
+        ...businessFilter,
+        status: "completed",
+        createdAt: { gte: thisMonthStart },
+      },
+      _sum: { totalAmount: true },
+    }),
+    prisma.payment.aggregate({
+      where: {
+        ...businessFilter,
+        status: "completed",
+        createdAt: { gte: lastMonthStart, lt: lastMonthEnd },
+      },
+      _sum: { totalAmount: true },
+    }),
+    prisma.appointment.count({
+      where: { ...businessFilter, startTime: { gte: thisMonthStart } },
+    }),
+    prisma.appointment.count({
+      where: { ...businessFilter, startTime: { gte: lastMonthStart, lt: lastMonthEnd } },
+    }),
+    prisma.client.count({
+      where: { ...businessFilter, createdAt: { gte: thisMonthStart } },
+    }),
+    prisma.client.count({
+      where: { ...businessFilter, createdAt: { gte: lastMonthStart, lt: lastMonthEnd } },
+    }),
+  ])
 
-  // Last month payments
-  const lastPayments = await prisma.payment.findMany({
-    where: {
-      ...businessFilter,
-      status: "completed",
-      createdAt: { gte: lastMonthStart, lt: lastMonthEnd },
-    },
-    select: { totalAmount: true },
-  })
-
-  const totalRevenue = currentPayments.reduce((sum, p) => sum + Number(p.totalAmount), 0)
-  const lastRevenue = lastPayments.reduce((sum, p) => sum + Number(p.totalAmount), 0)
-
-  // Current month appointments
-  const currentAppointments = await prisma.appointment.count({
-    where: { ...businessFilter, startTime: { gte: thisMonthStart } },
-  })
-  const lastAppointments = await prisma.appointment.count({
-    where: { ...businessFilter, startTime: { gte: lastMonthStart, lt: lastMonthEnd } },
-  })
-
-  // New clients this month
-  const newClients = await prisma.client.count({
-    where: { ...businessFilter, createdAt: { gte: thisMonthStart } },
-  })
-  const lastNewClients = await prisma.client.count({
-    where: { ...businessFilter, createdAt: { gte: lastMonthStart, lt: lastMonthEnd } },
-  })
+  const totalRevenue = Number(currentPaymentAgg._sum.totalAmount ?? 0)
+  const lastRevenue = Number(lastPaymentAgg._sum.totalAmount ?? 0)
 
   const averageTicket = currentAppointments > 0 ? totalRevenue / currentAppointments : 0
   const lastAvgTicket = lastAppointments > 0 ? lastRevenue / lastAppointments : 0
@@ -252,30 +255,45 @@ export async function getReportSummary(businessId?: string) {
 // ============================================================================
 
 export async function getRevenueByMonth(months: number = 6, businessId?: string) {
-  const results: { month: string; revenue: number }[] = []
   const businessFilter = businessId ? { businessId } : {}
+  const rangeStart = startOfMonth(subMonths(new Date(), months - 1))
 
+  // Single query: fetch all payments in the full date range
+  const payments = await prisma.payment.findMany({
+    where: {
+      ...businessFilter,
+      status: "completed",
+      createdAt: { gte: rangeStart },
+    },
+    select: { totalAmount: true, createdAt: true },
+  })
+
+  // Build month boundaries for grouping
+  const monthBoundaries: { start: Date; end: Date; label: string }[] = []
   for (let i = months - 1; i >= 0; i--) {
-    const monthStart = startOfMonth(subMonths(new Date(), i))
-    const monthEnd = i > 0 ? startOfMonth(subMonths(new Date(), i - 1)) : new Date()
-
-    const payments = await prisma.payment.findMany({
-      where: {
-        ...businessFilter,
-        status: "completed",
-        createdAt: { gte: monthStart, lt: monthEnd },
-      },
-      select: { totalAmount: true },
-    })
-
-    const revenue = payments.reduce((sum, p) => sum + Number(p.totalAmount), 0)
-    results.push({
-      month: format(monthStart, "MMM"),
-      revenue: Math.round(revenue * 100) / 100,
-    })
+    const start = startOfMonth(subMonths(new Date(), i))
+    const end = i > 0 ? startOfMonth(subMonths(new Date(), i - 1)) : new Date()
+    monthBoundaries.push({ start, end, label: format(start, "MMM") })
   }
 
-  return results
+  // Group payments by month in JS
+  const revenueByMonth = new Map<string, number>()
+  for (const { label } of monthBoundaries) {
+    revenueByMonth.set(label, 0)
+  }
+  for (const p of payments) {
+    for (const { start, end, label } of monthBoundaries) {
+      if (p.createdAt >= start && p.createdAt < end) {
+        revenueByMonth.set(label, (revenueByMonth.get(label) ?? 0) + Number(p.totalAmount))
+        break
+      }
+    }
+  }
+
+  return monthBoundaries.map(({ label }) => ({
+    month: label,
+    revenue: Math.round((revenueByMonth.get(label) ?? 0) * 100) / 100,
+  }))
 }
 
 export async function getRevenueByCategory(businessId?: string) {
@@ -293,9 +311,12 @@ export async function getRevenueByCategory(businessId?: string) {
     where: {
       appointment: { ...businessFilter, status: "completed" },
     },
-    include: {
+    select: {
+      finalPrice: true,
       service: {
-        include: { category: true },
+        select: {
+          category: { select: { name: true } },
+        },
       },
     },
   })
@@ -400,39 +421,35 @@ export async function getAppointmentCompletionRate(businessId?: string) {
   const thisMonthStart = startOfMonth(new Date())
   const businessFilter = businessId ? { businessId } : {}
 
-  const total = await prisma.appointment.count({
-    where: { ...businessFilter, startTime: { gte: thisMonthStart } },
-  })
+  // Single query: group by status to get all counts at once
+  const [statusCounts, rescheduledCount] = await Promise.all([
+    prisma.appointment.groupBy({
+      by: ["status"],
+      where: { ...businessFilter, startTime: { gte: thisMonthStart } },
+      _count: true,
+    }),
+    prisma.appointment.count({
+      where: {
+        ...businessFilter,
+        startTime: { gte: thisMonthStart },
+        rescheduledTo: { not: null },
+      },
+    }),
+  ])
+
+  const total = statusCounts.reduce((sum, s) => sum + s._count, 0)
 
   if (total === 0) {
     return { completed: 0, cancelled: 0, noShow: 0, rescheduled: 0 }
   }
 
-  const completed = await prisma.appointment.count({
-    where: { ...businessFilter, startTime: { gte: thisMonthStart }, status: "completed" },
-  })
-
-  const cancelled = await prisma.appointment.count({
-    where: { ...businessFilter, startTime: { gte: thisMonthStart }, status: "cancelled" },
-  })
-
-  const noShow = await prisma.appointment.count({
-    where: { ...businessFilter, startTime: { gte: thisMonthStart }, status: "no_show" },
-  })
-
-  const rescheduled = await prisma.appointment.count({
-    where: {
-      ...businessFilter,
-      startTime: { gte: thisMonthStart },
-      rescheduledTo: { not: null },
-    },
-  })
+  const countMap = new Map(statusCounts.map((s) => [s.status, s._count]))
 
   return {
-    completed: Math.round((completed / total) * 100),
-    cancelled: Math.round((cancelled / total) * 100),
-    noShow: Math.round((noShow / total) * 100),
-    rescheduled: Math.round((rescheduled / total) * 100),
+    completed: Math.round(((countMap.get("completed") ?? 0) / total) * 100),
+    cancelled: Math.round(((countMap.get("cancelled") ?? 0) / total) * 100),
+    noShow: Math.round(((countMap.get("no_show") ?? 0) / total) * 100),
+    rescheduled: Math.round((rescheduledCount / total) * 100),
   }
 }
 
@@ -618,6 +635,7 @@ export async function getStaffPerformanceByName(staffName: string, businessId?: 
     ? { primaryLocation: { businessId } }
     : {}
 
+  // Fetch staff with only the fields we need
   const staff = await prisma.staff.findFirst({
     where: {
       isActive: true,
@@ -627,34 +645,37 @@ export async function getStaffPerformanceByName(staffName: string, businessId?: 
         lastName: { equals: lastName, mode: "insensitive" },
       },
     },
-    include: {
-      user: true,
-      appointmentServices: {
-        include: { appointment: true },
-      },
-      reviews: true,
+    select: {
+      id: true,
+      commissionRate: true,
+      user: { select: { firstName: true, lastName: true } },
     },
   })
 
   if (!staff) return null
 
-  const completedServices = staff.appointmentServices.filter(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (as_: any) => as_.appointment.status === "completed"
-  )
-  const revenue = completedServices.reduce(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (sum: number, as_: any) => sum + Number(as_.finalPrice),
-    0
-  )
-  const avgRating =
-    staff.reviews.length > 0
-      ? staff.reviews.reduce((sum, r) => sum + r.overallRating, 0) / staff.reviews.length
-      : 0
+  // Use aggregation queries instead of loading all related records
+  const [revenueAgg, ratingAgg] = await Promise.all([
+    prisma.appointmentService.aggregate({
+      where: {
+        staffId: staff.id,
+        appointment: { status: "completed" },
+      },
+      _sum: { finalPrice: true },
+      _count: true,
+    }),
+    prisma.review.aggregate({
+      where: { staffId: staff.id },
+      _avg: { overallRating: true },
+    }),
+  ])
+
+  const revenue = Number(revenueAgg._sum.finalPrice ?? 0)
+  const avgRating = Number(ratingAgg._avg.overallRating ?? 0)
 
   return {
     name: `${staff.user.firstName} ${staff.user.lastName}`,
-    appointments: completedServices.length,
+    appointments: revenueAgg._count,
     revenue: Math.round(revenue * 100) / 100,
     rating: Math.round(avgRating * 10) / 10,
     commission: Math.round(revenue * Number(staff.commissionRate) / 100),

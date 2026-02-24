@@ -1,8 +1,13 @@
+import "dotenv/config"
 import { PrismaClient } from "./generated/prisma/client/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import bcrypt from "bcryptjs"
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+const connectionString = process.env.DATABASE_URL!
+const sslUrl = connectionString.includes('?')
+  ? `${connectionString}&sslmode=require&uselibpqcompat=true`
+  : `${connectionString}?sslmode=require&uselibpqcompat=true`
+const adapter = new PrismaPg({ connectionString: sslUrl })
 const prisma = new PrismaClient({ adapter })
 
 async function main() {

@@ -4,6 +4,8 @@ import { z } from "zod"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { rateLimit } from "@/lib/rate-limit"
+import { sendEmail } from "@/lib/email"
+import { welcomeEmail } from "@/lib/email-templates"
 
 type RegisterResult =
   | { success: true }
@@ -52,8 +54,8 @@ export async function registerBusiness(data: {
     const slugSuffix = Math.random().toString(36).substring(2, 8)
     const slug = `${baseSlug}-${slugSuffix}`
 
-    // Create user, business, and location in a transaction
-    await prisma.$transaction(async (tx) => {
+    // Create user, business, location, and staff in a transaction
+    const { firstName, email } = await prisma.$transaction(async (tx) => {
       // Create the user
       const user = await tx.user.create({
         data: {
@@ -80,7 +82,7 @@ export async function registerBusiness(data: {
 
       // Create the primary location
       const locationSlug = `${baseSlug}-main-${slugSuffix}`
-      await tx.location.create({
+      const location = await tx.location.create({
         data: {
           businessId: business.id,
           name: parsed.businessName.trim(),
@@ -92,7 +94,26 @@ export async function registerBusiness(data: {
           isActive: true,
         },
       })
+
+      // Create a Staff record for the owner so they appear as a bookable stylist
+      await tx.staff.create({
+        data: {
+          userId: user.id,
+          locationId: location.id,
+          canAcceptBookings: true,
+          isActive: true,
+        },
+      })
+
+      return { firstName: user.firstName, email: user.email }
     })
+
+    // Send welcome email (fire-and-forget)
+    sendEmail({
+      to: email,
+      subject: `Welcome to SAL Platform!`,
+      html: welcomeEmail({ name: firstName, businessName: parsed.businessName.trim() }),
+    }).catch(console.error)
 
     return { success: true }
   } catch (e) {

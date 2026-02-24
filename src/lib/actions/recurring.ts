@@ -291,9 +291,10 @@ export async function addGroupParticipant(
   try {
     const parsedAppointmentId = idSchema.parse(appointmentId)
     const parsedClientId = idSchema.parse(clientId)
+    const { businessId } = await getBusinessContext()
 
     const appointment = await prisma.appointment.findUnique({
-      where: { id: parsedAppointmentId },
+      where: { id: parsedAppointmentId, businessId },
       include: { groupParticipants: true },
     })
 
@@ -325,6 +326,13 @@ export async function removeGroupParticipant(
   try {
     const parsedAppointmentId = idSchema.parse(appointmentId)
     const parsedClientId = idSchema.parse(clientId)
+    const { businessId } = await getBusinessContext()
+
+    // Verify the appointment belongs to this business
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: parsedAppointmentId, businessId },
+    })
+    if (!appointment) return { success: false, error: "Appointment not found" }
 
     await prisma.groupParticipant.delete({
       where: { appointmentId_clientId: { appointmentId: parsedAppointmentId, clientId: parsedClientId } },

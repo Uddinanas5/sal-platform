@@ -470,6 +470,8 @@ model StaffSchedule {
   location Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
   breaks   StaffBreak[]
 
+  @@index([staffId])
+  @@index([locationId])
   @@map("staff_schedules")
 
 }
@@ -508,6 +510,7 @@ model StaffTimeOff {
   staff    Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
   approver User? @relation("ApprovedBy", fields: [approvedBy], references: [id])
 
+  @@index([staffId])
   @@map("staff_time_off")
 
 }
@@ -751,6 +754,7 @@ model Appointment {
 
   @@index([businessId])
   @@index([businessId, status])
+  @@index([businessId, startTime])
   @@index([locationId])
   @@index([clientId])
   @@index([status])
@@ -789,6 +793,7 @@ model AppointmentService {
 
   @@index([appointmentId])
   @@index([staffId])
+  @@index([serviceId])
   @@map("appointment_services")
 
 }
@@ -811,6 +816,8 @@ model AppointmentProduct {
   product     Product     @relation(fields: [productId], references: [id])
   staff       Staff?      @relation(fields: [staffId], references: [id])
 
+  @@index([appointmentId])
+  @@index([productId])
   @@map("appointment_products")
 
 }
@@ -910,6 +917,9 @@ model Invoice {
   appointment Appointment? @relation(fields: [appointmentId], references: [id])
   client      Client?      @relation(fields: [clientId], references: [id])
 
+  @@index([businessId])
+  @@index([clientId])
+  @@index([appointmentId])
   @@map("invoices")
 
 }
@@ -935,6 +945,7 @@ model GiftCard {
   business  Business @relation(fields: [businessId], references: [id])
   purchaser Client?  @relation("PurchasedBy", fields: [purchasedBy], references: [id])
 
+  @@index([businessId])
   @@map("gift_cards")
 
 }
@@ -1087,6 +1098,7 @@ model PayrollPeriod {
   // Relations
   business Business @relation(fields: [businessId], references: [id])
 
+  @@index([businessId])
   @@map("payroll_periods")
 
 }
@@ -1144,6 +1156,7 @@ model Notification {
 
   @@index([businessId])
   @@index([userId])
+  @@index([clientId])
   @@index([status])
   @@map("notifications")
 
@@ -1184,6 +1197,7 @@ model Review {
 
   @@index([businessId])
   @@index([appointmentId])
+  @@index([clientId])
   @@index([staffId])
   @@map("reviews")
 

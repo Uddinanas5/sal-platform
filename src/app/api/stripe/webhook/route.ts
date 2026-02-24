@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import Stripe from "stripe"
 import { prisma } from "@/lib/prisma"
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
-})
+import { stripe } from "@/lib/stripe"
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
@@ -56,33 +53,95 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        console.log(`Stripe account ${account.id} updated to status: ${status}`)
         break
       }
 
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
-        console.log(`PaymentIntent ${paymentIntent.id} succeeded`)
-        
-        // You could update appointment/transaction status here
-        // based on paymentIntent.metadata.appointmentId etc.
+
+        // Update the Payment record to "completed"
+        const succeededPayment = await prisma.payment.findFirst({
+          where: { processorId: paymentIntent.id },
+        })
+
+        if (succeededPayment) {
+          await prisma.payment.update({
+            where: { id: succeededPayment.id },
+            data: {
+              status: "completed",
+              processedAt: new Date(),
+            },
+          })
+
+          // If there's an associated appointment, confirm it
+          const appointmentId =
+            succeededPayment.appointmentId ??
+            (paymentIntent.metadata?.appointmentId || null)
+
+          if (appointmentId) {
+            await prisma.appointment.update({
+              where: { id: appointmentId },
+              data: { status: "confirmed" },
+            })
+          }
+        }
+
         break
       }
 
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
-        console.log(`PaymentIntent ${paymentIntent.id} failed:`, paymentIntent.last_payment_error?.message)
+        console.error(`Payment failed: ${paymentIntent.last_payment_error?.message}`)
+
+        // Update the Payment record to "failed"
+        const failedPayment = await prisma.payment.findFirst({
+          where: { processorId: paymentIntent.id },
+        })
+
+        if (failedPayment) {
+          await prisma.payment.update({
+            where: { id: failedPayment.id },
+            data: { status: "failed" },
+          })
+        }
+
         break
       }
 
       case "charge.refunded": {
         const charge = event.data.object as Stripe.Charge
-        console.log(`Charge ${charge.id} refunded`)
+
+        // Look up the payment by the payment intent ID from the charge
+        const paymentIntentId =
+          typeof charge.payment_intent === "string"
+            ? charge.payment_intent
+            : charge.payment_intent?.id
+
+        if (paymentIntentId) {
+          const refundedPayment = await prisma.payment.findFirst({
+            where: { processorId: paymentIntentId },
+          })
+
+          if (refundedPayment) {
+            const totalRefunded = (charge.amount_refunded ?? 0) / 100
+            const isFullRefund = charge.refunded
+
+            await prisma.payment.update({
+              where: { id: refundedPayment.id },
+              data: {
+                status: isFullRefund ? "refunded" : refundedPayment.status,
+                refundedAmount: totalRefunded,
+                refundedAt: new Date(),
+              },
+            })
+          }
+        }
+
         break
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        // Unhandled event type — no action needed
     }
 
     return NextResponse.json({ received: true })
@@ -95,9 +154,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Disable body parsing - Stripe needs the raw body
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}

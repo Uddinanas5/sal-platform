@@ -18,6 +18,21 @@ export async function getClients(search?: string, businessId?: string) {
 
   const clients = await prisma.client.findMany({
     where,
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      totalVisits: true,
+      totalSpent: true,
+      lastVisitAt: true,
+      createdAt: true,
+      tags: true,
+      notes: true,
+      loyaltyPoints: true,
+      dateOfBirth: true,
+    },
     orderBy: { createdAt: "desc" },
   })
 
@@ -39,16 +54,41 @@ export async function getClients(search?: string, businessId?: string) {
   }))
 }
 
-export async function getClientById(id: string) {
-  const client = await prisma.client.findUnique({
-    where: { id },
-    include: {
+export async function getClientById(id: string, businessId: string) {
+  const client = await prisma.client.findFirst({
+    where: { id, businessId },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      totalVisits: true,
+      totalSpent: true,
+      lastVisitAt: true,
+      createdAt: true,
+      tags: true,
+      notes: true,
+      loyaltyPoints: true,
+      dateOfBirth: true,
       appointments: {
-        include: {
+        select: {
+          id: true,
+          clientId: true,
+          startTime: true,
+          endTime: true,
+          status: true,
+          totalAmount: true,
           services: {
-            include: {
-              service: true,
-              staff: { include: { user: true } },
+            select: {
+              serviceId: true,
+              staffId: true,
+              name: true,
+              staff: {
+                select: {
+                  user: { select: { firstName: true, lastName: true } },
+                },
+              },
             },
           },
         },

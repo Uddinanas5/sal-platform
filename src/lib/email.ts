@@ -14,7 +14,7 @@ export async function sendEmail({
 }) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "SAL Platform <onboarding@resend.dev>",
+      from: process.env.EMAIL_FROM || "SAL Platform <noreply@salplatform.com>",
       to,
       subject,
       html,

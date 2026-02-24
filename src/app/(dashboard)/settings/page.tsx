@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 import { getResources } from "@/lib/queries/resources"
 import { getServices } from "@/lib/queries/services"
 import SettingsClient from "./client"
@@ -25,6 +26,16 @@ export default async function SettingsPage() {
     services = []
   }
 
+  const business = businessId ? await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { name: true, phone: true, email: true, timezone: true, currency: true },
+  }) : null
+
+  const location = businessId ? await prisma.location.findFirst({
+    where: { businessId, isPrimary: true },
+    select: { addressLine1: true, city: true, state: true, postalCode: true },
+  }) : null
+
   // Map services to the format expected by the resources section
   const serviceOptions = services.map((s) => ({
     id: s.id,
@@ -32,5 +43,12 @@ export default async function SettingsPage() {
     category: s.category,
   }))
 
-  return <SettingsClient resources={resources} services={serviceOptions} />
+  return (
+    <SettingsClient
+      resources={resources}
+      services={serviceOptions}
+      initialBusiness={business}
+      initialLocation={location}
+    />
+  )
 }

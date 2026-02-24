@@ -12,19 +12,6 @@ import {
   getTopClients,
   getClientAcquisitionSources,
 } from "@/lib/queries/reports"
-import {
-  reportSummary as mockReportSummary,
-  revenueByMonth as mockRevenueByMonth,
-  revenueByCategory as mockRevenueByCategory,
-  revenueByPaymentMethod as mockRevenueByPaymentMethod,
-  staffPerformance as mockStaffPerformance,
-  appointmentsByHour as mockAppointmentsByHour,
-  appointmentCompletionRate as mockAppointmentCompletionRate,
-  busiestTimesHeatmap as mockBusiestTimesHeatmap,
-  clientRetention as mockClientRetention,
-  topClients as mockTopClients,
-  clientAcquisitionSources as mockClientAcquisitionSources,
-} from "@/data/mock-reports"
 import { ReportsClient } from "./client"
 
 export const dynamic = "force-dynamic"
@@ -33,7 +20,8 @@ export default async function ReportsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
 
-  let summary,
+  const [
+    summary,
     revenueByMonth,
     revenueByCategory,
     revenueByPaymentMethod,
@@ -43,47 +31,20 @@ export default async function ReportsPage() {
     busiestTimesHeatmap,
     clientRetention,
     topClients,
-    clientAcquisitionSources
-
-  try {
-    ;[
-      summary,
-      revenueByMonth,
-      revenueByCategory,
-      revenueByPaymentMethod,
-      staffPerformance,
-      appointmentsByHour,
-      appointmentCompletionRate,
-      busiestTimesHeatmap,
-      clientRetention,
-      topClients,
-      clientAcquisitionSources,
-    ] = await Promise.all([
-      getReportSummary(businessId),
-      getRevenueByMonth(6, businessId),
-      getRevenueByCategory(businessId),
-      getRevenueByPaymentMethod(businessId),
-      getStaffPerformance(businessId),
-      getAppointmentsByHour(businessId),
-      getAppointmentCompletionRate(businessId),
-      getBusiestTimesHeatmap(businessId),
-      getClientRetention(6, businessId),
-      getTopClients(5, businessId),
-      getClientAcquisitionSources(businessId),
-    ])
-  } catch {
-    summary = mockReportSummary
-    revenueByMonth = mockRevenueByMonth
-    revenueByCategory = mockRevenueByCategory
-    revenueByPaymentMethod = mockRevenueByPaymentMethod
-    staffPerformance = mockStaffPerformance
-    appointmentsByHour = mockAppointmentsByHour
-    appointmentCompletionRate = mockAppointmentCompletionRate
-    busiestTimesHeatmap = mockBusiestTimesHeatmap
-    clientRetention = mockClientRetention
-    topClients = mockTopClients
-    clientAcquisitionSources = mockClientAcquisitionSources
-  }
+    clientAcquisitionSources,
+  ] = await Promise.all([
+    getReportSummary(businessId),
+    getRevenueByMonth(6, businessId),
+    getRevenueByCategory(businessId),
+    getRevenueByPaymentMethod(businessId),
+    getStaffPerformance(businessId),
+    getAppointmentsByHour(businessId),
+    getAppointmentCompletionRate(businessId),
+    getBusiestTimesHeatmap(businessId),
+    getClientRetention(6, businessId),
+    getTopClients(5, businessId),
+    getClientAcquisitionSources(businessId),
+  ])
 
   return (
     <ReportsClient

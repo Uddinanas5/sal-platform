@@ -31,12 +31,31 @@ import type { Service, Staff } from "@/data/mock-data"
 // Types
 // ---------------------------------------------------------------------------
 
+interface BusinessHourData {
+  dayOfWeek: number
+  openTime: string | null
+  closeTime: string | null
+  isClosed: boolean
+}
+
+interface StaffScheduleData {
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+  isWorking: boolean
+}
+
+interface StaffWithSchedules extends Staff {
+  schedules?: StaffScheduleData[]
+}
+
 interface BookingPageClientProps {
   businessSlug: string
   businessId: string
   businessName: string
   services: Service[]
-  staff: Staff[]
+  staff: StaffWithSchedules[]
+  businessHours: BusinessHourData[]
 }
 
 interface ClientDetails {
@@ -83,16 +102,59 @@ const MONTH_NAMES = [
 
 const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
 
-function generateTimeSlots(): { hour: number; minute: number; label: string }[] {
+function generateTimeSlots(
+  openHour = 9,
+  openMinute = 0,
+  closeHour = 17,
+  closeMinute = 0
+): { hour: number; minute: number; label: string }[] {
   const slots: { hour: number; minute: number; label: string }[] = []
-  for (let h = 9; h < 18; h++) {
-    slots.push({ hour: h, minute: 0, label: formatTimeLabel(h, 0) })
-    slots.push({ hour: h, minute: 30, label: formatTimeLabel(h, 30) })
+  let h = openHour
+  let m = openMinute
+  // Round up to nearest 30-minute mark
+  if (m > 0 && m <= 30) m = 30
+  else if (m > 30) { m = 0; h++ }
+
+  while (h < closeHour || (h === closeHour && m < closeMinute)) {
+    slots.push({ hour: h, minute: m, label: formatTimeLabel(h, m) })
+    m += 30
+    if (m >= 60) { m = 0; h++ }
   }
   return slots
 }
 
-const TIME_SLOTS = generateTimeSlots()
+/** Extract hours/minutes from a time ISO string (e.g. "1970-01-01T09:00:00.000Z") */
+function parseTimeFromISO(iso: string): { hour: number; minute: number } {
+  const d = new Date(iso)
+  return { hour: d.getUTCHours(), minute: d.getUTCMinutes() }
+}
+
+function getTimeSlotsForDay(
+  dayOfWeek: number,
+  businessHours: BusinessHourData[]
+): { hour: number; minute: number; label: string }[] {
+  const dayHours = businessHours.find((bh) => bh.dayOfWeek === dayOfWeek)
+  if (!dayHours || dayHours.isClosed || !dayHours.openTime || !dayHours.closeTime) {
+    // Fallback: default 9 AM - 5 PM if no business hours data at all
+    if (businessHours.length === 0) {
+      return generateTimeSlots(9, 0, 17, 0)
+    }
+    // Business has hours configured but this day is closed
+    return []
+  }
+  const open = parseTimeFromISO(dayHours.openTime)
+  const close = parseTimeFromISO(dayHours.closeTime)
+  return generateTimeSlots(open.hour, open.minute, close.hour, close.minute)
+}
+
+function isDayClosed(dayOfWeek: number, businessHours: BusinessHourData[]): boolean {
+  // If no business hours configured at all, no days are closed
+  if (businessHours.length === 0) return false
+  const dayHours = businessHours.find((bh) => bh.dayOfWeek === dayOfWeek)
+  // If no entry for this day, treat it as closed
+  if (!dayHours) return true
+  return dayHours.isClosed
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
   Hair: "#f97316",
@@ -461,11 +523,13 @@ function DateTimeStep({
   selectedTime,
   onSelectDate,
   onSelectTime,
+  businessHours,
 }: {
   selectedDate: Date | null
   selectedTime: { hour: number; minute: number } | null
   onSelectDate: (d: Date) => void
   onSelectTime: (t: { hour: number; minute: number }) => void
+  businessHours: BusinessHourData[]
 }) {
   const today = useMemo(() => {
     const d = new Date()
@@ -562,21 +626,22 @@ function DateTimeStep({
               const isPast = cellDate < today
               const isToday = isSameDate(cellDate, today)
               const isSelected = selectedDate ? isSameDate(cellDate, selectedDate) : false
-              const isSunday = cellDate.getDay() === 0
+              const closed = isDayClosed(cellDate.getDay(), businessHours)
+              const isDisabled = isPast || closed
 
               return (
                 <button
                   key={`day-${day}`}
-                  disabled={isPast || isSunday}
+                  disabled={isDisabled}
                   onClick={() => onSelectDate(cellDate)}
                   className={`
                     h-10 rounded-lg text-sm font-medium transition-all duration-200
                     ${
                       isSelected
                         ? "bg-sal-500 text-white shadow-sm"
-                        : isToday
+                        : isToday && !closed
                           ? "bg-sal-500/10 text-sal-600 dark:text-sal-400 font-semibold"
-                          : isPast || isSunday
+                          : isDisabled
                             ? "text-muted-foreground/40 cursor-not-allowed"
                             : "text-foreground hover:bg-muted"
                     }
@@ -592,44 +657,54 @@ function DateTimeStep({
       </Card>
 
       {/* Time slots */}
-      {selectedDate && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <h3 className="text-sm font-semibold text-foreground mb-3">
-            Available times for{" "}
-            {selectedDate.toLocaleDateString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            })}
-          </h3>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {TIME_SLOTS.map((slot) => {
-              const isSelected =
-                selectedTime?.hour === slot.hour && selectedTime?.minute === slot.minute
-              return (
-                <button
-                  key={slot.label}
-                  onClick={() => onSelectTime({ hour: slot.hour, minute: slot.minute })}
-                  className={`
-                    py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-200 border
-                    ${
-                      isSelected
-                        ? "bg-sal-500 text-white border-sal-500 shadow-sm"
-                        : "border-input bg-background text-foreground hover:border-sal-400 hover:bg-sal-500/5"
-                    }
-                  `}
-                >
-                  {slot.label}
-                </button>
-              )
-            })}
-          </div>
-        </motion.div>
-      )}
+      {selectedDate && (() => {
+        const dayOfWeek = selectedDate.getDay()
+        const timeSlots = getTimeSlotsForDay(dayOfWeek, businessHours)
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h3 className="text-sm font-semibold text-foreground mb-3">
+              Available times for{" "}
+              {selectedDate.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            </h3>
+            {timeSlots.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No available time slots for this day
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {timeSlots.map((slot) => {
+                  const isSelected =
+                    selectedTime?.hour === slot.hour && selectedTime?.minute === slot.minute
+                  return (
+                    <button
+                      key={slot.label}
+                      onClick={() => onSelectTime({ hour: slot.hour, minute: slot.minute })}
+                      className={`
+                        py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-200 border
+                        ${
+                          isSelected
+                            ? "bg-sal-500 text-white border-sal-500 shadow-sm"
+                            : "border-input bg-background text-foreground hover:border-sal-400 hover:bg-sal-500/5"
+                        }
+                      `}
+                    >
+                      {slot.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </motion.div>
+        )
+      })()}
     </div>
   )
 }
@@ -997,7 +1072,7 @@ function SuccessState({
 // Main Client Component
 // ---------------------------------------------------------------------------
 
-export function BookingPageClient({ businessSlug, businessId, businessName, services, staff }: BookingPageClientProps) {
+export function BookingPageClient({ businessSlug, businessId, businessName, services, staff, businessHours }: BookingPageClientProps) {
   // Suppress unused variable warning - businessSlug is kept for future URL-based features
   void businessSlug
   const [step, setStep] = useState<BookingStep>(1)
@@ -1080,10 +1155,17 @@ export function BookingPageClient({ businessSlug, businessId, businessName, serv
       const startTime = new Date(selectedDate)
       startTime.setHours(selectedTime.hour, selectedTime.minute, 0, 0)
 
+      // When "any" is selected, pick the first staff member who provides the selected service
       const staffId =
         selectedStaff === "any" || !selectedStaff
-          ? staff[0]?.id || "any"
+          ? staff.find((s) => s.services.includes(selectedService.id))?.id
           : selectedStaff.id
+
+      if (!staffId) {
+        toast.error("No staff available for this service")
+        setIsSubmitting(false)
+        return
+      }
 
       const result = await createPublicBooking({
         businessId,
@@ -1199,6 +1281,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, serv
                   selectedTime={selectedTime}
                   onSelectDate={setSelectedDate}
                   onSelectTime={setSelectedTime}
+                  businessHours={businessHours}
                 />
               )}
               {step === 4 && (

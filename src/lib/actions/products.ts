@@ -96,8 +96,10 @@ export async function adjustStock(
     adjustment = parsed.adjustment
     reason = parsed.reason
 
+    const { businessId } = await getBusinessContext()
+
     const inventory = await prisma.productInventory.findFirst({
-      where: { productId },
+      where: { productId, product: { businessId } },
     })
     if (!inventory) return { success: false, error: "Product inventory not found" }
 

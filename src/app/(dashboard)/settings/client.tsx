@@ -46,10 +46,11 @@ const timezones = [
   "America/Los_Angeles",
   "Europe/London",
   "Europe/Paris",
+  "Asia/Dubai",
   "Asia/Tokyo",
 ]
 
-const currencies = ["USD", "EUR", "GBP", "CAD", "AUD"]
+const currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "AED"]
 
 function SettingRow({
   label,
@@ -93,23 +94,36 @@ interface ServiceOption {
 interface SettingsClientProps {
   resources: Resource[]
   services: ServiceOption[]
+  initialBusiness: {
+    name: string
+    phone: string | null
+    email: string | null
+    timezone: string
+    currency: string
+  } | null
+  initialLocation: {
+    addressLine1: string
+    city: string
+    state: string | null
+    postalCode: string | null
+  } | null
 }
 
-export default function SettingsClient({ resources, services }: SettingsClientProps) {
+export default function SettingsClient({ resources, services, initialBusiness, initialLocation }: SettingsClientProps) {
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     if (typeof window === "undefined") return "light"
     return (localStorage.getItem("sal-theme") as "light" | "dark" | "system") || "light"
   })
   // Controlled state for General settings
-  const [businessName, setBusinessName] = useState("SAL Beauty Studio")
-  const [businessPhone, setBusinessPhone] = useState("+1 (555) 123-4567")
-  const [businessEmail, setBusinessEmail] = useState("hello@salonsal.com")
-  const [businessAddress, setBusinessAddress] = useState("123 Beauty Street, Suite 100")
-  const [businessCity, setBusinessCity] = useState("New York")
-  const [businessState, setBusinessState] = useState("NY")
-  const [businessZip, setBusinessZip] = useState("10001")
-  const [timezone, setTimezone] = useState("America/New_York")
-  const [currency, setCurrency] = useState("USD")
+  const [businessName, setBusinessName] = useState(initialBusiness?.name || "")
+  const [businessPhone, setBusinessPhone] = useState(initialBusiness?.phone || "")
+  const [businessEmail, setBusinessEmail] = useState(initialBusiness?.email || "")
+  const [businessAddress, setBusinessAddress] = useState(initialLocation?.addressLine1 || "")
+  const [businessCity, setBusinessCity] = useState(initialLocation?.city || "")
+  const [businessState, setBusinessState] = useState(initialLocation?.state || "")
+  const [businessZip, setBusinessZip] = useState(initialLocation?.postalCode || "")
+  const [timezone, setTimezone] = useState(initialBusiness?.timezone || "America/New_York")
+  const [currency, setCurrency] = useState(initialBusiness?.currency || "USD")
   const [language, setLanguage] = useState("en")
   const [isSaving, setIsSaving] = useState(false)
 

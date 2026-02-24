@@ -3,8 +3,8 @@
 import * as React from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { BarChartComponent } from "@/components/charts/bar-chart"
-import { PieChartComponent } from "@/components/charts/pie-chart"
+import { LazyBarChart as BarChartComponent } from "@/components/charts/lazy"
+import { LazyPieChart as PieChartComponent } from "@/components/charts/lazy"
 import { cn } from "@/lib/utils"
 
 interface AppointmentsTabProps {

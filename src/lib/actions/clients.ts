@@ -45,9 +45,11 @@ export async function createClient(data: {
   try {
     const { businessId } = await getBusinessContext()
 
-    if (data.email) {
+    const normalizedEmail = data.email?.trim().toLowerCase() || null
+
+    if (normalizedEmail) {
       const existing = await prisma.client.findFirst({
-        where: { businessId, email: data.email },
+        where: { businessId, email: normalizedEmail },
       })
       if (existing) return { success: false, error: "A client with this email already exists" }
     }
@@ -57,7 +59,7 @@ export async function createClient(data: {
         businessId,
         firstName: data.firstName,
         lastName: data.lastName,
-        email: data.email || null,
+        email: normalizedEmail,
         phone: data.phone || null,
         notes: data.notes || null,
         tags: data.tags || [],
@@ -100,6 +102,15 @@ export async function updateClient(
 
   try {
     const { businessId } = await getBusinessContext()
+
+    if (data.email) {
+      const normalizedEmail = data.email.trim().toLowerCase()
+      const existing = await prisma.client.findFirst({
+        where: { businessId, email: normalizedEmail, id: { not: id } },
+      })
+      if (existing) return { success: false, error: "A client with this email already exists" }
+      data.email = normalizedEmail
+    }
 
     await prisma.client.update({
       where: { id, businessId },

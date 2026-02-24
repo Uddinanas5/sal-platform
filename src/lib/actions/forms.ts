@@ -121,6 +121,16 @@ export async function submitForm(data: {
 }) {
   try {
     const parsed = submitFormSchema.parse(data)
+    const { businessId } = await getBusinessContext()
+
+    // Verify the template belongs to this business
+    const template = await prisma.formTemplate.findUnique({
+      where: { id: parsed.templateId },
+    })
+    if (!template || template.businessId !== businessId) {
+      return { success: false, error: "Form template not found" }
+    }
+
     const submission = await prisma.formSubmission.create({
       data: {
         templateId: parsed.templateId,

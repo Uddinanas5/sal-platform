@@ -5,7 +5,18 @@ export async function getGiftCards(businessId?: string) {
 
   const giftCards = await prisma.giftCard.findMany({
     where: businessFilter,
-    include: { purchaser: true },
+    select: {
+      id: true,
+      code: true,
+      initialValue: true,
+      currentBalance: true,
+      recipientName: true,
+      recipientEmail: true,
+      expiresAt: true,
+      isActive: true,
+      createdAt: true,
+      purchaser: { select: { firstName: true, lastName: true } },
+    },
     orderBy: { createdAt: "desc" },
   })
 
@@ -30,7 +41,19 @@ export async function getMembershipPlans(businessId?: string) {
 
   const plans = await prisma.membershipPlan.findMany({
     where: { ...businessFilter, isActive: true },
-    include: { memberships: { where: { status: "active_membership" } } },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      price: true,
+      billingCycle: true,
+      sessionsIncluded: true,
+      discountPercent: true,
+      serviceIds: true,
+      benefits: true,
+      isActive: true,
+      _count: { select: { memberships: { where: { status: "active_membership" } } } },
+    },
     orderBy: { sortOrder: "asc" },
   })
 
@@ -44,7 +67,7 @@ export async function getMembershipPlans(businessId?: string) {
     discountPercent: p.discountPercent ? Number(p.discountPercent) : null,
     serviceIds: p.serviceIds,
     benefits: p.benefits,
-    activeMembers: p.memberships.length,
+    activeMembers: p._count.memberships,
     isActive: p.isActive,
   }))
 }
@@ -57,9 +80,19 @@ export async function getMemberships(businessId?: string) {
 
   const memberships = await prisma.membership.findMany({
     where: planFilter,
-    include: {
-      client: true,
-      plan: true,
+    select: {
+      id: true,
+      clientId: true,
+      planId: true,
+      status: true,
+      startDate: true,
+      endDate: true,
+      nextBillingDate: true,
+      sessionsRemaining: true,
+      totalPaid: true,
+      createdAt: true,
+      client: { select: { firstName: true, lastName: true, email: true } },
+      plan: { select: { name: true } },
     },
     orderBy: { createdAt: "desc" },
   })
@@ -105,7 +138,9 @@ export async function getMembershipStats(businessId?: string) {
 
     const activeMemberships = await prisma.membership.findMany({
       where: { ...planFilter, status: "active_membership" },
-      include: { plan: true },
+      select: {
+        plan: { select: { price: true, billingCycle: true } },
+      },
     })
 
     mrr = activeMemberships.reduce((sum, m) => {
@@ -125,7 +160,10 @@ export async function getMembershipStats(businessId?: string) {
 
   // Gift card stats (always available)
   const giftCardFilter = businessId ? { businessId } : {}
-  const giftCards = await prisma.giftCard.findMany({ where: giftCardFilter })
+  const giftCards = await prisma.giftCard.findMany({
+    where: giftCardFilter,
+    select: { isActive: true, currentBalance: true },
+  })
   const activeGiftCards = giftCards.filter((gc) => gc.isActive)
   const outstandingBalance = activeGiftCards.reduce(
     (sum, gc) => sum + Number(gc.currentBalance),

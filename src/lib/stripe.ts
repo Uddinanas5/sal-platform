@@ -1,9 +1,23 @@
 import Stripe from 'stripe'
 
-// Server-side Stripe instance
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-01-27.acacia',
-  typescript: true,
+// Lazy-initialized Stripe instance (avoids build-time errors when env vars aren't available)
+let _stripe: Stripe | null = null
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: '2026-01-28.clover',
+      typescript: true,
+    })
+  }
+  return _stripe
+}
+
+// Re-export as `stripe` for convenience
+export const stripe = new Proxy({} as Stripe, {
+  get(_, prop) {
+    return (getStripe() as unknown as Record<string | symbol, unknown>)[prop]
+  },
 })
 
 // Create a payment intent for checkout

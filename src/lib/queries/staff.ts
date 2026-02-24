@@ -8,10 +8,30 @@ export async function getStaff(businessId?: string) {
 
   const staff = await prisma.staff.findMany({
     where: { isActive: true, deletedAt: null, ...locationFilter },
-    include: {
-      user: true,
-      staffServices: { include: { service: true } },
-      staffSchedules: true,
+    select: {
+      id: true,
+      isActive: true,
+      commissionRate: true,
+      color: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          avatarUrl: true,
+          role: true,
+        },
+      },
+      staffServices: { select: { serviceId: true } },
+      staffSchedules: {
+        select: {
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true,
+          isWorking: true,
+        },
+      },
     },
     orderBy: { sortOrder: "asc" },
   })
@@ -51,13 +71,42 @@ export async function getStaff(businessId?: string) {
   })
 }
 
-export async function getStaffById(id: string) {
-  const staff = await prisma.staff.findUnique({
-    where: { id },
-    include: {
-      user: true,
-      staffServices: { include: { service: true } },
-      staffSchedules: { include: { breaks: true } },
+export async function getStaffById(id: string, businessId: string) {
+  const staff = await prisma.staff.findFirst({
+    where: { id, primaryLocation: { businessId } },
+    select: {
+      id: true,
+      commissionRate: true,
+      color: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          role: true,
+        },
+      },
+      staffServices: {
+        select: {
+          service: { select: { id: true, name: true } },
+        },
+      },
+      staffSchedules: {
+        select: {
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true,
+          isWorking: true,
+          breaks: {
+            select: {
+              startTime: true,
+              endTime: true,
+              isPaid: true,
+            },
+          },
+        },
+      },
     },
   })
 

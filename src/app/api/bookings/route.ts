@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { auth } from '@/lib/auth'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
 import type { Prisma } from '@/generated/prisma'
 
@@ -9,6 +10,11 @@ import type { Prisma } from '@/generated/prisma'
  */
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const searchParams = request.nextUrl.searchParams
     const businessId = searchParams.get('businessId')
     const locationId = searchParams.get('locationId')
@@ -167,6 +173,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'businessId, locationId, and at least one service are required' },
         { status: 400 }
+      )
+    }
+
+    // Validate that the business exists
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { id: true },
+    })
+
+    if (!business) {
+      return NextResponse.json(
+        { error: 'Business not found' },
+        { status: 404 }
       )
     }
 

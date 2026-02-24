@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { motion } from "framer-motion"
 import { Search, Plus, ChevronDown, User, Settings, LogOut, HelpCircle, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -155,7 +155,7 @@ export function Header({ title, subtitle }: HeaderProps) {
               Help & Support
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => toast.info("Logout functionality coming soon")} className="text-red-600">
+            <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })} className="text-red-600">
               <LogOut className="mr-2 h-4 w-4" />
               Log Out
             </DropdownMenuItem>

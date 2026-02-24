@@ -1,5 +1,5 @@
-const SAL_COLOR = "#E57A44"
-const SAL_COLOR_DARK = "#C9643A"
+const SAL_COLOR = "#059669"
+const SAL_COLOR_DARK = "#047857"
 
 function baseLayout(content: string): string {
   return `
@@ -60,6 +60,8 @@ export function bookingConfirmationEmail({
   dateTime,
   businessName,
   bookingRef,
+  businessEmail,
+  businessPhone,
 }: {
   clientName: string
   serviceName: string
@@ -67,6 +69,8 @@ export function bookingConfirmationEmail({
   dateTime: string
   businessName: string
   bookingRef: string
+  businessEmail?: string
+  businessPhone?: string
 }): string {
   const content = `
     <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1a1a1a;">Booking Confirmed</h1>
@@ -108,7 +112,7 @@ export function bookingConfirmationEmail({
     </table>
 
     <p style="margin: 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
-      Need to make changes? Contact us to reschedule or cancel your appointment. Please reference your booking code <strong>${bookingRef}</strong>.
+      Need to make changes? Contact us to reschedule or cancel your appointment. Please reference your booking code <strong>${bookingRef}</strong>.${businessEmail || businessPhone ? `<br>Reach us at${businessPhone ? ` <strong>${businessPhone}</strong>` : ""}${businessPhone && businessEmail ? " or" : ""}${businessEmail ? ` <a href="mailto:${businessEmail}" style="color: ${SAL_COLOR_DARK};">${businessEmail}</a>` : ""}.` : ""}
     </p>
   `
   return baseLayout(content)
@@ -216,6 +220,128 @@ export function welcomeEmail({
 
     <p style="margin: 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
       If you have any questions, don&rsquo;t hesitate to reach out. We&rsquo;re here to help!
+    </p>
+  `
+  return baseLayout(content)
+}
+
+export function appointmentCancelledEmail({
+  clientName,
+  serviceName,
+  dateTime,
+  businessName,
+  bookingRef,
+}: {
+  clientName: string
+  serviceName: string
+  dateTime: string
+  businessName: string
+  bookingRef: string
+}): string {
+  const content = `
+    <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1a1a1a;">Appointment Cancelled</h1>
+    <p style="margin: 0 0 24px; font-size: 15px; color: #6b6560; line-height: 1.5;">
+      Hi ${clientName}, your appointment at <strong>${businessName}</strong> has been cancelled.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: #faf8f5; border-radius: 8px; margin-bottom: 24px;">
+      <tr>
+        <td style="padding: 20px 24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Service</span><br>
+                <span style="font-size: 15px; color: #1a1a1a; font-weight: 600;">${serviceName}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Date &amp; Time</span><br>
+                <span style="font-size: 15px; color: #1a1a1a; font-weight: 600;">${dateTime}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Booking Reference</span><br>
+                <span style="font-size: 15px; color: ${SAL_COLOR}; font-weight: 700; letter-spacing: 0.5px;">${bookingRef}</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
+      If you&rsquo;d like to rebook, visit our booking page or contact us to schedule a new appointment.
+    </p>
+  `
+  return baseLayout(content)
+}
+
+export function appointmentRescheduledEmail({
+  clientName,
+  serviceName,
+  oldDateTime,
+  newDateTime,
+  staffName,
+  businessName,
+  bookingRef,
+}: {
+  clientName: string
+  serviceName: string
+  oldDateTime: string
+  newDateTime: string
+  staffName: string
+  businessName: string
+  bookingRef: string
+}): string {
+  const content = `
+    <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1a1a1a;">Appointment Rescheduled</h1>
+    <p style="margin: 0 0 24px; font-size: 15px; color: #6b6560; line-height: 1.5;">
+      Hi ${clientName}, your appointment at <strong>${businessName}</strong> has been rescheduled.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: #faf8f5; border-radius: 8px; margin-bottom: 24px;">
+      <tr>
+        <td style="padding: 20px 24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Service</span><br>
+                <span style="font-size: 15px; color: #1a1a1a; font-weight: 600;">${serviceName}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Staff</span><br>
+                <span style="font-size: 15px; color: #1a1a1a; font-weight: 600;">${staffName}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Previous Date &amp; Time</span><br>
+                <span style="font-size: 15px; color: #9a9590; font-weight: 600; text-decoration: line-through;">${oldDateTime}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">New Date &amp; Time</span><br>
+                <span style="font-size: 15px; color: ${SAL_COLOR}; font-weight: 700;">${newDateTime}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Booking Reference</span><br>
+                <span style="font-size: 15px; color: ${SAL_COLOR}; font-weight: 700; letter-spacing: 0.5px;">${bookingRef}</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
+      If you have any questions or need to make further changes, please don&rsquo;t hesitate to contact us. Reference your booking code <strong>${bookingRef}</strong>.
     </p>
   `
   return baseLayout(content)

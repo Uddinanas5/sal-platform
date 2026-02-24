@@ -6,8 +6,8 @@ import { UserCheck, ArrowUpRight } from "lucide-react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Card, CardContent } from "@/components/ui/card"
 import { DataTable } from "@/components/ui/data-table"
-import { LineChartComponent } from "@/components/charts/line-chart"
-import { PieChartComponent } from "@/components/charts/pie-chart"
+import { LazyLineChart as LineChartComponent } from "@/components/charts/lazy"
+import { LazyPieChart as PieChartComponent } from "@/components/charts/lazy"
 import { formatCurrency } from "@/lib/utils"
 
 type TopClient = {

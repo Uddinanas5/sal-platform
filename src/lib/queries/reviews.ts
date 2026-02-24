@@ -13,9 +13,24 @@ export async function getReviews(filter?: "all" | "needs-reply", businessId?: st
 
   const reviews = await prisma.review.findMany({
     where,
-    include: {
-      client: true,
-      staff: { include: { user: true } },
+    select: {
+      id: true,
+      clientId: true,
+      staffId: true,
+      overallRating: true,
+      comment: true,
+      response: true,
+      respondedAt: true,
+      isPublic: true,
+      createdAt: true,
+      client: {
+        select: { firstName: true, lastName: true },
+      },
+      staff: {
+        select: {
+          user: { select: { firstName: true, lastName: true } },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   })

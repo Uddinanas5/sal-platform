@@ -33,7 +33,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Check account lockout
         if (user.lockedUntil && user.lockedUntil > new Date()) {
-          return null
+          throw new Error("Account temporarily locked. Please try again in 15 minutes.")
         }
 
         const isValid = await bcrypt.compare(

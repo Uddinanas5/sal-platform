@@ -5,9 +5,17 @@ export async function getProducts(businessId?: string) {
 
   const products = await prisma.product.findMany({
     where: { isActive: true, deletedAt: null, ...businessFilter },
-    include: {
-      category: true,
-      inventory: true,
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      sku: true,
+      costPrice: true,
+      retailPrice: true,
+      isActive: true,
+      metadata: true,
+      category: { select: { name: true } },
+      inventory: { select: { quantity: true, lowStockThreshold: true } },
     },
     orderBy: { name: "asc" },
   })

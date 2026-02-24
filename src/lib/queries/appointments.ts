@@ -34,12 +34,31 @@ export async function getAppointments(filters?: {
 
   const appointments = await prisma.appointment.findMany({
     where,
-    include: {
-      client: true,
+    select: {
+      id: true,
+      clientId: true,
+      startTime: true,
+      endTime: true,
+      status: true,
+      totalAmount: true,
+      notes: true,
+      client: {
+        select: {
+          firstName: true,
+          lastName: true,
+          metadata: true,
+        },
+      },
       services: {
-        include: {
-          service: true,
-          staff: { include: { user: true } },
+        select: {
+          serviceId: true,
+          staffId: true,
+          name: true,
+          staff: {
+            select: {
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
         },
       },
     },
@@ -84,15 +103,24 @@ export async function getDashboardStats(businessId?: string) {
 
   const businessFilter = businessId ? { businessId } : {}
 
+  const weekAgo = new Date()
+  weekAgo.setDate(weekAgo.getDate() - 7)
+
+  const monthAgo = new Date()
+  monthAgo.setDate(monthAgo.getDate() - 30)
+
   const [
     todayAppointments,
     todayPayments,
     totalClients,
     newClientsThisMonth,
     reviews,
+    weeklyRevenueResult,
+    monthlyRevenueResult,
   ] = await Promise.all([
     prisma.appointment.findMany({
       where: { ...businessFilter, startTime: { gte: todayStart, lte: todayEnd } },
+      select: { status: true },
     }),
     prisma.payment.aggregate({
       where: {
@@ -116,7 +144,26 @@ export async function getDashboardStats(businessId?: string) {
       _avg: { overallRating: true },
       _count: true,
     }),
+    prisma.appointment.aggregate({
+      where: {
+        ...businessFilter,
+        status: "completed",
+        completedAt: { gte: weekAgo },
+      },
+      _sum: { totalAmount: true },
+    }),
+    prisma.appointment.aggregate({
+      where: {
+        ...businessFilter,
+        status: "completed",
+        completedAt: { gte: monthAgo },
+      },
+      _sum: { totalAmount: true },
+    }),
   ])
+
+  const weeklyRevenue = Number(weeklyRevenueResult._sum.totalAmount || 0)
+  const monthlyRevenue = Number(monthlyRevenueResult._sum.totalAmount || 0)
 
   const completed = todayAppointments.filter((a) => a.status === "completed").length
   const upcoming = todayAppointments.filter((a) =>
@@ -130,9 +177,9 @@ export async function getDashboardStats(businessId?: string) {
     completedAppointments: completed,
     upcomingAppointments: upcoming,
     pendingAppointments: pending,
-    weeklyRevenue: 0, // Could compute but keeping simple
+    weeklyRevenue,
     weeklyGrowth: 0,
-    monthlyRevenue: 0,
+    monthlyRevenue,
     monthlyGrowth: 0,
     totalClients,
     newClientsThisMonth,

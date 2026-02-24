@@ -88,7 +88,7 @@ const STEPS = [
   { label: "All Set!", icon: PartyPopper },
 ] as const
 
-const US_TIMEZONES = [
+const TIMEZONES = [
   { value: "America/New_York", label: "Eastern Time (ET)" },
   { value: "America/Chicago", label: "Central Time (CT)" },
   { value: "America/Denver", label: "Mountain Time (MT)" },
@@ -96,6 +96,12 @@ const US_TIMEZONES = [
   { value: "America/Anchorage", label: "Alaska Time (AKT)" },
   { value: "Pacific/Honolulu", label: "Hawaii Time (HT)" },
   { value: "America/Phoenix", label: "Arizona (no DST)" },
+  { value: "America/Toronto", label: "Canada - Eastern (ET)" },
+  { value: "Europe/London", label: "United Kingdom (GMT/BST)" },
+  { value: "Europe/Dublin", label: "Ireland (GMT/IST)" },
+  { value: "Asia/Dubai", label: "UAE (GST)" },
+  { value: "Australia/Sydney", label: "Australia - Sydney (AEST)" },
+  { value: "Pacific/Auckland", label: "New Zealand (NZST)" },
 ]
 
 const COUNTRIES = [
@@ -311,6 +317,16 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
           setSaving(false)
           return
         }
+        if (!state.trim()) {
+          toast.error("State is required")
+          setSaving(false)
+          return
+        }
+        if (!postalCode.trim()) {
+          toast.error("Zip code is required")
+          setSaving(false)
+          return
+        }
 
         const result = await updateBusinessDetails({
           businessId: business.id,
@@ -446,7 +462,11 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
   }, [])
 
   const useTemplate = useCallback(() => {
-    setServices(TEMPLATE_SERVICES)
+    setServices(prev => {
+      const existingNames = new Set(prev.map(s => s.name))
+      const newServices = TEMPLATE_SERVICES.filter(t => !existingNames.has(t.name))
+      return [...prev, ...newServices]
+    })
     toast.success("Template services added")
   }, [])
 
@@ -630,7 +650,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {US_TIMEZONES.map((tz) => (
+                          {TIMEZONES.map((tz) => (
                             <SelectItem key={tz.value} value={tz.value}>
                               {tz.label}
                             </SelectItem>

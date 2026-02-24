@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { createConnectAccount } from "@/lib/stripe"
+import { stripe, createConnectAccount } from "@/lib/stripe"
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,13 +39,7 @@ export async function POST(request: NextRequest) {
     // Check if already has a Stripe account
     if (business.stripeAccountId) {
       // Create a new account link for existing account
-      const { createConnectAccount: _unused, ...stripe } = await import("@/lib/stripe")
-      const Stripe = await import("stripe")
-      const stripeClient = new Stripe.default(process.env.STRIPE_SECRET_KEY!, {
-        apiVersion: "2024-12-18.acacia",
-      })
-
-      const accountLink = await stripeClient.accountLinks.create({
+      const accountLink = await stripe.accountLinks.create({
         account: business.stripeAccountId,
         refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=payments&stripe_refresh=true`,
         return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=payments&stripe_return=true`,

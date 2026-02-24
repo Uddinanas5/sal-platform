@@ -4,9 +4,9 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import { DollarSign, TrendingUp, Receipt, ArrowUpRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { AreaChartComponent } from "@/components/charts/area-chart"
-import { BarChartComponent } from "@/components/charts/bar-chart"
-import { PieChartComponent } from "@/components/charts/pie-chart"
+import { LazyAreaChart as AreaChartComponent } from "@/components/charts/lazy"
+import { LazyBarChart as BarChartComponent } from "@/components/charts/lazy"
+import { LazyPieChart as PieChartComponent } from "@/components/charts/lazy"
 import { formatCurrency } from "@/lib/utils"
 
 interface RevenueTabProps {

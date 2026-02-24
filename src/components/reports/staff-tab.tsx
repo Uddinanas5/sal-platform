@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { Star } from "lucide-react"
 import { ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "@/components/ui/data-table"
-import { BarChartComponent } from "@/components/charts/bar-chart"
+import { LazyBarChart as BarChartComponent } from "@/components/charts/lazy"
 import { formatCurrency } from "@/lib/utils"
 
 type StaffMember = {

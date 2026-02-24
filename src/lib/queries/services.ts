@@ -5,7 +5,16 @@ export async function getServices(businessId?: string) {
 
   const services = await prisma.service.findMany({
     where: { isActive: true, deletedAt: null, ...businessFilter },
-    include: { category: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      durationMinutes: true,
+      price: true,
+      color: true,
+      isActive: true,
+      category: { select: { name: true } },
+    },
     orderBy: { sortOrder: "asc" },
   })
 
@@ -26,9 +35,20 @@ export async function getServicesByCategory(businessId?: string) {
 
   const categories = await prisma.serviceCategory.findMany({
     where: { isActive: true, ...businessFilter },
-    include: {
+    select: {
+      name: true,
+      color: true,
       services: {
         where: { isActive: true, deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          durationMinutes: true,
+          price: true,
+          color: true,
+          isActive: true,
+        },
         orderBy: { sortOrder: "asc" },
       },
     },

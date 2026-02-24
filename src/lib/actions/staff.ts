@@ -92,6 +92,13 @@ export async function requestTimeOff(data: {
 }): Promise<ActionResult> {
   try {
     const parsed = requestTimeOffSchema.parse(data)
+    const { businessId } = await getBusinessContext()
+
+    // Verify the staff belongs to this business
+    const staff = await prisma.staff.findFirst({
+      where: { id: parsed.staffId, primaryLocation: { businessId } },
+    })
+    if (!staff) return { success: false, error: "Staff not found" }
 
     await prisma.staffTimeOff.create({
       data: {

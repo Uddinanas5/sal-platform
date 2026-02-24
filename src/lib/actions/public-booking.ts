@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/prisma"
 import { rateLimit } from "@/lib/rate-limit"
+import { sendEmail } from "@/lib/email"
+import { bookingConfirmationEmail } from "@/lib/email-templates"
 import { revalidatePath } from "next/cache"
 import { z, ZodError } from "zod"
 
@@ -53,11 +55,18 @@ export async function createPublicBooking(data: {
     })
     if (!location) return { success: false, error: "No active location found" }
 
-    // 2. Get service details
+    // 2. Get service details (verify it belongs to this business)
     const service = await prisma.service.findUnique({
-      where: { id: data.serviceId },
+      where: { id: data.serviceId, businessId: business.id },
     })
     if (!service) return { success: false, error: "Service not found" }
+
+    // 2b. Verify staff belongs to this business via their location
+    const staff = await prisma.staff.findFirst({
+      where: { id: data.staffId, primaryLocation: { businessId: business.id } },
+      include: { user: true },
+    })
+    if (!staff) return { success: false, error: "Staff not found" }
 
     // 3. Find or create client
     let client = await prisma.client.findFirst({
@@ -85,60 +94,109 @@ export async function createPublicBooking(data: {
     const endTime = new Date(startTime)
     endTime.setMinutes(endTime.getMinutes() + service.durationMinutes)
 
-    // 5. Generate booking reference
-    const count = await prisma.appointment.count({ where: { businessId: business.id } })
-    const bookingRef = `SAL-${String(count + 1).padStart(4, "0")}`
-
     const price = Number(service.price)
     const taxRate = service.isTaxable && service.taxRate ? Number(service.taxRate) / 100 : 0
     const tax = Math.round(price * taxRate * 100) / 100
 
-    // 6. Create appointment
-    const appointment = await prisma.appointment.create({
-      data: {
-        businessId: business.id,
-        locationId: location.id,
-        clientId: client.id,
-        bookingReference: bookingRef,
-        status: "confirmed",
-        source: "online",
-        startTime,
-        endTime,
-        totalDuration: service.durationMinutes,
-        subtotal: price,
-        taxAmount: tax,
-        totalAmount: price + tax,
-        notes: data.notes,
-      },
+    // 5-7. Transaction: conflict check + create must be atomic
+    const appointment = await prisma.$transaction(async (tx) => {
+      // Double-booking prevention
+      const conflicting = await tx.appointmentService.findFirst({
+        where: {
+          staffId: data.staffId,
+          appointment: {
+            status: { notIn: ["cancelled", "no_show"] },
+          },
+          startTime: { lt: endTime },
+          endTime: { gt: startTime },
+        },
+      })
+      if (conflicting) {
+        throw new Error("CONFLICT")
+      }
+
+      // Atomic booking reference via timestamp + random suffix
+      const timestamp = Date.now().toString(36)
+      const random = Math.random().toString(36).substring(2, 6)
+      const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
+
+      const appt = await tx.appointment.create({
+        data: {
+          businessId: business.id,
+          locationId: location.id,
+          clientId: client.id,
+          bookingReference: bookingRef,
+          status: "confirmed",
+          source: "online",
+          startTime,
+          endTime,
+          totalDuration: service.durationMinutes,
+          subtotal: price,
+          taxAmount: tax,
+          totalAmount: price + tax,
+          notes: data.notes,
+        },
+      })
+
+      await tx.appointmentService.create({
+        data: {
+          appointmentId: appt.id,
+          serviceId: data.serviceId,
+          staffId: data.staffId,
+          name: service.name,
+          durationMinutes: service.durationMinutes,
+          price,
+          finalPrice: price,
+          startTime,
+          endTime,
+        },
+      })
+
+      return appt
     })
 
-    // 7. Create appointment service link
-    await prisma.appointmentService.create({
-      data: {
-        appointmentId: appointment.id,
-        serviceId: data.serviceId,
-        staffId: data.staffId,
-        name: service.name,
-        durationMinutes: service.durationMinutes,
-        price,
-        finalPrice: price,
-        startTime,
-        endTime,
-      },
-    })
+    // 8. Send booking confirmation email (non-blocking)
+    if (client.email) {
+      const dateTime = new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(startTime)
+
+      sendEmail({
+        to: client.email,
+        subject: `Booking Confirmed - ${service.name}`,
+        html: bookingConfirmationEmail({
+          clientName: `${client.firstName} ${client.lastName}`,
+          serviceName: service.name,
+          staffName: `${staff.user.firstName} ${staff.user.lastName}`,
+          dateTime,
+          businessName: business.name,
+          bookingRef: appointment.bookingReference,
+        }),
+      }).catch(console.error) // Don't block on email failure
+    }
 
     revalidatePath("/calendar")
     revalidatePath("/dashboard")
 
     return {
       success: true,
-      data: { id: appointment.id, bookingReference: bookingRef },
+      data: { id: appointment.id, bookingReference: appointment.bookingReference },
     }
   } catch (e) {
     if (e instanceof ZodError) {
       return { success: false, error: "Invalid input" }
     }
+    const msg = (e as Error).message
+    if (msg === "CONFLICT") {
+      return { success: false, error: "This time slot is already booked for the selected staff member" }
+    }
     console.error("createPublicBooking error:", e)
-    return { success: false, error: (e as Error).message }
+    return { success: false, error: msg }
   }
 }
