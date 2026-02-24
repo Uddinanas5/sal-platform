@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getBusinessContext } from "@/lib/auth-utils"
+import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
 
 const createFormTemplateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -43,7 +43,7 @@ export async function createFormTemplate(data: {
 }) {
   try {
     const parsed = createFormTemplateSchema.parse(data)
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const template = await prisma.formTemplate.create({
       data: {
@@ -82,7 +82,7 @@ export async function updateFormTemplate(
   try {
     const parsedId = idSchema.parse(id)
     const parsed = updateFormTemplateSchema.parse(data)
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const template = await prisma.formTemplate.update({
       where: { id: parsedId, businessId },
@@ -102,7 +102,7 @@ export async function updateFormTemplate(
 export async function deleteFormTemplate(id: string) {
   try {
     const parsedId = idSchema.parse(id)
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     await prisma.formTemplate.delete({ where: { id: parsedId, businessId } })
     revalidatePath("/settings")
   } catch (e) {

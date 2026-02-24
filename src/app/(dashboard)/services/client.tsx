@@ -57,6 +57,7 @@ const categories = ["All", "Hair", "Wellness", "Nails", "Skincare"] as const
 interface ServicesClientProps {
   initialServices: Service[]
   staff: Staff[]
+  role?: string
 }
 
 function getCategoryCount(cat: string, services: Service[]): number {
@@ -70,12 +71,14 @@ function ServiceCard({
   onClick,
   onDelete,
   onToggleActive,
+  readOnly,
 }: {
   service: Service
   index: number
   onClick: () => void
   onDelete: (service: Service) => void
   onToggleActive: (serviceId: string, currentActive: boolean) => void
+  readOnly?: boolean
 }) {
   const [isActive, setIsActive] = useState(service.isActive)
 
@@ -124,40 +127,42 @@ function ServiceCard({
               </p>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => e.stopPropagation()}
-                aria-label="More options"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem onClick={() => toast.info(`Editing ${service.name}`)}>
-                <Pencil className="w-4 h-4 mr-2" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.success(`"${service.name}" duplicated`)}>
-                <Copy className="w-4 h-4 mr-2" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleToggle}>
-                <ToggleLeft className="w-4 h-4 mr-2" />
-                {isActive ? "Deactivate" : "Activate"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600 focus:text-red-600"
-                onClick={() => onDelete(service)}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!readOnly && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="More options"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={() => toast.info(`Editing ${service.name}`)}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => toast.success(`"${service.name}" duplicated`)}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleToggle}>
+                  <ToggleLeft className="w-4 h-4 mr-2" />
+                  {isActive ? "Deactivate" : "Activate"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600"
+                  onClick={() => onDelete(service)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         <div className="flex items-center justify-between">
@@ -201,6 +206,7 @@ export function ServicesClient(props: ServicesClientProps) {
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null)
+  const isReadOnly = props.role === "staff"
 
   const filteredServices = props.initialServices.filter((service) => {
     const q = searchQuery.toLowerCase()
@@ -323,28 +329,30 @@ export function ServicesClient(props: ServicesClientProps) {
             </Tabs>
           </div>
 
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Service
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Add New Service</DialogTitle>
-                <DialogDescription>
-                  Create a new service for your business.
-                </DialogDescription>
-              </DialogHeader>
-              <ServiceForm
-                mode="create"
-                staff={props.staff}
-                onSave={handleAddService}
-                onCancel={() => setIsAddDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+          {!isReadOnly && (
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Service
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Add New Service</DialogTitle>
+                  <DialogDescription>
+                    Create a new service for your business.
+                  </DialogDescription>
+                </DialogHeader>
+                <ServiceForm
+                  mode="create"
+                  staff={props.staff}
+                  onSave={handleAddService}
+                  onCancel={() => setIsAddDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         {/* Services List */}
@@ -361,6 +369,7 @@ export function ServicesClient(props: ServicesClientProps) {
                 onClick={() => handleServiceClick(service)}
                 onDelete={setDeleteTarget}
                 onToggleActive={handleToggleActive}
+                readOnly={isReadOnly}
               />
             ))}
           </div>

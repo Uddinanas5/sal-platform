@@ -24,6 +24,8 @@ import { NotificationsSettingsTab } from "@/components/settings/notifications-se
 import { OnlinePresenceTab } from "@/components/settings/online-presence-tab"
 import { FormsSection } from "@/components/settings/forms-section"
 import { ResourcesSection } from "@/components/settings/resources-section"
+import { TeamMembersTab } from "@/components/settings/team-members-tab"
+import type { InvitationWithInviter } from "@/lib/queries/invitations"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -91,6 +93,15 @@ interface ServiceOption {
   category: string
 }
 
+interface TeamMember {
+  staffId: string
+  userId: string
+  name: string
+  email: string
+  role: string
+  avatarUrl?: string | null
+}
+
 interface SettingsClientProps {
   resources: Resource[]
   services: ServiceOption[]
@@ -107,9 +118,15 @@ interface SettingsClientProps {
     state: string | null
     postalCode: string | null
   } | null
+  role: string
+  currentUserId: string
+  invitations: InvitationWithInviter[]
+  teamMembers: TeamMember[]
 }
 
-export default function SettingsClient({ resources, services, initialBusiness, initialLocation }: SettingsClientProps) {
+export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers }: SettingsClientProps) {
+  const isOwner = role === "owner"
+  const isAdminOrOwner = role === "owner" || role === "admin"
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     if (typeof window === "undefined") return "light"
     return (localStorage.getItem("sal-theme") as "light" | "dark" | "system") || "light"
@@ -179,7 +196,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
           <TabsList className="flex w-full max-w-5xl overflow-x-auto">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="resources">Resources</TabsTrigger>
-            <TabsTrigger value="billing">Billing</TabsTrigger>
+            {isOwner && <TabsTrigger value="billing">Billing</TabsTrigger>}
             <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="booking">Booking</TabsTrigger>
@@ -187,6 +204,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="online-presence">Online Presence</TabsTrigger>
             <TabsTrigger value="forms">Forms</TabsTrigger>
+            {isAdminOrOwner && <TabsTrigger value="team">Team</TabsTrigger>}
           </TabsList>
 
           {/* General Settings */}
@@ -626,6 +644,20 @@ export default function SettingsClient({ resources, services, initialBusiness, i
               <FormsSection templates={[]} />
             </div>
           </TabsContent>
+
+          {/* Team Members */}
+          {isAdminOrOwner && (
+            <TabsContent value="team">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                <TeamMembersTab
+                  invitations={invitations}
+                  teamMembers={teamMembers}
+                  currentUserId={currentUserId}
+                  currentUserRole={role}
+                />
+              </motion.div>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

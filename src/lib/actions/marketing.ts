@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getBusinessContext } from "@/lib/auth-utils"
+import { requireMinRole } from "@/lib/auth-utils"
 
 const channelEnum = z.enum(["email", "sms", "both"])
 
@@ -68,7 +68,7 @@ export async function createCampaign(data: {
   try {
     const parsed = createCampaignSchema.parse(data)
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const campaign = await prisma.campaign.create({
       data: {
@@ -104,7 +104,7 @@ export async function updateCampaign(
   try {
     const parsed = updateCampaignSchema.parse({ id, data })
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const campaign = await prisma.campaign.update({
       where: { id: parsed.id, businessId },
@@ -129,7 +129,7 @@ export async function deleteCampaign(id: string) {
   try {
     const parsed = idSchema.parse({ id })
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     await prisma.campaign.delete({ where: { id: parsed.id, businessId } })
     revalidatePath("/marketing")
@@ -143,7 +143,7 @@ export async function sendCampaign(id: string) {
   try {
     const parsed = idSchema.parse({ id })
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const campaign = await prisma.campaign.update({
       where: { id: parsed.id, businessId },
@@ -175,7 +175,7 @@ export async function createDeal(data: {
   try {
     const parsed = createDealSchema.parse(data)
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const deal = await prisma.deal.create({
       data: {
@@ -204,7 +204,7 @@ export async function deleteDeal(id: string) {
   try {
     const parsed = idSchema.parse({ id })
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     await prisma.deal.delete({ where: { id: parsed.id, businessId } })
     revalidatePath("/marketing")
@@ -225,7 +225,7 @@ export async function createAutomatedMessage(data: {
   try {
     const parsed = createAutomatedMessageSchema.parse(data)
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const msg = await prisma.automatedMessage.create({
       data: {
@@ -250,7 +250,7 @@ export async function toggleAutomatedMessage(id: string, isActive: boolean) {
   try {
     const parsed = toggleAutomatedMessageSchema.parse({ id, isActive })
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     await prisma.automatedMessage.update({
       where: { id: parsed.id, businessId },
@@ -267,7 +267,7 @@ export async function deleteAutomatedMessage(id: string) {
   try {
     const parsed = idSchema.parse({ id })
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     await prisma.automatedMessage.delete({ where: { id: parsed.id, businessId } })
     revalidatePath("/marketing")

@@ -263,6 +263,7 @@ model User {
   auditLogs           AuditLog[]
   inventoryTransactions InventoryTransaction[] @relation("PerformedBy")
   notifications       Notification[]       @relation("UserNotifications")
+  sentInvitations     StaffInvitation[]    @relation("SentInvitations")
 
   @@index([authId])
   @@index([email])
@@ -324,6 +325,7 @@ model Business {
   waitlistEntries    WaitlistEntry[]
   resources          Resource[]
   formTemplates      FormTemplate[]
+  staffInvitations   StaffInvitation[]
 
   @@index([ownerId])
   @@index([slug])
@@ -1577,4 +1579,30 @@ model FormSubmission {
   @@index([clientId])
   @@map("form_submissions")
 
+}
+
+// ============================================================================
+// STAFF INVITATIONS
+// ============================================================================
+
+model StaffInvitation {
+  id          String    @id @default(uuid()) @db.Uuid
+  businessId  String    @map("business_id") @db.Uuid
+  email       String    @db.VarChar(255)
+  firstName   String    @map("first_name") @db.VarChar(100)
+  lastName    String    @map("last_name") @db.VarChar(100)
+  role        UserRole  @default(staff)
+  invitedById String    @map("invited_by_id") @db.Uuid
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz
+  acceptedAt  DateTime? @map("accepted_at") @db.Timestamptz
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  business  Business @relation(fields: [businessId], references: [id])
+  invitedBy User     @relation("SentInvitations", fields: [invitedById], references: [id])
+
+  @@index([businessId])
+  @@index([email])
+  @@map("staff_invitations")
 }

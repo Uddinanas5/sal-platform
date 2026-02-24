@@ -53,7 +53,8 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { cn } from "@/lib/utils"
 import type { Staff, Service } from "@/data/mock-data"
-import { createStaff, deleteStaff } from "@/lib/actions/staff"
+import { deleteStaff } from "@/lib/actions/staff"
+import { sendInvitation } from "@/lib/actions/invitations"
 
 const roleConfig = {
   admin: { label: "Admin", icon: ShieldAlert, color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10" },
@@ -227,12 +228,11 @@ export function StaffClient(props: StaffClientProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [newStaffName, setNewStaffName] = useState("")
-  const [newStaffEmail, setNewStaffEmail] = useState("")
-  const [newStaffPhone, setNewStaffPhone] = useState("")
-  const [newStaffRole, setNewStaffRole] = useState("")
-  const [selectedServices, setSelectedServices] = useState<string[]>([])
-  const [addStaffErrors, setAddStaffErrors] = useState<{ name?: string; email?: string; role?: string }>({})
+  const [inviteFirstName, setInviteFirstName] = useState("")
+  const [inviteLastName, setInviteLastName] = useState("")
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRole, setInviteRole] = useState<"staff" | "admin">("staff")
+  const [addStaffErrors, setAddStaffErrors] = useState<{ firstName?: string; lastName?: string; email?: string }>({})
   const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null)
 
   const filteredStaff = props.initialStaff.filter((staff) => {
@@ -248,41 +248,34 @@ export function StaffClient(props: StaffClientProps) {
   const totalStaff = props.initialStaff.length
   const activeStaff = props.initialStaff.filter((s) => s.isActive).length
 
-  const handleAddStaff = async () => {
-    const errors: { name?: string; email?: string; role?: string } = {}
-    if (!newStaffName.trim()) errors.name = "Name is required"
-    if (!newStaffEmail.trim()) {
+  const handleInviteStaff = async () => {
+    const errors: { firstName?: string; lastName?: string; email?: string } = {}
+    if (!inviteFirstName.trim()) errors.firstName = "First name is required"
+    if (!inviteLastName.trim()) errors.lastName = "Last name is required"
+    if (!inviteEmail.trim()) {
       errors.email = "Email is required"
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newStaffEmail)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
       errors.email = "Please enter a valid email address"
     }
-    if (!newStaffRole) errors.role = "Please select a role"
     if (Object.keys(errors).length > 0) {
       setAddStaffErrors(errors)
       return
     }
 
-    const nameParts = newStaffName.trim().split(/\s+/)
-    const firstName = nameParts[0]
-    const lastName = nameParts.slice(1).join(" ") || ""
-
-    const result = await createStaff({
-      firstName,
-      lastName,
-      email: newStaffEmail.trim(),
-      phone: newStaffPhone.trim() || undefined,
-      role: newStaffRole,
-      serviceIds: selectedServices.length > 0 ? selectedServices : undefined,
+    const result = await sendInvitation({
+      firstName: inviteFirstName.trim(),
+      lastName: inviteLastName.trim(),
+      email: inviteEmail.trim(),
+      role: inviteRole,
     })
 
     if (result.success) {
-      toast.success(`Staff member "${newStaffName.trim()}" added successfully`)
+      toast.success(`Invitation sent to ${inviteEmail.trim()}`)
       setIsAddDialogOpen(false)
-      setNewStaffName("")
-      setNewStaffEmail("")
-      setNewStaffPhone("")
-      setNewStaffRole("")
-      setSelectedServices([])
+      setInviteFirstName("")
+      setInviteLastName("")
+      setInviteEmail("")
+      setInviteRole("staff")
       setAddStaffErrors({})
       router.refresh()
     } else {
@@ -361,50 +354,65 @@ export function StaffClient(props: StaffClientProps) {
           <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
             setIsAddDialogOpen(open)
             if (!open) {
-              setNewStaffName("")
-              setNewStaffEmail("")
-              setNewStaffPhone("")
-              setNewStaffRole("")
-              setSelectedServices([])
+              setInviteFirstName("")
+              setInviteLastName("")
+              setInviteEmail("")
+              setInviteRole("staff")
               setAddStaffErrors({})
             }
           }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
-                Add Staff Member
+                Invite Team Member
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Team Member</DialogTitle>
+                <DialogTitle>Invite Team Member</DialogTitle>
                 <DialogDescription>
-                  Add a new staff member to your team.
+                  Send an email invitation to add a new team member.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Full Name</label>
-                  <Input
-                    placeholder="John Doe"
-                    value={newStaffName}
-                    onChange={(e) => {
-                      setNewStaffName(e.target.value)
-                      if (addStaffErrors.name) setAddStaffErrors((prev) => ({ ...prev, name: undefined }))
-                    }}
-                  />
-                  {addStaffErrors.name && (
-                    <p className="text-xs text-red-500">{addStaffErrors.name}</p>
-                  )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">First Name</label>
+                    <Input
+                      placeholder="Jane"
+                      value={inviteFirstName}
+                      onChange={(e) => {
+                        setInviteFirstName(e.target.value)
+                        if (addStaffErrors.firstName) setAddStaffErrors((prev) => ({ ...prev, firstName: undefined }))
+                      }}
+                    />
+                    {addStaffErrors.firstName && (
+                      <p className="text-xs text-red-500">{addStaffErrors.firstName}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Last Name</label>
+                    <Input
+                      placeholder="Smith"
+                      value={inviteLastName}
+                      onChange={(e) => {
+                        setInviteLastName(e.target.value)
+                        if (addStaffErrors.lastName) setAddStaffErrors((prev) => ({ ...prev, lastName: undefined }))
+                      }}
+                    />
+                    {addStaffErrors.lastName && (
+                      <p className="text-xs text-red-500">{addStaffErrors.lastName}</p>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Email</label>
                   <Input
                     type="email"
-                    placeholder="john@salon.com"
-                    value={newStaffEmail}
+                    placeholder="jane@salon.com"
+                    value={inviteEmail}
                     onChange={(e) => {
-                      setNewStaffEmail(e.target.value)
+                      setInviteEmail(e.target.value)
                       if (addStaffErrors.email) setAddStaffErrors((prev) => ({ ...prev, email: undefined }))
                     }}
                   />
@@ -413,71 +421,24 @@ export function StaffClient(props: StaffClientProps) {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Phone</label>
-                  <Input
-                    placeholder="+1 (555) 000-0000"
-                    value={newStaffPhone}
-                    onChange={(e) => setNewStaffPhone(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
                   <label className="text-sm font-medium">Role</label>
-                  <Select value={newStaffRole} onValueChange={(v) => {
-                    setNewStaffRole(v)
-                    if (addStaffErrors.role) setAddStaffErrors((prev) => ({ ...prev, role: undefined }))
-                  }}>
+                  <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as "staff" | "admin")}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
                       <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
-                  {addStaffErrors.role && (
-                    <p className="text-xs text-red-500">{addStaffErrors.role}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Services</label>
-                  <p className="text-xs text-muted-foreground">
-                    Select services this staff member can perform
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {props.services.map((service) => {
-                      const isSelected = selectedServices.includes(service.id)
-                      return (
-                        <Badge
-                          key={service.id}
-                          variant={isSelected ? "default" : "outline"}
-                          className={cn(
-                            "cursor-pointer transition-colors",
-                            isSelected
-                              ? "bg-sal-500 text-white hover:bg-sal-600"
-                              : "hover:bg-sal-50"
-                          )}
-                          onClick={() => {
-                            setSelectedServices((prev) =>
-                              isSelected
-                                ? prev.filter((id) => id !== service.id)
-                                : [...prev, service.id]
-                            )
-                          }}
-                        >
-                          {service.name}
-                        </Badge>
-                      )
-                    })}
-                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddStaff}>
-                  Add Member
+                <Button onClick={handleInviteStaff}>
+                  Send Invitation
                 </Button>
               </div>
             </DialogContent>
@@ -495,9 +456,9 @@ export function StaffClient(props: StaffClientProps) {
           <EmptyState
             icon={<UserCircle className="w-8 h-8 text-sal-600" />}
             title="No staff members found"
-            description="No staff members match your current search or role filter. Try adjusting your criteria or add a new team member."
+            description="No staff members match your current search or role filter. Try adjusting your criteria or invite a new team member."
             action={{
-              label: "Add Staff Member",
+              label: "Invite Team Member",
               onClick: () => setIsAddDialogOpen(true),
             }}
           />

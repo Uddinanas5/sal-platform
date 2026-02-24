@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getBusinessContext } from "@/lib/auth-utils"
+import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
 
 const billingCycleEnum = z.enum(["monthly", "quarterly", "yearly", "one_time"])
 
@@ -53,7 +53,7 @@ export async function createMembershipPlan(data: {
   try {
     const parsed = createMembershipPlanSchema.parse(data)
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const plan = await prisma.membershipPlan.create({
       data: {
@@ -92,7 +92,7 @@ export async function updateMembershipPlan(
   try {
     const parsed = updateMembershipPlanSchema.parse({ id, data })
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const plan = await prisma.membershipPlan.update({
       where: { id: parsed.id, businessId },
@@ -110,7 +110,7 @@ export async function deleteMembershipPlan(id: string) {
   try {
     const parsed = idSchema.parse({ id })
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     await prisma.membershipPlan.delete({ where: { id: parsed.id, businessId } })
     revalidatePath("/memberships")

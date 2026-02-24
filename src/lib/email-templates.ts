@@ -53,6 +53,77 @@ function baseLayout(content: string): string {
 </html>`
 }
 
+export function staffInvitationEmail({
+  inviteeName,
+  inviterName,
+  businessName,
+  role,
+  acceptUrl,
+  expiresInHours,
+}: {
+  inviteeName: string
+  inviterName: string
+  businessName: string
+  role: string
+  acceptUrl: string
+  expiresInHours: number
+}): string {
+  const roleLabel = role === "admin" ? "Admin" : "Staff Member"
+  const content = `
+    <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1a1a1a;">You&rsquo;re Invited to Join ${businessName}</h1>
+    <p style="margin: 0 0 24px; font-size: 15px; color: #6b6560; line-height: 1.5;">
+      Hi ${inviteeName}, <strong>${inviterName}</strong> has invited you to join <strong>${businessName}</strong> as a <strong>${roleLabel}</strong> on SAL Platform.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 24px;">
+      <tr>
+        <td style="background-color: ${SAL_COLOR}; border-radius: 8px;">
+          <a href="${acceptUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">
+            Accept Invitation
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: #faf8f5; border-radius: 8px; margin-bottom: 24px;">
+      <tr>
+        <td style="padding: 20px 24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Business</span><br>
+                <span style="font-size: 15px; color: #1a1a1a; font-weight: 600;">${businessName}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Your Role</span><br>
+                <span style="font-size: 15px; color: #1a1a1a; font-weight: 600;">${roleLabel}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0;">
+                <span style="font-size: 13px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.5px;">Invited By</span><br>
+                <span style="font-size: 15px; color: #1a1a1a; font-weight: 600;">${inviterName}</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 0 0 16px; font-size: 14px; color: #6b6560; line-height: 1.6;">
+      This invitation will expire in <strong>${expiresInHours} hours</strong>. If you did not expect this invitation, you can safely ignore this email.
+    </p>
+
+    <p style="margin: 0; font-size: 13px; color: #9a9590; line-height: 1.5; word-break: break-all;">
+      If the button above doesn&rsquo;t work, copy and paste this URL into your browser:<br>
+      <a href="${acceptUrl}" style="color: ${SAL_COLOR_DARK};">${acceptUrl}</a>
+    </p>
+  `
+  return baseLayout(content)
+}
+
 export function bookingConfirmationEmail({
   clientName,
   serviceName,

@@ -2,7 +2,7 @@
 
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { getBusinessContext } from "@/lib/auth-utils"
+import { requireMinRole } from "@/lib/auth-utils"
 import { revalidatePath } from "next/cache"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
@@ -19,7 +19,7 @@ export async function respondToReview(
   try {
     const parsed = respondToReviewSchema.parse({ reviewId, response })
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     await prisma.review.update({
       where: { id: parsed.reviewId, businessId },

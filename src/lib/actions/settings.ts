@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getBusinessContext } from "@/lib/auth-utils"
+import { requireMinRole } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -32,7 +32,7 @@ export async function updateBusinessSettings(data: {
 }): Promise<ActionResult> {
   try {
     const parsed = updateBusinessSettingsSchema.parse(data)
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     // Update business-level fields
     await prisma.business.update({

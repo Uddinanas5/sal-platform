@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getBusinessContext } from "@/lib/auth-utils"
+import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -131,7 +131,7 @@ export async function createStaff(data: {
   try {
     const parsed = createStaffSchema.parse(data)
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!location) return { success: false, error: "Business not configured" }
@@ -185,7 +185,7 @@ export async function deleteStaff(id: string): Promise<ActionResult> {
     const parsed = deleteStaffSchema.parse({ id })
     id = parsed.id
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     // Verify staff belongs to this business before updating
     const staff = await prisma.staff.findFirst({

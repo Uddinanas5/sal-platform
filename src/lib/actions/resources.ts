@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getBusinessContext } from "@/lib/auth-utils"
+import { requireMinRole } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -35,7 +35,7 @@ export async function createResource(data: {
 }): Promise<ActionResult<{ id: string }>> {
   try {
     const parsed = createResourceSchema.parse(data)
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!location) return { success: false, error: "Business not configured" }
@@ -80,7 +80,7 @@ export async function updateResource(
   try {
     const parsedId = idSchema.parse(id)
     const parsed = updateResourceSchema.parse(data)
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     await prisma.resource.update({
       where: { id: parsedId, businessId },
       data: parsed,
@@ -99,7 +99,7 @@ export async function updateResource(
 export async function deleteResource(id: string): Promise<ActionResult> {
   try {
     const parsedId = idSchema.parse(id)
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     await prisma.resource.delete({ where: { id: parsedId, businessId } })
     revalidatePath("/settings")
     return { success: true, data: undefined }

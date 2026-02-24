@@ -25,6 +25,7 @@ import {
   X,
 } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
+import { hasRole, NAV_PERMISSIONS } from "@/lib/permissions"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -48,8 +49,8 @@ interface SidebarData {
   }
 }
 
-function buildNavSections(data: SidebarData | null) {
-  return [
+function buildNavSections(data: SidebarData | null, role?: string) {
+  const allSections = [
     {
       label: "MAIN",
       items: [
@@ -84,6 +85,17 @@ function buildNavSections(data: SidebarData | null) {
       ],
     },
   ]
+
+  return allSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        const perm = NAV_PERMISSIONS.find((p) => p.href === item.href)
+        if (!perm) return true
+        return hasRole(role, perm.minRole)
+      }),
+    }))
+    .filter((section) => section.items.length > 0)
 }
 
 interface SidebarProps {
@@ -128,7 +140,9 @@ function SidebarContent({
     return () => { cancelled = true }
   }, [])
 
-  const navSections = buildNavSections(sidebarData)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const role = (session?.user as any)?.role as string | undefined
+  const navSections = buildNavSections(sidebarData, role)
   const stats = sidebarData?.dashboardStats
 
   return (

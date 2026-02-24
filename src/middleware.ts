@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import { authConfig } from "@/lib/auth.config"
+import { STAFF_BLOCKED_ROUTES } from "@/lib/permissions"
 
 const { auth } = NextAuth(authConfig)
 
@@ -12,6 +13,7 @@ const publicRoutes = [
   /^\/privacy$/,
   /^\/forgot-password$/,
   /^\/reset-password$/,
+  /^\/accept-invitation$/,
   /^\/api\/auth\/.*/,
   /^\/_next\/.*/,
   /^\/favicon\.ico$/,
@@ -39,6 +41,21 @@ export default auth((req) => {
   const businessId = (req.auth as any).user?.businessId
   if (!businessId && pathname !== "/onboarding") {
     return Response.redirect(new URL("/onboarding", req.nextUrl.origin))
+  }
+
+  // Role-based route guard
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userRole = (req.auth as any).user?.role as string | undefined
+  if (userRole === "client") {
+    return Response.redirect(new URL("/login", req.nextUrl.origin))
+  }
+  if (userRole === "staff") {
+    const isBlocked = STAFF_BLOCKED_ROUTES.some(
+      (r) => pathname === r || pathname.startsWith(r + "/")
+    )
+    if (isBlocked) {
+      return Response.redirect(new URL("/dashboard", req.nextUrl.origin))
+    }
   }
 })
 
