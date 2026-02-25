@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    
+
     const {
       businessId,
       locationId,
@@ -167,6 +167,13 @@ export async function POST(request: NextRequest) {
       notes,
       source = 'online',
     } = body
+
+    // Require authentication for dashboard-created bookings
+    // Public booking widget uses /book/[businessSlug] via server actions instead
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     // Validation
     if (!businessId || !locationId || !services || services.length === 0) {

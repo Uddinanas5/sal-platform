@@ -264,6 +264,7 @@ model User {
   inventoryTransactions InventoryTransaction[] @relation("PerformedBy")
   notifications       Notification[]       @relation("UserNotifications")
   sentInvitations     StaffInvitation[]    @relation("SentInvitations")
+  createdApiKeys      ApiKey[]             @relation("CreatedApiKeys")
 
   @@index([authId])
   @@index([email])
@@ -326,6 +327,7 @@ model Business {
   resources          Resource[]
   formTemplates      FormTemplate[]
   staffInvitations   StaffInvitation[]
+  apiKeys            ApiKey[]
 
   @@index([ownerId])
   @@index([slug])
@@ -1605,4 +1607,28 @@ model StaffInvitation {
   @@index([businessId])
   @@index([email])
   @@map("staff_invitations")
+}
+
+// ============================================================================
+// API KEYS
+// ============================================================================
+
+model ApiKey {
+  id          String    @id @default(uuid()) @db.Uuid
+  businessId  String    @map("business_id") @db.Uuid
+  name        String    @db.VarChar(100)
+  keyHash     String    @unique @map("key_hash") @db.VarChar(64)
+  keyPrefix   String    @map("key_prefix") @db.VarChar(12)
+  role        UserRole  @default(admin)
+  lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdById String    @map("created_by_id") @db.Uuid
+
+  business   Business @relation(fields: [businessId], references: [id])
+  createdBy  User     @relation("CreatedApiKeys", fields: [createdById], references: [id])
+
+  @@index([businessId])
+  @@map("api_keys")
 }
