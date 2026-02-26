@@ -17,16 +17,25 @@ A comprehensive Fresha competitor for managing salons, barbershops, and beauty b
 ```
 sal-platform/
 ├── prisma/
-│   └── schema.prisma       # Database schema
+│   └── schema.prisma              # Database schema
 ├── src/
-│   ├── api/                # API route examples
-│   ├── lib/                # Shared utilities
-│   └── types/              # TypeScript types
+│   ├── app/
+│   │   ├── (dashboard)/           # Protected dashboard routes
+│   │   ├── api/v1/               # REST API v1 endpoints
+│   │   ├── api/mcp/              # MCP server endpoint
+│   │   └── book/                 # Public booking widget
+│   ├── lib/
+│   │   ├── actions/              # Server actions (mutations)
+│   │   ├── queries/              # Data fetching (reads)
+│   │   ├── api/                  # API auth + response helpers
+│   │   └── mcp/                  # MCP server (tools + resources)
+│   └── components/               # UI components
 ├── docs/
-│   ├── DATABASE_SCHEMA.md  # Detailed schema documentation
-│   └── API_ARCHITECTURE.md # API endpoint documentation
-├── .env.example            # Environment variables template
-└── README.md               # This file
+│   ├── DATABASE_SCHEMA.md         # Schema documentation
+│   ├── API_ARCHITECTURE.md        # REST API documentation
+│   └── MCP_SERVER.md             # MCP server documentation
+├── .env.example                   # Environment variables template
+└── README.md                      # This file
 ```
 
 ## Getting Started
@@ -165,61 +174,67 @@ Appointment (1) → (N) AppointmentServices
 Appointment (1) → (N) Payments
 ```
 
-## API Endpoints Summary
+## API
 
-### Authentication
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me`
+### REST API v1
 
-### Businesses
-- `POST /api/v1/businesses`
-- `GET /api/v1/businesses/:id`
-- `PATCH /api/v1/businesses/:id`
+Full CRUD REST API under `/api/v1/` with Bearer API key or session cookie authentication. 55+ endpoints covering all platform operations.
 
-### Locations
-- `POST /api/v1/businesses/:id/locations`
-- `GET /api/v1/locations/:id`
+| Domain | Endpoints | Min Role |
+|--------|-----------|----------|
+| Clients | GET, POST, PATCH, DELETE | staff |
+| Appointments | CRUD + recurring + groups | staff |
+| Services | CRUD + toggle | admin |
+| Staff | CRUD + schedule + time-off | staff/admin |
+| Products | CRUD + adjust-stock | admin |
+| Checkout | POST | staff |
+| Marketing | Campaigns, deals, automated messages | admin |
+| Memberships | Plans CRUD + subscriptions | admin/staff |
+| Reviews | List + respond | admin |
+| Resources | CRUD | admin |
+| Forms | CRUD + submit | admin/staff |
+| Waitlist | CRUD + notify + book | admin/staff |
+| Team | Members + invitations | admin/owner |
+| Settings | GET + PATCH | admin |
+| API Keys | CRUD | owner |
 
-### Staff
-- `POST /api/v1/businesses/:id/staff`
-- `GET /api/v1/staff/:id/availability`
-- `PUT /api/v1/staff/:id/schedule`
+See `docs/API_ARCHITECTURE.md` for complete endpoint documentation.
 
-### Services
-- `POST /api/v1/businesses/:id/services`
-- `GET /api/v1/services/:id`
+### MCP Server (AI Integration)
 
-### Clients
-- `POST /api/v1/businesses/:id/clients`
-- `GET /api/v1/clients/:id`
+The platform exposes a [Model Context Protocol](https://modelcontextprotocol.io) server at `/api/mcp`, allowing AI assistants to manage your business programmatically.
 
-### Appointments
-- `POST /api/v1/businesses/:id/appointments`
-- `GET /api/v1/appointments/:id`
-- `POST /api/v1/appointments/:id/confirm`
-- `POST /api/v1/appointments/:id/complete`
+**Supported clients:** Claude Desktop, Cursor, Windsurf, Cline, and any MCP-compatible tool.
 
-### Public Booking
-- `GET /api/v1/booking/:slug/availability`
-- `POST /api/v1/booking/:slug/book`
+```json
+{
+  "mcpServers": {
+    "sal-platform": {
+      "url": "https://your-domain.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer sal_your_api_key_here"
+      }
+    }
+  }
+}
+```
 
-See `docs/API_ARCHITECTURE.md` for complete API documentation.
+57 tools and 14 resources covering clients, appointments, services, staff, products, checkout, marketing, memberships, reviews, resources, forms, waitlist, team management, settings, and API keys.
+
+See `docs/MCP_SERVER.md` for full MCP documentation.
 
 ## Security
 
-### Row Level Security (RLS)
+### Multi-Tenant Isolation
 
-All tables use Supabase RLS policies:
-- Users can only access their own data
-- Staff can access their business's data
-- Owners have full access to their business
+All data access is scoped by `businessId`. Server actions use `getBusinessContext()` and API routes use `withV1Auth()` to enforce tenant boundaries. No cross-business data leakage is possible.
 
 ### Authentication
 
-- JWT-based authentication via Supabase
-- Token refresh handling
-- Multi-tenant isolation
+- **Web UI:** NextAuth.js 5 with JWT sessions (credentials provider)
+- **REST API / MCP:** Bearer API key (`sal_<hex>`) or session cookie
+- API keys are SHA-256 hashed at rest; raw key shown once on creation
+- Role-based access control: owner > admin > staff
 
 ## Environment Variables
 

@@ -32,6 +32,8 @@ Every protected operation calls `getBusinessContext()` from `src/lib/auth-utils.
 
 - `src/lib/actions/` — Server actions organized by feature (appointments, clients, services, staff, etc.). Return type: `{ success: true; data: T } | { success: false; error: string }`
 - `src/lib/queries/` — Data fetching functions using Prisma, called from server components
+- `src/lib/api/` — REST API v1 helpers: `auth.ts` (`withV1Auth()` for Bearer token + session auth), `response.ts` (standardized JSON responses)
+- `src/lib/mcp/` — MCP server: `create-server.ts` (factory), `resources.ts` (14 read-only resources), `tools/` (57 tools across 15 files)
 - `src/components/ui/` — Radix UI-based primitives (shadcn pattern) using CVA for variants
 - `src/components/{feature}/` — Feature-specific components (calendar, clients, booking, etc.)
 - `src/data/` — Mock data used as development fallbacks
@@ -41,8 +43,18 @@ Every protected operation calls `getBusinessContext()` from `src/lib/auth-utils.
 
 - `src/app/(dashboard)/` — Protected dashboard routes (sidebar layout)
 - `src/app/book/[businessSlug]/` — Public booking flow
-- `src/app/api/` — Minimal API routes (auth handler, sidebar-data, search, notifications); business logic uses server actions instead
+- `src/app/api/` — Auth handler, sidebar-data, search, notifications, public booking widget
+- `src/app/api/v1/` — REST API v1 (55+ endpoints, Bearer API key or session cookie auth)
+- `src/app/api/mcp/` — MCP server endpoint (Streamable HTTP transport, stateless/serverless-compatible)
 - Public pages: `/`, `/login`, `/register`, `/forgot-password`, `/reset-password`, `/terms`, `/privacy`
+
+### REST API v1
+
+All v1 endpoints use `withV1Auth()` from `src/lib/api/auth.ts` which accepts Bearer API key (`sal_<hex>`) or session cookie. Response format: `{ data: T }` for success, `{ error: { code, message } }` for errors. See `docs/API_ARCHITECTURE.md` for full endpoint reference.
+
+### MCP Server
+
+The MCP (Model Context Protocol) server at `/api/mcp` exposes 57 tools and 14 resources for AI assistants (Claude Desktop, Cursor, Windsurf, etc.). Uses `@modelcontextprotocol/sdk` with Streamable HTTP transport in stateless mode. Auth reuses the same `withV1Auth()` system. Each request creates a fresh `McpServer` instance with the authenticated context captured in tool closures. See `docs/MCP_SERVER.md` for full documentation.
 
 ### Auth
 
