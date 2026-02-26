@@ -14,6 +14,7 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isInvited = searchParams.get("invited") === "1"
+  const callbackUrl = searchParams.get("callbackUrl")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -71,7 +72,7 @@ function LoginForm() {
         setError("Invalid email or password")
       }
     } else {
-      router.push("/dashboard")
+      router.push(callbackUrl || "/dashboard")
       router.refresh()
     }
   }

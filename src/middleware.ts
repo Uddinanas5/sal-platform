@@ -22,6 +22,11 @@ const publicRoutes = [
   /^\/api\/staff$/,
   /^\/api\/bookings(\/.*)?$/,
   /^\/api\/health$/,
+  /^\/.well-known\/.*/,
+  /^\/api\/oauth\/.*/,
+  /^\/api\/mcp$/,
+  /^\/api\/v1\/.*/,
+  /^\/oauth\/authorize$/,
 ]
 
 export default auth((req) => {

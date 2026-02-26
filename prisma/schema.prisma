@@ -1632,3 +1632,67 @@ model ApiKey {
   @@index([businessId])
   @@map("api_keys")
 }
+
+// ============================================================================
+// OAUTH 2.0
+// ============================================================================
+
+model OAuthClient {
+  id            String   @id @default(uuid()) @db.Uuid
+  clientId      String   @unique @map("client_id") @db.VarChar(128)
+  clientName    String   @map("client_name") @db.VarChar(255)
+  redirectUris  String[] @map("redirect_uris")
+  grantTypes    String[] @default(["authorization_code"]) @map("grant_types")
+  responseTypes String[] @default(["code"]) @map("response_types")
+  scope         String   @default("mcp") @db.VarChar(255)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  authorizationCodes OAuthAuthorizationCode[]
+  accessTokens       OAuthAccessToken[]
+
+  @@map("oauth_clients")
+}
+
+model OAuthAuthorizationCode {
+  id                  String    @id @default(uuid()) @db.Uuid
+  codeHash            String    @unique @map("code_hash") @db.VarChar(64)
+  clientId            String    @map("client_id") @db.VarChar(128)
+  userId              String    @map("user_id") @db.Uuid
+  businessId          String    @map("business_id") @db.Uuid
+  redirectUri         String    @map("redirect_uri") @db.Text
+  scope               String?   @db.VarChar(255)
+  codeChallenge       String    @map("code_challenge") @db.Text
+  codeChallengeMethod String    @default("S256") @map("code_challenge_method") @db.VarChar(10)
+  expiresAt           DateTime  @map("expires_at") @db.Timestamptz
+  usedAt              DateTime? @map("used_at") @db.Timestamptz
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  client OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([expiresAt])
+  @@map("oauth_authorization_codes")
+}
+
+model OAuthAccessToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  tokenHash   String    @unique @map("token_hash") @db.VarChar(64)
+  tokenPrefix String    @map("token_prefix") @db.VarChar(16)
+  clientId    String    @map("client_id") @db.VarChar(128)
+  userId      String    @map("user_id") @db.Uuid
+  businessId  String    @map("business_id") @db.Uuid
+  scope       String    @default("mcp") @db.VarChar(255)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  client OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("oauth_access_tokens")
+}
