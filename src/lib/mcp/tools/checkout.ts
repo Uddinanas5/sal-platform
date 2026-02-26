@@ -26,6 +26,7 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
       total: z.number().nonnegative().describe("Total amount charged"),
       method: z.enum(["cash", "card", "gift_card", "other"]).describe("Payment method"),
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async ({ clientId, appointmentId, items, subtotal, discount, tax, tip, total, method }) => {
       try {
         const payment = await prisma.$transaction(async (tx) => {

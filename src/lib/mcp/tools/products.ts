@@ -19,6 +19,7 @@ export function registerProductTools(server: McpServer, ctx: ApiContext) {
       page: z.number().int().positive().optional().describe("Page number (default 1)"),
       limit: z.number().int().positive().max(100).optional().describe("Results per page (default 20)"),
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async ({ categoryId, lowStock, page = 1, limit = 20 }) => {
       if (!isAdmin(ctx)) return err("Insufficient permissions: admin or owner required")
 
