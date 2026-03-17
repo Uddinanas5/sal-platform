@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   ArrowLeft,
   ArrowRight,
+  Bell,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -23,7 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import { createPublicBooking } from "@/lib/actions/public-booking"
+import { createPublicBooking, addToPublicWaitlist } from "@/lib/actions/public-booking"
 import { formatCurrency, formatDuration as fmtDuration } from "@/lib/utils"
 import type { Service, Staff } from "@/data/mock-data"
 
@@ -53,9 +54,12 @@ interface BookingPageClientProps {
   businessSlug: string
   businessId: string
   businessName: string
+  locationId: string
   services: Service[]
   staff: StaffWithSchedules[]
   businessHours: BusinessHourData[]
+  maxAdvanceBooking?: string
+  timezone: string
 }
 
 interface ClientDetails {
@@ -85,6 +89,32 @@ function formatTimeLabel(hour: number, minute: number): string {
   const ampm = hour < 12 ? "AM" : "PM"
   const m = minute.toString().padStart(2, "0")
   return `${h}:${m} ${ampm}`
+}
+
+function formatTimeInTimezone(isoString: string, timezone: string): string {
+  return new Date(isoString).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timezone,
+  })
+}
+
+function formatDateInTimezone(isoString: string, timezone: string): string {
+  return new Date(isoString).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: timezone,
+  })
+}
+
+function getTimezoneAbbr(timezone: string): string {
+  return (
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone, timeZoneName: "short" })
+      .formatToParts(new Date())
+      .find((p) => p.type === "timeZoneName")?.value || timezone
+  )
 }
 
 function getDaysInMonth(year: number, month: number): number {
@@ -518,18 +548,71 @@ function StaffStep({
 // Step 3: Date & Time
 // ---------------------------------------------------------------------------
 
+const MAX_ADVANCE_MAP: Record<string, number> = {
+  "1w": 7, "2w": 14, "1m": 30, "2m": 60, "3m": 90,
+}
+
+// ---------------------------------------------------------------------------
+// Waitlist time range options
+// ---------------------------------------------------------------------------
+
+const WAITLIST_TIME_RANGES = [
+  { label: "Any time", value: "any", start: undefined, end: undefined },
+  { label: "Morning (9am–12pm)", value: "morning", start: "09:00:00", end: "12:00:00" },
+  { label: "Afternoon (12pm–5pm)", value: "afternoon", start: "12:00:00", end: "17:00:00" },
+  { label: "Evening (5pm–9pm)", value: "evening", start: "17:00:00", end: "21:00:00" },
+] as const
+
+type WaitlistTimeRange = (typeof WAITLIST_TIME_RANGES)[number]["value"]
+
+interface WaitlistFormState {
+  preferredTime: WaitlistTimeRange
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  notes: string
+}
+
+interface WaitlistFormErrors {
+  firstName?: string
+  lastName?: string
+  email?: string
+}
+
 function DateTimeStep({
   selectedDate,
   selectedTime,
   onSelectDate,
   onSelectTime,
   businessHours,
+  maxAdvanceBooking,
+  timezone,
+  // Waitlist props
+  serviceId,
+  prefillDetails,
+  showWaitlistForm,
+  waitlistSubmitted,
+  waitlistLoading,
+  onShowWaitlist,
+  onWaitlistSubmit,
+  onTryAnotherDate,
 }: {
   selectedDate: Date | null
   selectedTime: { hour: number; minute: number } | null
   onSelectDate: (d: Date) => void
   onSelectTime: (t: { hour: number; minute: number }) => void
   businessHours: BusinessHourData[]
+  maxAdvanceBooking?: string
+  timezone: string
+  serviceId: string | null
+  prefillDetails: { firstName: string; lastName: string; email: string; phone: string }
+  showWaitlistForm: boolean
+  waitlistSubmitted: boolean
+  waitlistLoading: boolean
+  onShowWaitlist: () => void
+  onWaitlistSubmit: (form: WaitlistFormState) => Promise<void>
+  onTryAnotherDate: () => void
 }) {
   const today = useMemo(() => {
     const d = new Date()
@@ -537,8 +620,36 @@ function DateTimeStep({
     return d
   }, [])
 
+  const maxDate = useMemo(() => {
+    const maxDaysAdvance = MAX_ADVANCE_MAP[maxAdvanceBooking ?? "1m"] ?? 30
+    const d = new Date(today)
+    d.setDate(d.getDate() + maxDaysAdvance)
+    return d
+  }, [today, maxAdvanceBooking])
+
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
+
+  const [waitlistForm, setWaitlistForm] = useState<WaitlistFormState>({
+    preferredTime: "any",
+    firstName: prefillDetails.firstName,
+    lastName: prefillDetails.lastName,
+    email: prefillDetails.email,
+    phone: prefillDetails.phone,
+    notes: "",
+  })
+  const [waitlistErrors, setWaitlistErrors] = useState<WaitlistFormErrors>({})
+
+  // Pre-fill from parent details when they change
+  useEffect(() => {
+    setWaitlistForm((prev) => ({
+      ...prev,
+      firstName: prefillDetails.firstName || prev.firstName,
+      lastName: prefillDetails.lastName || prev.lastName,
+      email: prefillDetails.email || prev.email,
+      phone: prefillDetails.phone || prev.phone,
+    }))
+  }, [prefillDetails.firstName, prefillDetails.lastName, prefillDetails.email, prefillDetails.phone])
 
   const daysInMonth = getDaysInMonth(viewYear, viewMonth)
   const firstDay = getFirstDayOfMonth(viewYear, viewMonth)
@@ -573,6 +684,24 @@ function DateTimeStep({
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
+
+  const validateWaitlistForm = (): boolean => {
+    const errs: WaitlistFormErrors = {}
+    if (!waitlistForm.firstName.trim()) errs.firstName = "Required"
+    if (!waitlistForm.lastName.trim()) errs.lastName = "Required"
+    if (!waitlistForm.email.trim()) {
+      errs.email = "Required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(waitlistForm.email.trim())) {
+      errs.email = "Please enter a valid email"
+    }
+    setWaitlistErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
+  const handleWaitlistSubmit = async () => {
+    if (!validateWaitlistForm()) return
+    await onWaitlistSubmit(waitlistForm)
+  }
 
   return (
     <div className="space-y-6">
@@ -624,10 +753,11 @@ function DateTimeStep({
               const cellDate = new Date(viewYear, viewMonth, day)
               cellDate.setHours(0, 0, 0, 0)
               const isPast = cellDate < today
+              const isBeyondMax = cellDate > maxDate
               const isToday = isSameDate(cellDate, today)
               const isSelected = selectedDate ? isSameDate(cellDate, selectedDate) : false
               const closed = isDayClosed(cellDate.getDay(), businessHours)
-              const isDisabled = isPast || closed
+              const isDisabled = isPast || closed || isBeyondMax
 
               return (
                 <button
@@ -660,6 +790,14 @@ function DateTimeStep({
       {selectedDate && (() => {
         const dayOfWeek = selectedDate.getDay()
         const timeSlots = getTimeSlotsForDay(dayOfWeek, businessHours)
+        // Build a date string for the selected date in business timezone context
+        const selectedDateIso = new Date(
+          selectedDate.getFullYear(),
+          selectedDate.getMonth(),
+          selectedDate.getDate(),
+          12, 0, 0
+        ).toISOString()
+        const tzAbbr = getTimezoneAbbr(timezone)
         return (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -668,39 +806,232 @@ function DateTimeStep({
           >
             <h3 className="text-sm font-semibold text-foreground mb-3">
               Available times for{" "}
-              {selectedDate.toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
+              {formatDateInTimezone(selectedDateIso, timezone).replace(/,\s*\d{4}$/, "")}
             </h3>
             {timeSlots.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No available time slots for this day
-              </p>
-            ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {timeSlots.map((slot) => {
-                  const isSelected =
-                    selectedTime?.hour === slot.hour && selectedTime?.minute === slot.minute
-                  return (
-                    <button
-                      key={slot.label}
-                      onClick={() => onSelectTime({ hour: slot.hour, minute: slot.minute })}
-                      className={`
-                        py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-200 border
-                        ${
-                          isSelected
-                            ? "bg-sal-500 text-white border-sal-500 shadow-sm"
-                            : "border-input bg-background text-foreground hover:border-sal-400 hover:bg-sal-500/5"
+              <div className="py-2">
+                {waitlistSubmitted ? (
+                  // Success state after joining waitlist
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-center space-y-4 py-4"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-sal-500/10 mx-auto flex items-center justify-center">
+                      <Bell className="w-7 h-7 text-sal-600 dark:text-sal-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground text-base">
+                        You&apos;re on the waitlist!
+                      </h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        We&apos;ll notify you at{" "}
+                        <span className="font-medium text-foreground">{waitlistForm.email}</span>{" "}
+                        when a slot opens up.
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={onTryAnotherDate}>
+                      Try another date
+                    </Button>
+                  </motion.div>
+                ) : showWaitlistForm ? (
+                  // Inline waitlist form
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-4"
+                  >
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-foreground">
+                        No slots available for this date
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Fill in your details and we&apos;ll notify you when a spot opens up
+                      </p>
+                    </div>
+
+                    {/* Preferred time */}
+                    <div className="space-y-2">
+                      <Label htmlFor="wl-preferred-time">Preferred time</Label>
+                      <select
+                        id="wl-preferred-time"
+                        value={waitlistForm.preferredTime}
+                        onChange={(e) =>
+                          setWaitlistForm((prev) => ({
+                            ...prev,
+                            preferredTime: e.target.value as WaitlistTimeRange,
+                          }))
                         }
-                      `}
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      >
+                        {WAITLIST_TIME_RANGES.map((r) => (
+                          <option key={r.value} value={r.value}>
+                            {r.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Name row */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="wl-first-name">
+                          First name <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="wl-first-name"
+                          placeholder="Jane"
+                          value={waitlistForm.firstName}
+                          onChange={(e) =>
+                            setWaitlistForm((prev) => ({ ...prev, firstName: e.target.value }))
+                          }
+                          className={waitlistErrors.firstName ? "border-destructive" : ""}
+                        />
+                        {waitlistErrors.firstName && (
+                          <p className="text-xs text-destructive">{waitlistErrors.firstName}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="wl-last-name">
+                          Last name <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="wl-last-name"
+                          placeholder="Doe"
+                          value={waitlistForm.lastName}
+                          onChange={(e) =>
+                            setWaitlistForm((prev) => ({ ...prev, lastName: e.target.value }))
+                          }
+                          className={waitlistErrors.lastName ? "border-destructive" : ""}
+                        />
+                        {waitlistErrors.lastName && (
+                          <p className="text-xs text-destructive">{waitlistErrors.lastName}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Email */}
+                    <div className="space-y-2">
+                      <Label htmlFor="wl-email">
+                        Email <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="wl-email"
+                        type="email"
+                        placeholder="jane@example.com"
+                        value={waitlistForm.email}
+                        onChange={(e) =>
+                          setWaitlistForm((prev) => ({ ...prev, email: e.target.value }))
+                        }
+                        className={waitlistErrors.email ? "border-destructive" : ""}
+                      />
+                      {waitlistErrors.email && (
+                        <p className="text-xs text-destructive">{waitlistErrors.email}</p>
+                      )}
+                    </div>
+
+                    {/* Phone */}
+                    <div className="space-y-2">
+                      <Label htmlFor="wl-phone">Phone (optional)</Label>
+                      <Input
+                        id="wl-phone"
+                        type="tel"
+                        placeholder="+1 (555) 000-0000"
+                        value={waitlistForm.phone}
+                        onChange={(e) =>
+                          setWaitlistForm((prev) => ({ ...prev, phone: e.target.value }))
+                        }
+                      />
+                    </div>
+
+                    {/* Notes */}
+                    <div className="space-y-2">
+                      <Label htmlFor="wl-notes">Notes (optional)</Label>
+                      <Textarea
+                        id="wl-notes"
+                        placeholder="Any additional notes..."
+                        value={waitlistForm.notes}
+                        onChange={(e) =>
+                          setWaitlistForm((prev) => ({ ...prev, notes: e.target.value }))
+                        }
+                        maxLength={500}
+                        className="min-h-[80px]"
+                      />
+                    </div>
+
+                    <Button
+                      className="w-full"
+                      onClick={handleWaitlistSubmit}
+                      disabled={waitlistLoading}
                     >
-                      {slot.label}
-                    </button>
-                  )
-                })}
+                      {waitlistLoading ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                        />
+                      ) : (
+                        <>
+                          <Bell className="w-4 h-4 mr-2" />
+                          Join Waitlist
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="w-full" onClick={onTryAnotherDate}>
+                      Try another date instead
+                    </Button>
+                  </motion.div>
+                ) : (
+                  // Initial prompt to join waitlist
+                  <div className="text-center space-y-3 py-4">
+                    <p className="text-sm text-muted-foreground">
+                      No available slots for{" "}
+                      <span className="font-medium text-foreground">
+                        {formatDateInTimezone(selectedDateIso, timezone).replace(/,\s*\d{4}$/, "")}
+                      </span>
+                      .
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Would you like to be notified when a spot opens up?
+                    </p>
+                    <Button size="sm" onClick={onShowWaitlist} disabled={!serviceId}>
+                      <Bell className="w-4 h-4 mr-2" />
+                      Join Waitlist
+                    </Button>
+                  </div>
+                )}
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {timeSlots.map((slot) => {
+                    const isSelected =
+                      selectedTime?.hour === slot.hour && selectedTime?.minute === slot.minute
+                    return (
+                      <button
+                        key={slot.label}
+                        onClick={() => onSelectTime({ hour: slot.hour, minute: slot.minute })}
+                        className={`
+                          py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-200 border
+                          ${
+                            isSelected
+                              ? "bg-sal-500 text-white border-sal-500 shadow-sm"
+                              : "border-input bg-background text-foreground hover:border-sal-400 hover:bg-sal-500/5"
+                          }
+                        `}
+                      >
+                        {slot.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  All times shown in {tzAbbr}
+                </p>
+              </>
             )}
           </motion.div>
         )
@@ -834,6 +1165,7 @@ function ConfirmationStep({
   details,
   isSubmitting,
   onConfirm,
+  timezone,
 }: {
   service: Service
   staffMember: Staff | "any"
@@ -842,14 +1174,20 @@ function ConfirmationStep({
   details: ClientDetails
   isSubmitting: boolean
   onConfirm: () => void
+  timezone: string
 }) {
-  const dateStr = date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  })
-  const timeStr = formatTimeLabel(time.hour, time.minute)
+  // Build an ISO string representing the selected date+time for timezone-aware formatting
+  const appointmentIso = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    time.hour,
+    time.minute,
+    0
+  ).toISOString()
+  const dateStr = formatDateInTimezone(appointmentIso, timezone)
+  const timeStr = formatTimeInTimezone(appointmentIso, timezone)
+  const tzAbbr = getTimezoneAbbr(timezone)
   const staffName = staffMember === "any" ? "Any available" : staffMember.name
 
   return (
@@ -904,7 +1242,7 @@ function ConfirmationStep({
             <div>
               <p className="text-xs text-muted-foreground">Date & Time</p>
               <p className="font-medium text-foreground">{dateStr}</p>
-              <p className="text-sm text-muted-foreground">{timeStr}</p>
+              <p className="text-sm text-muted-foreground">{timeStr} ({tzAbbr})</p>
             </div>
           </div>
 
@@ -973,12 +1311,14 @@ function SuccessState({
   date,
   time,
   onBookAnother,
+  timezone,
 }: {
   service: Service
   staffMember: Staff | "any"
   date: Date
   time: { hour: number; minute: number }
   onBookAnother: () => void
+  timezone: string
 }) {
   const [showConfetti, setShowConfetti] = useState(true)
 
@@ -987,12 +1327,22 @@ function SuccessState({
     return () => clearTimeout(timer)
   }, [])
 
-  const dateStr = date.toLocaleDateString("en-US", {
+  const appointmentIso = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    time.hour,
+    time.minute,
+    0
+  ).toISOString()
+  const dateStr = new Date(appointmentIso).toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: timezone,
   })
-  const timeStr = formatTimeLabel(time.hour, time.minute)
+  const timeStr = formatTimeInTimezone(appointmentIso, timezone)
+  const tzAbbr = getTimezoneAbbr(timezone)
   const staffName = staffMember === "any" ? "Any available" : staffMember.name
 
   return (
@@ -1048,7 +1398,7 @@ function SuccessState({
             <div className="border-t border-border" />
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Time</span>
-              <span className="font-medium text-foreground">{timeStr}</span>
+              <span className="font-medium text-foreground">{timeStr} ({tzAbbr})</span>
             </div>
             <div className="border-t border-border" />
             <div className="flex justify-between items-center">
@@ -1072,7 +1422,9 @@ function SuccessState({
 // Main Client Component
 // ---------------------------------------------------------------------------
 
-export function BookingPageClient({ businessSlug, businessId, businessName, services, staff, businessHours }: BookingPageClientProps) {
+export function BookingPageClient({ businessSlug, businessId, businessName, locationId, services, staff, businessHours, maxAdvanceBooking, timezone }: BookingPageClientProps) {
+  // locationId is used for future availability API calls from the client
+  void locationId
   // Suppress unused variable warning - businessSlug is kept for future URL-based features
   void businessSlug
   const [step, setStep] = useState<BookingStep>(1)
@@ -1091,6 +1443,11 @@ export function BookingPageClient({ businessSlug, businessId, businessName, serv
     notes: "",
   })
   const [detailErrors, setDetailErrors] = useState<Partial<Record<keyof ClientDetails, string>>>({})
+
+  // Waitlist state
+  const [showWaitlistForm, setShowWaitlistForm] = useState(false)
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false)
+  const [waitlistLoading, setWaitlistLoading] = useState(false)
 
   const [direction, setDirection] = useState(1)
 
@@ -1152,8 +1509,35 @@ export function BookingPageClient({ businessSlug, businessId, businessName, serv
 
     setIsSubmitting(true)
     try {
-      const startTime = new Date(selectedDate)
-      startTime.setHours(selectedTime.hour, selectedTime.minute, 0, 0)
+      // Build the start time in the business timezone.
+      // We construct a wall-clock string for the selected date/time and interpret
+      // it as if it were in the business timezone, yielding the correct UTC instant.
+      const pad = (n: number) => String(n).padStart(2, "0")
+      const localDateStr = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())}T${pad(selectedTime.hour)}:${pad(selectedTime.minute)}:00`
+      // Parse as UTC first, then shift by the timezone offset so the wall-clock
+      // time is correct in the business timezone.
+      const naiveUtc = new Date(localDateStr + "Z")
+      // Determine what the business timezone renders naiveUtc as, compute offset.
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }).formatToParts(naiveUtc)
+      const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0")
+      const tzYear = get("year")
+      const tzMonth = get("month") - 1
+      const tzDay = get("day")
+      const tzHour = get("hour") % 24
+      const tzMin = get("minute")
+      const tzSec = get("second")
+      const tzDate = new Date(Date.UTC(tzYear, tzMonth, tzDay, tzHour, tzMin, tzSec))
+      const offsetMs = naiveUtc.getTime() - tzDate.getTime()
+      const startTime = new Date(naiveUtc.getTime() + offsetMs)
 
       // When "any" is selected, pick the first staff member who provides the selected service
       const staffId =
@@ -1190,7 +1574,64 @@ export function BookingPageClient({ businessSlug, businessId, businessName, serv
     } finally {
       setIsSubmitting(false)
     }
-  }, [selectedService, selectedDate, selectedTime, selectedStaff, staff, businessId, clientDetails])
+  }, [selectedService, selectedDate, selectedTime, selectedStaff, staff, businessId, clientDetails, timezone])
+
+  const handleSelectDate = useCallback((d: Date) => {
+    setSelectedDate(d)
+    setSelectedTime(null)
+    setShowWaitlistForm(false)
+    setWaitlistSubmitted(false)
+  }, [])
+
+  const handleWaitlistSubmit = useCallback(
+    async (form: WaitlistFormState) => {
+      if (!selectedDate || !selectedService) return
+      setWaitlistLoading(true)
+      try {
+        const pad = (n: number) => String(n).padStart(2, "0")
+        const preferredDate = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())}`
+
+        const timeRange = WAITLIST_TIME_RANGES.find((r) => r.value === form.preferredTime)
+        const staffId =
+          selectedStaff === "any" || !selectedStaff
+            ? (staff.find((s) => s.services.includes(selectedService.id))?.id ?? undefined)
+            : selectedStaff.id
+
+        const result = await addToPublicWaitlist({
+          businessId,
+          serviceId: selectedService.id,
+          staffId,
+          preferredDate,
+          preferredTimeStart: timeRange?.start,
+          preferredTimeEnd: timeRange?.end,
+          clientFirstName: form.firstName,
+          clientLastName: form.lastName,
+          clientEmail: form.email,
+          clientPhone: form.phone || undefined,
+          notes: form.notes || undefined,
+        })
+
+        if (result.success) {
+          setWaitlistSubmitted(true)
+          toast.success("You've been added to the waitlist!")
+        } else {
+          toast.error(result.error || "Failed to join waitlist")
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to join waitlist")
+      } finally {
+        setWaitlistLoading(false)
+      }
+    },
+    [selectedDate, selectedService, selectedStaff, staff, businessId]
+  )
+
+  const handleTryAnotherDate = useCallback(() => {
+    setSelectedDate(null)
+    setSelectedTime(null)
+    setShowWaitlistForm(false)
+    setWaitlistSubmitted(false)
+  }, [])
 
   const handleBookAnother = useCallback(() => {
     setStep(1)
@@ -1201,6 +1642,8 @@ export function BookingPageClient({ businessSlug, businessId, businessName, serv
     setSelectedTime(null)
     setClientDetails({ firstName: "", lastName: "", email: "", phone: "", notes: "" })
     setDetailErrors({})
+    setShowWaitlistForm(false)
+    setWaitlistSubmitted(false)
   }, [])
 
   const slideVariants = {
@@ -1248,6 +1691,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, serv
                 date={selectedDate!}
                 time={selectedTime!}
                 onBookAnother={handleBookAnother}
+                timezone={timezone}
               />
             </motion.div>
           ) : (
@@ -1279,9 +1723,24 @@ export function BookingPageClient({ businessSlug, businessId, businessName, serv
                 <DateTimeStep
                   selectedDate={selectedDate}
                   selectedTime={selectedTime}
-                  onSelectDate={setSelectedDate}
+                  onSelectDate={handleSelectDate}
                   onSelectTime={setSelectedTime}
                   businessHours={businessHours}
+                  maxAdvanceBooking={maxAdvanceBooking}
+                  timezone={timezone}
+                  serviceId={selectedService?.id ?? null}
+                  prefillDetails={{
+                    firstName: clientDetails.firstName,
+                    lastName: clientDetails.lastName,
+                    email: clientDetails.email,
+                    phone: clientDetails.phone,
+                  }}
+                  showWaitlistForm={showWaitlistForm}
+                  waitlistSubmitted={waitlistSubmitted}
+                  waitlistLoading={waitlistLoading}
+                  onShowWaitlist={() => setShowWaitlistForm(true)}
+                  onWaitlistSubmit={handleWaitlistSubmit}
+                  onTryAnotherDate={handleTryAnotherDate}
                 />
               )}
               {step === 4 && (
@@ -1300,6 +1759,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, serv
                   details={clientDetails}
                   isSubmitting={isSubmitting}
                   onConfirm={handleConfirm}
+                  timezone={timezone}
                 />
               )}
             </motion.div>

@@ -7,23 +7,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
-const embedCode = `<iframe
-  src="https://meetsal.ai/book/sal-salon"
+export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
+  const bookingUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/book/${businessSlug}`
+    : `/book/${businessSlug}`
+
+  const embedCode = `<iframe
+  src="${bookingUrl}"
   width="100%"
   height="700"
   frameborder="0"
   style="border: none; border-radius: 12px;"
-  title="Book an Appointment - SAL Salon"
+  title="Book an Appointment"
 ></iframe>`
 
-const buttonCode = `<a
-  href="https://meetsal.ai/book/sal-salon"
+  const buttonCode = `<a
+  href="${bookingUrl}"
   style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#059669;color:white;border-radius:8px;font-weight:600;text-decoration:none;font-family:sans-serif;"
 >
   Book Now
 </a>`
 
-export function BookingWidgetCode() {
   const handleCopyEmbed = () => {
     navigator.clipboard.writeText(embedCode)
     toast.success("Embed code copied", {

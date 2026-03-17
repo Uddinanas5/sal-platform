@@ -17,6 +17,7 @@ import {
   Upload,
 } from "lucide-react"
 import { updateBusinessSettings } from "@/lib/actions/settings"
+import type { BookingSettings } from "@/lib/actions/booking-settings"
 import { Header } from "@/components/dashboard/header"
 import { BookingSettingsTab } from "@/components/settings/booking-settings-tab"
 import { PaymentsSettingsTab } from "@/components/settings/payments-settings-tab"
@@ -122,9 +123,10 @@ interface SettingsClientProps {
   currentUserId: string
   invitations: InvitationWithInviter[]
   teamMembers: TeamMember[]
+  bookingSettings: BookingSettings
 }
 
-export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers }: SettingsClientProps) {
+export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings }: SettingsClientProps) {
   const isOwner = role === "owner"
   const isAdminOrOwner = role === "owner" || role === "admin"
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
@@ -613,7 +615,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
           {/* Booking Settings */}
           <TabsContent value="booking">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <BookingSettingsTab />
+              <BookingSettingsTab initialSettings={bookingSettings} />
             </motion.div>
           </TabsContent>
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import { BookingPageClient } from "./client"
+import { getPublicBookingSettings } from "@/lib/actions/booking-settings"
 import type { Metadata } from "next"
 
 export const dynamic = "force-dynamic"
@@ -33,11 +34,28 @@ export default async function PublicBookingPage({
   // Look up business by slug
   const business = await prisma.business.findFirst({
     where: { slug: businessSlug, deletedAt: null },
+    select: {
+      id: true,
+      name: true,
+      timezone: true,
+    },
   })
 
   if (!business) {
     notFound()
   }
+
+  // Fetch booking settings
+  const bookingSettings = await getPublicBookingSettings(business.id)
+
+  // Derive timezone from business
+  const timezone = business.timezone || "UTC"
+
+  // Fetch primary location
+  const primaryLocation = await prisma.location.findFirst({
+    where: { businessId: business.id, isPrimary: true, deletedAt: null },
+    select: { id: true },
+  })
 
   // Fetch business hours from the primary location
   const dbBusinessHours = await prisma.businessHours.findMany({
@@ -112,9 +130,12 @@ export default async function PublicBookingPage({
       businessSlug={businessSlug}
       businessId={business.id}
       businessName={business.name}
+      locationId={primaryLocation?.id ?? ""}
       services={services as never[]} // eslint-disable-line @typescript-eslint/no-explicit-any
       staff={staff as never[]} // eslint-disable-line @typescript-eslint/no-explicit-any
       businessHours={businessHours}
+      maxAdvanceBooking={bookingSettings.maxAdvanceBooking}
+      timezone={timezone}
     />
   )
 }

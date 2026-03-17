@@ -133,6 +133,7 @@ export function bookingConfirmationEmail({
   bookingRef,
   businessEmail,
   businessPhone,
+  manageUrl,
 }: {
   clientName: string
   serviceName: string
@@ -142,6 +143,7 @@ export function bookingConfirmationEmail({
   bookingRef: string
   businessEmail?: string
   businessPhone?: string
+  manageUrl?: string
 }): string {
   const content = `
     <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1a1a1a;">Booking Confirmed</h1>
@@ -182,7 +184,18 @@ export function bookingConfirmationEmail({
       </tr>
     </table>
 
-    <p style="margin: 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
+    ${manageUrl ? `
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${manageUrl}" style="display: inline-block; background-color: #059669; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
+        Manage Your Booking
+      </a>
+    </div>
+    <p style="text-align: center; color: #6b7280; font-size: 13px; margin: 0;">
+      Need to reschedule or cancel? Use the link above.
+    </p>
+    ` : ""}
+
+    <p style="margin: ${manageUrl ? "24px" : "0"} 0 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
       Need to make changes? Contact us to reschedule or cancel your appointment. Please reference your booking code <strong>${bookingRef}</strong>.${businessEmail || businessPhone ? `<br>Reach us at${businessPhone ? ` <strong>${businessPhone}</strong>` : ""}${businessPhone && businessEmail ? " or" : ""}${businessEmail ? ` <a href="mailto:${businessEmail}" style="color: ${SAL_COLOR_DARK};">${businessEmail}</a>` : ""}.` : ""}
     </p>
   `
@@ -302,12 +315,14 @@ export function appointmentCancelledEmail({
   dateTime,
   businessName,
   bookingRef,
+  manageUrl,
 }: {
   clientName: string
   serviceName: string
   dateTime: string
   businessName: string
   bookingRef: string
+  manageUrl?: string
 }): string {
   const content = `
     <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1a1a1a;">Appointment Cancelled</h1>
@@ -342,7 +357,15 @@ export function appointmentCancelledEmail({
       </tr>
     </table>
 
-    <p style="margin: 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
+    ${manageUrl ? `
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${manageUrl}" style="display: inline-block; background-color: #059669; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
+        View Booking Details
+      </a>
+    </div>
+    ` : ""}
+
+    <p style="margin: ${manageUrl ? "24px" : "0"} 0 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
       If you&rsquo;d like to rebook, visit our booking page or contact us to schedule a new appointment.
     </p>
   `
@@ -357,6 +380,7 @@ export function appointmentRescheduledEmail({
   staffName,
   businessName,
   bookingRef,
+  manageUrl,
 }: {
   clientName: string
   serviceName: string
@@ -365,6 +389,7 @@ export function appointmentRescheduledEmail({
   staffName: string
   businessName: string
   bookingRef: string
+  manageUrl?: string
 }): string {
   const content = `
     <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1a1a1a;">Appointment Rescheduled</h1>
@@ -411,7 +436,15 @@ export function appointmentRescheduledEmail({
       </tr>
     </table>
 
-    <p style="margin: 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
+    ${manageUrl ? `
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${manageUrl}" style="display: inline-block; background-color: #059669; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
+        View Booking Details
+      </a>
+    </div>
+    ` : ""}
+
+    <p style="margin: ${manageUrl ? "24px" : "0"} 0 0; font-size: 14px; color: #6b6560; line-height: 1.6;">
       If you have any questions or need to make further changes, please don&rsquo;t hesitate to contact us. Reference your booking code <strong>${bookingRef}</strong>.
     </p>
   `

@@ -1,0 +1,11 @@
+{
+  "watchdogs": {
+    "autopilot": {
+      "name": "sal-platform-autopilot-watchdog",
+      "jobId": null,
+      "createdAt": null,
+      "disabledAt": null,
+      "notes": "If you create a cron watchdog for this project, record its scheduler jobId here so future sessions can reuse/disable/remove it reliably."
+    }
+  }
+}
