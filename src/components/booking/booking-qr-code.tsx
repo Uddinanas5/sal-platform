@@ -103,8 +103,10 @@ function QRCodeSVG() {
   )
 }
 
-export function BookingQRCode() {
-  const bookingUrl = "https://book.meetsal.com/luxe-salon"
+export function BookingQRCode({ businessSlug }: { businessSlug: string }) {
+  const bookingUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/book/${businessSlug}`
+    : `/book/${businessSlug}`
   const [copied, setCopied] = useState(false)
 
   const handleDownload = () => {

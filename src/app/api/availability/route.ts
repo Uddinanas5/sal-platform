@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAvailability, getMultiStaffAvailability } from '@/lib/availability'
 import { prisma } from '@/lib/prisma'
+import { getPublicBookingSettings } from '@/lib/actions/booking-settings'
+
+export const dynamic = 'force-dynamic'
+
+const LEAD_TIME_MAP: Record<string, number> = {
+  none: 0, '1h': 60, '2h': 120, '4h': 240, '12h': 720, '24h': 1440, '48h': 2880,
+}
 
 /**
  * GET /api/availability
  * Check available time slots for a service on a given date
- * 
+ *
  * Query params:
  * - serviceId (required): The service to check availability for
  * - date (required): The date to check (YYYY-MM-DD)
@@ -61,6 +68,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Fetch booking settings to enforce lead time
+    let minLeadTimeMinutes = 30 // default fallback
+    const serviceForBusiness = await prisma.service.findUnique({
+      where: { id: serviceId },
+      select: { businessId: true },
+    })
+    if (serviceForBusiness?.businessId) {
+      const bookingSettings = await getPublicBookingSettings(serviceForBusiness.businessId)
+      minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
+    }
+
     // If staffId provided, get availability for that staff member
     if (staffId) {
       const availability = await getAvailability({
@@ -68,6 +86,7 @@ export async function GET(request: NextRequest) {
         serviceId,
         date,
         locationId,
+        minLeadTimeMinutes,
       })
 
       // Get staff details
@@ -142,6 +161,7 @@ export async function GET(request: NextRequest) {
       serviceId,
       date,
       locationId,
+      minLeadTimeMinutes,
     })
 
     const availability = staffMembers.map(staff => {
@@ -164,17 +184,17 @@ export async function GET(request: NextRequest) {
 
     // Also return a combined list of all unique times with available staff
     const allSlots = new Map<string, { time: string; staffIds: string[] }>()
-    
-    for (const [staffId, result] of Array.from(availabilityMap.entries())) {
+
+    for (const [sId, result] of Array.from(availabilityMap.entries())) {
       for (const slot of result.slots) {
         const key = slot.start.toISOString()
         const existing = allSlots.get(key)
         if (existing) {
-          existing.staffIds.push(staffId)
+          existing.staffIds.push(sId)
         } else {
           allSlots.set(key, {
             time: formatTime(slot.start),
-            staffIds: [staffId],
+            staffIds: [sId],
           })
         }
       }

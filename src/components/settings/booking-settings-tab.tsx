@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { updateBookingSettings, type BookingSettings } from "@/lib/actions/booking-settings"
 
 function SettingRow({
   label,
@@ -48,21 +49,24 @@ function SettingRow({
   )
 }
 
-export function BookingSettingsTab() {
-  const [doubleBooking, setDoubleBooking] = useState(false)
-  const [autoConfirm, setAutoConfirm] = useState(true)
-  const [requireDeposit, setRequireDeposit] = useState(false)
-  const [depositType, setDepositType] = useState<"percentage" | "fixed">("percentage")
-  const [depositAmount, setDepositAmount] = useState("25")
-  const [applyOverAmount, setApplyOverAmount] = useState("50")
-  const [requiredFields, setRequiredFields] = useState({
-    phone: true,
-    email: true,
-    address: false,
-    notes: false,
-  })
-  const [customQuestions, setCustomQuestions] = useState<string[]>([])
+interface BookingSettingsTabProps {
+  initialSettings: BookingSettings
+}
+
+export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps) {
+  const [minLeadTime, setMinLeadTime] = useState(initialSettings.minLeadTime)
+  const [maxAdvanceBooking, setMaxAdvanceBooking] = useState(initialSettings.maxAdvanceBooking)
+  const [cancellationWindow, setCancellationWindow] = useState(initialSettings.cancellationWindow)
+  const [doubleBooking, setDoubleBooking] = useState(initialSettings.allowDoubleBooking)
+  const [autoConfirm, setAutoConfirm] = useState(initialSettings.autoConfirm)
+  const [requireDeposit, setRequireDeposit] = useState(initialSettings.requireDeposit)
+  const [depositType, setDepositType] = useState<"percentage" | "fixed">(initialSettings.depositType)
+  const [depositAmount, setDepositAmount] = useState(String(initialSettings.depositAmount))
+  const [applyOverAmount, setApplyOverAmount] = useState(String(initialSettings.depositApplyOverAmount))
+  const [requiredFields, setRequiredFields] = useState(initialSettings.requiredFields)
+  const [customQuestions, setCustomQuestions] = useState<string[]>(initialSettings.customQuestions)
   const [newQuestion, setNewQuestion] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
 
   const addCustomQuestion = () => {
     if (newQuestion.trim()) {
@@ -75,8 +79,32 @@ export function BookingSettingsTab() {
     setCustomQuestions(customQuestions.filter((_, i) => i !== index))
   }
 
-  const handleSave = () => {
-    toast.success("Booking settings saved successfully")
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      const result = await updateBookingSettings({
+        minLeadTime,
+        maxAdvanceBooking,
+        cancellationWindow,
+        autoConfirm,
+        allowDoubleBooking: doubleBooking,
+        requireDeposit,
+        depositType,
+        depositAmount: parseFloat(depositAmount) || 0,
+        depositApplyOverAmount: parseFloat(applyOverAmount) || 0,
+        requiredFields,
+        customQuestions,
+      })
+      if (result.success) {
+        toast.success("Booking settings saved!")
+      } else {
+        toast.error(result.error ?? "Failed to save")
+      }
+    } catch {
+      toast.error("Failed to save booking settings")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -101,7 +129,7 @@ export function BookingSettingsTab() {
               label="Minimum Lead Time"
               description="How far in advance clients must book"
             >
-              <Select defaultValue="2h">
+              <Select value={minLeadTime} onValueChange={(v) => setMinLeadTime(v as BookingSettings["minLeadTime"])}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -121,16 +149,16 @@ export function BookingSettingsTab() {
               label="Maximum Advance Booking"
               description="How far into the future clients can book"
             >
-              <Select defaultValue="1month">
+              <Select value={maxAdvanceBooking} onValueChange={(v) => setMaxAdvanceBooking(v as BookingSettings["maxAdvanceBooking"])}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1week">1 week</SelectItem>
-                  <SelectItem value="2weeks">2 weeks</SelectItem>
-                  <SelectItem value="1month">1 month</SelectItem>
-                  <SelectItem value="2months">2 months</SelectItem>
-                  <SelectItem value="3months">3 months</SelectItem>
+                  <SelectItem value="1w">1 week</SelectItem>
+                  <SelectItem value="2w">2 weeks</SelectItem>
+                  <SelectItem value="1m">1 month</SelectItem>
+                  <SelectItem value="2m">2 months</SelectItem>
+                  <SelectItem value="3m">3 months</SelectItem>
                 </SelectContent>
               </Select>
             </SettingRow>
@@ -139,7 +167,7 @@ export function BookingSettingsTab() {
               label="Cancellation Window"
               description="Minimum notice required to cancel without penalty"
             >
-              <Select defaultValue="24h">
+              <Select value={cancellationWindow} onValueChange={(v) => setCancellationWindow(v as BookingSettings["cancellationWindow"])}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -354,9 +382,9 @@ export function BookingSettingsTab() {
       </motion.div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>
+        <Button onClick={handleSave} disabled={isSaving}>
           <Save className="w-4 h-4 mr-2" />
-          Save Changes
+          {isSaving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </div>

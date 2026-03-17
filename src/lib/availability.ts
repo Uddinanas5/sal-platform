@@ -23,7 +23,7 @@ interface AvailabilityResult {
 /**
  * Get available time slots for a staff member on a given date
  */
-export async function getAvailability(params: AvailabilityParams): Promise<AvailabilityResult> {
+export async function getAvailability(params: AvailabilityParams & { minLeadTimeMinutes?: number }): Promise<AvailabilityResult> {
   const { staffId, serviceId, date, locationId } = params
 
   // Normalize date to start of day
@@ -154,9 +154,9 @@ export async function getAvailability(params: AvailabilityParams): Promise<Avail
   }
 
   // Calculate total service duration including buffers
-  const totalDuration = service.durationMinutes + 
-    service.bufferBeforeMinutes + 
-    service.bufferAfterMinutes + 
+  const totalDuration = service.durationMinutes +
+    service.bufferBeforeMinutes +
+    service.bufferAfterMinutes +
     staff.bookingBufferMinutes
 
   // Get working hours for the day
@@ -199,20 +199,18 @@ export async function getAvailability(params: AvailabilityParams): Promise<Avail
 
   let currentTime = new Date(workStart)
 
-  // Skip past times if checking today
+  // Skip past times if checking today, applying configurable min lead time
   const now = new Date()
   if (startOfDay.toDateString() === now.toDateString()) {
-    // Round up to next slot interval
-    const minutes = now.getMinutes()
-    const roundedMinutes = Math.ceil(minutes / slotInterval) * slotInterval
-    const minStartTime = new Date(now)
-    minStartTime.setMinutes(roundedMinutes, 0, 0)
-    
-    // Add minimum booking lead time (e.g., 30 minutes)
-    minStartTime.setMinutes(minStartTime.getMinutes() + 30)
-    
-    if (minStartTime > currentTime) {
-      currentTime = minStartTime
+    const leadTimeMinutes = params.minLeadTimeMinutes ?? 30
+    const cutoffTime = new Date(now.getTime() + leadTimeMinutes * 60 * 1000)
+    // Round up cutoff to next slot interval
+    const cutoffMinutes = cutoffTime.getMinutes()
+    const roundedCutoffMinutes = Math.ceil(cutoffMinutes / slotInterval) * slotInterval
+    cutoffTime.setMinutes(roundedCutoffMinutes, 0, 0)
+
+    if (cutoffTime > currentTime) {
+      currentTime = cutoffTime
     }
   }
 
@@ -220,7 +218,7 @@ export async function getAvailability(params: AvailabilityParams): Promise<Avail
     const slotEnd = new Date(currentTime.getTime() + totalDuration * 60000)
 
     // Check if this slot overlaps with any blocked range
-    const isBlocked = blockedRanges.some(range => 
+    const isBlocked = blockedRanges.some(range =>
       (currentTime < range.end && slotEnd > range.start)
     )
 
@@ -228,7 +226,7 @@ export async function getAvailability(params: AvailabilityParams): Promise<Avail
       // The actual appointment time (excluding before buffer)
       const appointmentStart = new Date(currentTime.getTime() + service.bufferBeforeMinutes * 60000)
       const appointmentEnd = new Date(appointmentStart.getTime() + service.durationMinutes * 60000)
-      
+
       slots.push({
         start: appointmentStart,
         end: appointmentEnd,
@@ -275,7 +273,7 @@ export async function isSlotAvailable(params: {
     locationId,
   })
 
-  return availability.slots.some(slot => 
+  return availability.slots.some(slot =>
     slot.start.getTime() === startTime.getTime()
   )
 }
@@ -288,12 +286,13 @@ export async function getMultiStaffAvailability(params: {
   serviceId: string
   date: Date
   locationId: string
+  minLeadTimeMinutes?: number
 }): Promise<Map<string, AvailabilityResult>> {
-  const { staffIds, serviceId, date, locationId } = params
+  const { staffIds, serviceId, date, locationId, minLeadTimeMinutes } = params
 
   const results = await Promise.all(
-    staffIds.map(staffId => 
-      getAvailability({ staffId, serviceId, date, locationId })
+    staffIds.map(staffId =>
+      getAvailability({ staffId, serviceId, date, locationId, minLeadTimeMinutes })
     )
   )
 

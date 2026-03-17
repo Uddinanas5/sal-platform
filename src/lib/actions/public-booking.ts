@@ -3,9 +3,23 @@
 import { prisma } from "@/lib/prisma"
 import { rateLimit } from "@/lib/rate-limit"
 import { sendEmail } from "@/lib/email"
-import { bookingConfirmationEmail } from "@/lib/email-templates"
+import { bookingConfirmationEmail, appointmentCancelledEmail } from "@/lib/email-templates"
 import { revalidatePath } from "next/cache"
 import { z, ZodError } from "zod"
+
+const addToPublicWaitlistSchema = z.object({
+  businessId: z.string().uuid(),
+  serviceId: z.string().uuid(),
+  staffId: z.string().uuid().optional(),
+  preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+  preferredTimeStart: z.string().optional(),
+  preferredTimeEnd: z.string().optional(),
+  clientFirstName: z.string().trim().min(1).max(100),
+  clientLastName: z.string().trim().min(1).max(100),
+  clientEmail: z.string().email().toLowerCase(),
+  clientPhone: z.string().trim().max(30).optional(),
+  notes: z.string().max(1000).optional(),
+})
 
 const createPublicBookingSchema = z.object({
   businessId: z.string().uuid(),
@@ -167,6 +181,9 @@ export async function createPublicBooking(data: {
         hour12: true,
       }).format(startTime)
 
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+      const manageUrl = `${baseUrl}/book/manage/${appointment.bookingReference}`
+
       sendEmail({
         to: client.email,
         subject: `Booking Confirmed - ${service.name}`,
@@ -177,6 +194,7 @@ export async function createPublicBooking(data: {
           dateTime,
           businessName: business.name,
           bookingRef: appointment.bookingReference,
+          manageUrl,
         }),
       }).catch(console.error) // Don't block on email failure
     }
@@ -198,5 +216,160 @@ export async function createPublicBooking(data: {
     }
     console.error("createPublicBooking error:", e)
     return { success: false, error: msg }
+  }
+}
+
+export async function addToPublicWaitlist(data: {
+  businessId: string
+  serviceId: string
+  staffId?: string
+  preferredDate: string
+  preferredTimeStart?: string
+  preferredTimeEnd?: string
+  clientFirstName: string
+  clientLastName: string
+  clientEmail: string
+  clientPhone?: string
+  notes?: string
+}): Promise<ActionResult<{ id: string }>> {
+  try {
+    const parsed = addToPublicWaitlistSchema.parse(data)
+
+    // Rate limit: 5 waitlist entries per hour per email
+    const rl = rateLimit(`waitlist:${parsed.clientEmail}`, 5, 60 * 60 * 1000)
+    if (rl.limited) {
+      return { success: false, error: "Too many requests. Please try again later." }
+    }
+
+    // Verify business exists
+    const business = await prisma.business.findUnique({ where: { id: parsed.businessId } })
+    if (!business) return { success: false, error: "Business not found" }
+
+    // Verify service belongs to this business
+    const service = await prisma.service.findUnique({
+      where: { id: parsed.serviceId, businessId: business.id },
+    })
+    if (!service) return { success: false, error: "Service not found" }
+
+    // Find or create client
+    let client = await prisma.client.findFirst({
+      where: { businessId: business.id, email: parsed.clientEmail },
+    })
+    if (!client) {
+      client = await prisma.client.create({
+        data: {
+          businessId: business.id,
+          firstName: parsed.clientFirstName.trim(),
+          lastName: parsed.clientLastName.trim(),
+          email: parsed.clientEmail,
+          phone: parsed.clientPhone?.trim() ?? null,
+          source: "online_booking",
+        },
+      })
+    }
+
+    const entry = await prisma.waitlistEntry.create({
+      data: {
+        businessId: business.id,
+        clientId: client.id,
+        serviceId: parsed.serviceId,
+        staffId: parsed.staffId ?? null,
+        preferredDate: new Date(parsed.preferredDate),
+        preferredTimeStart: parsed.preferredTimeStart
+          ? new Date(`1970-01-01T${parsed.preferredTimeStart}`)
+          : null,
+        preferredTimeEnd: parsed.preferredTimeEnd
+          ? new Date(`1970-01-01T${parsed.preferredTimeEnd}`)
+          : null,
+        notes: parsed.notes ?? null,
+        status: "waiting",
+      },
+    })
+
+    revalidatePath("/calendar")
+    return { success: true, data: { id: entry.id } }
+  } catch (e) {
+    if (e instanceof ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
+    console.error("addToPublicWaitlist error:", e)
+    return { success: false, error: "Failed to join waitlist. Please try again." }
+  }
+}
+
+export async function cancelPublicBooking(
+  bookingReference: string,
+  clientEmail: string,
+): Promise<ActionResult<{ status: string }>> {
+  try {
+    const appointment = await prisma.appointment.findUnique({
+      where: { bookingReference },
+      include: {
+        client: { select: { email: true, firstName: true, lastName: true } },
+        business: { select: { name: true, email: true, settings: true } },
+        services: {
+          include: {
+            service: { select: { name: true } },
+            staff: { select: { user: { select: { firstName: true, lastName: true } } } },
+          },
+        },
+      },
+    })
+
+    if (!appointment) return { success: false, error: "Booking not found" }
+
+    // Verify email matches
+    if (appointment.client?.email?.toLowerCase() !== clientEmail.toLowerCase()) {
+      return { success: false, error: "Email does not match the booking" }
+    }
+
+    // Check if already cancelled/completed
+    if (appointment.status === "cancelled") {
+      return { success: false, error: "This appointment is already cancelled" }
+    }
+    if (["completed", "checked_in", "in_progress", "no_show"].includes(appointment.status)) {
+      return { success: false, error: "This appointment cannot be cancelled" }
+    }
+
+    // Update status
+    await prisma.appointment.update({
+      where: { id: appointment.id },
+      data: {
+        status: "cancelled",
+        cancelledAt: new Date(),
+      },
+    })
+
+    // Send cancellation email (non-blocking)
+    try {
+      if (appointment.client?.email) {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        const manageUrl = `${baseUrl}/book/manage/${bookingReference}`
+
+        await sendEmail({
+          to: appointment.client.email,
+          subject: `Appointment Cancelled - ${appointment.business.name}`,
+          html: appointmentCancelledEmail({
+            clientName: `${appointment.client.firstName} ${appointment.client.lastName}`,
+            serviceName: appointment.services[0]?.service.name ?? "Service",
+            dateTime: appointment.startTime.toLocaleString(),
+            businessName: appointment.business.name,
+            bookingRef: appointment.bookingReference ?? "",
+            manageUrl,
+          }),
+        })
+      }
+    } catch {
+      // Don't block on email failure
+    }
+
+    revalidatePath(`/book/manage/${bookingReference}`)
+    revalidatePath("/calendar")
+    revalidatePath("/dashboard")
+
+    return { success: true, data: { status: "cancelled" } }
+  } catch (error) {
+    console.error("cancelPublicBooking error:", error)
+    return { success: false, error: "Failed to cancel appointment" }
   }
 }

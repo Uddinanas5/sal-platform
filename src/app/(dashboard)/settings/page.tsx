@@ -4,6 +4,7 @@ import { getResources } from "@/lib/queries/resources"
 import { getServices } from "@/lib/queries/services"
 import { getInvitations } from "@/lib/queries/invitations"
 import { hasRole } from "@/lib/permissions"
+import { getBookingSettings } from "@/lib/actions/booking-settings"
 import SettingsClient from "./client"
 
 export const dynamic = "force-dynamic"
@@ -47,6 +48,21 @@ export default async function SettingsPage() {
     id: s.id,
     name: s.name,
     category: s.category,
+  }))
+
+  // Fetch booking settings (returns schema defaults if not set or on error)
+  const bookingSettings = await getBookingSettings(businessId ?? "").catch(() => ({
+    minLeadTime: "none" as const,
+    maxAdvanceBooking: "1m" as const,
+    cancellationWindow: "24h" as const,
+    autoConfirm: true,
+    allowDoubleBooking: false,
+    requireDeposit: false,
+    depositType: "percentage" as const,
+    depositAmount: 0,
+    depositApplyOverAmount: 0,
+    requiredFields: { phone: true, email: true, address: false, notes: false },
+    customQuestions: [],
   }))
 
   // Fetch team data only for admin/owner
@@ -107,6 +123,7 @@ export default async function SettingsPage() {
       currentUserId={userId ?? ""}
       invitations={invitations}
       teamMembers={teamMembers}
+      bookingSettings={bookingSettings}
     />
   )
 }

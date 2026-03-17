@@ -12,9 +12,10 @@ import type { Service, Staff } from "@/data/mock-data"
 interface BookingClientProps {
   services: Service[]
   staff: Staff[]
+  businessSlug: string
 }
 
-export function BookingClient({ services, staff }: BookingClientProps) {
+export function BookingClient({ services, staff, businessSlug }: BookingClientProps) {
   return (
     <div className="min-h-screen bg-cream">
       <Header
@@ -32,8 +33,8 @@ export function BookingClient({ services, staff }: BookingClientProps) {
             className="space-y-6"
           >
             <BookingSettings services={services} />
-            <BookingWidgetCode />
-            <BookingQRCode />
+            <BookingWidgetCode businessSlug={businessSlug} />
+            <BookingQRCode businessSlug={businessSlug} />
           </motion.div>
 
           {/* Right: Preview in phone frame */}
