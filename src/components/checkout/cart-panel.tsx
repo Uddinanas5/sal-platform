@@ -61,6 +61,9 @@ interface CartPanelProps {
   onSetTip: (amount: number) => void
   onSetPaymentMethod: (method: "cash" | "card" | "gift_card") => void
   onClearCart: () => void
+  businessName?: string
+  businessAddress?: string
+  businessPhone?: string
 }
 
 const tipPresets = [5, 10, 15, 20]
@@ -83,6 +86,9 @@ export function CartPanel({
   onSetTip,
   onSetPaymentMethod,
   onClearCart,
+  businessName,
+  businessAddress,
+  businessPhone,
 }: CartPanelProps) {
   const [customTip, setCustomTip] = useState("")
   const [showCustomTip, setShowCustomTip] = useState(false)
@@ -641,6 +647,7 @@ export function CartPanel({
         items={items}
         clientId={clientId}
         clientName={clientName}
+        clientEmail={clients.find((c) => c.id === clientId)?.email ?? null}
         subtotal={subtotal}
         discount={discountAmount}
         discountType={discountType}
@@ -651,6 +658,9 @@ export function CartPanel({
         paymentMethod={paymentMethod}
         onSetPaymentMethod={onSetPaymentMethod}
         onComplete={onClearCart}
+        businessName={businessName}
+        businessAddress={businessAddress}
+        businessPhone={businessPhone}
       />
     </>
   )

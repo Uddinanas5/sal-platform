@@ -1,279 +1,124 @@
 {
   "project": "SAL Platform",
-  "updated": "2026-03-19T08:49:33.503Z",
+  "updated": "2026-03-19T16:01:54.305Z",
   "summary": {
-    "total": 15,
+    "total": 6,
     "pending": 0,
     "claimed": 0,
     "inProgress": 0,
-    "completed": 15,
+    "completed": 6,
     "failed": 0,
     "blocked": 0
   },
   "phases": {
     "phase-0": {
       "name": "Fix Public Booking Pipeline",
-      "total": 11,
-      "completed": 11,
+      "total": 0,
+      "completed": 0,
       "status": "completed"
     },
     "phase-1": {
       "name": "Production Readiness Hardening",
-      "total": 4,
-      "completed": 4,
+      "total": 0,
+      "completed": 0,
+      "status": "completed"
+    },
+    "phase-2": {
+      "name": "Fix Hardcoded Data & Non-Functional Settings",
+      "total": 6,
+      "completed": 6,
       "status": "completed"
     }
   },
   "tasks": [
     {
-      "id": "P0-001",
-      "phase": "phase-0",
-      "title": "Fix multi-tenancy scoping in dashboard booking page",
+      "id": "P2-001",
+      "phase": "phase-2",
+      "title": "Fix hardcoded booking URL in BookingSettings component",
       "status": "completed",
       "priority": "P0",
-      "estimateMin": 15,
-      "dependencies": [],
-      "domain": "security",
-      "touches": [
-        "src/app/(dashboard)/booking/"
-      ],
-      "risk": "low",
-      "specPath": "tasks/phase-0/P0-001.md"
-    },
-    {
-      "id": "P0-002",
-      "phase": "phase-0",
-      "title": "Integrate real availability API into public booking date/time step",
-      "status": "completed",
-      "priority": "P0",
-      "estimateMin": 45,
-      "dependencies": [],
-      "domain": "frontend",
-      "touches": [
-        "src/app/book/[businessSlug]/client.tsx"
-      ],
-      "risk": "medium",
-      "specPath": "tasks/phase-0/P0-002.md"
-    },
-    {
-      "id": "P0-003",
-      "phase": "phase-0",
-      "title": "Implement 'Any Available' staff with multi-staff availability resolution",
-      "status": "completed",
-      "priority": "P0",
-      "estimateMin": 30,
-      "dependencies": [
-        "P0-002"
-      ],
-      "domain": "frontend",
-      "touches": [
-        "src/app/book/[businessSlug]/client.tsx"
-      ],
-      "risk": "medium",
-      "specPath": "tasks/phase-0/P0-003.md"
-    },
-    {
-      "id": "P0-004",
-      "phase": "phase-0",
-      "title": "Create booking settings persistence layer (schema + server action)",
-      "status": "completed",
-      "priority": "P0",
-      "estimateMin": 35,
-      "dependencies": [],
-      "domain": "backend",
-      "touches": [
-        "src/lib/actions/settings.ts",
-        "prisma/schema.prisma"
-      ],
-      "risk": "medium",
-      "specPath": "tasks/phase-0/P0-004.md",
-      "modelHint": "opus"
-    },
-    {
-      "id": "P0-005",
-      "phase": "phase-0",
-      "title": "Wire BookingSettingsTab UI to booking settings server action",
-      "status": "completed",
-      "priority": "P1",
-      "estimateMin": 25,
-      "dependencies": [
-        "P0-004"
-      ],
-      "domain": "frontend",
-      "touches": [
-        "src/components/settings/booking-settings-tab.tsx"
-      ],
-      "risk": "low",
-      "specPath": "tasks/phase-0/P0-005.md"
-    },
-    {
-      "id": "P0-006",
-      "phase": "phase-0",
-      "title": "Enforce booking settings (lead time, max advance) in availability and public flow",
-      "status": "completed",
-      "priority": "P1",
-      "estimateMin": 30,
-      "dependencies": [
-        "P0-004",
-        "P0-002"
-      ],
-      "domain": "fullstack",
-      "touches": [
-        "src/app/book/[businessSlug]/client.tsx",
-        "src/lib/availability.ts",
-        "src/app/api/availability/route.ts"
-      ],
-      "risk": "medium",
-      "specPath": "tasks/phase-0/P0-006.md"
-    },
-    {
-      "id": "P0-007",
-      "phase": "phase-0",
-      "title": "Build public booking management page (view, cancel, reschedule)",
-      "status": "completed",
-      "priority": "P1",
-      "estimateMin": 45,
-      "dependencies": [],
-      "domain": "fullstack",
-      "touches": [
-        "src/app/book/manage/",
-        "src/lib/actions/public-booking.ts"
-      ],
-      "risk": "medium",
-      "specPath": "tasks/phase-0/P0-007.md"
-    },
-    {
-      "id": "P0-008",
-      "phase": "phase-0",
-      "title": "Add manage-booking links to confirmation email template",
-      "status": "completed",
-      "priority": "P1",
-      "estimateMin": 20,
-      "dependencies": [
-        "P0-007"
-      ],
-      "domain": "backend",
-      "touches": [
-        "src/lib/email-templates.ts",
-        "src/lib/actions/public-booking.ts"
-      ],
-      "risk": "low",
-      "specPath": "tasks/phase-0/P0-008.md"
-    },
-    {
-      "id": "P0-009",
-      "phase": "phase-0",
-      "title": "Fix BookingQRCode and BookingWidgetCode with real business URLs",
-      "status": "completed",
-      "priority": "P1",
       "estimateMin": 20,
       "dependencies": [],
       "domain": "frontend",
       "touches": [
-        "src/components/booking/booking-qr-code.tsx",
-        "src/components/booking/booking-widget-code.tsx"
+        "src/components/booking/booking-settings.tsx"
       ],
-      "risk": "low",
-      "specPath": "tasks/phase-0/P0-009.md"
+      "risk": "low"
     },
     {
-      "id": "P0-010",
-      "phase": "phase-0",
-      "title": "Add timezone support to public booking flow",
-      "status": "completed",
-      "priority": "P1",
-      "estimateMin": 35,
-      "dependencies": [
-        "P0-002"
-      ],
-      "domain": "fullstack",
-      "touches": [
-        "src/app/book/[businessSlug]/client.tsx",
-        "src/app/book/[businessSlug]/page.tsx",
-        "src/lib/availability.ts"
-      ],
-      "risk": "medium",
-      "specPath": "tasks/phase-0/P0-010.md"
-    },
-    {
-      "id": "P0-011",
-      "phase": "phase-0",
-      "title": "Surface waitlist option in public booking when no slots available",
-      "status": "completed",
-      "priority": "P2",
-      "estimateMin": 30,
-      "dependencies": [
-        "P0-002"
-      ],
-      "domain": "fullstack",
-      "touches": [
-        "src/app/book/[businessSlug]/client.tsx",
-        "src/lib/actions/waitlist.ts"
-      ],
-      "risk": "low",
-      "specPath": "tasks/phase-0/P0-011.md"
-    },
-    {
-      "id": "P1-001",
-      "phase": "phase-1",
-      "title": "Enforce business hours in availability engine",
+      "id": "P2-002",
+      "phase": "phase-2",
+      "title": "Fix Online Presence tab — dynamic slug, real domain, persist settings",
       "status": "completed",
       "priority": "P0",
-      "estimateMin": 30,
+      "estimateMin": 35,
       "dependencies": [],
-      "domain": "backend",
+      "domain": "fullstack",
       "touches": [
-        "src/lib/availability.ts",
-        "src/app/api/availability/route.ts"
+        "src/components/settings/online-presence-tab.tsx",
+        "src/lib/actions/settings.ts"
       ],
-      "risk": "medium",
-      "specPath": "tasks/phase-1/P1-001.md"
+      "risk": "medium"
     },
     {
-      "id": "P1-002",
-      "phase": "phase-1",
-      "title": "Make password reset tokens single-use",
+      "id": "P2-003",
+      "phase": "phase-2",
+      "title": "Fix hardcoded business name and address in receipt and booking preview",
       "status": "completed",
       "priority": "P0",
       "estimateMin": 25,
       "dependencies": [],
-      "domain": "security",
+      "domain": "frontend",
       "touches": [
-        "src/lib/actions/password-reset.ts"
+        "src/components/checkout/receipt-view.tsx",
+        "src/components/booking/booking-preview.tsx"
       ],
-      "risk": "medium",
-      "specPath": "tasks/phase-1/P1-002.md",
-      "modelHint": "opus"
+      "risk": "low"
     },
     {
-      "id": "P1-003",
-      "phase": "phase-1",
-      "title": "Add rate limiting to public booking cancellation",
+      "id": "P2-004",
+      "phase": "phase-2",
+      "title": "Persist payment settings to database",
       "status": "completed",
-      "priority": "P0",
-      "estimateMin": 15,
+      "priority": "P1",
+      "estimateMin": 25,
       "dependencies": [],
-      "domain": "security",
+      "domain": "fullstack",
       "touches": [
-        "src/lib/actions/public-booking.ts"
+        "src/components/settings/payments-settings-tab.tsx",
+        "src/lib/actions/settings.ts"
       ],
-      "risk": "low",
-      "specPath": "tasks/phase-1/P1-003.md"
+      "risk": "low"
     },
     {
-      "id": "P1-004",
-      "phase": "phase-1",
-      "title": "Guard email sending when RESEND_API_KEY is missing",
+      "id": "P2-005",
+      "phase": "phase-2",
+      "title": "Persist notification settings to database",
       "status": "completed",
-      "priority": "P0",
-      "estimateMin": 10,
+      "priority": "P1",
+      "estimateMin": 25,
       "dependencies": [],
-      "domain": "backend",
+      "domain": "fullstack",
       "touches": [
-        "src/lib/email.ts"
+        "src/components/settings/notifications-settings-tab.tsx",
+        "src/lib/actions/settings.ts"
       ],
-      "risk": "low",
-      "specPath": "tasks/phase-1/P1-004.md"
+      "risk": "low"
+    },
+    {
+      "id": "P2-006",
+      "phase": "phase-2",
+      "title": "Fix fake receipt email/SMS buttons in payment dialog",
+      "status": "completed",
+      "priority": "P1",
+      "estimateMin": 25,
+      "dependencies": [],
+      "domain": "fullstack",
+      "touches": [
+        "src/components/checkout/payment-dialog.tsx",
+        "src/lib/email-templates.ts"
+      ],
+      "risk": "medium"
     }
   ],
   "generatedFrom": "tasks/MANIFEST.json"

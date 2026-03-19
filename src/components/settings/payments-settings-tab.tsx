@@ -10,7 +10,6 @@ import {
   Save,
 } from "lucide-react"
 import { toast } from "sonner"
-import { TAX_RATE } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { StripeConnectSection } from "./stripe-connect-section"
+import { updatePaymentSettings, type PaymentSettings } from "@/lib/actions/settings"
 
 interface PaymentsSettingsTabProps {
   businessId?: string
@@ -32,6 +32,7 @@ interface PaymentsSettingsTabProps {
   businessEmail?: string
   stripeAccountId?: string | null
   stripeAccountStatus?: string | null
+  initialSettings?: PaymentSettings
 }
 
 function SettingRow({
@@ -62,28 +63,55 @@ export function PaymentsSettingsTab({
   businessEmail = "",
   stripeAccountId = null,
   stripeAccountStatus = null,
+  initialSettings,
 }: PaymentsSettingsTabProps = {}) {
-  const [paymentMethods, setPaymentMethods] = useState({
-    cash: true,
-    card: true,
-    giftCards: false,
-    splitPayment: false,
-  })
-  const [taxRate, setTaxRate] = useState(String(TAX_RATE * 100))
-  const [taxName, setTaxName] = useState("Sales Tax")
-  const [taxOnProducts, setTaxOnProducts] = useState(true)
-  const [taxOnServices, setTaxOnServices] = useState(true)
-  const [enableTipping, setEnableTipping] = useState(true)
-  const [tipAmounts, setTipAmounts] = useState(["15", "18", "20"])
-  const [customTip, setCustomTip] = useState(true)
-  const [autoSendReceipt, setAutoSendReceipt] = useState(true)
-  const [receiptChannel, setReceiptChannel] = useState("email")
-  const [receiptFooter, setReceiptFooter] = useState(
-    "Thank you for choosing SAL Beauty Studio! We look forward to seeing you again."
+  const [paymentMethods, setPaymentMethods] = useState(
+    initialSettings?.paymentMethods ?? {
+      cash: true,
+      card: true,
+      giftCards: false,
+      splitPayment: false,
+    }
   )
+  const [taxRate, setTaxRate] = useState(initialSettings?.taxRate ?? "8.875")
+  const [taxName, setTaxName] = useState(initialSettings?.taxName ?? "Sales Tax")
+  const [taxOnProducts, setTaxOnProducts] = useState(initialSettings?.taxOnProducts ?? true)
+  const [taxOnServices, setTaxOnServices] = useState(initialSettings?.taxOnServices ?? true)
+  const [enableTipping, setEnableTipping] = useState(initialSettings?.enableTipping ?? true)
+  const [tipAmounts, setTipAmounts] = useState(initialSettings?.tipAmounts ?? ["15", "18", "20"])
+  const [customTip, setCustomTip] = useState(initialSettings?.customTip ?? true)
+  const [autoSendReceipt, setAutoSendReceipt] = useState(initialSettings?.autoSendReceipt ?? true)
+  const [receiptChannel, setReceiptChannel] = useState<"email" | "sms" | "both">(
+    initialSettings?.receiptChannel ?? "email"
+  )
+  const [receiptFooter, setReceiptFooter] = useState(
+    initialSettings?.receiptFooter ??
+      "Thank you for choosing SAL Beauty Studio! We look forward to seeing you again."
+  )
+  const [isSaving, setIsSaving] = useState(false)
 
-  const handleSave = () => {
-    toast.success("Payment settings saved successfully")
+  const handleSave = async () => {
+    setIsSaving(true)
+    const result = await updatePaymentSettings({
+      paymentMethods,
+      taxRate,
+      taxName,
+      taxOnProducts,
+      taxOnServices,
+      enableTipping,
+      tipAmounts,
+      customTip,
+      autoSendReceipt,
+      receiptChannel,
+      receiptFooter,
+    })
+
+    if (result.success) {
+      toast.success("Payment settings saved successfully")
+    } else {
+      toast.error(`Failed to save payment settings: ${result.error}`)
+    }
+    setIsSaving(false)
   }
 
   return (
@@ -332,7 +360,7 @@ export function PaymentsSettingsTab({
                   label="Receipt Channel"
                   description="How receipts are delivered to clients"
                 >
-                  <Select value={receiptChannel} onValueChange={setReceiptChannel}>
+                  <Select value={receiptChannel} onValueChange={(v) => setReceiptChannel(v as "email" | "sms" | "both")}>
                     <SelectTrigger className="w-36">
                       <SelectValue />
                     </SelectTrigger>
@@ -365,9 +393,9 @@ export function PaymentsSettingsTab({
       </motion.div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>
+        <Button onClick={handleSave} disabled={isSaving}>
           <Save className="w-4 h-4 mr-2" />
-          Save Changes
+          {isSaving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </div>

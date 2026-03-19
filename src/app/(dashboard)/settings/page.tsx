@@ -5,6 +5,7 @@ import { getServices } from "@/lib/queries/services"
 import { getInvitations } from "@/lib/queries/invitations"
 import { hasRole } from "@/lib/permissions"
 import { getBookingSettings } from "@/lib/actions/booking-settings"
+import { getOnlinePresenceSettings, getPaymentSettings, getNotificationSettings } from "@/lib/actions/settings"
 import SettingsClient from "./client"
 
 export const dynamic = "force-dynamic"
@@ -36,7 +37,7 @@ export default async function SettingsPage() {
 
   const business = businessId ? await prisma.business.findUnique({
     where: { id: businessId },
-    select: { name: true, phone: true, email: true, timezone: true, currency: true },
+    select: { name: true, phone: true, email: true, timezone: true, currency: true, slug: true },
   }) : null
 
   const location = businessId ? await prisma.location.findFirst({
@@ -63,6 +64,52 @@ export default async function SettingsPage() {
     depositApplyOverAmount: 0,
     requiredFields: { phone: true, email: true, address: false, notes: false },
     customQuestions: [],
+  }))
+
+  // Fetch online presence settings (returns schema defaults if not set or on error)
+  const onlinePresenceSettings = await getOnlinePresenceSettings(businessId ?? "").catch(() => ({
+    buttonColor: "#059669",
+    buttonText: "Book Now",
+    widgetSize: "medium" as const,
+    socialLinks: { instagram: "", facebook: "", tiktok: "", website: "" },
+  }))
+
+  // Fetch notification settings (returns schema defaults if not set or on error)
+  const notificationSettings = await getNotificationSettings(businessId ?? "").catch(() => ({
+    emailTemplates: {
+      bookingConfirmation: "",
+      appointmentReminder: "",
+      cancellationNotice: "",
+      followUp: "",
+    },
+    smsTemplates: {
+      bookingConfirmation: "",
+      appointmentReminder: "",
+      cancellationNotice: "",
+      followUp: "",
+    },
+    internalAlerts: {
+      newBooking: true,
+      cancellation: true,
+      lowInventory: false,
+      dailySummary: true,
+    },
+  }))
+
+  // Fetch payment settings (returns schema defaults if not set or on error)
+  const paymentSettings = await getPaymentSettings(businessId ?? "").catch(() => ({
+    paymentMethods: { cash: true, card: true, giftCards: false, splitPayment: false },
+    taxRate: "8.875",
+    taxName: "Sales Tax",
+    taxOnProducts: true,
+    taxOnServices: true,
+    enableTipping: true,
+    tipAmounts: ["15", "18", "20"],
+    customTip: true,
+    autoSendReceipt: true,
+    receiptChannel: "email" as const,
+    receiptFooter:
+      "Thank you for choosing SAL Beauty Studio! We look forward to seeing you again.",
   }))
 
   // Fetch team data only for admin/owner
@@ -124,6 +171,10 @@ export default async function SettingsPage() {
       invitations={invitations}
       teamMembers={teamMembers}
       bookingSettings={bookingSettings}
+      businessSlug={business?.slug ?? ""}
+      onlinePresenceSettings={onlinePresenceSettings}
+      paymentSettings={paymentSettings}
+      notificationSettings={notificationSettings}
     />
   )
 }

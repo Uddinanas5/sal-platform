@@ -1,25 +1,20 @@
 # SAL Platform — Task Board
 
-Last Rendered: 2026-03-19T08:49:33.504Z
+Last Rendered: 2026-03-19T16:01:54.306Z
 
 ## Fix Public Booking Pipeline (phase-0)
-- ✅ P0-001: Fix multi-tenancy scoping in dashboard booking page (completed, P0, 15m)
-- ✅ P0-002: Integrate real availability API into public booking date/time step (completed, P0, 45m)
-- ✅ P0-003: Implement 'Any Available' staff with multi-staff availability resolution (completed, P0, 30m)
-- ✅ P0-004: Create booking settings persistence layer (schema + server action) (completed, P0, 35m)
-- ✅ P0-005: Wire BookingSettingsTab UI to booking settings server action (completed, P1, 25m)
-- ✅ P0-006: Enforce booking settings (lead time, max advance) in availability and public flow (completed, P1, 30m)
-- ✅ P0-007: Build public booking management page (view, cancel, reschedule) (completed, P1, 45m)
-- ✅ P0-008: Add manage-booking links to confirmation email template (completed, P1, 20m)
-- ✅ P0-009: Fix BookingQRCode and BookingWidgetCode with real business URLs (completed, P1, 20m)
-- ✅ P0-010: Add timezone support to public booking flow (completed, P1, 35m)
-- ✅ P0-011: Surface waitlist option in public booking when no slots available (completed, P2, 30m)
+- (no tasks)
 
 ## Production Readiness Hardening (phase-1)
-- ✅ P1-001: Enforce business hours in availability engine (completed, P0, 30m)
-- ✅ P1-002: Make password reset tokens single-use (completed, P0, 25m)
-- ✅ P1-003: Add rate limiting to public booking cancellation (completed, P0, 15m)
-- ✅ P1-004: Guard email sending when RESEND_API_KEY is missing (completed, P0, 10m)
+- (no tasks)
+
+## Fix Hardcoded Data & Non-Functional Settings (phase-2)
+- ✅ P2-001: Fix hardcoded booking URL in BookingSettings component (completed, P0, 20m)
+- ✅ P2-002: Fix Online Presence tab — dynamic slug, real domain, persist settings (completed, P0, 35m)
+- ✅ P2-003: Fix hardcoded business name and address in receipt and booking preview (completed, P0, 25m)
+- ✅ P2-004: Persist payment settings to database (completed, P1, 25m)
+- ✅ P2-005: Persist notification settings to database (completed, P1, 25m)
+- ✅ P2-006: Fix fake receipt email/SMS buttons in payment dialog (completed, P1, 25m)
 
 ---
 This file is GENERATED from tasks/MANIFEST.json. Do not edit by hand.

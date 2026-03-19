@@ -372,6 +372,101 @@ export function appointmentCancelledEmail({
   return baseLayout(content)
 }
 
+export function receiptEmail({
+  clientName,
+  businessName,
+  services,
+  subtotal,
+  discount,
+  tax,
+  tip,
+  total,
+  paymentMethod,
+  date,
+  receiptNumber,
+}: {
+  clientName: string
+  businessName: string
+  services: Array<{ name: string; quantity: number; price: number }>
+  subtotal: number
+  discount: number
+  tax: number
+  tip: number
+  total: number
+  paymentMethod: string
+  date: string
+  receiptNumber: string
+}): string {
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
+
+  const rows = services
+    .map(
+      (s) => `
+        <tr>
+          <td style="padding: 8px 0; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #f0ece7;">
+            ${s.name}${s.quantity > 1 ? ` x${s.quantity}` : ""}
+          </td>
+          <td style="padding: 8px 0; font-size: 14px; color: #1a1a1a; text-align: right; border-bottom: 1px solid #f0ece7;">
+            ${fmt(s.price * s.quantity)}
+          </td>
+        </tr>`
+    )
+    .join("")
+
+  const summaryRows = [
+    subtotal !== total ? `<tr><td style="padding: 4px 0; font-size: 13px; color: #6b6560;">Subtotal</td><td style="padding: 4px 0; font-size: 13px; color: #6b6560; text-align: right;">${fmt(subtotal)}</td></tr>` : "",
+    discount > 0 ? `<tr><td style="padding: 4px 0; font-size: 13px; color: #6b6560;">Discount</td><td style="padding: 4px 0; font-size: 13px; color: #059669; text-align: right;">-${fmt(discount)}</td></tr>` : "",
+    tax > 0 ? `<tr><td style="padding: 4px 0; font-size: 13px; color: #6b6560;">Tax</td><td style="padding: 4px 0; font-size: 13px; color: #6b6560; text-align: right;">${fmt(tax)}</td></tr>` : "",
+    tip > 0 ? `<tr><td style="padding: 4px 0; font-size: 13px; color: #6b6560;">Tip</td><td style="padding: 4px 0; font-size: 13px; color: #6b6560; text-align: right;">${fmt(tip)}</td></tr>` : "",
+  ].filter(Boolean).join("")
+
+  const content = `
+    <h1 style="margin: 0 0 4px; font-size: 24px; font-weight: 700; color: #1a1a1a;">Your Receipt</h1>
+    <p style="margin: 0 0 24px; font-size: 15px; color: #6b6560; line-height: 1.5;">
+      Thank you, ${clientName}! Here&rsquo;s your receipt from <strong>${businessName}</strong>.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: #faf8f5; border-radius: 8px; margin-bottom: 24px;">
+      <tr>
+        <td style="padding: 16px 24px 8px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+              <td style="padding: 4px 0; font-size: 13px; color: #9a9590;">Receipt #</td>
+              <td style="padding: 4px 0; font-size: 13px; color: #1a1a1a; font-weight: 600; text-align: right;">${receiptNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; font-size: 13px; color: #9a9590;">Date</td>
+              <td style="padding: 4px 0; font-size: 13px; color: #1a1a1a; font-weight: 600; text-align: right;">${date}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; font-size: 13px; color: #9a9590;">Payment method</td>
+              <td style="padding: 4px 0; font-size: 13px; color: #1a1a1a; font-weight: 600; text-align: right;">${paymentMethod}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 16px;">
+      ${rows}
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 24px;">
+      ${summaryRows}
+      <tr>
+        <td style="padding: 10px 0 0; font-size: 16px; font-weight: 700; color: #1a1a1a; border-top: 2px solid #1a1a1a;">Total</td>
+        <td style="padding: 10px 0 0; font-size: 16px; font-weight: 700; color: #1a1a1a; text-align: right; border-top: 2px solid #1a1a1a;">${fmt(total)}</td>
+      </tr>
+    </table>
+
+    <p style="margin: 0; font-size: 14px; color: #6b6560; line-height: 1.6; text-align: center;">
+      We appreciate your business! We look forward to seeing you again.
+    </p>
+  `
+  return baseLayout(content)
+}
+
 export function appointmentRescheduledEmail({
   clientName,
   serviceName,

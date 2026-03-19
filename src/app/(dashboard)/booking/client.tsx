@@ -13,9 +13,10 @@ interface BookingClientProps {
   services: Service[]
   staff: Staff[]
   businessSlug: string
+  businessName?: string
 }
 
-export function BookingClient({ services, staff, businessSlug }: BookingClientProps) {
+export function BookingClient({ services, staff, businessSlug, businessName }: BookingClientProps) {
   return (
     <div className="min-h-screen bg-cream">
       <Header
@@ -32,7 +33,7 @@ export function BookingClient({ services, staff, businessSlug }: BookingClientPr
             transition={{ duration: 0.4 }}
             className="space-y-6"
           >
-            <BookingSettings services={services} />
+            <BookingSettings services={services} businessSlug={businessSlug} />
             <BookingWidgetCode businessSlug={businessSlug} />
             <BookingQRCode businessSlug={businessSlug} />
           </motion.div>
@@ -48,7 +49,7 @@ export function BookingClient({ services, staff, businessSlug }: BookingClientPr
               <p className="text-sm font-semibold text-muted-foreground text-center mb-4">
                 Live Preview
               </p>
-              <BookingPreview services={services} staff={staff} />
+              <BookingPreview services={services} staff={staff} businessName={businessName} />
             </div>
           </motion.div>
         </div>

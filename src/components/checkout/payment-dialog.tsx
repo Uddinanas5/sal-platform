@@ -26,7 +26,7 @@ import {
 import { CheckoutSummary } from "./checkout-summary"
 import { ReceiptView } from "./receipt-view"
 import { cn, formatCurrency } from "@/lib/utils"
-import { processPayment } from "@/lib/actions/checkout"
+import { processPayment, sendReceiptEmailAction } from "@/lib/actions/checkout"
 import { toast } from "sonner"
 
 interface CartItem {
@@ -45,6 +45,7 @@ interface PaymentDialogProps {
   items: CartItem[]
   clientId: string | null
   clientName: string | null
+  clientEmail?: string | null
   subtotal: number
   discount: number
   discountType: "percentage" | "fixed"
@@ -55,6 +56,9 @@ interface PaymentDialogProps {
   paymentMethod: "cash" | "card" | "gift_card" | null
   onSetPaymentMethod: (method: "cash" | "card" | "gift_card") => void
   onComplete: () => void
+  businessName?: string
+  businessAddress?: string
+  businessPhone?: string
 }
 
 type PaymentStep = "method" | "processing" | "success"
@@ -65,6 +69,7 @@ export function PaymentDialog({
   items,
   clientId,
   clientName,
+  clientEmail,
   subtotal,
   discount,
   discountType,
@@ -75,11 +80,16 @@ export function PaymentDialog({
   paymentMethod,
   onSetPaymentMethod,
   onComplete,
+  businessName,
+  businessAddress,
+  businessPhone,
 }: PaymentDialogProps) {
   const [step, setStep] = useState<PaymentStep>("method")
   const [tenderedAmount, setTenderedAmount] = useState("")
   const [giftCardCode, setGiftCardCode] = useState("")
   const [showReceipt, setShowReceipt] = useState(false)
+  const [receiptNumber, setReceiptNumber] = useState("")
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
 
   const changeDue =
     paymentMethod === "cash" && tenderedAmount
@@ -93,6 +103,8 @@ export function PaymentDialog({
       setTenderedAmount("")
       setGiftCardCode("")
       setShowReceipt(false)
+      setReceiptNumber("")
+      setIsSendingEmail(false)
     }
   }, [open, paymentMethod])
 
@@ -124,6 +136,7 @@ export function PaymentDialog({
       })
 
       if (result.success) {
+        setReceiptNumber(result.data.paymentReference)
         setStep("success")
       } else {
         toast.error(result.error || "Payment failed")
@@ -134,6 +147,45 @@ export function PaymentDialog({
       setStep("method")
     }
   }, [paymentMethod, tenderedAmount, total, clientId, items, subtotal, discount, tax, tip])
+
+  const handleEmailReceipt = async () => {
+    if (!clientEmail) {
+      toast.error("No client email on file")
+      return
+    }
+    setIsSendingEmail(true)
+    try {
+      const result = await sendReceiptEmailAction({
+        clientEmail,
+        clientName: clientName || "Valued Client",
+        businessName: businessName || "Our Salon",
+        items: items.map((i) => ({
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price,
+        })),
+        subtotal,
+        discount,
+        tax,
+        tip,
+        total,
+        paymentMethod:
+          paymentMethod === "cash"
+            ? "Cash"
+            : paymentMethod === "card"
+              ? "Card"
+              : "Gift Card",
+        receiptNumber: receiptNumber || "N/A",
+      })
+      if (result.success) {
+        toast.success("Receipt emailed to " + clientEmail)
+      } else {
+        toast.error(result.error || "Failed to send receipt email")
+      }
+    } finally {
+      setIsSendingEmail(false)
+    }
+  }
 
   const handleComplete = () => {
     toast.success("Payment completed successfully!")
@@ -331,7 +383,9 @@ export function PaymentDialog({
                           variant="outline"
                           disabled={giftCardCode.length < 4}
                           onClick={() => {
-                            toast.success("Gift card applied successfully!")
+                            toast.info(
+                              "Gift card validation is not yet configured"
+                            )
                           }}
                         >
                           Apply
@@ -461,15 +515,15 @@ export function PaymentDialog({
                       if (!receiptEl) { toast.success("Receipt sent to printer"); return }
                       const printWindow = window.open("", "_blank", "width=400,height=600")
                       if (!printWindow) { toast.error("Pop-up blocked"); return }
-                      printWindow.document.write(`
-                        <html><head><title>Receipt</title>
+                      printWindow.document.write(
+                        `<html><head><title>Receipt</title>
                         <style>
                           body { font-family: 'Courier New', monospace; font-size: 12px; padding: 20px; margin: 0; }
                           * { box-sizing: border-box; }
                           @media print { body { padding: 0; } }
                         </style></head>
-                        <body>${receiptEl.innerHTML}</body></html>
-                      `)
+                        <body>${receiptEl.innerHTML}</body></html>`
+                      )
                       printWindow.document.close()
                       printWindow.focus()
                       setTimeout(() => { printWindow.print(); printWindow.close() }, 250)
@@ -482,15 +536,19 @@ export function PaymentDialog({
                   <Button
                     variant="outline"
                     className="flex-col gap-1.5 h-auto py-3"
-                    onClick={() => toast.success("Receipt emailed to client")}
+                    disabled={isSendingEmail || !clientEmail}
+                    title={!clientEmail ? "No client email on file" : undefined}
+                    onClick={handleEmailReceipt}
                   >
                     <Mail className="h-5 w-5" />
-                    <span className="text-xs">Email</span>
+                    <span className="text-xs">
+                      {isSendingEmail ? "Sending…" : "Email"}
+                    </span>
                   </Button>
                   <Button
                     variant="outline"
                     className="flex-col gap-1.5 h-auto py-3"
-                    onClick={() => toast.success("Receipt sent via SMS")}
+                    onClick={() => toast.info("SMS sending is not yet configured")}
                   >
                     <MessageSquare className="h-5 w-5" />
                     <span className="text-xs">SMS</span>
@@ -544,6 +602,9 @@ export function PaymentDialog({
                   tip={tip}
                   total={total}
                   paymentMethod={paymentMethod}
+                  businessName={businessName}
+                  businessAddress={businessAddress}
+                  businessPhone={businessPhone}
                 />
               </div>
 

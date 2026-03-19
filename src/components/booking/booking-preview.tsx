@@ -449,9 +449,10 @@ function SuccessStep() {
 interface BookingPreviewProps {
   services: Service[]
   staff: Staff[]
+  businessName?: string
 }
 
-export function BookingPreview({ services, staff }: BookingPreviewProps) {
+export function BookingPreview({ services, staff, businessName }: BookingPreviewProps) {
   const [step, setStep] = useState(1)
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null)
@@ -528,7 +529,7 @@ export function BookingPreview({ services, staff }: BookingPreviewProps) {
                 )}
                 <div className={cn("text-center", step === 1 || step === 6 ? "flex-1" : "flex-1")}>
                   <h2 className="text-white text-xs font-bold tracking-wide">
-                    SAL SALON
+                    {businessName ? businessName.toUpperCase() : "YOUR SALON"}
                   </h2>
                   <p className="text-white/60 text-[9px]">Book your appointment</p>
                 </div>
