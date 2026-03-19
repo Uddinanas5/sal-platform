@@ -302,6 +302,12 @@ export async function cancelPublicBooking(
   clientEmail: string,
 ): Promise<ActionResult<{ status: string }>> {
   try {
+    // Rate limit: 3 cancellation attempts per booking reference per 10 minutes
+    const rl = rateLimit(`cancel:${bookingReference}`, 3, 10 * 60 * 1000)
+    if (rl.limited) {
+      return { success: false, error: "Too many cancellation attempts. Please try again later." }
+    }
+
     const appointment = await prisma.appointment.findUnique({
       where: { bookingReference },
       include: {
