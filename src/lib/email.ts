@@ -1,6 +1,10 @@
 import { Resend } from "resend"
 
-export const resend = new Resend(process.env.RESEND_API_KEY)
+const apiKey = process.env.RESEND_API_KEY
+if (!apiKey) {
+  console.warn("RESEND_API_KEY not set — emails will not be sent")
+}
+export const resend = apiKey ? new Resend(apiKey) : null
 
 // Helper to send emails with error handling
 export async function sendEmail({
@@ -12,6 +16,10 @@ export async function sendEmail({
   subject: string
   html: string
 }) {
+  if (!resend) {
+    console.warn("Email skipped (Resend not configured):", subject)
+    return { success: false, error: "Email service not configured" }
+  }
   try {
     const { data, error } = await resend.emails.send({
       from: process.env.EMAIL_FROM || "SAL Platform <noreply@salplatform.com>",

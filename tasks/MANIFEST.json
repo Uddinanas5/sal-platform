@@ -1,11 +1,16 @@
 {
   "project": "SAL Platform",
-  "updated": "2026-03-17T13:30:00Z",
+  "updated": "2026-03-19T10:30:00Z",
   "phases": [
     {
       "id": "phase-0",
       "name": "Fix Public Booking Pipeline",
-      "status": "in_progress"
+      "status": "completed"
+    },
+    {
+      "id": "phase-1",
+      "name": "Production Readiness Hardening",
+      "status": "completed"
     }
   ],
   "tasks": [
@@ -152,6 +157,59 @@
       "touches": ["src/app/book/[businessSlug]/client.tsx", "src/lib/actions/waitlist.ts"],
       "risk": "low",
       "specPath": "tasks/phase-0/P0-011.md"
+    },
+    {
+      "id": "P1-001",
+      "phase": "phase-1",
+      "title": "Enforce business hours in availability engine",
+      "status": "completed",
+      "priority": "P0",
+      "estimateMin": 30,
+      "dependencies": [],
+      "domain": "backend",
+      "touches": ["src/lib/availability.ts", "src/app/api/availability/route.ts"],
+      "risk": "medium",
+      "specPath": "tasks/phase-1/P1-001.md"
+    },
+    {
+      "id": "P1-002",
+      "phase": "phase-1",
+      "title": "Make password reset tokens single-use",
+      "status": "completed",
+      "priority": "P0",
+      "estimateMin": 25,
+      "dependencies": [],
+      "domain": "security",
+      "touches": ["src/lib/actions/password-reset.ts"],
+      "risk": "medium",
+      "specPath": "tasks/phase-1/P1-002.md",
+      "modelHint": "opus"
+    },
+    {
+      "id": "P1-003",
+      "phase": "phase-1",
+      "title": "Add rate limiting to public booking cancellation",
+      "status": "completed",
+      "priority": "P0",
+      "estimateMin": 15,
+      "dependencies": [],
+      "domain": "security",
+      "touches": ["src/lib/actions/public-booking.ts"],
+      "risk": "low",
+      "specPath": "tasks/phase-1/P1-003.md"
+    },
+    {
+      "id": "P1-004",
+      "phase": "phase-1",
+      "title": "Guard email sending when RESEND_API_KEY is missing",
+      "status": "completed",
+      "priority": "P0",
+      "estimateMin": 10,
+      "dependencies": [],
+      "domain": "backend",
+      "touches": ["src/lib/email.ts"],
+      "risk": "low",
+      "specPath": "tasks/phase-1/P1-004.md"
     }
   ]
 }
