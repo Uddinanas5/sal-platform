@@ -22,6 +22,9 @@ interface ReceiptViewProps {
   total: number
   paymentMethod: "cash" | "card" | "gift_card" | null
   transactionDate?: Date
+  businessName?: string
+  businessAddress?: string
+  businessPhone?: string
 }
 
 export function ReceiptView({
@@ -36,6 +39,9 @@ export function ReceiptView({
   total,
   paymentMethod,
   transactionDate = new Date(),
+  businessName,
+  businessAddress,
+  businessPhone,
 }: ReceiptViewProps) {
   const dashedLine = "- - - - - - - - - - - - - - - - - - - -"
 
@@ -52,13 +58,17 @@ export function ReceiptView({
     <div className="mx-auto max-w-[320px] rounded-lg bg-white p-6 font-mono text-xs shadow-inner">
       {/* Header */}
       <div className="text-center">
-        <h3 className="text-base font-bold tracking-wider">SAL Salon</h3>
-        <p className="mt-1 text-[10px] text-muted-foreground">
-          123 Beauty Lane, Suite 100
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          Tel: (555) 000-1234
-        </p>
+        <h3 className="text-base font-bold tracking-wider">{businessName ?? "Salon"}</h3>
+        {businessAddress && (
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {businessAddress}
+          </p>
+        )}
+        {businessPhone && (
+          <p className="text-[10px] text-muted-foreground">
+            Tel: {businessPhone}
+          </p>
+        )}
       </div>
 
       <p className="my-3 text-center text-[10px] text-muted-foreground">
@@ -156,9 +166,6 @@ export function ReceiptView({
       <div className="mt-4 text-center">
         <p className="text-[10px] text-muted-foreground">
           Thank you for visiting!
-        </p>
-        <p className="mt-0.5 text-[10px] text-muted-foreground">
-          www.meetsal.ai
         </p>
       </div>
     </div>

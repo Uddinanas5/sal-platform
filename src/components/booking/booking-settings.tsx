@@ -125,9 +125,10 @@ function MiniQRCode() {
 
 interface BookingSettingsProps {
   services?: Service[]
+  businessSlug: string
 }
 
-export function BookingSettings({ services = [] }: BookingSettingsProps) {
+export function BookingSettings({ services = [], businessSlug }: BookingSettingsProps) {
   const [bookingEnabled, setBookingEnabled] = useState(true)
   const [leadTime, setLeadTime] = useState("1h")
   const [cancellationPolicy, setCancellationPolicy] = useState("24h")
@@ -143,7 +144,9 @@ export function BookingSettings({ services = [] }: BookingSettingsProps) {
     }
   )
 
-  const bookingUrl = "https://book.meetsal.com/luxe-salon"
+  const bookingUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/book/${businessSlug}`
+    : `/book/${businessSlug}`
   const [copied, setCopied] = useState(false)
 
   const handleCopyUrl = () => {
@@ -163,8 +166,8 @@ export function BookingSettings({ services = [] }: BookingSettingsProps) {
   }
 
   const handleSave = () => {
-    toast.success("Booking settings saved", {
-      description: "Your online booking configuration has been updated.",
+    toast.success("Online booking toggle updated", {
+      description: "To change lead time or cancellation policy, go to Settings > Booking.",
     })
   }
 

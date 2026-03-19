@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { updateBusinessSettings } from "@/lib/actions/settings"
 import type { BookingSettings } from "@/lib/actions/booking-settings"
+import type { OnlinePresenceSettings, PaymentSettings, NotificationSettings } from "@/lib/actions/settings"
 import { Header } from "@/components/dashboard/header"
 import { BookingSettingsTab } from "@/components/settings/booking-settings-tab"
 import { PaymentsSettingsTab } from "@/components/settings/payments-settings-tab"
@@ -188,9 +189,13 @@ interface SettingsClientProps {
   invitations: InvitationWithInviter[]
   teamMembers: TeamMember[]
   bookingSettings: BookingSettings
+  businessSlug: string
+  onlinePresenceSettings: OnlinePresenceSettings
+  paymentSettings: PaymentSettings
+  notificationSettings: NotificationSettings
 }
 
-export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings }: SettingsClientProps) {
+export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings, notificationSettings, businessSlug, onlinePresenceSettings, paymentSettings }: SettingsClientProps) {
   const isOwner = role === "owner"
   const isAdminOrOwner = role === "owner" || role === "admin"
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
@@ -686,21 +691,24 @@ export default function SettingsClient({ resources, services, initialBusiness, i
           {/* Payments Settings */}
           <TabsContent value="payments">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <PaymentsSettingsTab />
+              <PaymentsSettingsTab initialSettings={paymentSettings} />
             </motion.div>
           </TabsContent>
 
           {/* Notifications */}
           <TabsContent value="notifications">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <NotificationsSettingsTab />
+              <NotificationsSettingsTab initialSettings={notificationSettings} />
             </motion.div>
           </TabsContent>
 
           {/* Online Presence */}
           <TabsContent value="online-presence">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <OnlinePresenceTab />
+              <OnlinePresenceTab
+                businessSlug={businessSlug}
+                initialSettings={onlinePresenceSettings}
+              />
             </motion.div>
           </TabsContent>
 

@@ -21,6 +21,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { updateNotificationSettings } from "@/lib/actions/settings"
+import type { NotificationSettings } from "@/lib/actions/settings"
 
 function SettingRow({
   label,
@@ -44,7 +46,7 @@ function SettingRow({
   )
 }
 
-const defaultEmailTemplates = {
+const defaultEmailTemplates: NotificationSettings["emailTemplates"] = {
   bookingConfirmation: `Hi {client_name},
 
 Your appointment has been confirmed!
@@ -92,11 +94,18 @@ See you next time!
 {salon_name} Team`,
 }
 
-const defaultSmsTemplates = {
+const defaultSmsTemplates: NotificationSettings["smsTemplates"] = {
   bookingConfirmation: `Hi {client_name}! Your {service_name} appointment is confirmed for {date} at {time} with {staff_name}. See you at {salon_name}!`,
   appointmentReminder: `Reminder: {client_name}, you have a {service_name} appointment tomorrow at {time} with {staff_name} at {salon_name}. Reply C to cancel.`,
   cancellationNotice: `Hi {client_name}, your {service_name} appointment on {date} at {time} has been cancelled. Visit us to rebook! - {salon_name}`,
   followUp: `Hi {client_name}! Thanks for visiting {salon_name}. How was your {service_name}? We'd love your feedback! Reply to rate 1-5.`,
+}
+
+const defaultInternalAlerts: NotificationSettings["internalAlerts"] = {
+  newBooking: true,
+  cancellation: true,
+  lowInventory: false,
+  dailySummary: true,
 }
 
 function SmsTemplateField({
@@ -140,18 +149,35 @@ function SmsTemplateField({
   )
 }
 
-export function NotificationsSettingsTab() {
-  const [emailTemplates, setEmailTemplates] = useState(defaultEmailTemplates)
-  const [smsTemplates, setSmsTemplates] = useState(defaultSmsTemplates)
-  const [internalAlerts, setInternalAlerts] = useState({
-    newBooking: true,
-    cancellation: true,
-    lowInventory: false,
-    dailySummary: true,
-  })
+interface NotificationsSettingsTabProps {
+  initialSettings?: NotificationSettings
+}
 
-  const handleSave = () => {
-    toast.success("Notification settings saved successfully")
+export function NotificationsSettingsTab({ initialSettings }: NotificationsSettingsTabProps) {
+  const [emailTemplates, setEmailTemplates] = useState(
+    initialSettings?.emailTemplates ?? defaultEmailTemplates
+  )
+  const [smsTemplates, setSmsTemplates] = useState(
+    initialSettings?.smsTemplates ?? defaultSmsTemplates
+  )
+  const [internalAlerts, setInternalAlerts] = useState(
+    initialSettings?.internalAlerts ?? defaultInternalAlerts
+  )
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    const result = await updateNotificationSettings({
+      emailTemplates,
+      smsTemplates,
+      internalAlerts,
+    })
+    if (result.success) {
+      toast.success("Notification settings saved successfully")
+    } else {
+      toast.error(`Failed to save notification settings: ${result.error}`)
+    }
+    setIsSaving(false)
   }
 
   const mergeFields = [
@@ -424,9 +450,9 @@ export function NotificationsSettingsTab() {
       </motion.div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>
+        <Button onClick={handleSave} disabled={isSaving}>
           <Save className="w-4 h-4 mr-2" />
-          Save Changes
+          {isSaving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </div>

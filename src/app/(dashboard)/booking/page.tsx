@@ -12,7 +12,7 @@ export default async function BookingPage() {
     getStaff(businessId),
     prisma.business.findUnique({
       where: { id: businessId },
-      select: { slug: true },
+      select: { slug: true, name: true },
     }),
   ])
 
@@ -23,6 +23,7 @@ export default async function BookingPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       staff={staff as any}
       businessSlug={business?.slug ?? ""}
+      businessName={business?.name}
     />
   )
 }

@@ -215,6 +215,9 @@ interface CheckoutClientProps {
   products: ProductItem[]
   clients: ClientItem[]
   productCategories: string[]
+  businessName?: string
+  businessAddress?: string
+  businessPhone?: string
 }
 
 // ---------- Page Component ----------
@@ -224,6 +227,9 @@ export default function CheckoutClient({
   products,
   clients,
   productCategories,
+  businessName,
+  businessAddress,
+  businessPhone,
 }: CheckoutClientProps) {
   const [state, dispatch] = useReducer(cartReducer, initialState)
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
@@ -333,6 +339,9 @@ export default function CheckoutClient({
     onSetTip: handleSetTip,
     onSetPaymentMethod: handleSetPaymentMethod,
     onClearCart: handleClearCart,
+    businessName,
+    businessAddress,
+    businessPhone,
   }
 
   return (

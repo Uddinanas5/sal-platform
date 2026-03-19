@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { updateOnlinePresenceSettings, type OnlinePresenceSettings } from "@/lib/actions/settings"
 
 function QrCodePlaceholder() {
   const size = 9
@@ -66,21 +67,27 @@ function QrCodePlaceholder() {
   )
 }
 
-export function OnlinePresenceTab() {
-  const [slug, setSlug] = useState("sal-salon")
+interface OnlinePresenceTabProps {
+  businessSlug: string
+  initialSettings: OnlinePresenceSettings
+}
+
+export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePresenceTabProps) {
+  const [slug, setSlug] = useState(businessSlug)
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
-  const [buttonColor, setButtonColor] = useState("#059669")
-  const [buttonText, setButtonText] = useState("Book Now")
-  const [widgetSize, setWidgetSize] = useState("medium")
-  const [socialLinks, setSocialLinks] = useState({
-    instagram: "",
-    facebook: "",
-    tiktok: "",
-    website: "",
-  })
+  const [buttonColor, setButtonColor] = useState(initialSettings.buttonColor)
+  const [buttonText, setButtonText] = useState(initialSettings.buttonText)
+  const [widgetSize, setWidgetSize] = useState(initialSettings.widgetSize)
+  const [socialLinks, setSocialLinks] = useState(initialSettings.socialLinks)
+  const [isSaving, setIsSaving] = useState(false)
 
-  const bookingUrl = `https://meetsal.ai/book/${slug}`
+  const origin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL || ""
+
+  const bookingUrl = `${origin}/book/${slug}`
 
   const embedCode = `<iframe
   src="${bookingUrl}?embed=true"
@@ -112,8 +119,56 @@ export function OnlinePresenceTab() {
     }
   }
 
-  const handleSave = () => {
-    toast.success("Online presence settings saved successfully")
+  const handleSave = async () => {
+    setIsSaving(true)
+    const result = await updateOnlinePresenceSettings({
+      buttonColor,
+      buttonText,
+      widgetSize,
+      socialLinks,
+    })
+    if (result.success) {
+      toast.success("Online presence settings saved successfully")
+    } else {
+      toast.error(`Failed to save settings: ${result.error}`)
+    }
+    setIsSaving(false)
+  }
+
+  const handleDownloadQr = () => {
+    const svg = document.querySelector(".qr-code-svg")
+    if (!svg) {
+      toast.error("QR code not found")
+      return
+    }
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const blob = new Blob([svgData], { type: "image/svg+xml" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `qr-${slug}.svg`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success("QR code downloaded")
+  }
+
+  const handlePrintQr = () => {
+    const svg = document.querySelector(".qr-code-svg")
+    if (!svg) {
+      toast.error("QR code not found")
+      return
+    }
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const win = window.open("", "_blank")
+    if (!win) {
+      toast.error("Could not open print window")
+      return
+    }
+    win.document.write(`<html><body style="display:flex;justify-content:center;align-items:center;min-height:100vh;">${svgData}</body></html>`)
+    win.document.close()
+    win.focus()
+    win.print()
+    win.close()
   }
 
   return (
@@ -138,7 +193,7 @@ export function OnlinePresenceTab() {
               <Label className="text-sm font-medium">Booking URL</Label>
               <div className="flex items-center gap-2">
                 <div className="flex-1 flex items-center rounded-lg border bg-cream-50 px-3 py-2">
-                  <span className="text-sm text-muted-foreground mr-1">https://meetsal.ai/book/</span>
+                  <span className="text-sm text-muted-foreground mr-1">{origin}/book/</span>
                   <span className="text-sm font-medium text-foreground">{slug}</span>
                 </div>
                 <Button
@@ -159,7 +214,7 @@ export function OnlinePresenceTab() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Custom Slug</Label>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">meetsal.ai/book/</span>
+                <span className="text-sm text-muted-foreground">{origin}/book/</span>
                 <Input
                   value={slug}
                   onChange={(e) =>
@@ -175,9 +230,11 @@ export function OnlinePresenceTab() {
               </div>
             </div>
 
-            <Button variant="outline" size="sm">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Preview Booking Page
+            <Button variant="outline" size="sm" asChild>
+              <a href={bookingUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Preview Booking Page
+              </a>
             </Button>
           </CardContent>
         </Card>
@@ -214,7 +271,7 @@ export function OnlinePresenceTab() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => toast.success("QR code downloaded")}
+                    onClick={handleDownloadQr}
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Download
@@ -222,7 +279,7 @@ export function OnlinePresenceTab() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => toast.success("Sent to printer")}
+                    onClick={handlePrintQr}
                   >
                     <Printer className="w-4 h-4 mr-2" />
                     Print
@@ -305,7 +362,7 @@ export function OnlinePresenceTab() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Widget Size</Label>
-                  <Select value={widgetSize} onValueChange={setWidgetSize}>
+                  <Select value={widgetSize} onValueChange={(v) => setWidgetSize(v as OnlinePresenceSettings["widgetSize"])}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -413,9 +470,9 @@ export function OnlinePresenceTab() {
       </motion.div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>
+        <Button onClick={handleSave} disabled={isSaving}>
           <Save className="w-4 h-4 mr-2" />
-          Save Changes
+          {isSaving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </div>
