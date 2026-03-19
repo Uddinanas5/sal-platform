@@ -43,17 +43,81 @@ import {
 } from "@/components/ui/select"
 
 const timezones = [
+  // Americas
   "America/New_York",
   "America/Chicago",
   "America/Denver",
   "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/Phoenix",
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Mexico_City",
+  "America/Sao_Paulo",
+  "America/Argentina/Buenos_Aires",
+  "America/Bogota",
+  "America/Santiago",
+  // Europe
   "Europe/London",
+  "Europe/Dublin",
   "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Madrid",
+  "Europe/Rome",
+  "Europe/Amsterdam",
+  "Europe/Zurich",
+  "Europe/Stockholm",
+  "Europe/Warsaw",
+  "Europe/Lisbon",
+  "Europe/Athens",
+  "Europe/Istanbul",
+  "Europe/Moscow",
+  // Middle East
   "Asia/Dubai",
+  "Asia/Riyadh",
+  "Asia/Qatar",
+  "Asia/Kuwait",
+  "Asia/Muscat",
+  "Asia/Tehran",
+  "Asia/Jerusalem",
+  "Asia/Beirut",
+  // South Asia
+  "Asia/Kolkata",
+  "Asia/Karachi",
+  "Asia/Dhaka",
+  "Asia/Colombo",
+  // East & Southeast Asia
   "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Asia/Hong_Kong",
+  "Asia/Seoul",
+  "Asia/Singapore",
+  "Asia/Kuala_Lumpur",
+  "Asia/Bangkok",
+  "Asia/Jakarta",
+  "Asia/Manila",
+  // Africa
+  "Africa/Cairo",
+  "Africa/Lagos",
+  "Africa/Johannesburg",
+  "Africa/Nairobi",
+  "Africa/Casablanca",
+  // Oceania
+  "Australia/Sydney",
+  "Australia/Melbourne",
+  "Australia/Perth",
+  "Pacific/Auckland",
 ]
 
-const currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "AED"]
+const currencies = [
+  "USD", "EUR", "GBP", "CAD", "AUD", "AED",
+  "SAR", "QAR", "KWD", "BHD", "OMR", "INR",
+  "PKR", "BDT", "JPY", "CNY", "KRW", "SGD",
+  "MYR", "THB", "IDR", "PHP", "BRL", "MXN",
+  "ZAR", "EGP", "NGN", "KES", "MAD", "TRY",
+  "CHF", "SEK", "NOK", "DKK", "PLN", "NZD",
+]
 
 function SettingRow({
   label,
