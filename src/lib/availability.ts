@@ -36,7 +36,7 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
   const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, etc.
 
   // Fetch all required data in parallel
-  const [service, staffSchedule, staffTimeOff, existingAppointments, staff] = await Promise.all([
+  const [service, staffSchedule, staffTimeOff, existingAppointments, staff, businessHours] = await Promise.all([
     // Get service duration
     prisma.service.findUnique({
       where: { id: serviceId },
@@ -108,6 +108,11 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
         canAcceptBookings: true,
       },
     }),
+
+    // Get business hours for this location and day
+    prisma.businessHours.findFirst({
+      where: { locationId, dayOfWeek },
+    }),
   ])
 
   // Validation checks
@@ -153,15 +158,51 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
     }
   }
 
+  // Business is closed this day (no hours entry, or explicitly closed, or missing open/close times)
+  if (businessHours && (businessHours.isClosed || !businessHours.openTime || !businessHours.closeTime)) {
+    return {
+      slots: [],
+      staffId,
+      serviceId,
+      date: startOfDay.toISOString().split('T')[0],
+      serviceDuration: service.durationMinutes,
+    }
+  }
+
   // Calculate total service duration including buffers
   const totalDuration = service.durationMinutes +
     service.bufferBeforeMinutes +
     service.bufferAfterMinutes +
     staff.bookingBufferMinutes
 
-  // Get working hours for the day
-  const workStart = combineDateWithTime(startOfDay, staffSchedule.startTime)
-  const workEnd = combineDateWithTime(startOfDay, staffSchedule.endTime)
+  // Get working hours for the day — constrained to business hours if available
+  const staffStart = combineDateWithTime(startOfDay, staffSchedule.startTime)
+  const staffEnd = combineDateWithTime(startOfDay, staffSchedule.endTime)
+
+  let workStart: Date
+  let workEnd: Date
+
+  if (businessHours?.openTime && businessHours?.closeTime) {
+    const bizOpen = combineDateWithTime(startOfDay, businessHours.openTime)
+    const bizClose = combineDateWithTime(startOfDay, businessHours.closeTime)
+    // Effective window is intersection of staff schedule and business hours
+    workStart = staffStart > bizOpen ? staffStart : bizOpen
+    workEnd = staffEnd < bizClose ? staffEnd : bizClose
+    // If intersection is empty, no slots
+    if (workStart >= workEnd) {
+      return {
+        slots: [],
+        staffId,
+        serviceId,
+        date: startOfDay.toISOString().split('T')[0],
+        serviceDuration: service.durationMinutes,
+      }
+    }
+  } else {
+    // No business hours configured — use staff schedule as-is
+    workStart = staffStart
+    workEnd = staffEnd
+  }
 
   // Build list of blocked time ranges (appointments + breaks)
   const blockedRanges: TimeSlot[] = []
