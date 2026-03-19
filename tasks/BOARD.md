@@ -1,6 +1,6 @@
 # SAL Platform — Task Board
 
-Last Rendered: 2026-03-17T15:25:34.522Z
+Last Rendered: 2026-03-19T08:49:33.504Z
 
 ## Fix Public Booking Pipeline (phase-0)
 - ✅ P0-001: Fix multi-tenancy scoping in dashboard booking page (completed, P0, 15m)
@@ -14,6 +14,12 @@ Last Rendered: 2026-03-17T15:25:34.522Z
 - ✅ P0-009: Fix BookingQRCode and BookingWidgetCode with real business URLs (completed, P1, 20m)
 - ✅ P0-010: Add timezone support to public booking flow (completed, P1, 35m)
 - ✅ P0-011: Surface waitlist option in public booking when no slots available (completed, P2, 30m)
+
+## Production Readiness Hardening (phase-1)
+- ✅ P1-001: Enforce business hours in availability engine (completed, P0, 30m)
+- ✅ P1-002: Make password reset tokens single-use (completed, P0, 25m)
+- ✅ P1-003: Add rate limiting to public booking cancellation (completed, P0, 15m)
+- ✅ P1-004: Guard email sending when RESEND_API_KEY is missing (completed, P0, 10m)
 
 ---
 This file is GENERATED from tasks/MANIFEST.json. Do not edit by hand.
