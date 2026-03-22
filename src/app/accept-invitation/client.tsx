@@ -117,6 +117,20 @@ export default function AcceptInvitationClient({ state }: Props) {
   const roleLabel = role === "admin" ? "Admin" : "Staff Member"
   const RoleIcon = role === "admin" ? ShieldAlert : ShieldCheck
 
+  async function handleAcceptExisting() {
+    setLoading(true)
+    const result = await acceptInvitation({ token })
+    setLoading(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      return
+    }
+
+    toast.success("Invitation accepted! Sign in to access the business.")
+    router.push("/login?invited=1")
+  }
+
   if (!isNewUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-cream p-4">
@@ -143,12 +157,15 @@ export default function AcceptInvitationClient({ state }: Props) {
                 <span className="text-sm font-medium text-sal-900">{roleLabel} at {businessName}</span>
               </div>
               <p className="text-xs text-sal-700">
-                Signing in with your existing account ({email}) will grant you access.
+                Your existing account ({email}) will be linked to this business.
               </p>
             </div>
-            <Link href="/login">
-              <Button className="w-full">Sign In to Accept</Button>
-            </Link>
+            <Button className="w-full" onClick={handleAcceptExisting} disabled={loading}>
+              {loading ? "Accepting..." : "Accept Invitation"}
+            </Button>
+            <p className="text-xs text-center text-muted-foreground">
+              After accepting, sign in with your existing password to access the dashboard.
+            </p>
           </CardContent>
         </Card>
       </div>
