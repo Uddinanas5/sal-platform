@@ -70,7 +70,7 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("performance")
 
-  const roleInfo = roleConfig[staff.role]
+  const roleInfo = roleConfig[staff.role as keyof typeof roleConfig] ?? roleConfig.staff
   const RoleIcon = roleInfo.icon
   const staffServices = services.filter((s) =>
     staff.services.includes(s.id)

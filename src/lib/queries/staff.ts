@@ -112,16 +112,30 @@ export async function getStaffById(id: string, businessId: string) {
 
   if (!staff) return null
 
+  // Build working hours from schedules (same format as getStaff)
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+  const workingHours: Record<string, { start: string; end: string } | null> = {}
+  for (const day of dayNames) workingHours[day] = null
+  for (const sched of staff.staffSchedules) {
+    const dayName = dayNames[sched.dayOfWeek]
+    if (sched.isWorking && sched.startTime && sched.endTime) {
+      const fmt = (d: Date) => `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`
+      workingHours[dayName] = { start: fmt(sched.startTime), end: fmt(sched.endTime) }
+    }
+  }
+
   return {
     id: staff.id,
     name: `${staff.user.firstName} ${staff.user.lastName}`,
     email: staff.user.email,
     phone: staff.user.phone || "",
-    role: staff.user.role,
-    services: staff.staffServices.map((ss) => ({
+    role: staff.user.role === "owner" ? "admin" as const : staff.user.role as "admin" | "staff",
+    services: staff.staffServices.map((ss) => ss.service.id),
+    serviceDetails: staff.staffServices.map((ss) => ({
       id: ss.service.id,
       name: ss.service.name,
     })),
+    workingHours,
     commission: Number(staff.commissionRate),
     color: staff.color || "#059669",
   }
