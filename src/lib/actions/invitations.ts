@@ -25,7 +25,7 @@ const sendInvitationSchema = z.object({
 
 const acceptInvitationSchema = z.object({
   token: z.string().min(1, "Token is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
 })
 
 const updateTeamMemberRoleSchema = z.object({
@@ -167,7 +167,7 @@ export async function revokeInvitation(invitationId: string): Promise<ActionResu
 
 export async function acceptInvitation(data: {
   token: string
-  password: string
+  password?: string
 }): Promise<ActionResult<{ redirectUrl: string }>> {
   try {
     const parsed = acceptInvitationSchema.parse(data)
@@ -196,7 +196,7 @@ export async function acceptInvitation(data: {
     if (invitation.acceptedAt) return { success: false, error: "This invitation has already been accepted" }
     if (invitation.expiresAt < new Date()) return { success: false, error: "This invitation has expired" }
 
-    const passwordHash = await bcrypt.hash(parsed.password, 12)
+    const passwordHash = parsed.password ? await bcrypt.hash(parsed.password, 12) : null
     const email = invitation.email.toLowerCase().trim()
 
     await prisma.$transaction(async (tx) => {
@@ -204,20 +204,26 @@ export async function acceptInvitation(data: {
       let user = await tx.user.findUnique({ where: { email } })
 
       if (user) {
-        if (!user.passwordHash) {
+        if (!user.passwordHash && passwordHash) {
           // No password yet — set password and update role
           await tx.user.update({
             where: { id: user.id },
             data: { passwordHash, role: invitation.role, status: "active" },
           })
         } else {
-          // Has password already — update role only
-          await tx.user.update({
-            where: { id: user.id },
-            data: { role: invitation.role },
-          })
+          // Existing user with password — just link to business
+          // Don't downgrade an owner to staff
+          if (user.role !== "owner") {
+            await tx.user.update({
+              where: { id: user.id },
+              data: { role: invitation.role },
+            })
+          }
         }
       } else {
+        if (!passwordHash) {
+          throw new Error("Password is required for new accounts")
+        }
         user = await tx.user.create({
           data: {
             email,
