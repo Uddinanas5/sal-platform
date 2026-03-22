@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
+import { requireMinRole } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -116,7 +116,7 @@ export async function updateService(
 
 export async function toggleServiceActive(id: string): Promise<ActionResult> {
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const service = await prisma.service.findUnique({ where: { id, businessId } })
     if (!service) return { success: false, error: "Service not found" }

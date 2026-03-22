@@ -41,6 +41,7 @@ interface SidebarData {
   clientsCount: number
   lowStockCount: number
   pendingReviewsCount: number
+  staffProfileId: string | null
   dashboardStats: {
     todayRevenue: number
     todayAppointments: number
@@ -50,6 +51,11 @@ interface SidebarData {
 }
 
 function buildNavSections(data: SidebarData | null, role?: string) {
+  // For staff users, add a "My Profile" link pointing to their own staff profile
+  const staffProfileItem = role === "staff" && data?.staffProfileId
+    ? { href: `/staff/${data.staffProfileId}`, icon: UserCircle, label: "My Profile" }
+    : null
+
   const allSections = [
     {
       label: "MAIN",
@@ -82,6 +88,7 @@ function buildNavSections(data: SidebarData | null, role?: string) {
         { href: "/booking", icon: Globe, label: "Online Booking" },
         { href: "/staff", icon: UserCircle, label: "Staff" },
         { href: "/settings", icon: Settings, label: "Settings" },
+        ...(staffProfileItem ? [staffProfileItem] : []),
       ],
     },
   ]

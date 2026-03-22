@@ -27,6 +27,7 @@ import { StaffPerformanceTab } from "@/components/staff/staff-performance-tab"
 import { StaffScheduleTab } from "@/components/staff/staff-schedule-tab"
 import { StaffCommissionTab } from "@/components/staff/staff-commission-tab"
 import { StaffTimeOffTab } from "@/components/staff/staff-timeoff-tab"
+import { StaffServicesTab } from "@/components/staff/staff-services-tab"
 import { toast } from "sonner"
 
 const roleConfig = {
@@ -63,10 +64,11 @@ interface StaffDetailClientProps {
   services: Service[]
   appointments: Appointment[]
   staffPerformance?: StaffPerformanceData | null
+  assignedServiceIds: string[]
 }
 
 export function StaffDetailClient(props: StaffDetailClientProps) {
-  const { staff, services, appointments, staffPerformance } = props
+  const { staff, services, appointments, staffPerformance, assignedServiceIds } = props
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("performance")
 
@@ -227,8 +229,9 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 max-w-lg">
+          <TabsList className="grid w-full grid-cols-5 max-w-2xl">
             <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="commission">Commission</TabsTrigger>
             <TabsTrigger value="timeoff">Time Off</TabsTrigger>
@@ -237,6 +240,17 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
           <TabsContent value="performance" className="mt-6">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               <StaffPerformanceTab staff={staff} appointments={appointments} services={services} staffPerformance={staffPerformance} />
+            </motion.div>
+          </TabsContent>
+
+          <TabsContent value="services" className="mt-6">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <StaffServicesTab
+                staffId={staff.id}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                services={services as any}
+                assignedServiceIds={assignedServiceIds}
+              />
             </motion.div>
           </TabsContent>
 

@@ -76,6 +76,7 @@ export async function getStaffById(id: string, businessId: string) {
     where: { id, primaryLocation: { businessId } },
     select: {
       id: true,
+      userId: true,
       commissionRate: true,
       color: true,
       user: {
@@ -126,6 +127,7 @@ export async function getStaffById(id: string, businessId: string) {
 
   return {
     id: staff.id,
+    userId: staff.userId,
     name: `${staff.user.firstName} ${staff.user.lastName}`,
     email: staff.user.email,
     phone: staff.user.phone || "",
@@ -135,6 +137,7 @@ export async function getStaffById(id: string, businessId: string) {
       id: ss.service.id,
       name: ss.service.name,
     })),
+    assignedServiceIds: staff.staffServices.map((ss) => ss.service.id),
     workingHours,
     commission: Number(staff.commissionRate),
     color: staff.color || "#059669",

@@ -47,12 +47,17 @@ export async function updateStaffSchedule(
     staffId = parsed.staffId
     schedule = parsed.schedule
 
-    const { businessId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
 
     const staff = await prisma.staff.findFirst({
       where: { id: staffId, primaryLocation: { businessId } },
     })
     if (!staff) return { success: false, error: "Staff not found" }
+
+    // Staff can only update their own schedule; admins/owners can update any
+    if (role === "staff" && staff.userId !== userId) {
+      return { success: false, error: "You can only update your own schedule" }
+    }
 
     // Delete existing schedules and recreate
     await prisma.staffSchedule.deleteMany({ where: { staffId } })
@@ -177,6 +182,56 @@ export async function createStaff(data: {
     }
     console.error("createStaff error:", e)
     return { success: false, error: msg }
+  }
+}
+
+const updateStaffServicesSchema = z.object({
+  staffId: z.string().uuid(),
+  serviceIds: z.array(z.string().uuid()),
+})
+
+export async function updateStaffServices(data: {
+  staffId: string
+  serviceIds: string[]
+}): Promise<ActionResult> {
+  try {
+    const parsed = updateStaffServicesSchema.parse(data)
+    const { businessId, userId, role } = await getBusinessContext()
+
+    // Verify the staff belongs to this business
+    const staff = await prisma.staff.findFirst({
+      where: { id: parsed.staffId, primaryLocation: { businessId } },
+      select: { id: true, userId: true },
+    })
+    if (!staff) return { success: false, error: "Staff not found" }
+
+    // Allow if user is admin/manager/owner or updating their own services
+    const isAdminOrManager = role === "admin" || role === "owner" || role === "manager"
+    const isOwnRecord = staff.userId === userId
+    if (!isAdminOrManager && !isOwnRecord) {
+      return { success: false, error: "Insufficient permissions" }
+    }
+
+    // Delete existing StaffService records and recreate
+    await prisma.staffService.deleteMany({ where: { staffId: parsed.staffId } })
+
+    if (parsed.serviceIds.length > 0) {
+      await prisma.staffService.createMany({
+        data: parsed.serviceIds.map((serviceId) => ({
+          staffId: parsed.staffId,
+          serviceId,
+        })),
+      })
+    }
+
+    revalidatePath("/staff")
+    revalidatePath(`/staff/${parsed.staffId}`)
+    revalidatePath("/calendar")
+    return { success: true, data: undefined }
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    console.error("updateStaffServices error:", e)
+    return { success: false, error: (e as Error).message }
   }
 }
 

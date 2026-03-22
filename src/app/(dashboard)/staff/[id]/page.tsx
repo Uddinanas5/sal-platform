@@ -22,6 +22,14 @@ export default async function StaffDetailPage({ params }: { params: { id: string
 
   if (!staff) notFound()
 
+  // Staff role users can only view their own profile
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userRole = (session.user as any)?.role as string | undefined
+  const userId = session.user.id
+  if (userRole === "staff" && staff.userId !== userId) {
+    redirect("/dashboard")
+  }
+
   // Fetch performance data for this staff member
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const staffName = (staff as any).name ?? `${(staff as any).user?.firstName ?? ""} ${(staff as any).user?.lastName ?? ""}`.trim()
@@ -42,6 +50,8 @@ export default async function StaffDetailPage({ params }: { params: { id: string
       appointments={staffAppointments as any}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       staffPerformance={staffPerformance as any}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assignedServiceIds={(staff as any).assignedServiceIds ?? []}
     />
   )
 }

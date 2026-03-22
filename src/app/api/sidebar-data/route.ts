@@ -15,6 +15,10 @@ export async function GET() {
 
     const businessFilter = businessId ? { businessId } : {}
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const userRole = (session?.user as any)?.role as string | undefined
+    const userId = session?.user?.id as string | undefined
+
     const [dashboardStats, clients, lowStockProducts, pendingReviewsCount] =
       await Promise.all([
         getDashboardStats(businessId),
@@ -23,11 +27,22 @@ export async function GET() {
         prisma.review.count({ where: { ...businessFilter, response: null } }),
       ])
 
+    // Look up staff profile ID for staff users (for "My Profile" link)
+    let staffProfileId: string | null = null
+    if (userRole === "staff" && userId && businessId) {
+      const staffProfile = await prisma.staff.findFirst({
+        where: { userId, primaryLocation: { businessId }, isActive: true },
+        select: { id: true },
+      })
+      staffProfileId = staffProfile?.id ?? null
+    }
+
     return NextResponse.json({
       todayAppointments: dashboardStats.todayAppointments,
       clientsCount: clients.length,
       lowStockCount: lowStockProducts.length,
       pendingReviewsCount,
+      staffProfileId,
       dashboardStats: {
         todayRevenue: dashboardStats.todayRevenue,
         todayAppointments: dashboardStats.todayAppointments,
@@ -43,6 +58,7 @@ export async function GET() {
       clientsCount: 0,
       lowStockCount: 0,
       pendingReviewsCount: 0,
+      staffProfileId: null,
       dashboardStats: {
         todayRevenue: 0,
         todayAppointments: 0,
