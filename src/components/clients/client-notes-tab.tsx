@@ -41,65 +41,11 @@ interface UploadedFile {
   uploadedBy: string
 }
 
-const mockNotes: Note[] = [
-  {
-    id: "n1",
-    date: new Date("2026-02-14"),
-    author: "Sarah Kim",
-    content: "Client mentioned interest in the new keratin treatment package. Follow up during next visit to discuss pricing and scheduling.",
-  },
-  {
-    id: "n2",
-    date: new Date("2026-02-01"),
-    author: "Alex Morgan",
-    content: "Allergic to certain hair dye brands. Always use the hypoallergenic line for color treatments. Client prefers ammonia-free products.",
-  },
-  {
-    id: "n3",
-    date: new Date("2026-01-15"),
-    author: "Jessica Lee",
-    content: "Prefers appointments in the morning (before 11am). Likes a quieter environment - book in the private room when available.",
-  },
-  {
-    id: "n4",
-    date: new Date("2025-12-20"),
-    author: "Alex Morgan",
-    content: "Discussed loyalty rewards program. Client was excited about the birthday discount. Make sure to send the birthday email reminder.",
-  },
-]
-
-const mockUploadedFiles: UploadedFile[] = [
-  {
-    id: "f1",
-    name: "consultation-form.pdf",
-    size: "245 KB",
-    type: "PDF",
-    uploadedAt: new Date("2026-02-10"),
-    uploadedBy: "Sarah Kim",
-  },
-  {
-    id: "f2",
-    name: "allergy-test-results.pdf",
-    size: "128 KB",
-    type: "PDF",
-    uploadedAt: new Date("2026-01-05"),
-    uploadedBy: "Alex Morgan",
-  },
-  {
-    id: "f3",
-    name: "reference-photo.jpg",
-    size: "1.2 MB",
-    type: "Image",
-    uploadedAt: new Date("2025-12-18"),
-    uploadedBy: "Jessica Lee",
-  },
-]
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ClientNotesTab(props: ClientNotesTabProps) {
-  const [notes, setNotes] = useState<Note[]>(mockNotes)
+  const [notes, setNotes] = useState<Note[]>([])
   const [newNote, setNewNote] = useState("")
-  const [files, setFiles] = useState<UploadedFile[]>(mockUploadedFiles)
+  const [files, setFiles] = useState<UploadedFile[]>([])
 
   const handleAddNote = () => {
     if (!newNote.trim()) return
@@ -107,7 +53,7 @@ export function ClientNotesTab(props: ClientNotesTabProps) {
     const note: Note = {
       id: `n-${Date.now()}`,
       date: new Date(),
-      author: "Alex Morgan",
+      author: "You",
       content: newNote.trim(),
     }
     setNotes([note, ...notes])
@@ -129,7 +75,7 @@ export function ClientNotesTab(props: ClientNotesTabProps) {
         : `${(f.size / 1024).toFixed(0)} KB`,
       type: f.type.includes("image") ? "Image" : f.type.includes("pdf") ? "PDF" : "Document",
       uploadedAt: new Date(),
-      uploadedBy: "Alex Morgan",
+      uploadedBy: "You",
     }))
     setFiles([...newFiles, ...files])
     toast.success(`${selectedFiles.length} file(s) uploaded`)

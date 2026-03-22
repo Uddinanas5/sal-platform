@@ -33,34 +33,6 @@ interface ClientOverviewTabProps {
   client: Client & { appointments?: Appointment[] }
 }
 
-// Mock transactions for the overview (since mock-transactions module doesn't exist yet)
-interface MockTransaction {
-  id: string
-  clientId: string
-  date: Date
-  items: string[]
-  total: number
-  paymentMethod: string
-}
-
-function getClientTransactions(clientId: string): MockTransaction[] {
-  const transactions: MockTransaction[] = [
-    { id: "t1", clientId: "c1", date: new Date("2026-02-10"), items: ["Classic Haircut", "Blowout & Style"], total: 80, paymentMethod: "Credit Card" },
-    { id: "t2", clientId: "c1", date: new Date("2026-01-28"), items: ["Color Treatment"], total: 150, paymentMethod: "Credit Card" },
-    { id: "t3", clientId: "c1", date: new Date("2026-01-15"), items: ["Highlights", "Deep Tissue Massage"], total: 215, paymentMethod: "Debit Card" },
-    { id: "t4", clientId: "c2", date: new Date("2026-02-08"), items: ["Beard Trim"], total: 25, paymentMethod: "Cash" },
-    { id: "t5", clientId: "c2", date: new Date("2026-01-20"), items: ["Classic Haircut"], total: 45, paymentMethod: "Credit Card" },
-    { id: "t6", clientId: "c3", date: new Date("2026-02-12"), items: ["Keratin Treatment"], total: 250, paymentMethod: "Credit Card" },
-    { id: "t7", clientId: "c3", date: new Date("2026-02-01"), items: ["Color Treatment", "Blowout & Style"], total: 185, paymentMethod: "Credit Card" },
-    { id: "t8", clientId: "c3", date: new Date("2026-01-18"), items: ["Facial Treatment"], total: 85, paymentMethod: "Debit Card" },
-    { id: "t9", clientId: "c4", date: new Date("2026-02-05"), items: ["Classic Haircut"], total: 45, paymentMethod: "Cash" },
-    { id: "t10", clientId: "c5", date: new Date("2026-02-11"), items: ["Manicure & Pedicure"], total: 65, paymentMethod: "Credit Card" },
-    { id: "t11", clientId: "c6", date: new Date("2026-02-14"), items: ["Deep Tissue Massage"], total: 95, paymentMethod: "Credit Card" },
-    { id: "t12", clientId: "c7", date: new Date("2026-02-13"), items: ["Classic Haircut", "Beard Trim"], total: 70, paymentMethod: "Debit Card" },
-  ]
-  return transactions.filter((t) => t.clientId === clientId)
-}
-
 export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
   const [notes, setNotes] = useState(client.notes || "")
   const [tags, setTags] = useState<string[]>(client.tags || [])
@@ -70,8 +42,6 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
     .map((a) => ({ ...a, startTime: new Date(a.startTime), endTime: new Date(a.endTime) }))
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
     .slice(0, 5)
-
-  const clientTransactions = getClientTransactions(client.id).slice(0, 5)
 
   const handleSaveNotes = () => {
     toast.success("Notes saved successfully")
@@ -309,30 +279,9 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
             <CardTitle className="text-lg font-heading">Recent Purchases</CardTitle>
           </CardHeader>
           <CardContent>
-            {clientTransactions.length > 0 ? (
-              <div className="space-y-3">
-                {clientTransactions.map((txn) => (
-                  <div
-                    key={txn.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-cream-50 hover:bg-cream-100 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{txn.items.join(", ")}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(txn.date)} &middot; {txn.paymentMethod}
-                      </p>
-                    </div>
-                    <span className="text-sm font-medium text-sal-600">
-                      {formatCurrency(txn.total)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground/70 text-center py-4">
-                No purchases found
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground/70 text-center py-4">
+              No purchases yet
+            </p>
           </CardContent>
         </Card>
       </motion.div>
