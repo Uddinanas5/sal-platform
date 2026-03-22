@@ -1,6 +1,6 @@
 import NextAuth from "next-auth"
 import { authConfig } from "@/lib/auth.config"
-import { STAFF_BLOCKED_ROUTES } from "@/lib/permissions"
+import { STAFF_BLOCKED_ROUTES, STAFF_LIST_BLOCKED_ROUTES } from "@/lib/permissions"
 
 const { auth } = NextAuth(authConfig)
 
@@ -59,6 +59,13 @@ export default auth((req) => {
       (r) => pathname === r || pathname.startsWith(r + "/")
     )
     if (isBlocked) {
+      return Response.redirect(new URL("/dashboard", req.nextUrl.origin))
+    }
+    // Block staff from list pages but allow sub-routes (e.g. /staff is blocked, /staff/[id] is allowed)
+    const isListBlocked = STAFF_LIST_BLOCKED_ROUTES.some(
+      (r) => pathname === r
+    )
+    if (isListBlocked) {
       return Response.redirect(new URL("/dashboard", req.nextUrl.origin))
     }
   }

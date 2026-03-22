@@ -178,20 +178,22 @@ function ServiceCard({
               </span>
             </div>
           </div>
-          <div
-            className="flex items-center gap-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {isActive ? (
-              <Eye className="w-4 h-4 text-sal-500" />
-            ) : (
-              <EyeOff className="w-4 h-4 text-muted-foreground/70" />
-            )}
-            <Switch
-              checked={isActive}
-              onCheckedChange={handleToggle}
-            />
-          </div>
+          {!readOnly && (
+            <div
+              className="flex items-center gap-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {isActive ? (
+                <Eye className="w-4 h-4 text-sal-500" />
+              ) : (
+                <EyeOff className="w-4 h-4 text-muted-foreground/70" />
+              )}
+              <Switch
+                checked={isActive}
+                onCheckedChange={handleToggle}
+              />
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

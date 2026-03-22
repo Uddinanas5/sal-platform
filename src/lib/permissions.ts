@@ -22,8 +22,12 @@ export const STAFF_BLOCKED_ROUTES = [
   "/reviews",
   "/memberships",
   "/booking",
-  "/staff",
   "/settings",
+]
+
+// Routes where staff can only access sub-routes (e.g. /staff/[id]), not the list page
+export const STAFF_LIST_BLOCKED_ROUTES = [
+  "/staff",
 ]
 
 // Sidebar nav items with minimum role to display

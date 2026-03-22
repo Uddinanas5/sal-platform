@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useTransition } from "react"
 import { motion } from "framer-motion"
-import { Save, Coffee } from "lucide-react"
+import { Save, Coffee, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
@@ -10,6 +10,7 @@ import { TimePicker } from "@/components/ui/time-picker"
 import { cn } from "@/lib/utils"
 import { type Staff } from "@/data/mock-data"
 import { toast } from "sonner"
+import { updateStaffSchedule } from "@/lib/actions/staff"
 
 interface StaffScheduleTabProps {
   staff: Staff
@@ -29,7 +30,18 @@ type ScheduleState = {
   [day: string]: { start: string; end: string; isOff: boolean; breakStart: string; breakEnd: string; hasBreak: boolean }
 }
 
+const DAY_TO_INDEX: Record<string, number> = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+}
+
 export function StaffScheduleTab({ staff }: StaffScheduleTabProps) {
+  const [isPending, startTransition] = useTransition()
   const [schedule, setSchedule] = useState<ScheduleState>(() => {
     const initial: ScheduleState = {}
     DAYS.forEach(({ key }) => {
@@ -91,7 +103,21 @@ export function StaffScheduleTab({ staff }: StaffScheduleTabProps) {
   }
 
   const handleSave = () => {
-    toast.success(`Schedule for ${staff.name} saved successfully`)
+    const scheduleData = DAYS.map(({ key }) => ({
+      dayOfWeek: DAY_TO_INDEX[key],
+      startTime: schedule[key].start,
+      endTime: schedule[key].end,
+      isWorking: !schedule[key].isOff,
+    }))
+
+    startTransition(async () => {
+      const result = await updateStaffSchedule(staff.id, scheduleData)
+      if (result.success) {
+        toast.success(`Schedule for ${staff.name} saved successfully`)
+      } else {
+        toast.error(result.error || "Failed to save schedule")
+      }
+    })
   }
 
   // Convert "HH:MM" to total minutes
@@ -257,9 +283,13 @@ export function StaffScheduleTab({ staff }: StaffScheduleTabProps) {
           </div>
 
           <div className="flex justify-end mt-4">
-            <Button onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Schedule
+            <Button onClick={handleSave} disabled={isPending}>
+              {isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              {isPending ? "Saving..." : "Save Schedule"}
             </Button>
           </div>
         </CardContent>
