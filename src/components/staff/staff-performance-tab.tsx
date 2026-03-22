@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LazyBarChart as BarChartComponent } from "@/components/charts/lazy"
 import { LazyPieChart as PieChartComponent } from "@/components/charts/lazy"
 import { cn, formatCurrency, formatDate, formatTime, getInitials, getStatusColor } from "@/lib/utils"
-import { mockAppointments, mockServices, type Staff } from "@/data/mock-data"
+import type { Staff, Appointment, Service } from "@/data/mock-data"
 
 interface StaffPerformanceData {
   name: string
@@ -21,30 +21,70 @@ interface StaffPerformanceData {
 
 interface StaffPerformanceTabProps {
   staff: Staff
+  appointments: Appointment[]
+  services: Service[]
   staffPerformance?: StaffPerformanceData | null
 }
 
-const weeklyRevenueData = [
-  { week: "Week 1", revenue: 1050 },
-  { week: "Week 2", revenue: 1180 },
-  { week: "Week 3", revenue: 980 },
-  { week: "Week 4", revenue: 1240 },
-]
+function buildWeeklyRevenueData(appointments: Appointment[]): { week: string; revenue: number }[] {
+  const completed = appointments.filter((a) => a.status === "completed")
+  if (completed.length === 0) return []
 
-export function StaffPerformanceTab({ staff, staffPerformance }: StaffPerformanceTabProps) {
+  // Find the earliest and latest appointment dates
+  const dates = completed.map((a) => new Date(a.startTime).getTime())
+  const minDate = new Date(Math.min(...dates))
+  const maxDate = new Date(Math.max(...dates))
+
+  // Determine week boundaries (Monday-based weeks)
+  const getWeekStart = (date: Date): Date => {
+    const d = new Date(date)
+    const day = d.getDay()
+    const diff = (day === 0 ? -6 : 1 - day) // Monday = start
+    d.setDate(d.getDate() + diff)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
+
+  const weekStart = getWeekStart(minDate)
+  const weekMap: Map<string, number> = new Map()
+
+  // Collect all week keys in order
+  const cursor = new Date(weekStart)
+  while (cursor <= maxDate) {
+    const key = cursor.toISOString().slice(0, 10) // YYYY-MM-DD of Monday
+    weekMap.set(key, 0)
+    cursor.setDate(cursor.getDate() + 7)
+  }
+
+  // Aggregate revenue per week
+  for (const appt of completed) {
+    const ws = getWeekStart(new Date(appt.startTime))
+    const key = ws.toISOString().slice(0, 10)
+    weekMap.set(key, (weekMap.get(key) ?? 0) + (appt.price ?? 0))
+  }
+
+  // Format for chart display
+  const entries = Array.from(weekMap.entries())
+  return entries.map(([isoMonday, revenue], i) => {
+    const date = new Date(isoMonday)
+    const month = date.toLocaleString("default", { month: "short" })
+    const day = date.getDate()
+    const label = entries.length <= 8
+      ? `${month} ${day}`
+      : `Wk ${i + 1}`
+    return { week: label, revenue }
+  })
+}
+
+export function StaffPerformanceTab({ staff, appointments, services, staffPerformance }: StaffPerformanceTabProps) {
   const performance = staffPerformance ?? null
 
-  // Get appointments for this staff member
-  const staffAppointments = mockAppointments.filter(
-    (a) => a.staffId === staff.id
-  )
-
-  const completedAppointments = staffAppointments.filter(
+  const completedAppointments = appointments.filter(
     (a) => a.status === "completed"
   )
 
   const totalRevenue = completedAppointments.reduce(
-    (sum, a) => sum + a.price,
+    (sum, a) => sum + (a.price ?? 0),
     0
   )
 
@@ -52,13 +92,15 @@ export function StaffPerformanceTab({ staff, staffPerformance }: StaffPerformanc
 
   // Services breakdown for pie chart
   const serviceCountMap: Record<string, number> = {}
-  staffAppointments.forEach((a) => {
-    serviceCountMap[a.serviceName] = (serviceCountMap[a.serviceName] ?? 0) + 1
+  appointments.forEach((a) => {
+    if (a.serviceName) {
+      serviceCountMap[a.serviceName] = (serviceCountMap[a.serviceName] ?? 0) + 1
+    }
   })
 
   const servicesBreakdown = Object.entries(serviceCountMap).map(
     ([name, value]) => {
-      const service = mockServices.find((s) => s.name === name)
+      const service = services.find((s) => s.name === name)
       return {
         name,
         value,
@@ -67,15 +109,18 @@ export function StaffPerformanceTab({ staff, staffPerformance }: StaffPerformanc
     }
   )
 
+  // Weekly revenue derived from real appointments
+  const weeklyRevenueData = buildWeeklyRevenueData(appointments)
+
   // Recent appointments (last 10)
-  const recentAppointments = [...staffAppointments]
-    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
+  const recentAppointments = [...appointments]
+    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
     .slice(0, 10)
 
   const stats = [
     {
       label: "Total Appointments",
-      value: performance?.appointments ?? staffAppointments.length,
+      value: performance?.appointments ?? appointments.length,
       icon: CalendarDays,
       color: "text-blue-600 dark:text-blue-400",
       bg: "bg-blue-500/10",
@@ -89,7 +134,7 @@ export function StaffPerformanceTab({ staff, staffPerformance }: StaffPerformanc
     },
     {
       label: "Avg Rating",
-      value: performance?.rating ?? 4.7,
+      value: performance?.rating != null ? performance.rating : "—",
       icon: Star,
       color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-500/10",
@@ -143,25 +188,45 @@ export function StaffPerformanceTab({ staff, staffPerformance }: StaffPerformanc
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BarChartComponent
-          data={weeklyRevenueData}
-          dataKey="revenue"
-          xAxisKey="week"
-          title="Weekly Revenue"
-          description={`Revenue generated by ${staff.name}`}
-          height={250}
-          color="#059669"
-          formatValue={(v) => `$${v}`}
-        />
+        {weeklyRevenueData.length > 0 ? (
+          <BarChartComponent
+            data={weeklyRevenueData}
+            dataKey="revenue"
+            xAxisKey="week"
+            title="Weekly Revenue"
+            description={`Revenue generated by ${staff.name}`}
+            height={250}
+            color="#059669"
+            formatValue={(v) => `$${v}`}
+          />
+        ) : (
+          <Card>
+            <CardContent className="p-6 flex flex-col items-center justify-center h-[250px] text-center">
+              <DollarSign className="w-8 h-8 text-muted-foreground/40 mb-2" />
+              <p className="text-sm font-medium text-foreground">Weekly Revenue</p>
+              <p className="text-xs text-muted-foreground mt-1">No completed appointments yet</p>
+            </CardContent>
+          </Card>
+        )}
 
-        <PieChartComponent
-          data={servicesBreakdown}
-          title="Services Breakdown"
-          description="Most performed services"
-          height={250}
-          innerRadius={50}
-          outerRadius={85}
-        />
+        {servicesBreakdown.length > 0 ? (
+          <PieChartComponent
+            data={servicesBreakdown}
+            title="Services Breakdown"
+            description="Most performed services"
+            height={250}
+            innerRadius={50}
+            outerRadius={85}
+          />
+        ) : (
+          <Card>
+            <CardContent className="p-6 flex flex-col items-center justify-center h-[250px] text-center">
+              <TrendingUp className="w-8 h-8 text-muted-foreground/40 mb-2" />
+              <p className="text-sm font-medium text-foreground">Services Breakdown</p>
+              <p className="text-xs text-muted-foreground mt-1">No appointments yet</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Recent Appointments */}

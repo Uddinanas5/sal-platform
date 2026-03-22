@@ -40,6 +40,7 @@ interface DashboardClientProps {
     todayRevenue: number; todayAppointments: number;
     completedAppointments: number; upcomingAppointments: number;
     totalClients: number; newClientsThisMonth: number; averageRating: number;
+    monthlyRevenue?: number;
   }
   revenueData: Array<{ day: string; revenue: number; appointments: number }>
   channelData: Array<{ name: string; value: number; color: string }>
@@ -79,6 +80,24 @@ export function DashboardClient(props: DashboardClientProps) {
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
   }, [props.appointments, today])
 
+  // Calculate daily revenue target from monthly revenue (monthly / 30)
+  // Only show the target bar when we have enough data (monthly revenue > 0)
+  const dailyTarget = useMemo(() => {
+    const monthly = props.stats.monthlyRevenue ?? 0
+    if (monthly <= 0) return null
+    return Math.round(monthly / 30)
+  }, [props.stats.monthlyRevenue])
+
+  // Calculate today-vs-yesterday revenue change from the last 7-day revenue data
+  const todayVsYesterdayChange = useMemo(() => {
+    const data = props.revenueData
+    if (data.length < 2) return null
+    const todayRevenue = data[data.length - 1]?.revenue ?? 0
+    const yesterdayRevenue = data[data.length - 2]?.revenue ?? 0
+    if (yesterdayRevenue === 0) return null
+    return Math.round(((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 1000) / 10
+  }, [props.revenueData])
+
   return (
     <div className="min-h-screen bg-cream">
       <Header title="Dashboard" subtitle={formattedDate} />
@@ -98,8 +117,7 @@ export function DashboardClient(props: DashboardClientProps) {
             <h2 className="text-2xl font-heading font-bold mb-2">{getGreeting()}, {firstName}!</h2>
             <p className="text-sal-100 max-w-xl">
               You have <span className="font-semibold text-white">{props.stats.todayAppointments} appointments</span> today.
-              Based on your booking trends, consider opening more slots on Thursdays –
-              they&apos;re 23% busier than average!
+              Based on your booking trends, consider adjusting staffing for peak days.
             </p>
 
             {/* Daily Revenue Progress */}
@@ -107,20 +125,30 @@ export function DashboardClient(props: DashboardClientProps) {
               <div className="flex items-center justify-between text-sm mb-1.5">
                 <span className="text-sal-200">Today&apos;s Revenue</span>
                 <span className="font-semibold text-white">
-                  {formatCurrency(props.stats.todayRevenue)} / {formatCurrency(1200)} target
+                  {dailyTarget !== null
+                    ? `${formatCurrency(props.stats.todayRevenue)} / ${formatCurrency(dailyTarget)} target`
+                    : formatCurrency(props.stats.todayRevenue)}
                 </span>
               </div>
-              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min((props.stats.todayRevenue / 1200) * 100, 100)}%` }}
-                  transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-                  className="h-full bg-white/80 rounded-full"
-                />
-              </div>
-              <p className="text-xs text-sal-200 mt-1">
-                {Math.round((props.stats.todayRevenue / 1200) * 100)}% of daily target
-              </p>
+              {dailyTarget !== null ? (
+                <>
+                  <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min((props.stats.todayRevenue / dailyTarget) * 100, 100)}%` }}
+                      transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+                      className="h-full bg-white/80 rounded-full"
+                    />
+                  </div>
+                  <p className="text-xs text-sal-200 mt-1">
+                    {Math.round((props.stats.todayRevenue / dailyTarget) * 100)}% of daily target
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-sal-200 mt-1">
+                  Set a daily target in settings
+                </p>
+              )}
             </div>
 
             <Button
@@ -143,7 +171,7 @@ export function DashboardClient(props: DashboardClientProps) {
           <StatsCard
             title="Today's Revenue"
             value={formatCurrency(props.stats.todayRevenue)}
-            change={12.5}
+            change={todayVsYesterdayChange ?? undefined}
             changeLabel="vs yesterday"
             icon={DollarSign}
             iconColor="text-sal-600"

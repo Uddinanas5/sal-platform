@@ -236,7 +236,7 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
 
           <TabsContent value="performance" className="mt-6">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <StaffPerformanceTab staff={staff} staffPerformance={staffPerformance} />
+              <StaffPerformanceTab staff={staff} appointments={appointments} services={services} staffPerformance={staffPerformance} />
             </motion.div>
           </TabsContent>
 

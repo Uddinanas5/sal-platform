@@ -54,23 +54,6 @@ const rewards: Reward[] = [
   { id: "r5", name: "VIP Package", pointsCost: 1500, description: "Full day of pampering: haircut, massage, facial, and manicure" },
 ]
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getPointsHistory(clientId: string, points: number): PointsHistoryEntry[] {
-  const entries: PointsHistoryEntry[] = [
-    { id: "ph1", date: new Date("2026-02-14"), description: "Visit - Classic Haircut", points: 45, type: "earned" },
-    { id: "ph2", date: new Date("2026-02-10"), description: "Visit - Color Treatment", points: 150, type: "earned" },
-    { id: "ph3", date: new Date("2026-02-01"), description: "Redeemed: $10 Off Service", points: -200, type: "redeemed" },
-    { id: "ph4", date: new Date("2026-01-28"), description: "Visit - Deep Tissue Massage", points: 95, type: "earned" },
-    { id: "ph5", date: new Date("2026-01-15"), description: "Birthday Bonus", points: 100, type: "bonus" },
-    { id: "ph6", date: new Date("2026-01-10"), description: "Referral Bonus - New Client", points: 50, type: "bonus" },
-    { id: "ph7", date: new Date("2025-12-28"), description: "Visit - Highlights", points: 120, type: "earned" },
-    { id: "ph8", date: new Date("2025-12-20"), description: "Holiday Double Points Promo", points: 85, type: "bonus" },
-    { id: "ph9", date: new Date("2025-12-15"), description: "Visit - Facial Treatment", points: 85, type: "earned" },
-    { id: "ph10", date: new Date("2025-12-01"), description: "Redeemed: $25 Off Service", points: -500, type: "redeemed" },
-  ]
-  return entries
-}
-
 function getCurrentTier(points: number) {
   for (let i = tiers.length - 1; i >= 0; i--) {
     if (points >= tiers[i].minPoints) return tiers[i]
@@ -99,7 +82,7 @@ export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
   const currentTier = getCurrentTier(points)
   const nextTier = getNextTier(points)
   const progress = getTierProgress(points)
-  const history = getPointsHistory(client.id, points)
+  const history: PointsHistoryEntry[] = []
 
   const handleRedeem = (reward: Reward) => {
     if (points >= reward.pointsCost) {
@@ -237,46 +220,52 @@ export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {history.map((entry, i) => (
-                  <div key={entry.id}>
-                    {i > 0 && <Separator className="mb-3" />}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`p-2 rounded-lg ${
-                            entry.type === "earned"
-                              ? "bg-emerald-500/10"
-                              : entry.type === "redeemed"
-                              ? "bg-red-500/10"
-                              : "bg-amber-500/10"
+              {history.length > 0 ? (
+                <div className="space-y-3">
+                  {history.map((entry, i) => (
+                    <div key={entry.id}>
+                      {i > 0 && <Separator className="mb-3" />}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-2 rounded-lg ${
+                              entry.type === "earned"
+                                ? "bg-emerald-500/10"
+                                : entry.type === "redeemed"
+                                ? "bg-red-500/10"
+                                : "bg-amber-500/10"
+                            }`}
+                          >
+                            {entry.type === "earned" ? (
+                              <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+                            ) : entry.type === "redeemed" ? (
+                              <ArrowDownRight className="w-4 h-4 text-red-600" />
+                            ) : (
+                              <Gift className="w-4 h-4 text-amber-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{entry.description}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(entry.date)}</p>
+                          </div>
+                        </div>
+                        <span
+                          className={`text-sm font-semibold ${
+                            entry.points > 0 ? "text-emerald-600" : "text-red-600"
                           }`}
                         >
-                          {entry.type === "earned" ? (
-                            <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-                          ) : entry.type === "redeemed" ? (
-                            <ArrowDownRight className="w-4 h-4 text-red-600" />
-                          ) : (
-                            <Gift className="w-4 h-4 text-amber-600" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{entry.description}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(entry.date)}</p>
-                        </div>
+                          {entry.points > 0 ? "+" : ""}
+                          {entry.points}
+                        </span>
                       </div>
-                      <span
-                        className={`text-sm font-semibold ${
-                          entry.points > 0 ? "text-emerald-600" : "text-red-600"
-                        }`}
-                      >
-                        {entry.points > 0 ? "+" : ""}
-                        {entry.points}
-                      </span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground/70 text-center py-4">
+                  No points history yet
+                </p>
+              )}
             </CardContent>
           </Card>
         </motion.div>
