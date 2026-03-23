@@ -116,11 +116,16 @@ function ServiceCard({
               <GripVertical className="w-5 h-5" />
             </button>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-semibold text-foreground">{service.name}</h3>
                 <Badge variant="secondary" className="text-xs">
                   {service.category}
                 </Badge>
+                {!isActive && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground border-muted-foreground/40">
+                    Deactivated
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                 {service.description}

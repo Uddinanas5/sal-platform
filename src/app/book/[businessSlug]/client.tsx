@@ -181,8 +181,8 @@ function isDayClosed(dayOfWeek: number, businessHours: BusinessHourData[]): bool
   // If no business hours configured at all, no days are closed
   if (businessHours.length === 0) return false
   const dayHours = businessHours.find((bh) => bh.dayOfWeek === dayOfWeek)
-  // If no entry for this day, treat it as closed
-  if (!dayHours) return true
+  // If no entry for this day, it was never explicitly configured — treat as open
+  if (!dayHours) return false
   return dayHours.isClosed
 }
 

@@ -16,7 +16,7 @@ export default async function StaffDetailPage({ params }: { params: { id: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [staff, services, staffAppointments] = await Promise.all([
     getStaffById(params.id, businessId),
-    getServices(),
+    getServices(businessId), // active-only for staff assignment
     getAppointments({ staffId: params.id }),
   ])
 
