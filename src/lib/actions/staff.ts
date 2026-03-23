@@ -59,11 +59,19 @@ export async function updateStaffSchedule(
       return { success: false, error: "You can only update your own schedule" }
     }
 
+    // Fetch business hours to prevent scheduling on closed days
+    const businessHours = await prisma.businessHours.findMany({
+      where: { locationId: staff.locationId },
+      select: { dayOfWeek: true, isClosed: true },
+    })
+    const closedDays = new Set(businessHours.filter(bh => bh.isClosed).map(bh => bh.dayOfWeek))
+
     // Delete existing schedules and recreate
     await prisma.staffSchedule.deleteMany({ where: { staffId } })
 
     for (const day of schedule) {
-      if (day.isWorking) {
+      // Skip days the business is closed — staff can't work on closed days
+      if (day.isWorking && !closedDays.has(day.dayOfWeek)) {
         await prisma.staffSchedule.create({
           data: {
             staffId,
