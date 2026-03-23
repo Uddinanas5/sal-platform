@@ -146,9 +146,21 @@ export async function saveWorkingHours(data: {
       return new Date(1970, 0, 1, hours, minutes, 0, 0)
     }
 
+    // Build a map of provided days so we can fill in any missing ones
+    const providedMap = new Map(parsed.hours.map((h) => [h.dayOfWeek, h]))
+
+    // Ensure all 7 days (0 = Sunday … 6 = Saturday) always have an entry.
+    // Any day not supplied by the caller is treated as closed so there are
+    // never "holes" that could be misinterpreted by clients.
+    const allDays = Array.from({ length: 7 }, (_, i) => {
+      const provided = providedMap.get(i)
+      if (provided) return provided
+      return { dayOfWeek: i, isClosed: true, openTime: "09:00", closeTime: "17:00" }
+    })
+
     // Create hours for each day
     await prisma.businessHours.createMany({
-      data: parsed.hours.map((h) => ({
+      data: allDays.map((h) => ({
         locationId,
         dayOfWeek: h.dayOfWeek,
         isClosed: h.isClosed,

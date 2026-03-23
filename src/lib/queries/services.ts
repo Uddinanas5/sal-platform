@@ -1,10 +1,14 @@
 import { prisma } from "@/lib/prisma"
 
-export async function getServices(businessId?: string) {
+export async function getServices(businessId?: string, includeInactive = false) {
   const businessFilter = businessId ? { businessId } : {}
 
   const services = await prisma.service.findMany({
-    where: { isActive: true, deletedAt: null, ...businessFilter },
+    where: {
+      ...(includeInactive ? {} : { isActive: true }),
+      deletedAt: null,
+      ...businessFilter,
+    },
     select: {
       id: true,
       name: true,
