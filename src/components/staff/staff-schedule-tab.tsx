@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useTransition } from "react"
+import React, { useState, useTransition, useMemo } from "react"
 import { motion } from "framer-motion"
-import { Save, Coffee, Loader2 } from "lucide-react"
+import { Save, Coffee, Loader2, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
@@ -14,16 +14,17 @@ import { updateStaffSchedule } from "@/lib/actions/staff"
 
 interface StaffScheduleTabProps {
   staff: Staff
+  closedDays?: number[] // dayOfWeek numbers (0=Sun, 1=Mon, ..., 6=Sat) where business is closed
 }
 
 const DAYS = [
-  { key: "monday", label: "Monday", short: "Mon" },
-  { key: "tuesday", label: "Tuesday", short: "Tue" },
-  { key: "wednesday", label: "Wednesday", short: "Wed" },
-  { key: "thursday", label: "Thursday", short: "Thu" },
-  { key: "friday", label: "Friday", short: "Fri" },
-  { key: "saturday", label: "Saturday", short: "Sat" },
-  { key: "sunday", label: "Sunday", short: "Sun" },
+  { key: "monday", label: "Monday", short: "Mon", dayOfWeek: 1 },
+  { key: "tuesday", label: "Tuesday", short: "Tue", dayOfWeek: 2 },
+  { key: "wednesday", label: "Wednesday", short: "Wed", dayOfWeek: 3 },
+  { key: "thursday", label: "Thursday", short: "Thu", dayOfWeek: 4 },
+  { key: "friday", label: "Friday", short: "Fri", dayOfWeek: 5 },
+  { key: "saturday", label: "Saturday", short: "Sat", dayOfWeek: 6 },
+  { key: "sunday", label: "Sunday", short: "Sun", dayOfWeek: 0 },
 ]
 
 type ScheduleState = {
@@ -40,8 +41,10 @@ const DAY_TO_INDEX: Record<string, number> = {
   saturday: 6,
 }
 
-export function StaffScheduleTab({ staff }: StaffScheduleTabProps) {
+export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabProps) {
   const [isPending, startTransition] = useTransition()
+  const closedDaySet = useMemo(() => new Set(closedDays), [closedDays])
+
   const [schedule, setSchedule] = useState<ScheduleState>(() => {
     const initial: ScheduleState = {}
     DAYS.forEach(({ key }) => {
@@ -143,7 +146,8 @@ export function StaffScheduleTab({ staff }: StaffScheduleTabProps) {
   }
 
   // Calculate total weekly hours
-  const totalWeeklyHours = DAYS.reduce((sum, { key }) => {
+  const totalWeeklyHours = DAYS.reduce((sum, { key, dayOfWeek }) => {
+    if (closedDaySet.has(dayOfWeek)) return sum
     const day = schedule[key]
     if (day.isOff) return sum
     return sum + getHoursCount(day.start, day.end, day.hasBreak, day.breakStart, day.breakEnd)
@@ -158,8 +162,9 @@ export function StaffScheduleTab({ staff }: StaffScheduleTabProps) {
             Weekly Schedule
           </h3>
           <div className="space-y-3">
-            {DAYS.map(({ key, label }, index) => {
+            {DAYS.map(({ key, label, dayOfWeek }, index) => {
               const day = schedule[key]
+              const isBusinessClosed = closedDaySet.has(dayOfWeek)
               return (
                 <motion.div
                   key={key}
@@ -168,11 +173,26 @@ export function StaffScheduleTab({ staff }: StaffScheduleTabProps) {
                   transition={{ delay: index * 0.05 }}
                   className={cn(
                     "p-3 rounded-lg border transition-colors",
-                    day.isOff
-                      ? "bg-cream-50 border-cream-200"
-                      : "bg-cream-50 border-cream-200"
+                    isBusinessClosed
+                      ? "bg-red-50/50 border-red-200/50"
+                      : day.isOff
+                        ? "bg-cream-50 border-cream-200"
+                        : "bg-cream-50 border-cream-200"
                   )}
                 >
+                  {isBusinessClosed ? (
+                    <div className="flex items-center gap-4">
+                      <div className="w-24 shrink-0">
+                        <span className="text-sm font-medium text-muted-foreground/70">
+                          {label}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-1">
+                        <Building2 className="w-4 h-4 text-red-400" />
+                        <span className="text-sm text-red-500/80">Business closed</span>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="flex items-center gap-4">
                     <div className="w-24 shrink-0">
                       <span
@@ -239,6 +259,7 @@ export function StaffScheduleTab({ staff }: StaffScheduleTabProps) {
                       />
                     </div>
                   </div>
+                  )}
 
                   {/* Break time pickers */}
                   {day.hasBreak && !day.isOff && (
@@ -302,16 +323,19 @@ export function StaffScheduleTab({ staff }: StaffScheduleTabProps) {
             Weekly Overview
           </h3>
           <div className="space-y-2">
-            {DAYS.map(({ key, short }) => {
+            {DAYS.map(({ key, short, dayOfWeek }) => {
               const day = schedule[key]
-              if (day.isOff) {
+              const isBusinessClosed = closedDaySet.has(dayOfWeek)
+              if (isBusinessClosed || day.isOff) {
                 return (
                   <div key={key} className="flex items-center gap-3">
                     <span className="w-10 text-xs font-medium text-muted-foreground/70">
                       {short}
                     </span>
-                    <div className="flex-1 h-8 rounded-lg bg-cream-100 flex items-center justify-center">
-                      <span className="text-xs text-muted-foreground/70">Day Off</span>
+                    <div className={cn("flex-1 h-8 rounded-lg flex items-center justify-center", isBusinessClosed ? "bg-red-50" : "bg-cream-100")}>
+                      <span className={cn("text-xs", isBusinessClosed ? "text-red-400" : "text-muted-foreground/70")}>
+                        {isBusinessClosed ? "Closed" : "Day Off"}
+                      </span>
                     </div>
                     <span className="w-12 text-right text-xs text-muted-foreground/70">
                       0h

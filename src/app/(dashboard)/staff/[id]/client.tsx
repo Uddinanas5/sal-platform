@@ -65,10 +65,11 @@ interface StaffDetailClientProps {
   appointments: Appointment[]
   staffPerformance?: StaffPerformanceData | null
   assignedServiceIds: string[]
+  closedDays?: number[]
 }
 
 export function StaffDetailClient(props: StaffDetailClientProps) {
-  const { staff, services, appointments, staffPerformance, assignedServiceIds } = props
+  const { staff, services, appointments, staffPerformance, assignedServiceIds, closedDays = [] } = props
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("performance")
 
@@ -256,7 +257,7 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
 
           <TabsContent value="schedule" className="mt-6">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <StaffScheduleTab staff={staff} />
+              <StaffScheduleTab staff={staff} closedDays={closedDays} />
             </motion.div>
           </TabsContent>
 

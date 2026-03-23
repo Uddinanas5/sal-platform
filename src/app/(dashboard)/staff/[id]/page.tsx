@@ -3,6 +3,7 @@ import { getServices } from "@/lib/queries/services"
 import { getAppointments } from "@/lib/queries/appointments"
 import { getStaffPerformanceByName } from "@/lib/queries/reports"
 import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { StaffDetailClient } from "./client"
 
@@ -14,11 +15,20 @@ export default async function StaffDetailPage({ params }: { params: { id: string
   if (!session?.user || !businessId) redirect("/login")
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [staff, services, staffAppointments] = await Promise.all([
+  const [staff, services, staffAppointments, businessHoursRaw] = await Promise.all([
     getStaffById(params.id, businessId),
     getServices(businessId), // active-only for staff assignment
     getAppointments({ staffId: params.id }),
+    prisma.businessHours.findMany({
+      where: { location: { businessId, isPrimary: true } },
+      select: { dayOfWeek: true, isClosed: true },
+    }),
   ])
+
+  // Build a map of which days the business is closed
+  const closedDays = businessHoursRaw
+    .filter((bh) => bh.isClosed)
+    .map((bh) => bh.dayOfWeek)
 
   if (!staff) notFound()
 
@@ -52,6 +62,7 @@ export default async function StaffDetailPage({ params }: { params: { id: string
       staffPerformance={staffPerformance as any}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       assignedServiceIds={(staff as any).assignedServiceIds ?? []}
+      closedDays={closedDays}
     />
   )
 }
