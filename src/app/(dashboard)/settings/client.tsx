@@ -264,7 +264,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
 
       <div className="p-6">
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="flex w-full max-w-5xl overflow-x-auto">
+          <TabsList className="flex w-full max-w-5xl overflow-x-auto gap-1 h-auto flex-wrap">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="resources">Resources</TabsTrigger>
             {isOwner && <TabsTrigger value="billing">Billing</TabsTrigger>}

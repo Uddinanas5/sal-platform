@@ -28,6 +28,7 @@ import {
 } from "@/lib/utils"
 import type { Client, Appointment } from "@/data/mock-data"
 import { toast } from "sonner"
+import { updateClient } from "@/lib/actions/clients"
 
 interface ClientOverviewTabProps {
   client: Client & { appointments?: Appointment[] }
@@ -43,21 +44,38 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
     .slice(0, 5)
 
-  const handleSaveNotes = () => {
-    toast.success("Notes saved successfully")
-  }
-
-  const handleAddTag = () => {
-    if (newTag.trim() && !tags.includes(newTag.trim())) {
-      setTags([...tags, newTag.trim()])
-      setNewTag("")
-      toast.success(`Tag "${newTag.trim()}" added`)
+  const handleSaveNotes = async () => {
+    const result = await updateClient(client.id, { notes })
+    if (result.success) {
+      toast.success("Notes saved successfully")
+    } else {
+      toast.error(result.error)
     }
   }
 
-  const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag))
-    toast.success(`Tag "${tag}" removed`)
+  const handleAddTag = async () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      const updatedTags = [...tags, newTag.trim()]
+      const result = await updateClient(client.id, { tags: updatedTags })
+      if (result.success) {
+        setTags(updatedTags)
+        setNewTag("")
+        toast.success(`Tag "${newTag.trim()}" added`)
+      } else {
+        toast.error(result.error)
+      }
+    }
+  }
+
+  const handleRemoveTag = async (tag: string) => {
+    const updatedTags = tags.filter((t) => t !== tag)
+    const result = await updateClient(client.id, { tags: updatedTags })
+    if (result.success) {
+      setTags(updatedTags)
+      toast.success(`Tag "${tag}" removed`)
+    } else {
+      toast.error(result.error)
+    }
   }
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

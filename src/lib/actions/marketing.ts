@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { requireMinRole } from "@/lib/auth-utils"
+import { sendEmail } from "@/lib/email"
 
 const channelEnum = z.enum(["email", "sms", "both"])
 
@@ -145,15 +146,68 @@ export async function sendCampaign(id: string) {
 
     const { businessId } = await requireMinRole("admin")
 
-    const campaign = await prisma.campaign.update({
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: parsed.id, businessId },
+    })
+
+    if (!campaign) return { success: false, error: "Campaign not found" }
+    if (campaign.status === "sent") return { success: false, error: "Campaign already sent" }
+
+    // Build audience based on audienceType
+    const clients = await prisma.client.findMany({
+      where: {
+        businessId,
+        email: { not: null },
+        ...(campaign.audienceType === "vip" ? { tags: { has: "VIP" } } : {}),
+        ...(campaign.audienceType === "new" ? { totalVisits: { lte: 2 } } : {}),
+        ...(campaign.audienceType === "inactive" ? {
+          lastVisitAt: { lt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) },
+        } : {}),
+      },
+      select: { email: true, firstName: true },
+    })
+
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { name: true },
+    })
+
+    let sentCount = 0
+    for (const client of clients) {
+      if (!client.email) continue
+
+      const personalizedBody = campaign.body
+        .replace(/\{\{firstName\}\}/g, client.firstName || "there")
+        .replace(/\{\{businessName\}\}/g, business?.name || "our salon")
+
+      try {
+        await sendEmail({
+          to: client.email,
+          subject: campaign.subject || campaign.name,
+          html: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #059669;">${business?.name || "SAL"}</h2>
+            <div style="line-height: 1.6;">${personalizedBody.replace(/\n/g, "<br>")}</div>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+            <p style="color: #9ca3af; font-size: 12px;">You received this because you're a client of ${business?.name || "our salon"}.</p>
+          </div>`,
+        })
+        sentCount++
+      } catch {
+        // Continue sending to remaining recipients
+      }
+    }
+
+    const updated = await prisma.campaign.update({
       where: { id: parsed.id, businessId },
       data: {
         status: "sent",
         sentAt: new Date(),
+        recipientCount: sentCount,
       },
     })
+
     revalidatePath("/marketing")
-    return campaign
+    return updated
   } catch (e) {
     if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     throw e

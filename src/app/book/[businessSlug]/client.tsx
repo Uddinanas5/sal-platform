@@ -50,6 +50,13 @@ interface StaffWithSchedules extends Staff {
   schedules?: StaffScheduleData[]
 }
 
+interface DepositSettings {
+  requireDeposit: boolean
+  depositType: "percentage" | "fixed"
+  depositAmount: number
+  depositApplyOverAmount: number
+}
+
 interface BookingPageClientProps {
   businessSlug: string
   businessId: string
@@ -60,6 +67,7 @@ interface BookingPageClientProps {
   businessHours: BusinessHourData[]
   maxAdvanceBooking?: string
   timezone: string
+  depositSettings?: DepositSettings
 }
 
 interface ClientDetails {
@@ -1166,6 +1174,7 @@ function ConfirmationStep({
   isSubmitting,
   onConfirm,
   timezone,
+  depositSettings,
 }: {
   service: Service
   staffMember: Staff | "any"
@@ -1175,6 +1184,7 @@ function ConfirmationStep({
   isSubmitting: boolean
   onConfirm: () => void
   timezone: string
+  depositSettings?: DepositSettings
 }) {
   // Build an ISO string representing the selected date+time for timezone-aware formatting
   const appointmentIso = new Date(
@@ -1270,11 +1280,26 @@ function ConfirmationStep({
       </Card>
 
       <Card className="bg-sal-500/5 border-sal-500/20">
-        <CardContent className="p-4 flex items-center justify-between">
-          <span className="font-medium text-foreground">Total</span>
-          <span className="text-xl font-bold text-sal-600 dark:text-sal-400 font-heading">
-            {formatCurrency(service.price)}
-          </span>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-foreground">Total</span>
+            <span className="text-xl font-bold text-sal-600 dark:text-sal-400 font-heading">
+              {formatCurrency(service.price)}
+            </span>
+          </div>
+          {depositSettings?.requireDeposit && service.price >= depositSettings.depositApplyOverAmount && (
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-sal-500/20">
+              <span className="text-sm text-muted-foreground">
+                Deposit required
+              </span>
+              <span className="text-sm font-semibold text-amber-600">
+                {depositSettings.depositType === "percentage"
+                  ? formatCurrency(service.price * depositSettings.depositAmount / 100)
+                  : formatCurrency(depositSettings.depositAmount)}
+                {depositSettings.depositType === "percentage" && ` (${depositSettings.depositAmount}%)`}
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1422,7 +1447,7 @@ function SuccessState({
 // Main Client Component
 // ---------------------------------------------------------------------------
 
-export function BookingPageClient({ businessSlug, businessId, businessName, locationId, services, staff, businessHours, maxAdvanceBooking, timezone }: BookingPageClientProps) {
+export function BookingPageClient({ businessSlug, businessId, businessName, locationId, services, staff, businessHours, maxAdvanceBooking, timezone, depositSettings }: BookingPageClientProps) {
   // locationId is used for future availability API calls from the client
   void locationId
   // Suppress unused variable warning - businessSlug is kept for future URL-based features
@@ -1760,6 +1785,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
                   isSubmitting={isSubmitting}
                   onConfirm={handleConfirm}
                   timezone={timezone}
+                  depositSettings={depositSettings}
                 />
               )}
             </motion.div>

@@ -126,7 +126,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 px-2">
               <Avatar className="w-8 h-8">
-                <AvatarImage src="/avatars/user.jpg" />
+                <AvatarImage src={session?.user?.image || undefined} />
                 <AvatarFallback className="bg-sal-100 text-sal-700 text-sm">
                   {session?.user?.name
                     ? session.user.name.split(" ").map((n) => n[0]).join("").toUpperCase()

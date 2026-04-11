@@ -136,6 +136,12 @@ export default async function PublicBookingPage({
       businessHours={businessHours}
       maxAdvanceBooking={bookingSettings.maxAdvanceBooking}
       timezone={timezone}
+      depositSettings={{
+        requireDeposit: bookingSettings.requireDeposit,
+        depositType: bookingSettings.depositType,
+        depositAmount: bookingSettings.depositAmount,
+        depositApplyOverAmount: bookingSettings.depositApplyOverAmount,
+      }}
     />
   )
 }
