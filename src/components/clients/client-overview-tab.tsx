@@ -169,7 +169,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
                 size="sm"
                 variant="outline"
                 className="flex-1"
-                onClick={() => toast.success("Top-up feature coming soon")}
+                onClick={() => toast.info("Wallet top-up is available at checkout when processing a payment")}
               >
                 <Plus className="w-3.5 h-3.5 mr-1.5" />
                 Top Up
@@ -178,7 +178,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
                 size="sm"
                 className="flex-1"
                 disabled={!client.walletBalance}
-                onClick={() => toast.success("Redeem feature coming soon")}
+                onClick={() => toast.info("Wallet balance can be redeemed during checkout")}
               >
                 Redeem
               </Button>

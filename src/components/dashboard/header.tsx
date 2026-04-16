@@ -18,7 +18,7 @@ import {
 import { NotificationDropdown } from "@/components/dashboard/notification-dropdown"
 import { CommandMenu } from "@/components/dashboard/command-menu"
 import { useMobileSidebar } from "@/components/dashboard/mobile-sidebar-context"
-import { toast } from "sonner"
+// Toast removed — all stubs wired to real actions
 
 interface HeaderProps {
   title: string
@@ -150,7 +150,7 @@ export function Header({ title, subtitle }: HeaderProps) {
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast.info("Help center coming soon")}>
+            <DropdownMenuItem onClick={() => window.open("mailto:hello@salplatform.com?subject=Support Request", "_blank")}>
               <HelpCircle className="mr-2 h-4 w-4" />
               Help & Support
             </DropdownMenuItem>
