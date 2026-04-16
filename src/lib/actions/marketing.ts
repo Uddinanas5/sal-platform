@@ -254,6 +254,23 @@ export async function createDeal(data: {
   }
 }
 
+export async function toggleDeal(id: string, isActive: boolean) {
+  try {
+    idSchema.parse({ id })
+    const { businessId } = await requireMinRole("admin")
+
+    await prisma.deal.update({
+      where: { id, businessId },
+      data: { status: isActive ? "active_deal" : "paused_deal" },
+    })
+    revalidatePath("/marketing")
+    return { success: true }
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    return { success: false, error: (e as Error).message }
+  }
+}
+
 export async function deleteDeal(id: string) {
   try {
     const parsed = idSchema.parse({ id })
@@ -314,6 +331,29 @@ export async function toggleAutomatedMessage(id: string, isActive: boolean) {
   } catch (e) {
     if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     throw e
+  }
+}
+
+export async function updateAutomatedMessage(
+  id: string,
+  data: { subject?: string; body?: string }
+) {
+  try {
+    idSchema.parse({ id })
+    const { businessId } = await requireMinRole("admin")
+
+    await prisma.automatedMessage.update({
+      where: { id, businessId },
+      data: {
+        ...(data.subject !== undefined && { subject: data.subject }),
+        ...(data.body && { body: data.body }),
+      },
+    })
+    revalidatePath("/marketing")
+    return { success: true }
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    return { success: false, error: (e as Error).message }
   }
 }
 
