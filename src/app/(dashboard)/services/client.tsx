@@ -54,10 +54,21 @@ import { createService, updateService, toggleServiceActive, deleteService } from
 
 const categories = ["All", "Hair", "Wellness", "Nails", "Skincare"] as const
 
+interface BundleData {
+  id: string
+  name: string
+  description: string | null
+  serviceIds: string[]
+  originalPrice: number
+  bundlePrice: number
+  discountPercent: number
+}
+
 interface ServicesClientProps {
   initialServices: Service[]
   staff: Staff[]
   role?: string
+  bundles?: BundleData[]
 }
 
 function getCategoryCount(cat: string, services: Service[]): number {
@@ -461,7 +472,10 @@ export function ServicesClient(props: ServicesClientProps) {
         <CategoryOverview services={props.initialServices} />
 
         {/* Service Bundles */}
-        <ServiceBundles />
+        <ServiceBundles
+          bundles={props.bundles || []}
+          services={props.initialServices.map((s) => ({ id: s.id, name: s.name, price: s.price }))}
+        />
       </div>
 
       {/* Service Detail Sheet */}
