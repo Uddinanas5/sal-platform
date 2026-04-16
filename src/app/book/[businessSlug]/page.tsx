@@ -72,6 +72,19 @@ export default async function PublicBookingPage({
     isClosed: bh.isClosed,
   }))
 
+  // Fetch intake forms that are auto-send and active
+  const intakeForms = await prisma.formTemplate.findMany({
+    where: { businessId: business.id, isAutoSend: true, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      fields: true,
+      serviceIds: true,
+      isRequired: true,
+    },
+  })
+
   // Fetch services for this business
   const dbServices = await prisma.service.findMany({
     where: { businessId: business.id, isActive: true, deletedAt: null, isOnlineBooking: true },
@@ -142,6 +155,14 @@ export default async function PublicBookingPage({
         depositAmount: bookingSettings.depositAmount,
         depositApplyOverAmount: bookingSettings.depositApplyOverAmount,
       }}
+      intakeForms={intakeForms.map((f) => ({
+        id: f.id,
+        name: f.name,
+        description: f.description,
+        fields: f.fields as { id: string; label: string; type: string; required: boolean; options?: string[]; placeholder?: string }[],
+        serviceIds: f.serviceIds,
+        isRequired: f.isRequired,
+      }))}
     />
   )
 }
