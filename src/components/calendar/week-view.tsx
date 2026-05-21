@@ -2,11 +2,45 @@
 
 import React, { useRef, useEffect } from "react"
 import { format, addDays, isSameDay, startOfWeek } from "date-fns"
+import { useDroppable } from "@dnd-kit/core"
 import { TimeColumn } from "./time-column"
 import { TimeIndicator } from "./time-indicator"
 import { AppointmentBlock, type ColorByMode } from "./appointment-block"
 import { cn } from "@/lib/utils"
 import type { Appointment, Staff, Service } from "@/data/mock-data"
+
+/** Build a week-view slot id (no staff — drop keeps existing staff). Format: `weekslot|${ISODateTime}`. */
+function buildWeekSlotId(date: Date, hour: number, minute: number): string {
+  const d = new Date(date)
+  d.setHours(hour, minute, 0, 0)
+  return `weekslot|${d.toISOString()}`
+}
+
+export function parseWeekSlotId(id: string): { slotStart: Date } | null {
+  if (!id.startsWith("weekslot|")) return null
+  const [, iso] = id.split("|")
+  if (!iso) return null
+  return { slotStart: new Date(iso) }
+}
+
+interface WeekDroppableSlotProps {
+  id: string
+  className: string
+  style: React.CSSProperties
+  onClick: () => void
+}
+
+function WeekDroppableSlot({ id, className, style, onClick }: WeekDroppableSlotProps) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(className, isOver && "bg-sal-100/60 ring-1 ring-sal-400/40")}
+      style={style}
+      onClick={onClick}
+    />
+  )
+}
 
 interface WeekViewProps {
   date: Date
@@ -17,6 +51,8 @@ interface WeekViewProps {
   zoom: number
   onAppointmentClick: (appointment: Appointment) => void
   onEmptySlotClick: (staffId: string, date: Date, hour: number, minute: number) => void
+  onAppointmentResize?: (appointmentId: string, newDurationMinutes: number) => void
+  slotIncrementMinutes?: number
   startHour?: number
   endHour?: number
   showWorkingHours?: boolean
@@ -31,6 +67,8 @@ export function WeekView({
   zoom,
   onAppointmentClick,
   onEmptySlotClick,
+  onAppointmentResize,
+  slotIncrementMinutes = 15,
   startHour = 8,
   endHour = 20,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -141,10 +179,11 @@ export function WeekView({
                   )}
                   style={{ height: `${totalHeight}px` }}
                 >
-                  {/* Grid lines */}
+                  {/* Grid lines (droppable) */}
                   {slots.map((slot) => (
-                    <div
+                    <WeekDroppableSlot
                       key={`${slot.hour}-${slot.minute}`}
+                      id={buildWeekSlotId(day, slot.hour, slot.minute)}
                       className={cn(
                         "absolute left-0 right-0 border-b cursor-pointer hover:bg-sal-50/30 transition-colors",
                         slot.minute === 0 ? "border-cream-200" : "border-cream-100"
@@ -174,6 +213,8 @@ export function WeekView({
                       staffList={staff}
                       serviceList={services}
                       onClick={onAppointmentClick}
+                      onResize={onAppointmentResize}
+                      slotIncrementMinutes={slotIncrementMinutes}
                       startHour={startHour}
                       compact={true}
                     />

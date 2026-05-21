@@ -18,6 +18,8 @@ interface ThreeDayViewProps {
   zoom: number
   onAppointmentClick: (appointment: Appointment) => void
   onEmptySlotClick: (staffId: string, date: Date, hour: number, minute: number) => void
+  onAppointmentResize?: (appointmentId: string, newDurationMinutes: number) => void
+  slotIncrementMinutes?: number
   startHour?: number
   endHour?: number
   showWorkingHours?: boolean
@@ -32,6 +34,8 @@ export function ThreeDayView({
   zoom,
   onAppointmentClick,
   onEmptySlotClick,
+  onAppointmentResize,
+  slotIncrementMinutes = 15,
   startHour = 8,
   endHour = 20,
   showWorkingHours = false,
@@ -151,6 +155,8 @@ export function ThreeDayView({
                     serviceList={services}
                     onAppointmentClick={onAppointmentClick}
                     onEmptySlotClick={onEmptySlotClick}
+                    onAppointmentResize={onAppointmentResize}
+                    slotIncrementMinutes={slotIncrementMinutes}
                     startHour={startHour}
                     endHour={endHour}
                     showHeader={false}

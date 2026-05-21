@@ -28,6 +28,11 @@ const rescheduleAppointmentSchema = z.object({
   newStaffId: z.string().uuid().optional(),
 })
 
+const resizeAppointmentSchema = z.object({
+  id: z.string().uuid(),
+  newDurationMinutes: z.number().int().min(5).max(720),
+})
+
 export async function createAppointment(data: {
   clientId: string
   serviceId: string
@@ -366,6 +371,80 @@ export async function rescheduleAppointment(
       return { success: false, error: "This time slot is already booked for the selected staff member" }
     }
     console.error("rescheduleAppointment error:", e)
+    return { success: false, error: msg }
+  }
+}
+
+export async function resizeAppointment(
+  id: string,
+  newDurationMinutes: number
+): Promise<ActionResult> {
+  try {
+    resizeAppointmentSchema.parse({ id, newDurationMinutes })
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: "Invalid input: " + e.issues[0]?.message }
+    }
+    throw e
+  }
+
+  try {
+    const { businessId } = await getBusinessContext()
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id, businessId },
+      include: { services: true },
+    })
+    if (!appointment) return { success: false, error: "Appointment not found" }
+
+    const startTime = appointment.startTime
+    const newEndTime = new Date(startTime)
+    newEndTime.setMinutes(newEndTime.getMinutes() + newDurationMinutes)
+
+    const staffId = appointment.services[0]?.staffId
+
+    await prisma.$transaction(async (tx) => {
+      if (staffId) {
+        const conflicting = await tx.appointmentService.findFirst({
+          where: {
+            staffId,
+            appointmentId: { not: id },
+            appointment: {
+              status: { notIn: ["cancelled", "no_show"] },
+            },
+            startTime: { lt: newEndTime },
+            endTime: { gt: startTime },
+          },
+        })
+        if (conflicting) {
+          throw new Error("CONFLICT")
+        }
+      }
+
+      await tx.appointment.update({
+        where: { id, businessId },
+        data: { endTime: newEndTime, totalDuration: newDurationMinutes },
+      })
+
+      if (appointment.services[0]) {
+        await tx.appointmentService.update({
+          where: { id: appointment.services[0].id },
+          data: {
+            endTime: newEndTime,
+            durationMinutes: newDurationMinutes,
+          },
+        })
+      }
+    })
+
+    revalidatePath("/calendar")
+    return { success: true, data: undefined }
+  } catch (e) {
+    const msg = (e as Error).message
+    if (msg === "CONFLICT") {
+      return { success: false, error: "Resizing would overlap another booking" }
+    }
+    console.error("resizeAppointment error:", e)
     return { success: false, error: msg }
   }
 }

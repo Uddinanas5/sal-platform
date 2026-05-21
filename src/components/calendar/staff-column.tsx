@@ -3,10 +3,48 @@
 import React from "react"
 import { isSameDay } from "date-fns"
 import { Plus } from "lucide-react"
+import { useDroppable } from "@dnd-kit/core"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn, getInitials } from "@/lib/utils"
 import { AppointmentBlock, type ColorByMode } from "./appointment-block"
 import type { Appointment, Staff, Service } from "@/data/mock-data"
+
+/** Build a droppable ID for a time slot. Format: `slot|${staffId}|${ISODateTime}`. */
+export function buildSlotId(staffId: string, date: Date, hour: number, minute: number): string {
+  const d = new Date(date)
+  d.setHours(hour, minute, 0, 0)
+  return `slot|${staffId}|${d.toISOString()}`
+}
+
+/** Parse a droppable ID back into its parts. Returns null if not a slot id. */
+export function parseSlotId(id: string): { staffId: string; slotStart: Date } | null {
+  if (!id.startsWith("slot|")) return null
+  const [, staffId, iso] = id.split("|")
+  if (!staffId || !iso) return null
+  return { staffId, slotStart: new Date(iso) }
+}
+
+interface DroppableSlotProps {
+  id: string
+  className: string
+  style: React.CSSProperties
+  onClick: () => void
+  children?: React.ReactNode
+}
+
+function DroppableSlot({ id, className, style, onClick, children }: DroppableSlotProps) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(className, isOver && "bg-sal-100/60 ring-1 ring-sal-400/40")}
+      style={style}
+      onClick={onClick}
+    >
+      {children}
+    </div>
+  )
+}
 
 // --- Overlap/collision detection ---
 // Groups overlapping appointments into columns so they render side-by-side
@@ -121,6 +159,8 @@ interface StaffColumnProps {
   serviceList: Service[]
   onAppointmentClick: (appointment: Appointment) => void
   onEmptySlotClick: (staffId: string, date: Date, hour: number, minute: number) => void
+  onAppointmentResize?: (appointmentId: string, newDurationMinutes: number) => void
+  slotIncrementMinutes?: number
   startHour?: number
   endHour?: number
   showHeader?: boolean
@@ -138,6 +178,8 @@ export function StaffColumn({
   serviceList,
   onAppointmentClick,
   onEmptySlotClick,
+  onAppointmentResize,
+  slotIncrementMinutes = 15,
   startHour = 8,
   endHour = 20,
   showHeader = true,
@@ -263,10 +305,11 @@ export function StaffColumn({
           </div>
         )}
 
-        {/* Slot grid lines */}
+        {/* Slot grid lines (droppable) */}
         {slots.map((slot) => (
-          <div
+          <DroppableSlot
             key={`${slot.hour}-${slot.minute}`}
+            id={buildSlotId(staff.id, date, slot.hour, slot.minute)}
             className={cn(
               "absolute left-0 right-0 border-b group cursor-pointer hover:bg-sal-50/40 transition-colors",
               slot.minute === 0 ? "border-cream-200" : "border-cream-100"
@@ -280,7 +323,7 @@ export function StaffColumn({
             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center h-full">
               <Plus className="h-3.5 w-3.5 text-muted-foreground/70" />
             </div>
-          </div>
+          </DroppableSlot>
         ))}
 
         {/* Appointment blocks with overlap layout */}
@@ -293,6 +336,8 @@ export function StaffColumn({
             staffList={staffList}
             serviceList={serviceList}
             onClick={onAppointmentClick}
+            onResize={onAppointmentResize}
+            slotIncrementMinutes={slotIncrementMinutes}
             startHour={startHour}
             compact={compact}
             overlapColumn={column}
