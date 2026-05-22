@@ -20,3 +20,19 @@ export const ERRORS = {
   BAD_REQUEST: (msg: string) => apiError("BAD_REQUEST", msg, 400),
   SERVER_ERROR: () => apiError("SERVER_ERROR", "Internal server error", 500),
 }
+
+/**
+ * Returns a client-safe error message. In production, always returns the
+ * curated fallback so we never leak Prisma internals, stack traces, table
+ * names, or other implementation details. In dev, surfaces the real
+ * `error.message` to keep the browser DevTools useful while debugging.
+ *
+ * The caller is responsible for logging the raw error (e.g. via console.error)
+ * with route context before calling this.
+ */
+export function clientSafeMessage(e: unknown, fallback: string): string {
+  if (process.env.NODE_ENV !== "production" && e instanceof Error) {
+    return e.message
+  }
+  return fallback
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
+import { clientSafeMessage } from '@/lib/api/response'
 import type { Prisma } from '@/generated/prisma'
 
 /**
@@ -368,9 +369,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(fullAppointment, { status: 201 })
   } catch (error) {
     console.error('POST /api/bookings error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to create appointment'
     return NextResponse.json(
-      { error: message },
+      { error: clientSafeMessage(error, 'Failed to create appointment') },
       { status: 400 }
     )
   }

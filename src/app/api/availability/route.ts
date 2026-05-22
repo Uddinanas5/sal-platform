@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAvailability, getMultiStaffAvailability } from '@/lib/availability'
 import { prisma } from '@/lib/prisma'
 import { getPublicBookingSettings } from '@/lib/actions/booking-settings'
+import { clientSafeMessage } from '@/lib/api/response'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,15 +70,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch booking settings to enforce lead time
-    let minLeadTimeMinutes = 30 // default fallback
     const serviceForBusiness = await prisma.service.findUnique({
       where: { id: serviceId },
       select: { businessId: true },
     })
-    if (serviceForBusiness?.businessId) {
-      const bookingSettings = await getPublicBookingSettings(serviceForBusiness.businessId)
-      minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
+    if (!serviceForBusiness?.businessId) {
+      return NextResponse.json(
+        { error: 'Service not found' },
+        { status: 404 }
+      )
     }
+    const bookingSettings = await getPublicBookingSettings(serviceForBusiness.businessId)
+    const minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
 
     // If staffId provided, get availability for that staff member
     if (staffId) {
@@ -219,9 +223,8 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('GET /api/availability error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to check availability'
     return NextResponse.json(
-      { error: message },
+      { error: clientSafeMessage(error, 'Failed to check availability') },
       { status: 500 }
     )
   }
