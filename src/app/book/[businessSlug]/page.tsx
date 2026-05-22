@@ -6,16 +6,40 @@ import type { Metadata } from "next"
 
 export const dynamic = "force-dynamic"
 
+function isConnectionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const code = (error as { code?: string }).code
+  return (
+    error.name === "PrismaClientInitializationError" ||
+    code === "P1001" ||
+    code === "P1002" ||
+    code === "P1017"
+  )
+}
+
+class ServiceUnavailableError extends Error {
+  constructor(message = "Database unreachable") {
+    super(message)
+    this.name = "ServiceUnavailableError"
+  }
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ businessSlug: string }>
 }): Promise<Metadata> {
   const { businessSlug } = await params
-  const business = await prisma.business.findFirst({
-    where: { slug: businessSlug, deletedAt: null },
-    select: { name: true },
-  })
+  let business: { name: string } | null = null
+  try {
+    business = await prisma.business.findFirst({
+      where: { slug: businessSlug, deletedAt: null },
+      select: { name: true },
+    })
+  } catch {
+    // Metadata is best-effort; the page handler will surface the real error.
+    business = null
+  }
   return {
     title: business ? `Book with ${business.name}` : "Book an Appointment",
     description: business
@@ -31,15 +55,25 @@ export default async function PublicBookingPage({
 }) {
   const { businessSlug } = await params
 
-  // Look up business by slug
-  const business = await prisma.business.findFirst({
-    where: { slug: businessSlug, deletedAt: null },
-    select: {
-      id: true,
-      name: true,
-      timezone: true,
-    },
-  })
+  // Look up business by slug. Distinguish connection errors (503) from
+  // "no such slug" (404) — without this, a DB outage returns 500 with a
+  // 404 body, which is confusing for both bots and humans.
+  let business: { id: string; name: string; timezone: string | null } | null
+  try {
+    business = await prisma.business.findFirst({
+      where: { slug: businessSlug, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        timezone: true,
+      },
+    })
+  } catch (error) {
+    if (isConnectionError(error)) {
+      throw new ServiceUnavailableError()
+    }
+    throw error
+  }
 
   if (!business) {
     notFound()
