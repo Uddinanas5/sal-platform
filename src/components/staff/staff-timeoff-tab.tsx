@@ -35,9 +35,20 @@ import {
 import { cn, formatDate } from "@/lib/utils"
 import { type Staff } from "@/data/mock-data"
 import { toast } from "sonner"
+import { requestTimeOff } from "@/lib/actions/staff"
+
+interface TimeOffEntryProp {
+  id: string
+  startDate: string
+  endDate: string
+  type: string
+  status: string
+  notes: string | null
+}
 
 interface StaffTimeOffTabProps {
   staff: Staff
+  timeOffEntries?: TimeOffEntryProp[]
 }
 
 interface TimeOffEntry {
@@ -73,58 +84,7 @@ const statusConfig = {
   },
 }
 
-const mockUpcomingTimeOff: TimeOffEntry[] = [
-  {
-    id: "to1",
-    startDate: new Date("2026-03-10"),
-    endDate: new Date("2026-03-14"),
-    type: "vacation",
-    status: "approved",
-    notes: "Spring break family trip",
-  },
-  {
-    id: "to2",
-    startDate: new Date("2026-04-02"),
-    endDate: new Date("2026-04-02"),
-    type: "personal",
-    status: "pending",
-    notes: "Dental appointment",
-  },
-  {
-    id: "to3",
-    startDate: new Date("2026-05-20"),
-    endDate: new Date("2026-05-24"),
-    type: "vacation",
-    status: "pending",
-    notes: "Summer vacation",
-  },
-]
-
-const mockPastTimeOff: TimeOffEntry[] = [
-  {
-    id: "to4",
-    startDate: new Date("2026-01-06"),
-    endDate: new Date("2026-01-08"),
-    type: "sick",
-    status: "approved",
-    notes: "Flu recovery",
-  },
-  {
-    id: "to5",
-    startDate: new Date("2025-12-23"),
-    endDate: new Date("2025-12-26"),
-    type: "vacation",
-    status: "approved",
-    notes: "Holiday break",
-  },
-  {
-    id: "to6",
-    startDate: new Date("2025-11-15"),
-    endDate: new Date("2025-11-15"),
-    type: "personal",
-    status: "approved",
-  },
-]
+// Time-off data now comes from props, not mock data
 
 function getDayCount(start: Date, end: Date): number {
   const diff = end.getTime() - start.getTime()
@@ -171,29 +131,56 @@ function TimeOffCard({ entry }: { entry: TimeOffEntry }) {
   )
 }
 
-export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
+export function StaffTimeOffTab({ staff, timeOffEntries = [] }: StaffTimeOffTabProps) {
   const [requestOpen, setRequestOpen] = useState(false)
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [type, setType] = useState<string>("vacation")
   const [notes, setNotes] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
-  const totalUpcoming = mockUpcomingTimeOff.reduce(
+  const now = new Date()
+  const entries: TimeOffEntry[] = timeOffEntries.map((e) => ({
+    id: e.id,
+    startDate: new Date(e.startDate),
+    endDate: new Date(e.endDate),
+    type: e.type as TimeOffEntry["type"],
+    status: e.status as TimeOffEntry["status"],
+    notes: e.notes ?? undefined,
+  }))
+
+  const upcomingEntries = entries.filter((e) => e.endDate >= now)
+  const pastEntries = entries.filter((e) => e.endDate < now)
+
+  const totalUpcoming = upcomingEntries.reduce(
     (sum, e) => sum + getDayCount(e.startDate, e.endDate),
     0
   )
 
-  const handleSubmitRequest = () => {
+  const handleSubmitRequest = async () => {
     if (!startDate || !endDate) {
       toast.error("Please select start and end dates")
       return
     }
-    toast.success("Time off request submitted for approval")
-    setRequestOpen(false)
-    setStartDate("")
-    setEndDate("")
-    setType("vacation")
-    setNotes("")
+    setSubmitting(true)
+    const result = await requestTimeOff({
+      staffId: staff.id,
+      startDate,
+      endDate,
+      type: type as "vacation" | "sick" | "personal" | "other",
+      notes: notes || undefined,
+    })
+    setSubmitting(false)
+    if (result.success) {
+      toast.success("Time off request submitted for approval")
+      setRequestOpen(false)
+      setStartDate("")
+      setEndDate("")
+      setType("vacation")
+      setNotes("")
+    } else {
+      toast.error(result.error)
+    }
   }
 
   return (
@@ -235,7 +222,7 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
                 <div>
                   <p className="text-xs text-muted-foreground">Pending Requests</p>
                   <p className="text-xl font-bold text-foreground">
-                    {mockUpcomingTimeOff.filter((e) => e.status === "pending").length}
+                    {upcomingEntries.filter((e) => e.status === "pending").length}
                   </p>
                 </div>
               </div>
@@ -331,14 +318,16 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleSubmitRequest}>Submit Request</Button>
+                <Button onClick={handleSubmitRequest} disabled={submitting}>
+                  {submitting ? "Submitting..." : "Submit Request"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
         <div className="space-y-3">
-          {mockUpcomingTimeOff.map((entry, index) => (
+          {upcomingEntries.map((entry, index) => (
             <motion.div
               key={entry.id}
               initial={{ opacity: 0, y: 10 }}
@@ -359,7 +348,7 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
           Past Time Off History
         </h3>
         <div className="space-y-3">
-          {mockPastTimeOff.map((entry, index) => (
+          {pastEntries.map((entry, index) => (
             <motion.div
               key={entry.id}
               initial={{ opacity: 0, y: 10 }}

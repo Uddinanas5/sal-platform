@@ -1,11 +1,19 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { motion } from "framer-motion"
 import { Megaphone, Send, BarChart3 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { CampaignCard } from "@/components/marketing/campaign-card"
 import { EmptyState } from "@/components/shared/empty-state"
+import { createCampaign } from "@/lib/actions/marketing"
+import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface CampaignItem {
   id: string
@@ -38,7 +46,23 @@ interface CampaignsTabProps {
 }
 
 export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
+  const [viewCampaign, setViewCampaign] = useState<CampaignItem | null>(null)
   const totalSent = campaigns.reduce((sum, c) => sum + c.recipientCount, 0)
+
+  const handleDuplicate = async (campaign: CampaignItem) => {
+    try {
+      await createCampaign({
+        name: `${campaign.name} (Copy)`,
+        subject: campaign.subject,
+        body: campaign.body,
+        channel: campaign.channel as "email" | "sms" | "both",
+        audienceType: campaign.audienceType,
+      })
+      toast.success(`"${campaign.name}" duplicated`)
+    } catch {
+      toast.error("Failed to duplicate campaign")
+    }
+  }
 
   const statCards = [
     {
@@ -100,9 +124,49 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
               key={campaign.id}
               campaign={campaign}
               index={index}
+              onView={setViewCampaign}
+              onEdit={setViewCampaign}
+              onDuplicate={handleDuplicate}
             />
           ))}
         </div>
+      )}
+
+      {/* Campaign Detail Dialog */}
+      {viewCampaign && (
+        <Dialog open={!!viewCampaign} onOpenChange={(open) => { if (!open) setViewCampaign(null) }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{viewCampaign.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {viewCampaign.subject && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Subject</p>
+                  <p className="text-sm font-medium">{viewCampaign.subject}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-muted-foreground">Message</p>
+                <p className="text-sm whitespace-pre-wrap bg-cream-100 rounded-lg p-3 mt-1">{viewCampaign.body}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-card border border-cream-200 rounded-lg p-3">
+                  <p className="text-lg font-bold">{viewCampaign.recipientCount}</p>
+                  <p className="text-xs text-muted-foreground">Recipients</p>
+                </div>
+                <div className="bg-card border border-cream-200 rounded-lg p-3">
+                  <p className="text-lg font-bold">{viewCampaign.openCount}</p>
+                  <p className="text-xs text-muted-foreground">Opens</p>
+                </div>
+                <div className="bg-card border border-cream-200 rounded-lg p-3">
+                  <p className="text-lg font-bold">{viewCampaign.clickCount}</p>
+                  <p className="text-xs text-muted-foreground">Clicks</p>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )

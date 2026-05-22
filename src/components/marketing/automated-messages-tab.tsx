@@ -17,7 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { toggleAutomatedMessage } from "@/lib/actions/marketing"
+import { toggleAutomatedMessage, updateAutomatedMessage } from "@/lib/actions/marketing"
 
 interface MessageItem {
   id: string
@@ -144,22 +144,26 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
     setEditOpen(true)
   }
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editMessage) return
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === editMessage.id
-          ? {
-              ...m,
-              body: editContent,
-              subject: editSubject || "",
-            }
-          : m
+    const result = await updateAutomatedMessage(editMessage.id, {
+      subject: editSubject,
+      body: editContent,
+    })
+    if (result.success) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === editMessage.id
+            ? { ...m, body: editContent, subject: editSubject || "" }
+            : m
+        )
       )
-    )
-    toast.success("Message template updated")
-    setEditOpen(false)
-    setEditMessage(null)
+      toast.success("Message template updated")
+      setEditOpen(false)
+      setEditMessage(null)
+    } else {
+      toast.error(result.error || "Failed to update template")
+    }
   }
 
   return (

@@ -359,7 +359,7 @@ function SidebarContent({
           !isMobile && collapsed && "justify-center"
         )}>
           <Avatar className="w-9 h-9">
-            <AvatarImage src="/avatars/user.jpg" />
+            <AvatarImage src={session?.user?.image || undefined} />
             <AvatarFallback className="bg-sal-100 text-sal-700">
               {session?.user?.name
                 ? session.user.name.split(" ").map((n) => n[0]).join("").toUpperCase()

@@ -15,6 +15,17 @@ interface ClientOption {
   name: string
 }
 
+interface MembershipPlan {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  billingCycle: string
+  benefits: string[]
+  activeMembers: number
+  isActive: boolean
+}
+
 interface MembershipsClientProps {
   stats: {
     totalMembers: number
@@ -27,10 +38,11 @@ interface MembershipsClientProps {
   giftCards: GiftCard[]
   clients: ClientOption[]
   members: Member[]
+  plans?: MembershipPlan[]
 }
 
 export function MembershipsClient(props: MembershipsClientProps) {
-  const { stats, giftCards, clients, members } = props
+  const { stats, giftCards, clients, members, plans = [] } = props
 
   return (
     <div className="min-h-screen bg-cream">
@@ -117,7 +129,7 @@ export function MembershipsClient(props: MembershipsClientProps) {
 
             <TabsContent value="memberships">
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                <MembershipsTab members={members} stats={{ totalMembers: stats.totalMembers, activeMembers: stats.activeMembers, mrr: stats.mrr }} />
+                <MembershipsTab members={members} stats={{ totalMembers: stats.totalMembers, activeMembers: stats.activeMembers, mrr: stats.mrr }} plans={plans} />
               </motion.div>
             </TabsContent>
 

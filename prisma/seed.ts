@@ -4,9 +4,11 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import bcrypt from "bcryptjs"
 
 const connectionString = process.env.DATABASE_URL!
+const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1')
+const sslmode = isLocal ? 'disable' : 'require'
 const sslUrl = connectionString.includes('?')
-  ? `${connectionString}&sslmode=require&uselibpqcompat=true`
-  : `${connectionString}?sslmode=require&uselibpqcompat=true`
+  ? `${connectionString}&sslmode=${sslmode}&uselibpqcompat=true`
+  : `${connectionString}?sslmode=${sslmode}&uselibpqcompat=true`
 const adapter = new PrismaPg({ connectionString: sslUrl })
 const prisma = new PrismaClient({ adapter })
 
@@ -113,14 +115,17 @@ async function main() {
   // ============================================================================
   // 2b. Create Business Hours
   // ============================================================================
+  // Helper to convert "HH:MM" to a Date for @db.Time fields
+  const toTime = (hhmm: string | null) => hhmm ? new Date(`1970-01-01T${hhmm}:00.000Z`) : null
+
   const businessHoursData = [
     { dayOfWeek: 0, isClosed: true, openTime: null, closeTime: null },    // Sunday - CLOSED
-    { dayOfWeek: 1, isClosed: false, openTime: "09:00", closeTime: "19:00" }, // Monday
-    { dayOfWeek: 2, isClosed: false, openTime: "09:00", closeTime: "19:00" }, // Tuesday
-    { dayOfWeek: 3, isClosed: false, openTime: "09:00", closeTime: "19:00" }, // Wednesday
-    { dayOfWeek: 4, isClosed: false, openTime: "09:00", closeTime: "19:00" }, // Thursday
-    { dayOfWeek: 5, isClosed: false, openTime: "09:00", closeTime: "17:00" }, // Friday
-    { dayOfWeek: 6, isClosed: false, openTime: "09:00", closeTime: "17:00" }, // Saturday
+    { dayOfWeek: 1, isClosed: false, openTime: toTime("09:00"), closeTime: toTime("19:00") }, // Monday
+    { dayOfWeek: 2, isClosed: false, openTime: toTime("09:00"), closeTime: toTime("19:00") }, // Tuesday
+    { dayOfWeek: 3, isClosed: false, openTime: toTime("09:00"), closeTime: toTime("19:00") }, // Wednesday
+    { dayOfWeek: 4, isClosed: false, openTime: toTime("09:00"), closeTime: toTime("19:00") }, // Thursday
+    { dayOfWeek: 5, isClosed: false, openTime: toTime("09:00"), closeTime: toTime("17:00") }, // Friday
+    { dayOfWeek: 6, isClosed: false, openTime: toTime("09:00"), closeTime: toTime("17:00") }, // Saturday
   ]
 
   for (const bh of businessHoursData) {

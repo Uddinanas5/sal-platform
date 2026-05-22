@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { cn, formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
+import { issueGiftCard } from "@/lib/actions/gift-cards"
 
 const presetAmounts = [25, 50, 100, 150, 200]
 
@@ -72,14 +73,27 @@ export function IssueGiftCardDialog({
     setSelectedPreset(null)
   }
 
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
     if (!amount || amount <= 0) {
       toast.error("Please select or enter a valid amount")
       return
     }
 
-    if (!purchaserId) {
-      toast.error("Please select a purchaser")
+    setSaving(true)
+    const result = await issueGiftCard({
+      code: generatedCode,
+      initialValue: amount,
+      purchaserId: purchaserId || undefined,
+      recipientName: recipientName || undefined,
+      recipientEmail: recipientEmail || undefined,
+      expiresAt: expiryDate || undefined,
+    })
+    setSaving(false)
+
+    if (!result.success) {
+      toast.error(result.error)
       return
     }
 
@@ -226,9 +240,9 @@ export function IssueGiftCardDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} disabled={saving}>
             <Gift className="w-4 h-4 mr-2" />
-            Issue Gift Card
+            {saving ? "Issuing..." : "Issue Gift Card"}
           </Button>
         </DialogFooter>
       </DialogContent>

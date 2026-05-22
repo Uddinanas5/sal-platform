@@ -130,15 +130,21 @@ function ClientCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={(e) => e.preventDefault()}>
-              <DropdownMenuItem onClick={() => toast.info(`Viewing profile for ${client.name}`)}>
+              <DropdownMenuItem onClick={() => window.location.href = `/clients/${client.id}`}>
                 <User className="w-4 h-4 mr-2" />
                 View Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info(`Editing ${client.name}`)}>
+              <DropdownMenuItem onClick={() => window.location.href = `/clients/${client.id}`}>
                 <Pencil className="w-4 h-4 mr-2" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.success(`Message sent to ${client.name}`)}>
+              <DropdownMenuItem onClick={() => {
+                if (client.email) {
+                  window.open(`mailto:${client.email}`, "_blank")
+                } else {
+                  toast.error("No email address on file")
+                }
+              }}>
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Send Message
               </DropdownMenuItem>
@@ -217,7 +223,11 @@ function ClientCard({
               className="h-7 text-xs flex-1"
               onClick={(e) => {
                 e.preventDefault()
-                toast.success(`Message sent to ${client.name}`)
+                if (client.email) {
+                  window.open(`mailto:${client.email}`, "_blank")
+                } else {
+                  toast.error("No email address on file")
+                }
               }}
             >
               <MessageSquare className="w-3 h-3 mr-1" />
@@ -874,7 +884,14 @@ export function ClientsClient(props: ClientsClientProps) {
                 size="sm"
                 className="h-8 sm:h-7 text-xs text-gray-300 hover:text-white hover:bg-foreground px-2 sm:px-3"
                 onClick={() => {
-                  toast.success(`Message sent to ${selectedCount} clients`)
+                  const selectedClients = filteredClients.filter((c) => selectedIds.has(c.id))
+                  const emails = selectedClients.map((c) => c.email).filter(Boolean).join(",")
+                  if (emails) {
+                    window.open(`mailto:${emails}`, "_blank")
+                    toast.success(`Opening email for ${selectedCount} clients`)
+                  } else {
+                    toast.error("No email addresses on file for selected clients")
+                  }
                   setSelectedIds(new Set())
                 }}
               >
@@ -885,9 +902,19 @@ export function ClientsClient(props: ClientsClientProps) {
                 variant="ghost"
                 size="sm"
                 className="h-8 sm:h-7 text-xs text-gray-300 hover:text-white hover:bg-foreground px-2 sm:px-3"
-                onClick={() => {
-                  toast.success(`Tagged ${selectedCount} clients as "VIP"`)
+                onClick={async () => {
+                  const { updateClient } = await import("@/lib/actions/clients")
+                  let tagged = 0
+                  for (const id of Array.from(selectedIds)) {
+                    const client = filteredClients.find((c) => c.id === id)
+                    if (client && !client.tags?.includes("VIP")) {
+                      const result = await updateClient(id, { tags: [...(client.tags || []), "VIP"] })
+                      if (result.success) tagged++
+                    }
+                  }
+                  toast.success(`Tagged ${tagged} clients as "VIP"`)
                   setSelectedIds(new Set())
+                  router.refresh()
                 }}
               >
                 <Tag className="w-3.5 h-3.5 sm:mr-1" />

@@ -97,11 +97,16 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
   ]
 
   const handleSendMessage = () => {
-    toast.success(`Message dialog opened for ${client.name}`)
+    if (client.email) {
+      window.open(`mailto:${client.email}?subject=Hello from SAL`, "_blank")
+      toast.success(`Opening email for ${client.name}`)
+    } else {
+      toast.error("No email address on file for this client")
+    }
   }
 
   const handleBookAppointment = () => {
-    toast.success(`Booking appointment for ${client.name}`)
+    router.push("/calendar")
   }
 
   const handleCopyEmail = () => {
@@ -113,8 +118,15 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
     setDeleteDialogOpen(true)
   }
 
-  const handleBlockClient = () => {
-    toast.warning("Block client feature is not yet implemented")
+  const handleBlockClient = async () => {
+    const { updateClient } = await import("@/lib/actions/clients")
+    const result = await updateClient(client.id, { tags: [...(client.tags || []), "Blocked"] })
+    if (result.success) {
+      toast.success(`${client.name} has been blocked`)
+      router.refresh()
+    } else {
+      toast.error(result.error)
+    }
   }
 
   return (

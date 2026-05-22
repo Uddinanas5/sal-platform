@@ -27,6 +27,7 @@ import { CheckoutSummary } from "./checkout-summary"
 import { ReceiptView } from "./receipt-view"
 import { cn, formatCurrency } from "@/lib/utils"
 import { processPayment, sendReceiptEmailAction } from "@/lib/actions/checkout"
+import { validateGiftCard } from "@/lib/actions/gift-cards"
 import { toast } from "sonner"
 
 interface CartItem {
@@ -87,6 +88,8 @@ export function PaymentDialog({
   const [step, setStep] = useState<PaymentStep>("method")
   const [tenderedAmount, setTenderedAmount] = useState("")
   const [giftCardCode, setGiftCardCode] = useState("")
+  const [giftCardBalance, setGiftCardBalance] = useState<number | null>(null)
+  const [giftCardValidating, setGiftCardValidating] = useState(false)
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptNumber, setReceiptNumber] = useState("")
   const [isSendingEmail, setIsSendingEmail] = useState(false)
@@ -381,16 +384,33 @@ export function PaymentDialog({
                         />
                         <Button
                           variant="outline"
-                          disabled={giftCardCode.length < 4}
-                          onClick={() => {
-                            toast.info(
-                              "Gift card validation is not yet configured"
-                            )
+                          disabled={giftCardCode.length < 4 || giftCardValidating}
+                          onClick={async () => {
+                            setGiftCardValidating(true)
+                            const result = await validateGiftCard(giftCardCode)
+                            setGiftCardValidating(false)
+                            if (result.success) {
+                              setGiftCardBalance(result.data.balance)
+                              toast.success(`Gift card valid — Balance: ${formatCurrency(result.data.balance)}`)
+                            } else {
+                              setGiftCardBalance(null)
+                              toast.error(result.error)
+                            }
                           }}
                         >
-                          Apply
+                          {giftCardValidating ? "Checking..." : "Apply"}
                         </Button>
                       </div>
+                      {giftCardBalance !== null && (
+                        <p className="text-sm text-sal-600 font-medium mt-1">
+                          Available balance: {formatCurrency(giftCardBalance)}
+                          {giftCardBalance < total && (
+                            <span className="text-amber-600 ml-2">
+                              (insufficient for {formatCurrency(total)} total)
+                            </span>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )}

@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils"
 import { type Client } from "@/data/mock-data"
 import { toast } from "sonner"
+import { redeemLoyaltyPoints } from "@/lib/actions/clients"
 
 interface ClientLoyaltyTabProps {
   client: Client
@@ -84,11 +85,19 @@ export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
   const progress = getTierProgress(points)
   const history: PointsHistoryEntry[] = []
 
-  const handleRedeem = (reward: Reward) => {
-    if (points >= reward.pointsCost) {
-      toast.success(`Redeemed "${reward.name}" for ${reward.pointsCost} points`)
-    } else {
+  const handleRedeem = async (reward: Reward) => {
+    if (points < reward.pointsCost) {
       toast.error(`Not enough points. Need ${reward.pointsCost - points} more points.`)
+      return
+    }
+
+    const result = await redeemLoyaltyPoints(client.id, reward.pointsCost, reward.name)
+    if (result.success) {
+      toast.success(`Redeemed "${reward.name}" for ${reward.pointsCost} points`, {
+        description: `Remaining balance: ${result.data.remainingPoints} points`,
+      })
+    } else {
+      toast.error(result.error)
     }
   }
 

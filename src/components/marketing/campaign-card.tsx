@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/lib/utils"
-import { toast } from "sonner"
+// Toast removed — actions now use callbacks
 
 interface CampaignItem {
   id: string
@@ -30,6 +30,9 @@ interface CampaignItem {
 interface CampaignCardProps {
   campaign: CampaignItem
   index: number
+  onView?: (campaign: CampaignItem) => void
+  onEdit?: (campaign: CampaignItem) => void
+  onDuplicate?: (campaign: CampaignItem) => void
 }
 
 const typeBadgeColors: Record<string, string> = {
@@ -57,7 +60,7 @@ const statusBadgeColors: Record<string, string> = {
   paused: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
 }
 
-export function CampaignCard({ campaign, index }: CampaignCardProps) {
+export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate }: CampaignCardProps) {
   const openRate = campaign.recipientCount > 0
     ? Math.round((campaign.openCount / campaign.recipientCount) * 1000) / 10
     : 0
@@ -151,7 +154,7 @@ export function CampaignCard({ campaign, index }: CampaignCardProps) {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => toast.info("Viewing campaign details")}
+              onClick={() => onView?.(campaign)}
             >
               <Eye className="w-3.5 h-3.5" />
               View
@@ -160,7 +163,7 @@ export function CampaignCard({ campaign, index }: CampaignCardProps) {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => toast.info("Editing campaign")}
+              onClick={() => onEdit?.(campaign)}
             >
               <Pencil className="w-3.5 h-3.5" />
               Edit
@@ -169,7 +172,7 @@ export function CampaignCard({ campaign, index }: CampaignCardProps) {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => toast.success("Campaign duplicated")}
+              onClick={() => onDuplicate?.(campaign)}
             >
               <Copy className="w-3.5 h-3.5" />
               Duplicate

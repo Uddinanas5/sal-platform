@@ -20,6 +20,7 @@ import { FileUpload } from "@/components/ui/file-upload"
 import { formatDate, formatRelativeDate } from "@/lib/utils"
 import { type Client } from "@/data/mock-data"
 import { toast } from "sonner"
+import { updateClient } from "@/lib/actions/clients"
 
 interface ClientNotesTabProps {
   client: Client
@@ -41,13 +42,37 @@ interface UploadedFile {
   uploadedBy: string
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ClientNotesTab(props: ClientNotesTabProps) {
-  const [notes, setNotes] = useState<Note[]>([])
+  const { client } = props
+
+  // Parse existing notes from client.notes field (stored as newline-separated entries)
+  const parseNotes = (raw: string | undefined | null): Note[] => {
+    if (!raw?.trim()) return []
+    return raw.split("\n---\n").filter(Boolean).map((block, i) => {
+      const lines = block.split("\n")
+      const dateLine = lines[0]?.match(/^\[(.*?)\]/)
+      return {
+        id: `existing-${i}`,
+        date: dateLine ? new Date(dateLine[1]) : new Date(),
+        author: "Staff",
+        content: dateLine ? lines.slice(1).join("\n").trim() : block.trim(),
+      }
+    }).reverse()
+  }
+
+  const [notes, setNotes] = useState<Note[]>(parseNotes(client.notes))
   const [newNote, setNewNote] = useState("")
   const [files, setFiles] = useState<UploadedFile[]>([])
 
-  const handleAddNote = () => {
+  const serializeNotes = (noteList: Note[]): string => {
+    return noteList
+      .slice()
+      .reverse()
+      .map((n) => `[${n.date.toISOString()}]\n${n.content}`)
+      .join("\n---\n")
+  }
+
+  const handleAddNote = async () => {
     if (!newNote.trim()) return
 
     const note: Note = {
@@ -56,14 +81,26 @@ export function ClientNotesTab(props: ClientNotesTabProps) {
       author: "You",
       content: newNote.trim(),
     }
-    setNotes([note, ...notes])
-    setNewNote("")
-    toast.success("Note added successfully")
+    const updatedNotes = [note, ...notes]
+    const result = await updateClient(client.id, { notes: serializeNotes(updatedNotes) })
+    if (result.success) {
+      setNotes(updatedNotes)
+      setNewNote("")
+      toast.success("Note added successfully")
+    } else {
+      toast.error(result.error)
+    }
   }
 
-  const handleDeleteNote = (noteId: string) => {
-    setNotes(notes.filter((n) => n.id !== noteId))
-    toast.success("Note deleted")
+  const handleDeleteNote = async (noteId: string) => {
+    const updatedNotes = notes.filter((n) => n.id !== noteId)
+    const result = await updateClient(client.id, { notes: serializeNotes(updatedNotes) })
+    if (result.success) {
+      setNotes(updatedNotes)
+      toast.success("Note deleted")
+    } else {
+      toast.error(result.error)
+    }
   }
 
   const handleFilesSelected = (selectedFiles: File[]) => {

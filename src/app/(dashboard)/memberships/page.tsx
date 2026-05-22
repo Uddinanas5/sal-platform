@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth"
-import { getMembershipStats, getGiftCards, getMemberships } from "@/lib/queries/memberships"
+import { getMembershipStats, getGiftCards, getMemberships, getMembershipPlans } from "@/lib/queries/memberships"
 import { getClients } from "@/lib/queries/clients"
 import { MembershipsClient } from "./client"
 
@@ -9,11 +9,12 @@ export default async function MembershipsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
 
-  const [stats, giftCards, clients, memberships] = await Promise.all([
+  const [stats, giftCards, clients, memberships, plans] = await Promise.all([
     getMembershipStats(businessId),
     getGiftCards(businessId),
     getClients(undefined, businessId),
     getMemberships(businessId),
+    getMembershipPlans(businessId),
   ])
 
   // Map memberships to the Member shape expected by the client component
@@ -36,6 +37,7 @@ export default async function MembershipsPage() {
       giftCards={giftCards as any}
       clients={clients.map((c) => ({ id: c.id, name: c.name }))}
       members={members}
+      plans={plans}
     />
   )
 }

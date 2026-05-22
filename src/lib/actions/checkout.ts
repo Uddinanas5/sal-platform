@@ -74,10 +74,41 @@ export async function processPayment(data: {
 
       // Update appointment status to completed if linked
       if (data.appointmentId) {
-        await tx.appointment.update({
+        const appointment = await tx.appointment.update({
           where: { id: data.appointmentId, businessId },
           data: { status: "completed", completedAt: new Date() },
+          include: { services: { include: { staff: true } } },
         })
+
+        // Create commission records for each staff member on this appointment
+        const now = new Date()
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+        for (const svc of appointment.services) {
+          if (!svc.staffId || !svc.staff) continue
+          const grossAmount = Number(svc.finalPrice)
+          if (grossAmount <= 0) continue
+
+          const rate = Number(svc.staff.commissionRate ?? 0)
+          const commissionAmount = (grossAmount * rate) / 100
+
+          await tx.commission.create({
+            data: {
+              staffId: svc.staffId,
+              appointmentId: data.appointmentId,
+              type: "service",
+              referenceType: "payment",
+              referenceId: created.id,
+              grossAmount,
+              commissionRate: rate,
+              commissionAmount,
+              status: "pending",
+              periodStart,
+              periodEnd,
+            },
+          })
+        }
       }
 
       // Update client totals if linked

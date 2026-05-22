@@ -50,14 +50,25 @@ import { CategoryOverview } from "@/components/services/category-overview"
 import { ServiceForm } from "@/components/services/service-form"
 import type { ServiceFormData } from "@/components/services/service-form"
 import { toast } from "sonner"
-import { createService, toggleServiceActive, deleteService } from "@/lib/actions/services"
+import { createService, updateService, toggleServiceActive, deleteService } from "@/lib/actions/services"
 
 const categories = ["All", "Hair", "Wellness", "Nails", "Skincare"] as const
+
+interface BundleData {
+  id: string
+  name: string
+  description: string | null
+  serviceIds: string[]
+  originalPrice: number
+  bundlePrice: number
+  discountPercent: number
+}
 
 interface ServicesClientProps {
   initialServices: Service[]
   staff: Staff[]
   role?: string
+  bundles?: BundleData[]
 }
 
 function getCategoryCount(cat: string, services: Service[]): number {
@@ -71,6 +82,8 @@ function ServiceCard({
   onClick,
   onDelete,
   onToggleActive,
+  onEdit,
+  onDuplicate,
   readOnly,
 }: {
   service: Service
@@ -78,6 +91,8 @@ function ServiceCard({
   onClick: () => void
   onDelete: (service: Service) => void
   onToggleActive: (serviceId: string, currentActive: boolean) => void
+  onEdit?: (service: Service) => void
+  onDuplicate?: (service: Service) => void
   readOnly?: boolean
 }) {
   const [isActive, setIsActive] = useState(service.isActive)
@@ -145,11 +160,11 @@ function ServiceCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem onClick={() => toast.info(`Editing ${service.name}`)}>
+                <DropdownMenuItem onClick={() => onEdit?.(service)}>
                   <Pencil className="w-4 h-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => toast.success(`"${service.name}" duplicated`)}>
+                <DropdownMenuItem onClick={() => onDuplicate?.(service)}>
                   <Copy className="w-4 h-4 mr-2" />
                   Duplicate
                 </DropdownMenuItem>
@@ -210,6 +225,7 @@ export function ServicesClient(props: ServicesClientProps) {
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [editService, setEditService] = useState<Service | null>(null)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null)
@@ -272,6 +288,41 @@ export function ServicesClient(props: ServicesClientProps) {
     if (result.success) {
       toast.success("Service created successfully")
       setIsAddDialogOpen(false)
+      router.refresh()
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  const handleEditService = async (formData: ServiceFormData) => {
+    if (!editService) return
+    const result = await updateService(editService.id, {
+      name: formData.name,
+      description: formData.description,
+      duration: formData.duration,
+      price: formData.price,
+      color: formData.color,
+    })
+    if (result.success) {
+      toast.success("Service updated successfully")
+      setEditService(null)
+      router.refresh()
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  const handleDuplicateService = async (service: Service) => {
+    const result = await createService({
+      name: `${service.name} (Copy)`,
+      description: service.description,
+      duration: service.duration,
+      price: service.price,
+      categoryId: service.category, // category name used as lookup
+      color: service.color,
+    })
+    if (result.success) {
+      toast.success(`"${service.name}" duplicated`)
       router.refresh()
     } else {
       toast.error(result.error)
@@ -360,6 +411,27 @@ export function ServicesClient(props: ServicesClientProps) {
               </DialogContent>
             </Dialog>
           )}
+
+          {/* Edit Service Dialog */}
+          {editService && (
+            <Dialog open={!!editService} onOpenChange={(open) => { if (!open) setEditService(null) }}>
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Service</DialogTitle>
+                  <DialogDescription>
+                    Update {editService.name}.
+                  </DialogDescription>
+                </DialogHeader>
+                <ServiceForm
+                  mode="edit"
+                  service={editService}
+                  staff={props.staff}
+                  onSave={handleEditService}
+                  onCancel={() => setEditService(null)}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         {/* Services List */}
@@ -376,6 +448,8 @@ export function ServicesClient(props: ServicesClientProps) {
                 onClick={() => handleServiceClick(service)}
                 onDelete={setDeleteTarget}
                 onToggleActive={handleToggleActive}
+                onEdit={setEditService}
+                onDuplicate={handleDuplicateService}
                 readOnly={isReadOnly}
               />
             ))}
@@ -398,7 +472,10 @@ export function ServicesClient(props: ServicesClientProps) {
         <CategoryOverview services={props.initialServices} />
 
         {/* Service Bundles */}
-        <ServiceBundles />
+        <ServiceBundles
+          bundles={props.bundles || []}
+          services={props.initialServices.map((s) => ({ id: s.id, name: s.name, price: s.price }))}
+        />
       </div>
 
       {/* Service Detail Sheet */}

@@ -337,6 +337,27 @@ export async function cancelPublicBooking(
       return { success: false, error: "This appointment cannot be cancelled" }
     }
 
+    // Enforce cancellation policy window
+    const settings = appointment.business.settings as Record<string, unknown> | null
+    const bookingSettings = settings?.booking as Record<string, unknown> | null
+    const cancellationWindow = bookingSettings?.cancellationWindow as string | null
+    if (cancellationWindow && cancellationWindow !== "anytime") {
+      const hoursMap: Record<string, number> = {
+        "1h": 1, "2h": 2, "4h": 4, "6h": 6, "12h": 12,
+        "24h": 24, "48h": 48, "72h": 72,
+      }
+      const minHours = hoursMap[cancellationWindow]
+      if (minHours) {
+        const hoursUntilAppointment = (appointment.startTime.getTime() - Date.now()) / (1000 * 60 * 60)
+        if (hoursUntilAppointment < minHours) {
+          return {
+            success: false,
+            error: `Cancellations must be made at least ${minHours} hours before the appointment. Please contact the salon directly.`,
+          }
+        }
+      }
+    }
+
     // Update status
     await prisma.appointment.update({
       where: { id: appointment.id },

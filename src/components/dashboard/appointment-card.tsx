@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
+import { updateAppointmentStatus } from "@/lib/actions/appointments"
 import type { Appointment } from "@/data/mock-data"
 
 interface AppointmentCardProps {
@@ -82,14 +83,19 @@ export function AppointmentCard({ appointment, variant = "detailed", index = 0 }
               size="sm"
               variant="outline"
               className="h-7 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity border-sal-200 text-sal-600 hover:bg-sal-50"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation()
-                toast.success(action.toastMsg, { description: appointment.clientName })
-                // Advance to next status
                 const statusOrder: Appointment["status"][] = ["pending", "confirmed", "checked-in", "in-progress", "completed"]
                 const idx = statusOrder.indexOf(currentStatus)
                 if (idx >= 0 && idx < statusOrder.length - 1) {
-                  setCurrentStatus(statusOrder[idx + 1])
+                  const nextStatus = statusOrder[idx + 1]
+                  const result = await updateAppointmentStatus(appointment.id, nextStatus)
+                  if (result.success) {
+                    setCurrentStatus(nextStatus)
+                    toast.success(action.toastMsg, { description: appointment.clientName })
+                  } else {
+                    toast.error(result.error)
+                  }
                 }
               }}
             >
