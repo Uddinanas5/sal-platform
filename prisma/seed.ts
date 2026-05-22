@@ -55,6 +55,7 @@ async function main() {
   await prisma.discount.deleteMany()
   await prisma.payrollPeriod.deleteMany()
   await prisma.auditLog.deleteMany()
+  await prisma.apiKey.deleteMany()
   await prisma.location.deleteMany()
   await prisma.business.deleteMany()
   await prisma.user.deleteMany()
