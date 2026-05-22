@@ -15,23 +15,28 @@ export async function withV1Auth(req: Request): Promise<ApiContext | null> {
     const rawKey = authHeader.slice(7)
     const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex")
 
-    // Try API key first
-    const apiKey = await prisma.apiKey.findUnique({
-      where: { keyHash },
-      include: { business: { select: { id: true } } },
-    })
-    if (apiKey && !apiKey.revokedAt && (!apiKey.expiresAt || apiKey.expiresAt >= new Date())) {
-      // Update lastUsedAt without blocking response
-      prisma.apiKey.update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } }).catch(() => {})
-      return { userId: apiKey.createdById, businessId: apiKey.businessId, role: apiKey.role }
-    }
+    try {
+      // Try API key first
+      const apiKey = await prisma.apiKey.findUnique({
+        where: { keyHash },
+        include: { business: { select: { id: true } } },
+      })
+      if (apiKey && !apiKey.revokedAt && (!apiKey.expiresAt || apiKey.expiresAt >= new Date())) {
+        // Update lastUsedAt without blocking response
+        prisma.apiKey.update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } }).catch(() => {})
+        return { userId: apiKey.createdById, businessId: apiKey.businessId, role: apiKey.role }
+      }
 
-    // Try OAuth access token
-    const oauthToken = await prisma.oAuthAccessToken.findUnique({
-      where: { tokenHash: keyHash },
-    })
-    if (oauthToken && !oauthToken.revokedAt && oauthToken.expiresAt >= new Date()) {
-      return { userId: oauthToken.userId, businessId: oauthToken.businessId, role: "admin" }
+      // Try OAuth access token
+      const oauthToken = await prisma.oAuthAccessToken.findUnique({
+        where: { tokenHash: keyHash },
+      })
+      if (oauthToken && !oauthToken.revokedAt && oauthToken.expiresAt >= new Date()) {
+        return { userId: oauthToken.userId, businessId: oauthToken.businessId, role: "admin" }
+      }
+    } catch (error) {
+      // DB error during token lookup — treat as auth failure rather than leaking 500
+      console.error("[withV1Auth] token lookup failed:", error instanceof Error ? error.message : error)
     }
 
     return null
