@@ -38,3 +38,9 @@ Format per entry:
 - **Approach**: e4ff300 hardcoded sslmode=require, clobbering the isLocal check from 9aa683c. Restored the `localhost`/`127.0.0.1` detection so local dev seeding works again without TLS.
 - **Verification**: pnpm lint clean, pnpm build clean. Tester to re-run `npx tsx prisma/seed.ts` against local Postgres.
 - **Rollback**: 391f95c
+
+## [2026-05-22] regression-fix — apiKey cleanup in seed reset chain (shipped at 208a5c3)
+- **Files**: prisma/seed.ts
+- **Approach**: Tester caught P2003 on `business.deleteMany()` — e4ff300 added `apiKey.create(...)` but I never added `apiKey.deleteMany()` to the reverse-dependency cleanup chain, so the dev-seed key from run N held a FK on Business when run N+1 tried to nuke it. Added the deleteMany right before `location`/`business`. First-time seed unaffected; subsequent runs now idempotent.
+- **Verification**: pnpm lint ✓, pnpm build ✓. Tester to confirm second consecutive `npx tsx prisma/seed.ts` runs clean.
+- **Rollback**: 208a5c3
