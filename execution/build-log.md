@@ -14,11 +14,11 @@ Format per entry:
 
 ---
 
-## [2026-05-22] dev: seed-time API key for local MCP/v1 testing — shipped at <pending>
+## [2026-05-22] dev: seed-time API key for local MCP/v1 testing — shipped at e4ff300
 - **Files**: prisma/seed.ts
 - **Approach**: At seed time, mint a random `sal_devseed_<48-hex>` key, hash it with the same `sha256` scheme `withV1Auth()` uses, and insert an `ApiKey` row scoped to the seeded business with `role: "owner"` and `createdById = adminUser.id`. Print the raw key to stdout twice (once inline, once in the closing summary block) so Tester (and Auditor when poking response shapes) can curl `/api/v1/*` and `/api/mcp` without driving the NextAuth credentials/CSRF dance.
 - **Verification**: `pnpm lint` ✓. `pnpm build` ✓. Not run against a live DB from the sandbox — Anas/Tester to run `npx tsx prisma/seed.ts` locally and confirm the key appears in the seed output and authenticates against `/api/v1/business`.
-- **Rollback**: `git revert <hash>` (key rotates next seed regardless, so no cleanup needed in any prod-shaped DB).
+- **Rollback**: `git revert e4ff300` (key rotates next seed regardless, so no cleanup needed in any prod-shaped DB).
 
 ## [2026-05-22] BOOKING-CONCURRENCY-001: pg advisory lock against double-booking — shipped at 41a8f1c
 - **Files**: src/lib/db/advisory-lock.ts (new), src/lib/actions/appointments.ts, src/lib/actions/public-booking.ts
