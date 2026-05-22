@@ -5,9 +5,11 @@ import bcrypt from "bcryptjs"
 import crypto from "crypto"
 
 const connectionString = process.env.DATABASE_URL!
+const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1')
+const sslmode = isLocal ? 'disable' : 'require'
 const sslUrl = connectionString.includes('?')
-  ? `${connectionString}&sslmode=require&uselibpqcompat=true`
-  : `${connectionString}?sslmode=require&uselibpqcompat=true`
+  ? `${connectionString}&sslmode=${sslmode}&uselibpqcompat=true`
+  : `${connectionString}?sslmode=${sslmode}&uselibpqcompat=true`
 const adapter = new PrismaPg({ connectionString: sslUrl })
 const prisma = new PrismaClient({ adapter })
 
