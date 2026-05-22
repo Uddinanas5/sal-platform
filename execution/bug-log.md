@@ -38,5 +38,13 @@ Format per entry:
   ```
 - **Suggested fix**: Wrap the two `prisma.business.findFirst` calls in try/catch and on failure return `notFound()` (or better, render a dedicated `BookingErrorBoundary` client component with retry). Same pattern applies to the other prisma calls further down the file (`location.findFirst`, business-hours fetch, etc.). Consider a Next `error.tsx` co-located in `src/app/book/[businessSlug]/` as a catch-all.
 - **Source**: `src/app/book/[businessSlug]/page.tsx:14-46`
-- **Status**: open
+- **Status**: [FIXED in a78ecce] — page.tsx now catches Prisma connection errors and rethrows as ServiceUnavailableError; new `book/error.tsx` renders branded retry UI. `/api/health` also categorizes failures and redacts in prod.
+
+## [2026-05-22] P0 infra/db — Local Postgres unreachable; all DB-backed routes 500 on localhost:3000
+- **Flow**: Filed on behalf of Tester (no write perms on bug-log). Hitting `/api/health` and any DB-backed route on `localhost:3000` (the prod-mode app, not the `:3001` agent dev server).
+- **Expected**: 200 from `/api/health`, DB-backed pages render.
+- **Actual**: `/api/health` returns 503. Direct Prisma calls error with `code: ECONNREFUSED` on `127.0.0.1:5432`. `.env` `DATABASE_URL` points at `localhost:...` but no Postgres process is bound to 5432 (verified: no listening socket).
+- **Repro**: `curl -s -w "%{http_code}\n" http://localhost:3000/api/health` → 503.
+- **Likely cause**: env/infra, not code. Either (a) local Postgres should be running and isn't, (b) `.env` should point at Supabase pooler not `localhost`, or (c) Supabase project paused. Needs Anas to confirm.
+- **Status**: open — env issue, not a code fix. Logging as P0 because every DB-backed route on `:3000` is down.
 

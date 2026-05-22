@@ -9,11 +9,22 @@ export const dynamic = "force-dynamic"
 function isConnectionError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   const code = (error as { code?: string }).code
+  const causeCode = (error as { cause?: { code?: string } }).cause?.code
+  // This page only does read queries on findFirst/findMany, which return null
+  // rather than throwing for "no row found". So a thrown PrismaClient*Error
+  // here is virtually always an infra problem (DB down, pool exhausted, socket
+  // dropped) — surface those as 503 instead of a raw 500.
   return (
     error.name === "PrismaClientInitializationError" ||
+    error.name === "PrismaClientKnownRequestError" ||
+    error.name === "PrismaClientRustPanicError" ||
     code === "P1001" ||
     code === "P1002" ||
-    code === "P1017"
+    code === "P1008" ||
+    code === "P1017" ||
+    code === "P2024" ||
+    code === "ECONNREFUSED" ||
+    causeCode === "ECONNREFUSED"
   )
 }
 
@@ -79,25 +90,50 @@ export default async function PublicBookingPage({
     notFound()
   }
 
-  // Fetch booking settings
-  const bookingSettings = await getPublicBookingSettings(business.id)
+  // Fan out the remaining reads in parallel — they share the same DB, so any
+  // infra failure across the lot collapses to one 503 catch.
+  let bookingSettings, primaryLocation, dbBusinessHours, dbServices, dbStaff
+  try {
+    ;[bookingSettings, primaryLocation, dbBusinessHours, dbServices, dbStaff] = await Promise.all([
+      getPublicBookingSettings(business.id),
+      prisma.location.findFirst({
+        where: { businessId: business.id, isPrimary: true, deletedAt: null },
+        select: { id: true },
+      }),
+      prisma.businessHours.findMany({
+        where: {
+          location: { businessId: business.id, isPrimary: true },
+        },
+        orderBy: { dayOfWeek: "asc" },
+      }),
+      prisma.service.findMany({
+        where: { businessId: business.id, isActive: true, deletedAt: null, isOnlineBooking: true },
+        include: { category: true },
+        orderBy: { sortOrder: "asc" },
+      }),
+      prisma.staff.findMany({
+        where: {
+          isActive: true,
+          deletedAt: null,
+          primaryLocation: { businessId: business.id },
+        },
+        include: {
+          user: true,
+          staffServices: true,
+          staffSchedules: true,
+        },
+        orderBy: { sortOrder: "asc" },
+      }),
+    ])
+  } catch (error) {
+    if (isConnectionError(error)) {
+      throw new ServiceUnavailableError()
+    }
+    throw error
+  }
 
   // Derive timezone from business
   const timezone = business.timezone || "UTC"
-
-  // Fetch primary location
-  const primaryLocation = await prisma.location.findFirst({
-    where: { businessId: business.id, isPrimary: true, deletedAt: null },
-    select: { id: true },
-  })
-
-  // Fetch business hours from the primary location
-  const dbBusinessHours = await prisma.businessHours.findMany({
-    where: {
-      location: { businessId: business.id, isPrimary: true },
-    },
-    orderBy: { dayOfWeek: "asc" },
-  })
 
   const businessHours = dbBusinessHours.map((bh) => ({
     dayOfWeek: bh.dayOfWeek,
@@ -105,13 +141,6 @@ export default async function PublicBookingPage({
     closeTime: bh.closeTime ? bh.closeTime.toISOString() : null,
     isClosed: bh.isClosed,
   }))
-
-  // Fetch services for this business
-  const dbServices = await prisma.service.findMany({
-    where: { businessId: business.id, isActive: true, deletedAt: null, isOnlineBooking: true },
-    include: { category: true },
-    orderBy: { sortOrder: "asc" },
-  })
 
   const services = dbServices.map((s: typeof dbServices[number]) => ({
     id: s.id,
@@ -123,21 +152,6 @@ export default async function PublicBookingPage({
     color: s.color || "#059669",
     isActive: s.isActive,
   }))
-
-  // Fetch staff for this business (including schedules)
-  const dbStaff = await prisma.staff.findMany({
-    where: {
-      isActive: true,
-      deletedAt: null,
-      primaryLocation: { businessId: business.id },
-    },
-    include: {
-      user: true,
-      staffServices: true,
-      staffSchedules: true,
-    },
-    orderBy: { sortOrder: "asc" },
-  })
 
   const staff = dbStaff.map((s) => ({
     id: s.id,
