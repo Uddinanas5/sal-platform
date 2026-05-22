@@ -32,3 +32,9 @@ Format per entry:
 - **Verification**: `pnpm lint` ✓. `tsc --noEmit` ✓. `pnpm build` ✓ — initial failures were `next dev` (PID 1588) racing the default `.next/` dir; built green into an isolated `.next-build` distDir via a temporary `NEXT_DIST_DIR` env override (next.config.mjs change reverted before commit). Tester to re-run drag flows against the pushed branch.
 - **Rollback**: `git revert 838ba33` on agents/coder.
 - **Phase 2 followups (deferred)**: working-hours rejection toast, keyboard a11y verification (Space / arrows / Enter / Esc — KeyboardSensor wired, behaviour to confirm), reschedule-email dedupe for rapid drags, error sanitiser pass for `rescheduleAppointment`/`resizeAppointment` (Prisma-leak pattern Tester flagged on `/api/availability`).
+
+## [2026-05-22] regression-fix — restore local-Postgres SSL detection in seed
+- **Files**: prisma/seed.ts
+- **Approach**: e4ff300 hardcoded sslmode=require, clobbering the isLocal check from 9aa683c. Restored the `localhost`/`127.0.0.1` detection so local dev seeding works again without TLS.
+- **Verification**: pnpm lint clean, pnpm build clean. Tester to re-run `npx tsx prisma/seed.ts` against local Postgres.
+- **Rollback**: 391f95c
