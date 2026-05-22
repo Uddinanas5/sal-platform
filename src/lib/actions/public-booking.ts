@@ -6,6 +6,7 @@ import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail, appointmentCancelledEmail } from "@/lib/email-templates"
 import { revalidatePath } from "next/cache"
 import { z, ZodError } from "zod"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 
 const addToPublicWaitlistSchema = z.object({
   businessId: z.string().uuid(),
@@ -114,6 +115,7 @@ export async function createPublicBooking(data: {
 
     // 5-7. Transaction: conflict check + create must be atomic
     const appointment = await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, business.id, data.staffId)
       // Double-booking prevention
       const conflicting = await tx.appointmentService.findFirst({
         where: {

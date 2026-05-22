@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail, appointmentCancelledEmail, appointmentRescheduledEmail } from "@/lib/email-templates"
 import { getBusinessContext } from "@/lib/auth-utils"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -69,6 +70,7 @@ export async function createAppointment(data: {
 
     // Transaction: conflict check + create must be atomic to prevent race conditions
     const appointment = await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, businessId, data.staffId)
       // Double-booking prevention: check for overlapping appointments for the same staff member
       const conflicting = await tx.appointmentService.findFirst({
         where: {
@@ -297,6 +299,7 @@ export async function rescheduleAppointment(
 
     await prisma.$transaction(async (tx) => {
       if (effectiveStaffId) {
+        await lockStaffSchedule(tx, businessId, effectiveStaffId)
         const conflicting = await tx.appointmentService.findFirst({
           where: {
             staffId: effectiveStaffId,
