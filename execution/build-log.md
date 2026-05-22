@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-22] BOOK-500-001: public booking page returns 503 + friendly UI on DB outage — shipped at a78ecce
+- **Files**: src/app/book/[businessSlug]/page.tsx, src/app/book/error.tsx (new), src/app/api/health/route.ts
+- **Approach**: Wrap `prisma.business.findFirst` in `page.tsx` with a try/catch that detects Prisma connection failures (`PrismaClientInitializationError`, codes `P1001`/`P1002`/`P1017`) and rethrows as a `ServiceUnavailableError`; other errors propagate untouched. New `book/error.tsx` route-segment boundary renders a calm "Booking temporarily unavailable" page with Try-again / Go-home actions instead of the Next.js default 500 overlay. Also tightened `/api/health` while in the same file: error is now categorized (`db_unreachable` / `db_request_error` / `db_panic`) and `error.message` is only returned in non-prod, closing the small source-leak window Tester would otherwise have to revisit.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. Manual repro against preview deferred to Tester — needs a DB-down simulation (stop Postgres, hit `/book/<slug>`) to confirm the 503 + friendly page.
+- **Rollback**: `git revert a78ecce`
+
 ## [2026-05-22] dev: seed-time API key for local MCP/v1 testing — shipped at e4ff300
 - **Files**: prisma/seed.ts
 - **Approach**: At seed time, mint a random `sal_devseed_<48-hex>` key, hash it with the same `sha256` scheme `withV1Auth()` uses, and insert an `ApiKey` row scoped to the seeded business with `role: "owner"` and `createdById = adminUser.id`. Print the raw key to stdout twice (once inline, once in the closing summary block) so Tester (and Auditor when poking response shapes) can curl `/api/v1/*` and `/api/mcp` without driving the NextAuth credentials/CSRF dance.
