@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAvailability, getMultiStaffAvailability } from '@/lib/availability'
 import { prisma } from '@/lib/prisma'
 import { getPublicBookingSettings } from '@/lib/actions/booking-settings'
-import { clientSafeMessage } from '@/lib/api/response'
+import { withSafeErrors } from '@/lib/api/safe-handler'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,8 +20,7 @@ const LEAD_TIME_MAP: Record<string, number> = {
  * - locationId (required): The location
  * - staffId (optional): Specific staff member, or returns all staff availability
  */
-export async function GET(request: NextRequest) {
-  try {
+export const GET = withSafeErrors('GET /api/availability', async (request: NextRequest) => {
     const searchParams = request.nextUrl.searchParams
     const serviceId = searchParams.get('serviceId')
     const dateStr = searchParams.get('date')
@@ -221,14 +220,7 @@ export async function GET(request: NextRequest) {
       allSlots: combinedSlots,
       totalAvailableSlots: combinedSlots.length,
     })
-  } catch (error) {
-    console.error('GET /api/availability error:', error)
-    return NextResponse.json(
-      { error: clientSafeMessage(error, 'Failed to check availability') },
-      { status: 500 }
-    )
-  }
-}
+})
 
 /**
  * Format time for display (e.g., "10:30 AM")

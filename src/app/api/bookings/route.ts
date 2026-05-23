@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
-import { clientSafeMessage } from '@/lib/api/response'
+import { withSafeErrors } from '@/lib/api/safe-handler'
 import type { Prisma } from '@/generated/prisma'
 
 /**
  * GET /api/bookings
  * List appointments with optional filters
  */
-export async function GET(request: NextRequest) {
-  try {
+export const GET = withSafeErrors('GET /api/bookings', async (request: NextRequest) => {
     const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -143,21 +142,13 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch (error) {
-    console.error('GET /api/bookings error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch appointments' },
-      { status: 500 }
-    )
-  }
-}
+})
 
 /**
  * POST /api/bookings
  * Create a new appointment
  */
-export async function POST(request: NextRequest) {
-  try {
+export const POST = withSafeErrors('POST /api/bookings', async (request: NextRequest) => {
     const body = await request.json()
 
     const {
@@ -367,11 +358,4 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(fullAppointment, { status: 201 })
-  } catch (error) {
-    console.error('POST /api/bookings error:', error)
-    return NextResponse.json(
-      { error: clientSafeMessage(error, 'Failed to create appointment') },
-      { status: 400 }
-    )
-  }
-}
+})
