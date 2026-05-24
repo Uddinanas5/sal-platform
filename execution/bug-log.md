@@ -24,7 +24,7 @@ Format per entry:
   curl -s "http://localhost:3000/api/availability?serviceId=fake&locationId=fake&date=2026-05-22"
   ```
 - **Source**: `src/app/api/availability/route.ts:220-227`
-- **Status**: open
+- **Status**: [FIXED in 5c0eb0f + 8f6d457] — catch blocks no longer forward `error.message`; public api routes are now wrapped in `withSafeErrors` which returns a generic `{ "error": "Internal server error" }` and logs the real cause server-side. Verified live on agents/coder preview 2026-05-23: invalid params 400 cleanly, no Prisma/ORM strings in response body.
 
 ## [2026-05-21] P3 book/[businessSlug] — Public booking page has no error boundary; transient DB errors render generic Next error page mid-booking
 - **Flow**: Anonymous customer navigates to `/book/<slug>`. Server component calls `prisma.business.findFirst()` (twice — once in `generateMetadata`, once in `PublicBookingPage`) with no try/catch. If Prisma throws (DB blip, pool exhausted, transient TLS, etc.), the unhandled error bubbles up.

@@ -7,6 +7,7 @@ import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail, appointmentCancelledEmail, appointmentRescheduledEmail } from "@/lib/email-templates"
 import { getBusinessContext } from "@/lib/auth-utils"
 import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { assertClientOwned, assertStaffOwned, generateBookingReference } from "@/lib/ownership"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -53,7 +54,10 @@ export async function createAppointment(data: {
   try {
     const { businessId } = await getBusinessContext()
 
-    const service = await prisma.service.findUnique({ where: { id: data.serviceId } })
+    await assertClientOwned(data.clientId, businessId)
+    await assertStaffOwned(data.staffId, businessId)
+
+    const service = await prisma.service.findFirst({ where: { id: data.serviceId, businessId } })
     if (!service) return { success: false, error: "Service not found" }
 
     const startTime = new Date(data.startTime)
@@ -86,10 +90,7 @@ export async function createAppointment(data: {
         throw new Error("CONFLICT")
       }
 
-      // Atomic booking reference via random suffix to avoid count race condition
-      const timestamp = Date.now().toString(36)
-      const random = Math.random().toString(36).substring(2, 6)
-      const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
+      const bookingRef = generateBookingReference()
 
       const appt = await tx.appointment.create({
         data: {

@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { requireMinRole } from "@/lib/auth-utils"
+import { assertServicesOwned } from "@/lib/ownership"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -36,6 +37,7 @@ export async function createResource(data: {
   try {
     const parsed = createResourceSchema.parse(data)
     const { businessId } = await requireMinRole("admin")
+    await assertServicesOwned(parsed.serviceIds ?? [], businessId)
 
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!location) return { success: false, error: "Business not configured" }
@@ -81,6 +83,7 @@ export async function updateResource(
     const parsedId = idSchema.parse(id)
     const parsed = updateResourceSchema.parse(data)
     const { businessId } = await requireMinRole("admin")
+    if (parsed.serviceIds) await assertServicesOwned(parsed.serviceIds, businessId)
     await prisma.resource.update({
       where: { id: parsedId, businessId },
       data: parsed,

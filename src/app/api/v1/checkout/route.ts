@@ -1,7 +1,15 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
+import { randomBytes } from "crypto"
 import { z } from "zod"
+
+function generatePaymentReference() {
+  const now = new Date()
+  const yyyymmdd = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`
+  const suffix = randomBytes(4).toString("hex").toUpperCase()
+  return `PAY-${yyyymmdd}-${suffix}`
+}
 
 const processPaymentSchema = z.object({
   clientId: z.string().uuid().optional(),
@@ -34,8 +42,7 @@ export async function POST(req: Request) {
 
   try {
     const payment = await prisma.$transaction(async (tx) => {
-      const count = await tx.payment.count({ where: { businessId: ctx.businessId } })
-      const paymentRef = `PAY-${String(count + 1).padStart(4, "0")}`
+      const paymentRef = generatePaymentReference()
 
       const created = await tx.payment.create({
         data: {
