@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { getTodaysAppointments, getDashboardStats } from "@/lib/queries/appointments"
 import { getClients } from "@/lib/queries/clients"
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic"
 export default async function DashboardPage() {
   const session = await auth()
   const businessId = session?.user?.businessId ?? undefined
+  if (!businessId) redirect("/onboarding")
 
   const [appointments, stats, clients, revenueData, channelData, staffData] = await Promise.all([
     getTodaysAppointments(businessId),

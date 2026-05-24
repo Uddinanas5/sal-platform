@@ -18,7 +18,7 @@ export default async function StaffDetailPage({ params }: { params: { id: string
   const [staff, services, staffAppointments, businessHoursRaw] = await Promise.all([
     getStaffById(params.id, businessId),
     getServices(businessId), // active-only for staff assignment
-    getAppointments({ staffId: params.id }),
+    getAppointments({ staffId: params.id, businessId }),
     prisma.businessHours.findMany({
       where: { location: { businessId, isPrimary: true } },
       select: { dayOfWeek: true, isClosed: true },

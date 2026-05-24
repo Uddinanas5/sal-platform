@@ -13,7 +13,21 @@ export async function GET() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const businessId = (session?.user as any)?.businessId as string | undefined
 
-    const businessFilter = businessId ? { businessId } : {}
+    if (!businessId) {
+      return NextResponse.json({
+        todayAppointments: 0,
+        clientsCount: 0,
+        lowStockCount: 0,
+        pendingReviewsCount: 0,
+        staffProfileId: null,
+        dashboardStats: {
+          todayRevenue: 0,
+          todayAppointments: 0,
+          completedAppointments: 0,
+          upcomingAppointments: 0,
+        },
+      })
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userRole = (session?.user as any)?.role as string | undefined
@@ -24,7 +38,7 @@ export async function GET() {
         getDashboardStats(businessId),
         getClients(undefined, businessId),
         getLowStockProducts(businessId),
-        prisma.review.count({ where: { ...businessFilter, response: null } }),
+        prisma.review.count({ where: { businessId, response: null } }),
       ])
 
     // Look up staff profile ID for staff users (for "My Profile" link)

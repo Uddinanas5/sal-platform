@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import {
   getReportSummary,
@@ -19,6 +20,7 @@ export default async function ReportsPage() {
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
+  if (!businessId) redirect("/onboarding")
 
   const [
     summary,
