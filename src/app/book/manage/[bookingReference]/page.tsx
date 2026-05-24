@@ -2,6 +2,36 @@ import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import { ManageBookingClient } from "./client"
 
+export const dynamic = "force-dynamic"
+
+function isConnectionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const code = (error as { code?: string }).code
+  const causeCode = (error as { cause?: { code?: string } }).cause?.code
+  // findUnique returns null for "no row found", so a thrown PrismaClient*Error
+  // here is virtually always infra (DB down, pool exhausted, socket dropped) —
+  // surface those as 503 instead of leaking a raw 500.
+  return (
+    error.name === "PrismaClientInitializationError" ||
+    error.name === "PrismaClientKnownRequestError" ||
+    error.name === "PrismaClientRustPanicError" ||
+    code === "P1001" ||
+    code === "P1002" ||
+    code === "P1008" ||
+    code === "P1017" ||
+    code === "P2024" ||
+    code === "ECONNREFUSED" ||
+    causeCode === "ECONNREFUSED"
+  )
+}
+
+class ServiceUnavailableError extends Error {
+  constructor(message = "Database unreachable") {
+    super(message)
+    this.name = "ServiceUnavailableError"
+  }
+}
+
 export default async function ManageBookingPage({
   params,
 }: {
@@ -9,46 +39,54 @@ export default async function ManageBookingPage({
 }) {
   const { bookingReference } = await params
 
-  const appointment = await prisma.appointment.findUnique({
-    where: { bookingReference },
-    include: {
-      business: {
-        select: {
-          name: true,
-          slug: true,
-          phone: true,
-          email: true,
-          settings: true,
-        },
-      },
-      client: {
-        select: {
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-        },
-      },
-      services: {
-        include: {
-          service: {
-            select: { name: true, durationMinutes: true, price: true },
-          },
-          staff: {
-            select: { user: { select: { firstName: true, lastName: true } } },
+  let appointment
+  try {
+    appointment = await prisma.appointment.findUnique({
+      where: { bookingReference },
+      include: {
+        business: {
+          select: {
+            name: true,
+            slug: true,
+            phone: true,
+            email: true,
+            settings: true,
           },
         },
-      },
-      location: {
-        select: {
-          name: true,
-          addressLine1: true,
-          city: true,
-          state: true,
+        client: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        services: {
+          include: {
+            service: {
+              select: { name: true, durationMinutes: true, price: true },
+            },
+            staff: {
+              select: { user: { select: { firstName: true, lastName: true } } },
+            },
+          },
+        },
+        location: {
+          select: {
+            name: true,
+            addressLine1: true,
+            city: true,
+            state: true,
+          },
         },
       },
-    },
-  })
+    })
+  } catch (error) {
+    if (isConnectionError(error)) {
+      throw new ServiceUnavailableError()
+    }
+    throw error
+  }
 
   if (!appointment) notFound()
 
