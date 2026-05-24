@@ -1,5 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { assertStaffOwned } from "@/lib/ownership"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -61,6 +62,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     endTime.setMinutes(endTime.getMinutes() + appointment.totalDuration)
     const effectiveStaffId = parsed.data.newStaffId ?? appointment.services[0]?.staffId
 
+    // Block the cross-tenant oracle: if a foreign staffId is supplied, fail
+    // with the same NOT_FOUND body the missing-appointment branch returns so
+    // callers can't distinguish "wrong tenant" from "doesn't exist".
+    if (parsed.data.newStaffId) {
+      try {
+        await assertStaffOwned(parsed.data.newStaffId, ctx.businessId)
+      } catch {
+        return ERRORS.NOT_FOUND("Appointment")
+      }
+    }
+
     try {
       await prisma.$transaction(async (tx) => {
         if (effectiveStaffId) {
@@ -68,7 +80,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             where: {
               staffId: effectiveStaffId,
               appointmentId: { not: id },
-              appointment: { status: { notIn: ["cancelled", "no_show"] } },
+              appointment: {
+                businessId: ctx.businessId,
+                status: { notIn: ["cancelled", "no_show"] },
+              },
               startTime: { lt: endTime },
               endTime: { gt: startTime },
             },
