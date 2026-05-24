@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAvailability, getMultiStaffAvailability } from '@/lib/availability'
+import { getMultiStaffAvailability } from '@/lib/availability'
 import { prisma } from '@/lib/prisma'
 import { getPublicBookingSettings } from '@/lib/actions/booking-settings'
 import { withSafeErrors } from '@/lib/api/safe-handler'
@@ -68,97 +68,51 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       )
     }
 
-    // Fetch booking settings to enforce lead time
-    const serviceForBusiness = await prisma.service.findUnique({
+    // Fetch service + booking settings to enforce lead time
+    const service = await prisma.service.findUnique({
       where: { id: serviceId },
-      select: { businessId: true },
+      select: { businessId: true, durationMinutes: true },
     })
-    if (!serviceForBusiness?.businessId) {
+    if (!service?.businessId) {
       return NextResponse.json(
         { error: 'Service not found' },
         { status: 404 }
       )
     }
-    const bookingSettings = await getPublicBookingSettings(serviceForBusiness.businessId)
+    const bookingSettings = await getPublicBookingSettings(service.businessId)
     const minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
 
-    // If staffId provided, get availability for that staff member
-    if (staffId) {
-      const availability = await getAvailability({
-        staffId,
-        serviceId,
-        date,
-        locationId,
-        minLeadTimeMinutes,
-      })
-
-      // Get staff details
-      const staff = await prisma.staff.findUnique({
-        where: { id: staffId },
-        include: {
-          user: {
-            select: {
-              firstName: true,
-              lastName: true,
-              avatarUrl: true,
-            },
+    // Resolve target staff list — either the explicit staffId, or all bookable staff for this service+location
+    const staffMembers = staffId
+      ? await prisma.staff.findMany({
+          where: { id: staffId },
+          include: {
+            user: { select: { firstName: true, lastName: true, avatarUrl: true } },
           },
-        },
-      })
-
-      return NextResponse.json({
-        date: availability.date,
-        serviceId: availability.serviceId,
-        serviceDuration: availability.serviceDuration,
-        staff: staff ? {
-          id: staff.id,
-          name: `${staff.user.firstName} ${staff.user.lastName}`,
-          avatarUrl: staff.user.avatarUrl,
-        } : null,
-        slots: availability.slots.map(slot => ({
-          start: slot.start.toISOString(),
-          end: slot.end.toISOString(),
-          startTime: formatTime(slot.start),
-          endTime: formatTime(slot.end),
-        })),
-        totalSlots: availability.slots.length,
-      })
-    }
-
-    // Get all staff who provide this service at this location
-    const staffMembers = await prisma.staff.findMany({
-      where: {
-        locationId,
-        isActive: true,
-        canAcceptBookings: true,
-        staffServices: {
-          some: {
-            serviceId,
+        })
+      : await prisma.staff.findMany({
+          where: {
+            locationId,
             isActive: true,
+            canAcceptBookings: true,
+            staffServices: { some: { serviceId, isActive: true } },
           },
-        },
-      },
-      include: {
-        user: {
-          select: {
-            firstName: true,
-            lastName: true,
-            avatarUrl: true,
+          include: {
+            user: { select: { firstName: true, lastName: true, avatarUrl: true } },
           },
-        },
-      },
-    })
+        })
 
+    // Empty case — return the same envelope with empty slots/byStaff
     if (staffMembers.length === 0) {
       return NextResponse.json({
         date: dateStr,
         serviceId,
-        message: 'No staff members available for this service',
-        availability: [],
+        serviceDuration: service.durationMinutes,
+        slots: [],
+        byStaff: [],
       })
     }
 
-    // Get availability for all staff
     const availabilityMap = await getMultiStaffAvailability({
       staffIds: staffMembers.map(s => s.id),
       serviceId,
@@ -167,7 +121,7 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       minLeadTimeMinutes,
     })
 
-    const availability = staffMembers.map(staff => {
+    const byStaff = staffMembers.map(staff => {
       const staffAvailability = availabilityMap.get(staff.id)
       return {
         staff: {
@@ -185,29 +139,27 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       }
     })
 
-    // Also return a combined list of all unique times with available staff
-    const allSlots = new Map<string, { time: string; staffIds: string[] }>()
-
+    // Unified slot list — keyed by start time, with the staff who can take it
+    const slotMap = new Map<string, { end: Date; start: Date; staffIds: string[] }>()
     for (const [sId, result] of Array.from(availabilityMap.entries())) {
       for (const slot of result.slots) {
         const key = slot.start.toISOString()
-        const existing = allSlots.get(key)
+        const existing = slotMap.get(key)
         if (existing) {
           existing.staffIds.push(sId)
         } else {
-          allSlots.set(key, {
-            time: formatTime(slot.start),
-            staffIds: [sId],
-          })
+          slotMap.set(key, { start: slot.start, end: slot.end, staffIds: [sId] })
         }
       }
     }
 
-    const combinedSlots = Array.from(allSlots.entries())
+    const slots = Array.from(slotMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([startTime, data]) => ({
-        startTime,
-        displayTime: data.time,
+      .map(([, data]) => ({
+        start: data.start.toISOString(),
+        end: data.end.toISOString(),
+        startTime: formatTime(data.start),
+        endTime: formatTime(data.end),
         availableStaff: data.staffIds,
         staffCount: data.staffIds.length,
       }))
@@ -215,10 +167,9 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
     return NextResponse.json({
       date: dateStr,
       serviceId,
-      serviceDuration: availabilityMap.values().next().value?.serviceDuration || 0,
-      byStaff: availability,
-      allSlots: combinedSlots,
-      totalAvailableSlots: combinedSlots.length,
+      serviceDuration: availabilityMap.values().next().value?.serviceDuration ?? service.durationMinutes,
+      slots,
+      byStaff,
     })
 })
 
