@@ -76,3 +76,10 @@ Format per entry:
 - **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit b223878). Preview at http://178.105.195.98:3001/inventory picks up live.
 - **Rollback**: HEAD~1
 - **NOTE**: Push still blocked, now 19 commits ahead of origin/agents/coder.
+
+## [2026-05-25] PERMISSION-STOCK-ADJUST-ASYMMETRY-001 — admin-gate adjustStock + scrub raw errors — committed locally (push still blocked)
+- **Files**: src/lib/actions/products.ts
+- **Approach**: Tester logged the asymmetry — v1 route checks `hasRole(ctx.role, "admin")` but the server action used `getBusinessContext()` and let any signed-in user adjust stock. Swapped line 99 to `requireMinRole("admin")`. Line 133 was also leaking raw `(e as Error).message` to the client toast — replaced with sanitized "Failed to adjust stock", but still pass through the three known auth-error strings ("Not authenticated", "No business context", "Insufficient permissions…") verbatim so the UI shows the real reason when it's an auth failure.
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit d50821e).
+- **Rollback**: HEAD~1
+- **NOTE**: Push still blocked — now 20 commits ahead of origin/agents/coder. Anas needs to drop a GH token / credential helper before any of this becomes visible on the diff link.
