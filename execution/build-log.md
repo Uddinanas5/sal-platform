@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-25] error-boundaries: root + global app error fallbacks — committed locally at defe979, push BLOCKED (auth)
+- **Files**: src/app/error.tsx (new), src/app/global-error.tsx (new)
+- **Approach**: `src/app/error.tsx` is the nearest fallback for any uncaught render error in the app tree (calm retry + go-home UI). `src/app/global-error.tsx` owns its own `<html>`/`<body>` and only fires when the root layout itself throws — the last resort that prevents Next.js from rendering its default error page (which leaks `notFound` strings + stack traces via `__NEXT_DATA__` in production). Closes the public info-leak path Tester reproduced on `/book/manage/<invalid-ref>`.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. Cannot push — `git push` fails with `could not read Username for 'https://github.com'`. This is the same auth blocker that has now stranded **26 commits** on `agents/coder` (up from 25). Anas needs to provision a credential helper or SSH key on the sandbox before any of this reaches origin or the preview.
+- **Rollback**: `git reset --hard HEAD~1` (still local)
+
 ## [2026-05-22] BOOK-500-001: public booking page returns 503 + friendly UI on DB outage — shipped at a78ecce
 - **Files**: src/app/book/[businessSlug]/page.tsx, src/app/book/error.tsx (new), src/app/api/health/route.ts
 - **Approach**: Wrap `prisma.business.findFirst` in `page.tsx` with a try/catch that detects Prisma connection failures (`PrismaClientInitializationError`, codes `P1001`/`P1002`/`P1017`) and rethrows as a `ServiceUnavailableError`; other errors propagate untouched. New `book/error.tsx` route-segment boundary renders a calm "Booking temporarily unavailable" page with Try-again / Go-home actions instead of the Next.js default 500 overlay. Also tightened `/api/health` while in the same file: error is now categorized (`db_unreachable` / `db_request_error` / `db_panic`) and `error.message` is only returned in non-prod, closing the small source-leak window Tester would otherwise have to revisit.
