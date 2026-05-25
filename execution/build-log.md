@@ -14,6 +14,18 @@ Format per entry:
 
 ---
 
+## [2026-05-25] PUBLIC-BOOKING-PAGE-500 / api-services-nullable-orderby: sort by category sortOrder in-memory — committed locally at 2dcde56, push BLOCKED (auth)
+- **Files**: src/app/api/services/route.ts
+- **Approach**: GET /api/services was passing `orderBy: [{ category: { sortOrder: 'asc' } }, …]` to Prisma. With nullable categoryId in the schema (some services have no category), this orderBy on a nullable relation throws at runtime → 500 on every call, ghost or real businessId. Fix is one line: drop the relation orderBy, add `sortOrder: true` to the included category select, and re-sort the result array in-memory by `category?.sortOrder ?? MAX_SAFE_INTEGER`. DB-level sortOrder/name ordering stays. Tester gave the green light to ship without a real-businessId smoke test — theory was strong, fix is contained. Same patch is suspected behind the :3000 public-booking-page 500s (PUBLIC-BOOKING-PAGE-500-001, though :3001 was already 200 — that one's a deploy-staleness issue, not code).
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. `git push` still fails — `could not read Username for 'https://github.com'`. Backlog now **39 commits** on `agents/coder`.
+- **Rollback**: `git revert 2dcde56` (still local)
+
+## [2026-05-25] QUERIES-BUSINESSID-REQUIRED-001: flip 4 leaky query fns to required businessId, patch all callers — committed locally at 5f7b439, push BLOCKED (auth)
+- **Files**: src/lib/queries/{clients,products,services,staff}.ts, src/app/api/notifications/route.ts, src/app/api/search/route.ts, src/app/(dashboard)/{clients,inventory,memberships,services,staff,checkout,settings}/page.tsx
+- **Approach**: Per Auditor's spec, flipped `businessId?: string` → required `businessId: string` on `getClients`, `getServices`, `getStaff`, `getProducts` (and `getLowStockProducts`), deleting the `businessFilter = businessId ? { businessId } : {}` ternary at the source so the next caller can't repeat the footgun. Ripple fix: 2 non-dashboard routes (notifications, search) early-return empty payloads when no businessId; 7 dashboard pages add `if (!businessId) redirect("/onboarding")` matching the pattern already in dashboard/page.tsx. **Currently-exploitable surface: zero** — middleware already redirects business-less sessions, v1 doesn't import from this layer, and onboarding does its own scoped Prisma calls. This closes the *latent* footgun: type system now enforces business scoping at the call boundary. The broader queries-layer refactor (reports.ts has 14 same-pattern fns, plus marketing/memberships/waitlist/reviews/resources/forms) lands in a separate PR per Auditor.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. Push BLOCKED (same auth issue). Backlog now **38 commits** on `agents/coder`.
+- **Rollback**: `git revert 5f7b439` (still local)
+
 ## [2026-05-25] APPT-RESCHEDULE-PARTIAL-SHIFT-001: shift all services on reschedule, not just lead (option 3 chosen) — committed locally at 1c3f8bf, push BLOCKED (auth)
 - **Files**: src/lib/actions/appointments.ts, src/app/api/v1/appointments/[id]/route.ts
 - **Approach**: Reschedule was only updating `appointment.startTime/endTime` and `services[0]`. For 2+ service appointments, services[1..N] stayed pinned to the old slot — parent and children out of sync. Fix: compute `deltaMs = newStart - oldStart` once, apply to every service row's start/end (sorted by original startTime to preserve ordering and gaps). Conflict check now walks each resolved staff per service and bails atomically on first collision; locks every distinct staffId (sorted) before the check for deadlock safety. **Option (3) per Auditor's bug doc**: `newStaffId` continues to reassign the lead service only — implicit contract documented inline at the assignment site (Auditor's ask) so the next reader doesn't relitigate. Applied identically to the server action and the v1 PATCH endpoint.
@@ -133,3 +145,10 @@ Format per entry:
 - **Verification**: `pnpm lint` ✓, `pnpm build` ✓.
 - **Rollback**: HEAD~1
 - **NOTE**: Push still blocked — now 28 commits ahead of origin/agents/coder. Same auth blocker.
+
+## [2026-05-25] API-INVALID-DATE-ACCEPTED-001 (+ availability half of -ERROR-MESSAGE-LEAK-001) — strict YYYY-MM-DD parse, shared util — committed locally (push still blocked)
+- **Files**: src/lib/date-utils.ts (new), src/app/api/availability/route.ts, src/app/api/bookings/route.ts
+- **Approach**: Tester confirmed `new Date('2026-06-31')` silently rolls to July 1 (and `2026-02-30` → Mar 2), so `/api/availability` already had a local `parseYmd` that round-trips year/month/day to reject. Pulled that into `src/lib/date-utils.ts` as the single source of truth, then applied to `/api/bookings` GET which still used raw `new Date(str)` on `date`, `dateFrom`, and `dateTo` — would silently shift the filter window by a day on impossible inputs. Each now returns 400 with `Invalid date. Use YYYY-MM-DD` (matching the availability error shape) on malformed or impossible calendar dates. Avoids two copies of the parser drifting.
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 8c2fe15). Tester's matrix (Feb 30, Apr 31, Sep 31, `2026/06/31` with slash, `2026-13-45`) all now reject at the API boundary instead of being silently coerced.
+- **Rollback**: HEAD~1
+- **NOTE**: Push still blocked — now 29 commits ahead of origin/agents/coder. Same auth blocker.
