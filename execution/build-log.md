@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-25] CROSS-TENANT-WRITE-STAFF-POST-001: scope `/api/staff` POST to caller's business; validate locationId + serviceIds — committed locally at c0c239e, push BLOCKED (auth)
+- **Files**: src/app/api/staff/route.ts
+- **Approach**: `/api/staff` POST used `auth()` directly and never pulled `businessId` from session. `locationId`, `userId`, and `serviceIds[]` were taken straight from body with zero tenant validation, so Tenant A could POST `locationId=<Tenant B>` + `serviceIds=[Tenant C]` and create a Frankenstein staff row stapling three tenants together. Fix swaps to `getBusinessContext()`, then before the transaction runs two scope checks: `location.findFirst({ id: locationId, businessId: ctx.businessId })` rejects foreign locations with 400; `service.count({ id: { in: serviceIds }, businessId: ctx.businessId }) === serviceIds.length` rejects any foreign serviceId. Schedule rows already reused the verified locationId (left a comment so it's obvious it's not a body field). userId tenant-check left as follow-up — User has no businessId column, so the right policy needs Anas's input (Staff has no @@unique on userId, so a single user *can* legitimately work across multiple tenants).
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. Push BLOCKED (same auth issue). Backlog now **31 commits** on `agents/coder`.
+- **Rollback**: `git revert c0c239e` (still local)
+
 ## [2026-05-25] PUBLIC-BOOKING-PAGE-500 / api-services-nullable-orderby: sort by category sortOrder in-memory — committed locally at 2dcde56, push BLOCKED (auth)
 - **Files**: src/app/api/services/route.ts
 - **Approach**: GET /api/services was passing `orderBy: [{ category: { sortOrder: 'asc' } }, …]` to Prisma. With nullable categoryId in the schema (some services have no category), this orderBy on a nullable relation throws at runtime → 500 on every call, ghost or real businessId. Fix is one line: drop the relation orderBy, add `sortOrder: true` to the included category select, and re-sort the result array in-memory by `category?.sortOrder ?? MAX_SAFE_INTEGER`. DB-level sortOrder/name ordering stays. Tester gave the green light to ship without a real-businessId smoke test — theory was strong, fix is contained. Same patch is suspected behind the :3000 public-booking-page 500s (PUBLIC-BOOKING-PAGE-500-001, though :3001 was already 200 — that one's a deploy-staleness issue, not code).
