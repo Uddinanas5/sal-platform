@@ -3,6 +3,7 @@ import { apiSuccess, apiPaginated, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail } from "@/lib/email-templates"
+import { parseYmd } from "@/lib/date-utils"
 import { z } from "zod"
 
 const createAppointmentSchema = z.object({
@@ -33,9 +34,24 @@ export async function GET(req: Request) {
   if (clientId) where.clientId = clientId
   if (status) where.status = status
   if (dateFrom || dateTo) {
+    // Strict YYYY-MM-DD parse — `new Date('2026-06-31')` silently rolls to
+    // July 1, so we reject impossible dates with a 400 instead.
+    let gte: Date | undefined
+    let lte: Date | undefined
+    if (dateFrom) {
+      const from = parseYmd(dateFrom)
+      if (!from) return ERRORS.BAD_REQUEST("Invalid dateFrom. Use YYYY-MM-DD")
+      gte = from
+    }
+    if (dateTo) {
+      const to = parseYmd(dateTo)
+      if (!to) return ERRORS.BAD_REQUEST("Invalid dateTo. Use YYYY-MM-DD")
+      to.setHours(23, 59, 59, 999)
+      lte = to
+    }
     where.startTime = {
-      ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-      ...(dateTo ? { lte: new Date(dateTo) } : {}),
+      ...(gte ? { gte } : {}),
+      ...(lte ? { lte } : {}),
     }
   }
   if (effectiveStaffId) {
@@ -177,23 +193,29 @@ export async function POST(req: Request) {
       return appt
     })
 
-    // Send confirmation email (non-blocking)
-    const [client, staff] = await Promise.all([
-      prisma.client.findUnique({ where: { id: clientId } }),
-      prisma.staff.findUnique({ where: { id: staffId }, include: { user: true } }),
+    // Send confirmation email (non-blocking). Re-fetch is tenant-scoped as
+    // defense-in-depth: upstream gates already prove these IDs belong to
+    // ctx.businessId, but scoping here prevents a future refactor from
+    // silently leaking foreign rows into the email body.
+    const [emailClient, emailStaff] = await Promise.all([
+      prisma.client.findFirst({ where: { id: clientId, businessId: ctx.businessId } }),
+      prisma.staff.findFirst({
+        where: { id: staffId, primaryLocation: { businessId: ctx.businessId } },
+        include: { user: true },
+      }),
     ])
-    if (client?.email) {
+    if (emailClient?.email) {
       const dateTime = new Intl.DateTimeFormat("en-US", {
         weekday: "long", month: "long", day: "numeric", year: "numeric",
         hour: "numeric", minute: "2-digit", hour12: true,
       }).format(startTime)
       sendEmail({
-        to: client.email,
+        to: emailClient.email,
         subject: `Booking Confirmed - ${service.name}`,
         html: bookingConfirmationEmail({
-          clientName: `${client.firstName} ${client.lastName}`,
+          clientName: `${emailClient.firstName} ${emailClient.lastName}`,
           serviceName: service.name,
-          staffName: staff ? `${staff.user.firstName} ${staff.user.lastName}` : "Our team",
+          staffName: emailStaff ? `${emailStaff.user.firstName} ${emailStaff.user.lastName}` : "Our team",
           dateTime,
           businessName: business.name,
           bookingRef: appointment.bookingReference,
