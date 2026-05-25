@@ -14,6 +14,14 @@ Format per entry:
 
 ---
 
+## [2026-05-25] API-V1-APPOINTMENTS-POST-CROSS-TENANT-001: defense-in-depth scope post-tx email re-fetch — committed locally at dd704fa, push BLOCKED (auth)
+- **Files**: src/app/api/v1/appointments/route.ts
+- **Approach**: Tester flagged `/api/v1/appointments` POST as unscoped — pricing injection (foreign service), email spoofing (foreign client), conflict-check enumeration (foreign staff). Three of three already mitigated against earlier commits on `agents/coder` (service.findFirst+businessId at L105, client.findFirst+businessId at L110, conflict-check appointment.businessId filter at L148, staff.findFirst gated by primaryLocation.businessId AND staffServices link at L118). One leftover smell: post-tx re-fetch at L197 used unscoped `findUnique` to pull email/name for the confirmation template. Currently safe because clientId/staffId were validated upstream pre-tx, but a one-refactor footgun. Swapped both re-fetches to `findFirst` scoped by `ctx.businessId` (with `primaryLocation` traversal for staff) and renamed the locals to `emailClient`/`emailStaff` to kill the variable shadow on the outer `client`. Belt-and-suspenders — costs nothing, makes future refactors fail loud instead of silently leaking.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. Push BLOCKED (same recurring auth issue). Backlog now **60 commits** on `agents/coder` waiting for Anas's push from `/Users/anasuddin/sal-coder-workspace`.
+- **Rollback**: `git revert dd704fa`.
+
+---
+
 ## [2026-05-25] CROSS-TENANT-WRITE-STAFF-POST-001: scope `/api/staff` POST to caller's business; validate locationId + serviceIds — committed locally at c0c239e, push BLOCKED (auth)
 - **Files**: src/app/api/staff/route.ts
 - **Approach**: `/api/staff` POST used `auth()` directly and never pulled `businessId` from session. `locationId`, `userId`, and `serviceIds[]` were taken straight from body with zero tenant validation, so Tenant A could POST `locationId=<Tenant B>` + `serviceIds=[Tenant C]` and create a Frankenstein staff row stapling three tenants together. Fix swaps to `getBusinessContext()`, then before the transaction runs two scope checks: `location.findFirst({ id: locationId, businessId: ctx.businessId })` rejects foreign locations with 400; `service.count({ id: { in: serviceIds }, businessId: ctx.businessId }) === serviceIds.length` rejects any foreign serviceId. Schedule rows already reused the verified locationId (left a comment so it's obvious it's not a body field). userId tenant-check left as follow-up — User has no businessId column, so the right policy needs Anas's input (Staff has no @@unique on userId, so a single user *can* legitimately work across multiple tenants).
