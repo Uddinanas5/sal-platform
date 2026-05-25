@@ -60,45 +60,70 @@ export async function POST(req: Request) {
   const random = Math.random().toString(36).substring(2, 6)
   const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
 
-  const appointment = await prisma.appointment.create({
-    data: {
-      businessId: ctx.businessId,
-      locationId: location.id,
-      clientId: clientIds[0],
-      bookingReference: bookingRef,
-      status: "confirmed",
-      source: "pos",
-      startTime,
-      endTime,
-      totalDuration: service.durationMinutes,
-      subtotal: price * clientIds.length,
-      taxAmount: tax * clientIds.length,
-      totalAmount: (price + tax) * clientIds.length,
-      notes,
-      isGroupBooking: true,
-      maxParticipants,
-    },
-  })
+  try {
+    const appointmentId = await prisma.$transaction(async (tx) => {
+      // Tenant-scoped conflict check on the staff slot. Without this a group
+      // booking can silently double-book the stylist (and on a 12-person group
+      // that's a much louder calendar collision than a single booking).
+      const conflicting = await tx.appointmentService.findFirst({
+        where: {
+          staffId,
+          appointment: {
+            businessId: ctx.businessId,
+            status: { notIn: ["cancelled", "no_show"] },
+          },
+          startTime: { lt: endTime },
+          endTime: { gt: startTime },
+        },
+      })
+      if (conflicting) throw new Error("CONFLICT")
 
-  await prisma.appointmentService.create({
-    data: {
-      appointmentId: appointment.id,
-      serviceId,
-      staffId,
-      name: service.name,
-      durationMinutes: service.durationMinutes,
-      price,
-      finalPrice: price,
-      startTime,
-      endTime,
-    },
-  })
+      const appointment = await tx.appointment.create({
+        data: {
+          businessId: ctx.businessId,
+          locationId: location.id,
+          clientId: clientIds[0],
+          bookingReference: bookingRef,
+          status: "confirmed",
+          source: "pos",
+          startTime,
+          endTime,
+          totalDuration: service.durationMinutes,
+          subtotal: price * clientIds.length,
+          taxAmount: tax * clientIds.length,
+          totalAmount: (price + tax) * clientIds.length,
+          notes,
+          isGroupBooking: true,
+          maxParticipants,
+        },
+      })
 
-  for (const clientId of clientIds) {
-    await prisma.groupParticipant.create({
-      data: { appointmentId: appointment.id, clientId },
+      await tx.appointmentService.create({
+        data: {
+          appointmentId: appointment.id,
+          serviceId,
+          staffId,
+          name: service.name,
+          durationMinutes: service.durationMinutes,
+          price,
+          finalPrice: price,
+          startTime,
+          endTime,
+        },
+      })
+
+      await tx.groupParticipant.createMany({
+        data: clientIds.map((clientId) => ({ appointmentId: appointment.id, clientId })),
+      })
+
+      return appointment.id
     })
-  }
 
-  return apiSuccess({ id: appointment.id, participantCount: clientIds.length }, 201)
+    return apiSuccess({ id: appointmentId, participantCount: clientIds.length }, 201)
+  } catch (e) {
+    if ((e as Error).message === "CONFLICT") {
+      return ERRORS.BAD_REQUEST("This time slot is already booked for the selected staff member")
+    }
+    return ERRORS.SERVER_ERROR()
+  }
 }
