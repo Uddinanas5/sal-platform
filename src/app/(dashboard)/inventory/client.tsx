@@ -283,6 +283,14 @@ export function InventoryClient(props: InventoryClientProps) {
         open={stockDialogOpen}
         onOpenChange={setStockDialogOpen}
         product={selectedProduct}
+        onAdjusted={(productId, newLevel) => {
+          setProducts((prev) =>
+            prev.map((p) =>
+              p.id === productId ? { ...p, stockLevel: newLevel } : p
+            )
+          )
+          router.refresh()
+        }}
       />
     </div>
   )

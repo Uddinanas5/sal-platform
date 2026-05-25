@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react"
 import { toast } from "sonner"
+import { adjustStock } from "@/lib/actions/products"
 import {
   Dialog,
   DialogContent,
@@ -31,16 +32,19 @@ interface StockAdjustmentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   product: Product | null
+  onAdjusted?: (productId: string, newLevel: number) => void
 }
 
 export function StockAdjustmentDialog({
   open,
   onOpenChange,
   product,
+  onAdjusted,
 }: StockAdjustmentDialogProps) {
   const [adjustmentType, setAdjustmentType] = useState<AdjustmentType>("add")
   const [quantity, setQuantity] = useState("")
   const [reason, setReason] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   const newStockLevel = useMemo(() => {
     if (!product) return 0
@@ -61,7 +65,7 @@ export function StockAdjustmentDialog({
     setReason("")
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!product) return
 
     const qty = parseInt(quantity)
@@ -75,7 +79,29 @@ export function StockAdjustmentDialog({
       return
     }
 
+    const delta =
+      adjustmentType === "add"
+        ? qty
+        : adjustmentType === "remove"
+          ? -qty
+          : newStockLevel - product.stockLevel
+
+    if (delta === 0) {
+      toast.info("No change to stock level")
+      return
+    }
+
+    setSubmitting(true)
+    const result = await adjustStock(product.id, delta, reason || undefined)
+    setSubmitting(false)
+
+    if (!result.success) {
+      toast.error(`Failed to update stock: ${result.error}`)
+      return
+    }
+
     toast.success(`Stock updated for ${product.name}`)
+    onAdjusted?.(product.id, newStockLevel)
     resetForm()
     onOpenChange(false)
   }
@@ -219,11 +245,11 @@ export function StockAdjustmentDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!quantity}>
-            Adjust Stock
+          <Button onClick={handleSubmit} disabled={!quantity || submitting}>
+            {submitting ? "Saving…" : "Adjust Stock"}
           </Button>
         </DialogFooter>
       </DialogContent>
