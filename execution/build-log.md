@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-25] API-V1-APPOINTMENTS-CROSS-TENANT-WRITE-001: scope recurring + groups + conflict-check by businessId — committed locally at 03e39b3, push BLOCKED (auth)
+- **Files**: src/app/api/v1/appointments/route.ts, src/app/api/v1/appointments/recurring/route.ts, src/app/api/v1/appointments/groups/route.ts
+- **Approach**: Replaced `service.findUnique({id})` in both `recurring/route.ts:29` and `groups/route.ts:29` with `findFirst({id, businessId})`. Added client + staff validation matching the main POST: client by `{id, businessId}`, staff by `{id, primaryLocation.businessId, staffServices.some({serviceId, isActive})}`. `groups` validates the whole `clientIds[]` batch via `count` + length-equality. Also tightened the conflict-check at `route.ts:128-138` to filter by `appointment.businessId`, closing the calendar-collision side-channel Tester flagged. Same fix template as 8d942b9 / b9ba744. Generic `NOT_FOUND` strings, no existence-oracle leak.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. `git push` still fails — `could not read Username for 'https://github.com'`. Backlog now **28 commits** on `agents/coder`. Tester can repro fix from local sandbox; preview frozen until auth provisioned.
+- **Rollback**: `git revert 03e39b3` (still local)
+
 ## [2026-05-25] BOOKING-CROSS-TENANT-RW-001 + BOOKING-CROSS-TENANT-WRITE-001: scope /api/bookings/[id] verbs + /api/v1/appointments POST — committed locally at b9ba744, push BLOCKED (auth)
 - **Files**: src/app/api/bookings/[id]/route.ts, src/app/api/v1/appointments/route.ts
 - **Approach**: `[id]` route — replaced bare `auth()` + `findUnique({where:{id}})` in GET/PATCH/DELETE with `getBusinessContext()` + `findFirst({id, businessId})`. Cross-tenant ids now 404 instead of leaking PII or accepting mutations. The downstream `client.update` (totalSpent increment) and `appointment.update` reuse the gated `existing.*` so they inherit the same tenant gate without needing extra checks. v1 POST — service is now scoped by businessId, client by businessId, and staff via `primaryLocation.businessId` AND an `isActive` `staffServices` link to the requested service. Blocks both cross-tenant booking creation AND franken-mix bookings (biz-A service paired with biz-B staff). Companion to 8d942b9 which closed the same hole on the non-[id] route.
