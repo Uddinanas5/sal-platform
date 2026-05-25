@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { getBusinessContext } from '@/lib/auth-utils'
 import { AppointmentStatus } from '@/generated/prisma'
 
 interface RouteParams {
@@ -13,15 +13,17 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await auth()
-    if (!session?.user) {
+    let ctx
+    try {
+      ctx = await getBusinessContext()
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
 
-    const appointment = await prisma.appointment.findUnique({
-      where: { id },
+    const appointment = await prisma.appointment.findFirst({
+      where: { id, businessId: ctx.businessId },
       include: {
         client: {
           select: {
@@ -111,8 +113,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await auth()
-    if (!session?.user) {
+    let ctx
+    try {
+      ctx = await getBusinessContext()
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -127,9 +131,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       cancelledBy,
     } = body
 
-    // Check if appointment exists
-    const existing = await prisma.appointment.findUnique({
-      where: { id },
+    // Scope by businessId so cross-tenant ids 404 instead of leaking/mutating
+    const existing = await prisma.appointment.findFirst({
+      where: { id, businessId: ctx.businessId },
       select: {
         id: true,
         status: true,
@@ -256,8 +260,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await auth()
-    if (!session?.user) {
+    let ctx
+    try {
+      ctx = await getBusinessContext()
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -266,8 +272,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const reason = searchParams.get('reason')
     const cancelledBy = searchParams.get('cancelledBy')
 
-    const existing = await prisma.appointment.findUnique({
-      where: { id },
+    const existing = await prisma.appointment.findFirst({
+      where: { id, businessId: ctx.businessId },
       select: { id: true, status: true },
     })
 

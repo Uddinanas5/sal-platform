@@ -84,8 +84,30 @@ export async function POST(req: Request) {
 
   const { clientId, serviceId, staffId, startTime: startTimeStr, notes } = parsed.data
 
-  const service = await prisma.service.findUnique({ where: { id: serviceId } })
+  // Scope every entity lookup by caller's business — prevents cross-tenant
+  // booking creation and frankenstein-mix (e.g. biz-A service + biz-B staff).
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, businessId: ctx.businessId },
+  })
   if (!service) return ERRORS.NOT_FOUND("Service")
+
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, businessId: ctx.businessId },
+    select: { id: true },
+  })
+  if (!client) return ERRORS.NOT_FOUND("Client")
+
+  // Staff has no direct businessId — route through primaryLocation.
+  // Also verify staffServices link: this staff must be allowed to do this service.
+  const staffRecord = await prisma.staff.findFirst({
+    where: {
+      id: staffId,
+      primaryLocation: { businessId: ctx.businessId },
+      staffServices: { some: { serviceId, isActive: true } },
+    },
+    select: { id: true },
+  })
+  if (!staffRecord) return ERRORS.NOT_FOUND("Staff")
 
   const [business, location] = await Promise.all([
     prisma.business.findUnique({ where: { id: ctx.businessId } }),
