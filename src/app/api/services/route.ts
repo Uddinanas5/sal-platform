@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
             name: true,
             color: true,
             icon: true,
+            sortOrder: true,
           },
         },
         staffServices: {
@@ -78,10 +79,17 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: [
-        { category: { sortOrder: 'asc' } },
         { sortOrder: 'asc' },
         { name: 'asc' },
       ],
+    })
+
+    // Sort by category sortOrder in-memory to avoid Prisma orderBy
+    // on a nullable relation (some services have no category).
+    services.sort((a, b) => {
+      const aOrder = a.category?.sortOrder ?? Number.MAX_SAFE_INTEGER
+      const bOrder = b.category?.sortOrder ?? Number.MAX_SAFE_INTEGER
+      return aOrder - bOrder
     })
 
     // Transform response
