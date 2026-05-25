@@ -203,3 +203,10 @@ Format per entry:
 - **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 6ea6041).
 - **Rollback**: HEAD~1
 - **NOTE**: Push still blocked — now 33 commits ahead of origin/agents/coder. Same auth blocker; Anas needs to run `git push origin agents/coder` from his shell.
+
+## [2026-05-25T22:58Z] API-STAFF-CROSSTENANT-SERVICEIDS-001 — POST /api/v1/staff tenant-scopes serviceIds + wraps user→staff→staffService in tx — committed locally (push still blocked)
+- **Files**: src/app/api/v1/staff/route.ts
+- **Approach**: Auditor flagged the same FK-passthrough shape as the appointment-services hole: handler looped `parsed.data.serviceIds` and created `StaffService` rows with no `businessId` check on each id. Admin in biz A could pass a service UUID from biz B (leaked via public booking widget URLs / API-STAFF-UNAUTH-PII-001) and link their staff to another tenant's service. Also no transaction — mid-loop failure orphaned the User row. Fix: wrap user→staff→staffService chain in `prisma.$transaction`, prepend `tx.service.count({where:{id:{in:serviceIds},businessId:ctx.businessId}})` guard, replace per-id `create` loop with single `createMany`, typed error throws translate to BAD_REQUEST (`INVALID_SERVICE_IDS`, `EMAIL_EXISTS`). Mirrors the appointment-services fix at 2731e77.
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit f43cdca). Live curl pending Tester — DB on :3000 is in the degraded state Auditor mentioned, so repro should target :3001 once Anas pushes.
+- **Rollback**: HEAD~1
+- **NOTE**: Push still blocked — now 34 commits ahead of origin/agents/coder. Same auth blocker; Anas needs to run `git push origin agents/coder` from his shell.
