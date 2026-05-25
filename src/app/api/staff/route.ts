@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { getBusinessContext } from '@/lib/auth-utils'
 
 /**
  * GET /api/staff
@@ -201,12 +201,14 @@ function formatTimeOnly(date: Date): string {
  * Create a new staff member
  */
 export async function POST(request: NextRequest) {
+  let ctx
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    ctx = await getBusinessContext()
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
+  try {
     const body = await request.json()
 
     const {
@@ -235,6 +237,34 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Scope-check every cross-tenant reference before mutating.
+    // locationId must belong to caller's business — otherwise the new staff
+    // row would be created inside another tenant.
+    const location = await prisma.location.findFirst({
+      where: { id: locationId, businessId: ctx.businessId },
+      select: { id: true },
+    })
+    if (!location) {
+      return NextResponse.json({ error: 'Invalid locationId' }, { status: 400 })
+    }
+
+    // serviceIds must all belong to caller's business — otherwise the
+    // staffService createMany would link foreign services to this tenant's staff.
+    if (Array.isArray(serviceIds) && serviceIds.length > 0) {
+      const count = await prisma.service.count({
+        where: { id: { in: serviceIds }, businessId: ctx.businessId },
+      })
+      if (count !== serviceIds.length) {
+        return NextResponse.json(
+          { error: 'One or more serviceIds are invalid' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // schedule[].locationId is not accepted from the body — we reuse the
+    // verified locationId above so an attacker can't slip a foreign location in.
 
     // Check if user exists
     const user = await prisma.user.findUnique({
