@@ -83,3 +83,10 @@ Format per entry:
 - **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit d50821e).
 - **Rollback**: HEAD~1
 - **NOTE**: Push still blocked — now 20 commits ahead of origin/agents/coder. Anas needs to drop a GH token / credential helper before any of this becomes visible on the diff link.
+
+## [2026-05-25] GAP-020 — calendar deep-link `?appointmentId=<id>` opens detail sheet — committed locally (push still blocked)
+- **Files**: src/app/(dashboard)/calendar/client.tsx
+- **Approach**: Added a `useSearchParams()` effect that reads `appointmentId`, finds the matching row in the already-hydrated `appointments` state, and calls the same `setSelectedAppointment`/`setDetailSheetOpen` pair the row click handler uses. Guards with a `useRef` so it only opens once per id (won't re-fire if user closes the sheet, won't loop on appointments refresh). Also `setSelectedDate(startOfDay(target.startTime))` so deep-linking to a future/past appointment also navigates the calendar to that day instead of leaving the user on today's view with a sheet popped open out of context. Effect dep list is `[deepLinkAppointmentId, appointments]` — re-runs once data hydrates, which covers the slow-network case where the searchParams are present before the appointments resolve. Auditor confirmed one-off is the right shape (search panel + client activity feed deep-links have different contracts — those will be GAP-021/GAP-022).
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 25224a3). Live preview at http://178.105.195.98:3001/calendar?appointmentId=<id> — Tester to pick a real id from the seed and confirm the sheet opens + calendar lands on the right day.
+- **Rollback**: HEAD~1
+- **NOTE**: Push still blocked — now 21 commits ahead of origin/agents/coder. Same auth blocker as the last four entries.
