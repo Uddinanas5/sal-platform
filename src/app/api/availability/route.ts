@@ -49,9 +49,10 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       )
     }
 
-    // Parse date
-    const date = new Date(dateStr)
-    if (isNaN(date.getTime())) {
+    // Parse date strictly — `new Date('2027-02-30')` silently rolls to March 2,
+    // so we round-trip the components to reject impossible calendar dates.
+    const date = parseYmd(dateStr)
+    if (!date) {
       return NextResponse.json(
         { error: 'Invalid date format. Use YYYY-MM-DD' },
         { status: 400 }
@@ -79,6 +80,21 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
         { status: 404 }
       )
     }
+
+    // Verify the location exists and belongs to the same business as the service.
+    // Without this, a bogus or cross-tenant locationId leaks through as an empty
+    // staff list (200 with no slots), which is indistinguishable from "all booked".
+    const location = await prisma.location.findFirst({
+      where: { id: locationId, businessId: service.businessId },
+      select: { id: true },
+    })
+    if (!location) {
+      return NextResponse.json(
+        { error: 'Location not found' },
+        { status: 404 }
+      )
+    }
+
     const bookingSettings = await getPublicBookingSettings(service.businessId)
     const minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
 
@@ -172,6 +188,28 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       byStaff,
     })
 })
+
+/**
+ * Strict YYYY-MM-DD parser. Returns null for malformed input or impossible
+ * calendar dates (e.g. 2027-02-30, 2026-13-01). Round-trips the parsed
+ * components against the resulting Date to catch JS's silent month/day overflow.
+ */
+function parseYmd(s: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  if (!m) return null
+  const year = Number(m[1])
+  const month = Number(m[2])
+  const day = Number(m[3])
+  const d = new Date(year, month - 1, day)
+  if (
+    d.getFullYear() !== year ||
+    d.getMonth() !== month - 1 ||
+    d.getDate() !== day
+  ) {
+    return null
+  }
+  return d
+}
 
 /**
  * Format time for display (e.g., "10:30 AM")
