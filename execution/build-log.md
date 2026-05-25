@@ -172,3 +172,10 @@ Format per entry:
 - **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 266852b).
 - **Rollback**: HEAD~1
 - **NOTE**: Push still blocked — now 32 commits ahead of origin/agents/coder. Same auth blocker.
+
+## [2026-05-25T22:27Z] API-BOOKINGS-POST-CROSS-TENANT (defense-in-depth) — POST /api/bookings client visit-stats write carries businessId on the mutation itself — committed locally (push still blocked)
+- **Files**: src/app/api/bookings/route.ts
+- **Approach**: POST handler already (a) sources businessId from `ctx.businessId` ignoring body, (b) validates location/client/service by `findFirst({where:{id, businessId}})`, (c) gates staffServices through `staff.primaryLocation.businessId`. The only remaining write that filtered by `id` alone was the `tx.client.update` at the tail of the transaction that bumps `totalVisits`/`lastVisitAt`. Switched to `tx.client.updateMany({where:{id: clientId, businessId}, ...})` so the write itself enforces the tenant boundary — same shape as 266852b on `[id]/route.ts`. No-op for current correct flow, but kills the failure mode if the upfront client validation is ever refactored or a stale clientId slips through.
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 6ea6041).
+- **Rollback**: HEAD~1
+- **NOTE**: Push still blocked — now 33 commits ahead of origin/agents/coder. Same auth blocker; Anas needs to run `git push origin agents/coder` from his shell.
