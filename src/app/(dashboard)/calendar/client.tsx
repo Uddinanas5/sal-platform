@@ -1,9 +1,9 @@
 "use client"
 
-import React, { useState, useMemo, useCallback, useEffect } from "react"
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { addDays, subDays, addMonths, subMonths, startOfDay, isSameDay, format } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
   DndContext,
@@ -231,6 +231,22 @@ export function CalendarClient(props: CalendarClientProps) {
     setSelectedAppointment(appointment)
     setDetailSheetOpen(true)
   }, [])
+
+  // Deep-link: open detail sheet when ?appointmentId=<id> is present (GAP-020).
+  // Effect re-runs when appointments hydrate so the lookup doesn't miss on slow networks.
+  const searchParams = useSearchParams()
+  const deepLinkAppointmentId = searchParams.get("appointmentId")
+  const lastOpenedDeepLinkId = useRef<string | null>(null)
+  useEffect(() => {
+    if (!deepLinkAppointmentId) return
+    if (lastOpenedDeepLinkId.current === deepLinkAppointmentId) return
+    const target = appointments.find((a) => a.id === deepLinkAppointmentId)
+    if (!target) return
+    lastOpenedDeepLinkId.current = deepLinkAppointmentId
+    setSelectedDate(startOfDay(target.startTime))
+    setSelectedAppointment(target)
+    setDetailSheetOpen(true)
+  }, [deepLinkAppointmentId, appointments])
   // Status change handler — optimistic UI + server action
   const handleStatusChange = useCallback(async (appointmentId: string, newStatus: string) => {
     // Optimistic update: apply immediately for responsive UI
