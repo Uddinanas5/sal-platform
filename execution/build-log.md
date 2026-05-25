@@ -62,3 +62,10 @@ Format per entry:
 - **Approach**: PATCH ?action=reschedule accepted `newStaffId` without ownership check. Now calls `assertStaffOwned(newStaffId, ctx.businessId)` and returns the same NOT_FOUND("Appointment") body on failure so wrong-tenant and missing both look identical. Also added `appointment.businessId` to the conflict-check `where` as belt-and-braces so the schedule probe can't reach cross-tenant rows even if the helper were bypassed.
 - **Verification**: pnpm lint clean, pnpm build green. Tester to re-curl with two tenant API keys.
 - **Rollback**: HEAD~1
+
+## [2026-05-25] GAP: client allergies/medical alert — committed locally (push blocked, see below)
+- **Files**: prisma/schema.prisma, prisma/migrations/20260525075047_add_client_allergies/migration.sql, src/lib/queries/clients.ts, src/lib/actions/clients.ts, src/app/api/v1/clients/route.ts, src/app/api/v1/clients/[id]/route.ts, src/components/clients/edit-client-dialog.tsx, src/app/(dashboard)/clients/client.tsx, src/app/(dashboard)/clients/[id]/client.tsx, src/data/mock-data.ts
+- **Approach**: `Client.allergies TEXT NULL` on schema + migration. Surfaces as a red "Allergies / Medical Alert" banner above the existing notes banner on the client detail page so it can't be missed. Add-client and edit-client dialogs both expose the field with red-themed Textarea (500-char cap). Edit dialog was previously toast-only — now actually calls `updateClient` server action and router.refresh()es. v1 POST/PATCH `/clients` accept `allergies` too. Treats empty string as `null` on write.
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 497d7df). Local preview at http://178.105.195.98:3001/clients picks up changes from sandbox without push.
+- **Rollback**: HEAD~1
+- **NOTE**: `git push origin agents/coder` failed — no git credential helper / no GH token in this env. Local branch is now 18 commits ahead of origin/agents/coder. Diff link to GitHub won't reflect this (or any of the last 17 commits) until push auth is restored. Flagging to Anas.
