@@ -165,3 +165,10 @@ Format per entry:
 - **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 8c2fe15). Tester's matrix (Feb 30, Apr 31, Sep 31, `2026/06/31` with slash, `2026-13-45`) all now reject at the API boundary instead of being silently coerced.
 - **Rollback**: HEAD~1
 - **NOTE**: Push still blocked — now 29 commits ahead of origin/agents/coder. Same auth blocker.
+
+## [2026-05-25] API-BOOKINGS-ID-CROSS-TENANT-001 (defense-in-depth) — `[id]` PATCH/DELETE writes carry businessId on the mutation itself — committed locally (push still blocked)
+- **Files**: src/app/api/bookings/[id]/route.ts
+- **Approach**: GET / PATCH existence check / DELETE existence check were already tenant-scoped (commit b9ba744 from yesterday), but the subsequent `appointment.update({where:{id}})` and the `client.update({where:{id: existing.clientId}})` for the completion-time `totalSpent` increment only filtered by id. Existing flow is safe because the prior findFirst proves scope, but Tester (rightly) read the mutation line in isolation and flagged the shape. Switched both writes to `updateMany({where:{id, businessId: ctx.businessId}, ...})` so a stale clientId on the appointment row or any future refactor of the existence check can't sneak a cross-tenant write through. Re-fetch result via findFirst+include to preserve response shape.
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 266852b).
+- **Rollback**: HEAD~1
+- **NOTE**: Push still blocked — now 32 commits ahead of origin/agents/coder. Same auth blocker.
