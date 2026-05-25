@@ -14,6 +14,14 @@ Format per entry:
 
 ---
 
+## [2026-05-25] API-V1-RECURRING-CROSS-TENANT-001: atomic series tx + tenant-scoped conflict check — committed locally at 76f5c4c, push BLOCKED (auth)
+- **Files**: src/app/api/v1/appointments/recurring/route.ts
+- **Approach**: Tester flagged `/api/v1/appointments/recurring` POST as worse than the single-appointment route — unscoped service pricing, unvalidated clientId/staffId, no conflict check at all → 52 overlapping bookings per POST as calendar-spam DoS. Three of those (service, client, staff lookups all scoped by `ctx.businessId` with the staff `primaryLocation` traversal) were already mitigated on HEAD by earlier commits — Tester is auditing against `origin/agents/coder` which is now 51 commits stale. Remaining gap was atomicity + missing conflict check: wrapped the create loop in `prisma.$transaction(async (tx) => …)` so any single conflict throws and rolls back the whole batch (no orphaned occurrences). Added a per-occurrence `appointmentService.findFirst` conflict probe scoped via `appointment.businessId = ctx.businessId` — closes the calendar-spam-by-uuid-guess primitive *and* the same enumeration oracle the single-appt route had. Also appended occurrence index to the booking reference (`SAL-{ts}-{rand}-{i}`) so a sub-millisecond loop can't collide on the unique index inside the tx.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. Push BLOCKED. Backlog now **62 commits** on `agents/coder` waiting for Anas's push from `/Users/anasuddin/sal-coder-workspace`.
+- **Rollback**: `git revert 76f5c4c`.
+
+---
+
 ## [2026-05-25] API-V1-APPOINTMENTS-POST-CROSS-TENANT-001: defense-in-depth scope post-tx email re-fetch — committed locally at dd704fa, push BLOCKED (auth)
 - **Files**: src/app/api/v1/appointments/route.ts
 - **Approach**: Tester flagged `/api/v1/appointments` POST as unscoped — pricing injection (foreign service), email spoofing (foreign client), conflict-check enumeration (foreign staff). Three of three already mitigated against earlier commits on `agents/coder` (service.findFirst+businessId at L105, client.findFirst+businessId at L110, conflict-check appointment.businessId filter at L148, staff.findFirst gated by primaryLocation.businessId AND staffServices link at L118). One leftover smell: post-tx re-fetch at L197 used unscoped `findUnique` to pull email/name for the confirmation template. Currently safe because clientId/staffId were validated upstream pre-tx, but a one-refactor footgun. Swapped both re-fetches to `findFirst` scoped by `ctx.businessId` (with `primaryLocation` traversal for staff) and renamed the locals to `emailClient`/`emailStaff` to kill the variable shadow on the outer `client`. Belt-and-suspenders — costs nothing, makes future refactors fail loud instead of silently leaking.
