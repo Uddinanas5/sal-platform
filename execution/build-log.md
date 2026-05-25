@@ -96,3 +96,10 @@ Format per entry:
 - **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 25224a3). Live preview at http://178.105.195.98:3001/calendar?appointmentId=<id> — Tester to pick a real id from the seed and confirm the sheet opens + calendar lands on the right day.
 - **Rollback**: HEAD~1
 - **NOTE**: Push still blocked — now 21 commits ahead of origin/agents/coder. Same auth blocker as the last four entries.
+
+## [2026-05-25] BOOKING-CROSS-TENANT-WRITE-001 + read sibling — `/api/bookings` GET & POST scoped to session businessId — committed locally (push still blocked)
+- **Files**: src/app/api/bookings/route.ts
+- **Approach**: Tester + Auditor flagged P1 cross-tenant write on POST (and on a re-read the GET has the same shape — `businessId` came from query string, no comparison to `session.user.businessId`). Swapped both handlers from raw `auth()` to `getBusinessContext()`, then forced `businessId = ctx.businessId` and ignore any value in the request body/querystring. POST now also scopes every nested lookup: `location.findFirst({where:{id, businessId}})`, `client.findFirst({where:{id, businessId}})` if `clientId` provided, `service.findFirst({where:{id, businessId}})`, and `staffServices.where` is extended with `staff: { primaryLocation: { businessId } }` (Staff has no direct businessId — scoped through its primary Location). Closes both the cross-tenant boundary and the frankenstein-mix integrity hole Auditor called out. Dropped the now-redundant `business.findUnique` existence check (session.businessId is authoritative).
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓.
+- **Rollback**: HEAD~1
+- **NOTE**: Push still blocked — now 28 commits ahead of origin/agents/coder. Same auth blocker.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { getBusinessContext } from '@/lib/auth-utils'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
 import { withSafeErrors } from '@/lib/api/safe-handler'
 import type { Prisma } from '@/generated/prisma'
@@ -10,13 +10,14 @@ import type { Prisma } from '@/generated/prisma'
  * List appointments with optional filters
  */
 export const GET = withSafeErrors('GET /api/bookings', async (request: NextRequest) => {
-    const session = await auth()
-    if (!session?.user) {
+    let ctx
+    try {
+      ctx = await getBusinessContext()
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const searchParams = request.nextUrl.searchParams
-    const businessId = searchParams.get('businessId')
     const locationId = searchParams.get('locationId')
     const staffId = searchParams.get('staffId')
     const clientId = searchParams.get('clientId')
@@ -27,16 +28,9 @@ export const GET = withSafeErrors('GET /api/bookings', async (request: NextReque
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
-    if (!businessId) {
-      return NextResponse.json(
-        { error: 'businessId is required' },
-        { status: 400 }
-      )
-    }
-
-    // Build where clause
+    // businessId is always the caller's business — ignore any value in the query string
     const where: Prisma.AppointmentWhereInput = {
-      businessId,
+      businessId: ctx.businessId,
     }
 
     if (locationId) {
@@ -149,10 +143,18 @@ export const GET = withSafeErrors('GET /api/bookings', async (request: NextReque
  * Create a new appointment
  */
 export const POST = withSafeErrors('POST /api/bookings', async (request: NextRequest) => {
+    // Require authentication for dashboard-created bookings
+    // Public booking widget uses /book/[businessSlug] via server actions instead
+    let ctx
+    try {
+      ctx = await getBusinessContext()
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
 
     const {
-      businessId,
       locationId,
       clientId,
       services, // Array of { serviceId, staffId, startTime }
@@ -160,42 +162,55 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
       source = 'online',
     } = body
 
-    // Require authentication for dashboard-created bookings
-    // Public booking widget uses /book/[businessSlug] via server actions instead
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // businessId is always the caller's business — ignore any value in the body
+    const businessId = ctx.businessId
 
     // Validation
-    if (!businessId || !locationId || !services || services.length === 0) {
+    if (!locationId || !services || services.length === 0) {
       return NextResponse.json(
-        { error: 'businessId, locationId, and at least one service are required' },
+        { error: 'locationId and at least one service are required' },
         { status: 400 }
       )
     }
 
-    // Validate that the business exists
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
+    // Validate location belongs to caller's business
+    const location = await prisma.location.findFirst({
+      where: { id: locationId, businessId },
       select: { id: true },
     })
-
-    if (!business) {
+    if (!location) {
       return NextResponse.json(
-        { error: 'Business not found' },
+        { error: 'Location not found' },
         { status: 404 }
       )
+    }
+
+    // If a clientId is provided, validate it belongs to caller's business
+    if (clientId) {
+      const client = await prisma.client.findFirst({
+        where: { id: clientId, businessId },
+        select: { id: true },
+      })
+      if (!client) {
+        return NextResponse.json(
+          { error: 'Client not found' },
+          { status: 404 }
+        )
+      }
     }
 
     // Fetch service details and validate availability
     const serviceDetails = await Promise.all(
       services.map(async (svc: { serviceId: string; staffId: string; startTime: string }) => {
-        const service = await prisma.service.findUnique({
-          where: { id: svc.serviceId },
+        const service = await prisma.service.findFirst({
+          where: { id: svc.serviceId, businessId },
           include: {
             staffServices: {
-              where: { staffId: svc.staffId, isActive: true },
+              where: {
+                staffId: svc.staffId,
+                isActive: true,
+                staff: { primaryLocation: { businessId } },
+              },
             },
           },
         })
