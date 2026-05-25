@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { getServices } from "@/lib/queries/services"
 import { getProducts } from "@/lib/queries/products"
@@ -11,31 +12,30 @@ export default async function CheckoutPage() {
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
+  if (!businessId) redirect("/onboarding")
 
   const [services, products, clients, business] = await Promise.all([
     getServices(businessId),
     getProducts(businessId),
     getClients(undefined, businessId),
-    businessId
-      ? prisma.business.findUnique({
-          where: { id: businessId },
+    prisma.business.findUnique({
+      where: { id: businessId },
+      select: {
+        name: true,
+        phone: true,
+        locations: {
+          where: { isPrimary: true, isActive: true },
           select: {
-            name: true,
+            addressLine1: true,
+            addressLine2: true,
+            city: true,
+            state: true,
             phone: true,
-            locations: {
-              where: { isPrimary: true, isActive: true },
-              select: {
-                addressLine1: true,
-                addressLine2: true,
-                city: true,
-                state: true,
-                phone: true,
-              },
-              take: 1,
-            },
           },
-        })
-      : Promise.resolve(null),
+          take: 1,
+        },
+      },
+    }),
   ])
 
   // Derive product categories from actual products

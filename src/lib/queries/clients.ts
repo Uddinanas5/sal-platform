@@ -1,11 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
-export async function getClients(search?: string, businessId?: string) {
-  const where: Record<string, unknown> = { deletedAt: null }
-
-  if (businessId) {
-    where.businessId = businessId
-  }
+export async function getClients(search: string | undefined, businessId: string) {
+  const where: Record<string, unknown> = { deletedAt: null, businessId }
 
   if (search) {
     where.OR = [

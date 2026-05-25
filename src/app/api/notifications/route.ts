@@ -11,7 +11,10 @@ export async function GET() {
     const session = await auth()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const businessId = (session?.user as any)?.businessId as string | undefined
-    const businessFilter = businessId ? { businessId } : {}
+
+    if (!businessId) {
+      return NextResponse.json({ notifications: [] })
+    }
 
     const since = subHours(new Date(), 24)
 
@@ -20,7 +23,7 @@ export async function GET() {
         // Recent bookings and cancellations
         prisma.appointment.findMany({
           where: {
-            ...businessFilter,
+            businessId,
             OR: [
               { createdAt: { gte: since } },
               { status: "cancelled", updatedAt: { gte: since } },
@@ -36,7 +39,7 @@ export async function GET() {
         // Recent payments
         prisma.payment.findMany({
           where: {
-            ...businessFilter,
+            businessId,
             status: "completed",
             createdAt: { gte: since },
           },
@@ -48,7 +51,7 @@ export async function GET() {
         }),
         // Recent reviews
         prisma.review.findMany({
-          where: { ...businessFilter, createdAt: { gte: since } },
+          where: { businessId, createdAt: { gte: since } },
           include: { client: true },
           orderBy: { createdAt: "desc" },
           take: 3,

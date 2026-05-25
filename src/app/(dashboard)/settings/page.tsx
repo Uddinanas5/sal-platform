@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getResources } from "@/lib/queries/resources"
@@ -14,6 +15,7 @@ export default async function SettingsPage() {
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
+  if (!businessId) redirect("/onboarding")
   const userId = session?.user?.id as string | undefined
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const role = ((session?.user as any)?.role as string | undefined) ?? "staff"

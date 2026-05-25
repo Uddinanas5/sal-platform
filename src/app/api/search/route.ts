@@ -12,6 +12,10 @@ export async function GET() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const businessId = (session?.user as any)?.businessId as string | undefined
 
+    if (!businessId) {
+      return NextResponse.json({ clients: [], services: [], staff: [] })
+    }
+
     const [clients, services, staff] = await Promise.all([
       getClients(undefined, businessId),
       getServices(businessId),

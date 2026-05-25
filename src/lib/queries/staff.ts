@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/prisma"
 
-export async function getStaff(businessId?: string) {
-  // Staff links to business through location
-  const locationFilter = businessId
-    ? { primaryLocation: { businessId } }
-    : {}
-
+export async function getStaff(businessId: string) {
   const staff = await prisma.staff.findMany({
-    where: { isActive: true, deletedAt: null, ...locationFilter },
+    where: {
+      isActive: true,
+      deletedAt: null,
+      primaryLocation: { businessId },
+    },
     select: {
       id: true,
       isActive: true,
