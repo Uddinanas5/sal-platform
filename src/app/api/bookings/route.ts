@@ -343,10 +343,11 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
         })),
       })
 
-      // Update client visit stats if client exists
+      // Update client visit stats if client exists — scope the write itself
+      // by businessId so a stale clientId or refactored validation can't write cross-tenant.
       if (clientId) {
-        await tx.client.update({
-          where: { id: clientId },
+        await tx.client.updateMany({
+          where: { id: clientId, businessId },
           data: {
             totalVisits: { increment: 1 },
             lastVisitAt: appointmentStart,
