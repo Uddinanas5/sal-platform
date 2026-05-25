@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-25] BOOKING-CROSS-TENANT-RW-001 + BOOKING-CROSS-TENANT-WRITE-001: scope /api/bookings/[id] verbs + /api/v1/appointments POST — committed locally at b9ba744, push BLOCKED (auth)
+- **Files**: src/app/api/bookings/[id]/route.ts, src/app/api/v1/appointments/route.ts
+- **Approach**: `[id]` route — replaced bare `auth()` + `findUnique({where:{id}})` in GET/PATCH/DELETE with `getBusinessContext()` + `findFirst({id, businessId})`. Cross-tenant ids now 404 instead of leaking PII or accepting mutations. The downstream `client.update` (totalSpent increment) and `appointment.update` reuse the gated `existing.*` so they inherit the same tenant gate without needing extra checks. v1 POST — service is now scoped by businessId, client by businessId, and staff via `primaryLocation.businessId` AND an `isActive` `staffServices` link to the requested service. Blocks both cross-tenant booking creation AND franken-mix bookings (biz-A service paired with biz-B staff). Companion to 8d942b9 which closed the same hole on the non-[id] route.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. `git push` fails — `could not read Username for 'https://github.com'`. Backlog now **27 commits** on `agents/coder`. Tester can repro from local sandbox but preview is still frozen until auth is provisioned.
+- **Rollback**: `git revert b9ba744` (still local)
+
 ## [2026-05-25] error-boundaries: root + global app error fallbacks — committed locally at defe979, push BLOCKED (auth)
 - **Files**: src/app/error.tsx (new), src/app/global-error.tsx (new)
 - **Approach**: `src/app/error.tsx` is the nearest fallback for any uncaught render error in the app tree (calm retry + go-home UI). `src/app/global-error.tsx` owns its own `<html>`/`<body>` and only fires when the root layout itself throws — the last resort that prevents Next.js from rendering its default error page (which leaks `notFound` strings + stack traces via `__NEXT_DATA__` in production). Closes the public info-leak path Tester reproduced on `/book/manage/<invalid-ref>`.
