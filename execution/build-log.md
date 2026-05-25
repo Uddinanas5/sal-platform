@@ -146,6 +146,13 @@ Format per entry:
 - **Rollback**: HEAD~1
 - **NOTE**: Push still blocked — now 28 commits ahead of origin/agents/coder. Same auth blocker.
 
+## [2026-05-25] SERVICES-CROSS-TENANT-WRITE — `/api/services` POST scoped to session businessId — committed locally (push still blocked)
+- **Files**: src/app/api/services/route.ts, execution/bug-log.md
+- **Approach**: Tester flagged the third in the cross-tenant-write family (after bookings GET/POST). POST handler was pulling `businessId` from the request body and writing it straight to `tx.service.create({ data: { businessId, ... } })` — auth() check only verified "logged in," not "logged in to that tenant." Swapped to `getBusinessContext()`, force `businessId = ctx.businessId` and ignore any body value. Added two scope-checks before mutating: `categoryId` (if supplied) must belong to caller's business via `serviceCategory.findFirst({where:{id, businessId}})`, and every `staffIds[]` entry must scope through `staff.primaryLocation.businessId` (Staff has no direct businessId). Each invalid reference 400s with a clear error instead of writing a frankenstein record that mixes tenants. Bug-log entry filed in same commit.
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 977661c). First type-check failed on `Staff.businessId` (doesn't exist) — fixed to use `primaryLocation: { businessId }` per schema, build re-ran clean.
+- **Rollback**: HEAD~1
+- **NOTE**: Push still blocked — now 30 commits ahead of origin/agents/coder. Same auth blocker.
+
 ## [2026-05-25] API-INVALID-DATE-ACCEPTED-001 (+ availability half of -ERROR-MESSAGE-LEAK-001) — strict YYYY-MM-DD parse, shared util — committed locally (push still blocked)
 - **Files**: src/lib/date-utils.ts (new), src/app/api/availability/route.ts, src/app/api/bookings/route.ts
 - **Approach**: Tester confirmed `new Date('2026-06-31')` silently rolls to July 1 (and `2026-02-30` → Mar 2), so `/api/availability` already had a local `parseYmd` that round-trips year/month/day to reject. Pulled that into `src/lib/date-utils.ts` as the single source of truth, then applied to `/api/bookings` GET which still used raw `new Date(str)` on `date`, `dateFrom`, and `dateTo` — would silently shift the filter window by a day on impossible inputs. Each now returns 400 with `Invalid date. Use YYYY-MM-DD` (matching the availability error shape) on malformed or impossible calendar dates. Avoids two copies of the parser drifting.
