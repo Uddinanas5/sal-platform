@@ -37,6 +37,12 @@ export async function POST(req: Request) {
   const parsed = createServiceSchema.safeParse(body)
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
 
+  const category = await prisma.serviceCategory.findFirst({
+    where: { id: parsed.data.categoryId, businessId: ctx.businessId },
+    select: { id: true },
+  })
+  if (!category) return ERRORS.BAD_REQUEST("Category not found")
+
   const service = await prisma.service.create({
     data: {
       businessId: ctx.businessId,
