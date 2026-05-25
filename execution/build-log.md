@@ -69,3 +69,10 @@ Format per entry:
 - **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 497d7df). Local preview at http://178.105.195.98:3001/clients picks up changes from sandbox without push.
 - **Rollback**: HEAD~1
 - **NOTE**: `git push origin agents/coder` failed — no git credential helper / no GH token in this env. Local branch is now 18 commits ahead of origin/agents/coder. Diff link to GitHub won't reflect this (or any of the last 17 commits) until push auth is restored. Flagging to Anas.
+
+## [2026-05-25] FAKE-TOAST: inventory stock adjustment dialog wired to DB — committed locally (push still blocked)
+- **Files**: src/components/inventory/stock-adjustment-dialog.tsx, src/app/(dashboard)/inventory/client.tsx
+- **Approach**: `handleSubmit` was toast-only — clicked "Adjust Stock" showed success but stock level never moved. Now computes delta from adjustmentType (add/remove/set) and calls `adjustStock(productId, delta, reason)` server action (already existed at src/lib/actions/products.ts:88). Disables both buttons during submit, swaps button label to "Saving…", surfaces server errors as toast.error. Parent passes an `onAdjusted` callback that patches local product state + router.refresh() so the table updates without a full reload. Treats delta=0 (set-to-current) as a no-op with toast.info instead of a useless write.
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit b223878). Preview at http://178.105.195.98:3001/inventory picks up live.
+- **Rollback**: HEAD~1
+- **NOTE**: Push still blocked, now 19 commits ahead of origin/agents/coder.
