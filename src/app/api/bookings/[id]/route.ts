@@ -195,10 +195,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
         case 'completed':
           updateData.completedAt = new Date()
-          // Update client stats
+          // Update client stats — scope by businessId so a stale/foreign
+          // clientId on the appointment row can't write across tenants
           if (existing.clientId) {
-            await prisma.client.update({
-              where: { id: existing.clientId },
+            await prisma.client.updateMany({
+              where: { id: existing.clientId, businessId: ctx.businessId },
               data: {
                 totalSpent: { increment: Number(existing.totalAmount) },
               },
@@ -208,9 +209,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const appointment = await prisma.appointment.update({
-      where: { id },
+    // updateMany so the businessId filter survives on the write itself,
+    // not only on the prior existence check
+    await prisma.appointment.updateMany({
+      where: { id, businessId: ctx.businessId },
       data: updateData,
+    })
+
+    const appointment = await prisma.appointment.findFirst({
+      where: { id, businessId: ctx.businessId },
       include: {
         client: {
           select: {
@@ -292,14 +299,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const appointment = await prisma.appointment.update({
-      where: { id },
+    await prisma.appointment.updateMany({
+      where: { id, businessId: ctx.businessId },
       data: {
         status: 'cancelled',
         cancelledAt: new Date(),
         cancellationReason: reason,
         cancelledBy,
       },
+    })
+
+    const appointment = await prisma.appointment.findFirst({
+      where: { id, businessId: ctx.businessId },
     })
 
     return NextResponse.json({
