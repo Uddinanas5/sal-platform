@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-25] API-V1-TEAM-USERID-ORACLE-001: close cross-tenant user existence oracle on DELETE/PATCH — committed locally at 86db73f, push BLOCKED (auth)
+- **Files**: src/app/api/v1/team/[userId]/route.ts
+- **Approach**: Both DELETE and PATCH did `prisma.user.findUnique({id})` globally first, then a businessId-scoped staff lookup second. That two-stage flow leaked tenant-isolation: callers received `"User not found"` for truly-absent ids vs `"Team member not found"` for users that exist in *another* business — a clean oracle for enumerating user ids across tenants. Inverted the order: lookup `Staff` row scoped to `ctx.businessId` first with `include: { user: true }`, bail with uniform `NOT_FOUND("Team member")` if absent, then read `role` off the included user for the admin-can-only-remove-staff and `cannot change owner role` guards. Single 404 shape regardless of cross-tenant existence.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. `git push` fails — `could not read Username for 'https://github.com'`. Backlog now **29 commits** on `agents/coder`.
+- **Rollback**: `git revert 86db73f` (still local)
+
 ## [2026-05-25] API-V1-APPOINTMENTS-CROSS-TENANT-WRITE-001: scope recurring + groups + conflict-check by businessId — committed locally at 03e39b3, push BLOCKED (auth)
 - **Files**: src/app/api/v1/appointments/route.ts, src/app/api/v1/appointments/recurring/route.ts, src/app/api/v1/appointments/groups/route.ts
 - **Approach**: Replaced `service.findUnique({id})` in both `recurring/route.ts:29` and `groups/route.ts:29` with `findFirst({id, businessId})`. Added client + staff validation matching the main POST: client by `{id, businessId}`, staff by `{id, primaryLocation.businessId, staffServices.some({serviceId, isActive})}`. `groups` validates the whole `clientIds[]` batch via `count` + length-equality. Also tightened the conflict-check at `route.ts:128-138` to filter by `appointment.businessId`, closing the calendar-collision side-channel Tester flagged. Same fix template as 8d942b9 / b9ba744. Generic `NOT_FOUND` strings, no existence-oracle leak.
