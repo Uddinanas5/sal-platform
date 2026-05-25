@@ -294,22 +294,44 @@ export async function rescheduleAppointment(
     const startTime = new Date(newStart)
     const endTime = new Date(startTime)
     endTime.setMinutes(endTime.getMinutes() + appointment.totalDuration)
+    const deltaMs = startTime.getTime() - oldStartTime.getTime()
 
-    // Transaction: conflict check + update must be atomic
-    const effectiveStaffId = newStaffId || appointment.services[0]?.staffId
+    // Shift every service row by the same delta. Preserves intra-appointment
+    // ordering/gaps and avoids leaving services 2..N at the old slot.
+    const sortedServices = [...appointment.services].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+    )
+    const serviceUpdates = sortedServices.map((s, i) => ({
+      id: s.id,
+      startTime: new Date(s.startTime.getTime() + deltaMs),
+      endTime: new Date(s.endTime.getTime() + deltaMs),
+      // `newStaffId` reassigns the lead service only; services[1..N] keep
+      // their original staff. The API has no per-service reassignment field,
+      // so this is the implicit contract — revisit if the UI ever surfaces
+      // per-service staff picking on reschedule.
+      staffId: newStaffId && i === 0 ? newStaffId : s.staffId,
+      applyStaffUpdate: Boolean(newStaffId && i === 0),
+    }))
 
     await prisma.$transaction(async (tx) => {
-      if (effectiveStaffId) {
-        await lockStaffSchedule(tx, businessId, effectiveStaffId)
+      const uniqueStaffIds = Array.from(
+        new Set(serviceUpdates.map((s) => s.staffId).filter(Boolean) as string[]),
+      ).sort()
+      for (const staffId of uniqueStaffIds) {
+        await lockStaffSchedule(tx, businessId, staffId)
+      }
+
+      for (const su of serviceUpdates) {
+        if (!su.staffId) continue
         const conflicting = await tx.appointmentService.findFirst({
           where: {
-            staffId: effectiveStaffId,
+            staffId: su.staffId,
             appointmentId: { not: id },
             appointment: {
               status: { notIn: ["cancelled", "no_show"] },
             },
-            startTime: { lt: endTime },
-            endTime: { gt: startTime },
+            startTime: { lt: su.endTime },
+            endTime: { gt: su.startTime },
           },
         })
         if (conflicting) {
@@ -322,12 +344,14 @@ export async function rescheduleAppointment(
         data: { startTime, endTime },
       })
 
-      if (appointment.services[0]) {
-        const updateData: Record<string, unknown> = { startTime, endTime }
-        if (newStaffId) updateData.staffId = newStaffId
-
+      for (const su of serviceUpdates) {
+        const updateData: Record<string, unknown> = {
+          startTime: su.startTime,
+          endTime: su.endTime,
+        }
+        if (su.applyStaffUpdate) updateData.staffId = su.staffId
         await tx.appointmentService.update({
-          where: { id: appointment.services[0].id },
+          where: { id: su.id },
           data: updateData,
         })
       }
