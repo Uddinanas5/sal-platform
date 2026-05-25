@@ -128,7 +128,10 @@ export async function POST(req: Request) {
       const conflicting = await tx.appointmentService.findFirst({
         where: {
           staffId,
-          appointment: { status: { notIn: ["cancelled", "no_show"] } },
+          appointment: {
+            businessId: ctx.businessId,
+            status: { notIn: ["cancelled", "no_show"] },
+          },
           startTime: { lt: endTime },
           endTime: { gt: startTime },
         },

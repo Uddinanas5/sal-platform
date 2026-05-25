@@ -26,8 +26,25 @@ export async function POST(req: Request) {
 
   if (clientIds.length > maxParticipants) return ERRORS.BAD_REQUEST("Too many participants")
 
-  const service = await prisma.service.findUnique({ where: { id: serviceId } })
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, businessId: ctx.businessId },
+  })
   if (!service) return ERRORS.NOT_FOUND("Service")
+
+  const staffRecord = await prisma.staff.findFirst({
+    where: {
+      id: staffId,
+      primaryLocation: { businessId: ctx.businessId },
+      staffServices: { some: { serviceId, isActive: true } },
+    },
+    select: { id: true },
+  })
+  if (!staffRecord) return ERRORS.NOT_FOUND("Staff")
+
+  const clientsInBiz = await prisma.client.count({
+    where: { id: { in: clientIds }, businessId: ctx.businessId },
+  })
+  if (clientsInBiz !== clientIds.length) return ERRORS.NOT_FOUND("Client")
 
   const location = await prisma.location.findFirst({ where: { businessId: ctx.businessId } })
   if (!location) return ERRORS.BAD_REQUEST("Business not configured")
