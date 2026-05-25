@@ -40,6 +40,22 @@ Format per entry:
 - **Source**: `src/app/book/[businessSlug]/page.tsx:14-46`
 - **Status**: [FIXED in a78ecce] — page.tsx now catches Prisma connection errors and rethrows as ServiceUnavailableError; new `book/error.tsx` renders branded retry UI. `/api/health` also categorizes failures and redacts in prod.
 
+## [2026-05-25] P1 api/services POST — Cross-tenant write: businessId taken from request body, not session
+- **Flow**: Any authenticated user (regardless of which business they belong to) calls `POST /api/services` and sets `businessId` in the JSON body to another tenant's UUID. Endpoint runs `auth()` → "logged in?" → yes → creates the service under whatever businessId the body specified.
+- **Expected**: businessId is derived from the session (`getBusinessContext()`), the body value is ignored. Caller can only create services under their own business. Cross-tenant categoryId/staffIds rejected as 400.
+- **Actual**: `src/app/api/services/route.ts:160-220` destructures `businessId` from `body` and writes it straight to `tx.service.create({ data: { businessId, ... } })`. No comparison to `session.user.businessId`, no role check. Only barrier is knowing the victim tenant's UUID — and the GET endpoint already leaks the catalog by ID (similar oracle shape to STAFF-PII-001).
+- **Repro**:
+  ```bash
+  # Logged in as user from business A; create a service under business B
+  curl -s -X POST http://localhost:3001/api/services \
+    -H "Content-Type: application/json" \
+    -H "Cookie: <session for biz A>" \
+    -d '{"businessId":"<biz B uuid>","name":"pwned","durationMinutes":30,"price":1}'
+  # → 201, service now sits in business B's catalog
+  ```
+- **Source**: `src/app/api/services/route.ts:160-220`
+- **Status**: [FIXED in <pending-commit>] — businessId now pulled from `getBusinessContext()`, body value ignored. Added scope-checks for `categoryId` and `staffIds[]` (both must belong to caller's business or the request 400s). Auditor: the "properly authed" tag in fresha-gaps.md needs a sweep — `auth()` presence ≠ tenant-scoped write. Worth splitting "authed" vs "tenant-scoped" as separate columns.
+
 ## [2026-05-22] P0 infra/db — Local Postgres unreachable; all DB-backed routes 500 on localhost:3000
 - **Flow**: Filed on behalf of Tester (no write perms on bug-log). Hitting `/api/health` and any DB-backed route on `localhost:3000` (the prod-mode app, not the `:3001` agent dev server).
 - **Expected**: 200 from `/api/health`, DB-backed pages render.

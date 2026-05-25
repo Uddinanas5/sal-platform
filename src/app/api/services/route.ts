@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { getBusinessContext } from '@/lib/auth-utils'
 
 /**
  * GET /api/services
@@ -158,16 +158,19 @@ export async function GET(request: NextRequest) {
  * Create a new service
  */
 export async function POST(request: NextRequest) {
+  let ctx
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    ctx = await getBusinessContext()
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
+  try {
     const body = await request.json()
 
+    // businessId is always the caller's business — ignore any value in the body
+    const businessId = ctx.businessId
     const {
-      businessId,
       categoryId,
       name,
       description,
@@ -188,11 +191,39 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validation
-    if (!businessId || !name || !durationMinutes || price === undefined) {
+    if (!name || !durationMinutes || price === undefined) {
       return NextResponse.json(
-        { error: 'businessId, name, durationMinutes, and price are required' },
+        { error: 'name, durationMinutes, and price are required' },
         { status: 400 }
       )
+    }
+
+    // Scope-check any cross-tenant references before mutating
+    if (categoryId) {
+      const cat = await prisma.serviceCategory.findFirst({
+        where: { id: categoryId, businessId },
+        select: { id: true },
+      })
+      if (!cat) {
+        return NextResponse.json(
+          { error: 'Invalid categoryId' },
+          { status: 400 }
+        )
+      }
+    }
+    if (Array.isArray(staffIds) && staffIds.length > 0) {
+      const count = await prisma.staff.count({
+        where: {
+          id: { in: staffIds },
+          primaryLocation: { businessId },
+        },
+      })
+      if (count !== staffIds.length) {
+        return NextResponse.json(
+          { error: 'One or more staffIds are invalid' },
+          { status: 400 }
+        )
+      }
     }
 
     const service = await prisma.$transaction(async (tx) => {
