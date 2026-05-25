@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getBusinessContext } from '@/lib/auth-utils'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
 import { withSafeErrors } from '@/lib/api/safe-handler'
+import { parseYmd } from '@/lib/date-utils'
 import type { Prisma } from '@/generated/prisma'
 
 /**
@@ -52,28 +53,49 @@ export const GET = withSafeErrors('GET /api/bookings', async (request: NextReque
       }
     }
 
-    // Date filtering
+    // Date filtering — parse YYYY-MM-DD strictly so impossible calendar dates
+    // like 2026-06-31 reject with 400 instead of silently rolling to July 1.
     if (date) {
-      const startOfDay = new Date(date)
-      startOfDay.setHours(0, 0, 0, 0)
-      const endOfDay = new Date(date)
+      const startOfDay = parseYmd(date)
+      if (!startOfDay) {
+        return NextResponse.json(
+          { error: 'Invalid date. Use YYYY-MM-DD' },
+          { status: 400 }
+        )
+      }
+      const endOfDay = parseYmd(date)!
       endOfDay.setHours(23, 59, 59, 999)
-      
+
       where.startTime = {
         gte: startOfDay,
         lte: endOfDay,
       }
     } else {
       if (dateFrom) {
+        const from = parseYmd(dateFrom)
+        if (!from) {
+          return NextResponse.json(
+            { error: 'Invalid dateFrom. Use YYYY-MM-DD' },
+            { status: 400 }
+          )
+        }
         where.startTime = {
           ...(where.startTime as object || {}),
-          gte: new Date(dateFrom),
+          gte: from,
         }
       }
       if (dateTo) {
+        const to = parseYmd(dateTo)
+        if (!to) {
+          return NextResponse.json(
+            { error: 'Invalid dateTo. Use YYYY-MM-DD' },
+            { status: 400 }
+          )
+        }
+        to.setHours(23, 59, 59, 999)
         where.startTime = {
           ...(where.startTime as object || {}),
-          lte: new Date(dateTo),
+          lte: to,
         }
       }
     }
