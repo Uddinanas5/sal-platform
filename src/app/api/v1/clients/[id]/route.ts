@@ -10,6 +10,7 @@ const updateClientSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   notes: z.string().optional(),
+  allergies: z.string().optional(),
   tags: z.array(z.string()).optional(),
 })
 

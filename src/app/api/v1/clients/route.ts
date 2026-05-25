@@ -9,6 +9,7 @@ const createClientSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   notes: z.string().optional(),
+  allergies: z.string().optional(),
   tags: z.array(z.string()).optional(),
 })
 
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
       email: normalizedEmail,
       phone: parsed.data.phone ?? null,
       notes: parsed.data.notes ?? null,
+      allergies: parsed.data.allergies?.trim() || null,
       tags: parsed.data.tags ?? [],
     },
   })

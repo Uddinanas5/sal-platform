@@ -28,6 +28,7 @@ export interface Client {
   createdAt: Date;
   tags?: string[];
   notes?: string;
+  allergies?: string;
   loyaltyPoints?: number;
   dateOfBirth?: Date;
   walletBalance?: number;
