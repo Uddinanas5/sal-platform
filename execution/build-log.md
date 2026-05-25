@@ -14,6 +14,18 @@ Format per entry:
 
 ---
 
+## [2026-05-25] APPT-RESCHEDULE-PARTIAL-SHIFT-001: shift all services on reschedule, not just lead (option 3 chosen) — committed locally at 1c3f8bf, push BLOCKED (auth)
+- **Files**: src/lib/actions/appointments.ts, src/app/api/v1/appointments/[id]/route.ts
+- **Approach**: Reschedule was only updating `appointment.startTime/endTime` and `services[0]`. For 2+ service appointments, services[1..N] stayed pinned to the old slot — parent and children out of sync. Fix: compute `deltaMs = newStart - oldStart` once, apply to every service row's start/end (sorted by original startTime to preserve ordering and gaps). Conflict check now walks each resolved staff per service and bails atomically on first collision; locks every distinct staffId (sorted) before the check for deadlock safety. **Option (3) per Auditor's bug doc**: `newStaffId` continues to reassign the lead service only — implicit contract documented inline at the assignment site (Auditor's ask) so the next reader doesn't relitigate. Applied identically to the server action and the v1 PATCH endpoint.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓ (after fixing a `Set` iteration target error with `Array.from`). `git push` still fails — `could not read Username for 'https://github.com'`. Tester is queued to add a regression check pinning the option-(3) semantic once writes are restored.
+- **Rollback**: `git revert 1c3f8bf` (still local)
+
+## [2026-05-25] AVAILABILITY-CROSS-TENANT-STAFF-ORACLE-001: scope explicit staffId to service business — committed locally at 1a0489e, push BLOCKED (auth)
+- **Files**: src/app/api/availability/route.ts
+- **Approach**: `GET /api/availability?staffId=...` accepted a foreign staffId and resolved it via `staff.findMany({ where: { id: staffId } })` with no business scope — a cross-tenant oracle, and inconsistent with the locationId branch which already gates by `service.businessId`. Added `primaryLocation: { businessId: service.businessId }` to the explicit-staffId where clause. When the staffId doesn't resolve under the business, returns 404 "Staff not found" instead of an empty-slots envelope (empty-slots is indistinguishable from "fully booked" and would silently leak the signal we're closing).
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓. Push BLOCKED (same auth issue).
+- **Rollback**: `git revert 1a0489e` (still local)
+
 ## [2026-05-25] API-V1-TEAM-USERID-ORACLE-001: close cross-tenant user existence oracle on DELETE/PATCH — committed locally at 86db73f, push BLOCKED (auth)
 - **Files**: src/app/api/v1/team/[userId]/route.ts
 - **Approach**: Both DELETE and PATCH did `prisma.user.findUnique({id})` globally first, then a businessId-scoped staff lookup second. That two-stage flow leaked tenant-isolation: callers received `"User not found"` for truly-absent ids vs `"Team member not found"` for users that exist in *another* business — a clean oracle for enumerating user ids across tenants. Inverted the order: lookup `Staff` row scoped to `ctx.businessId` first with `include: { user: true }`, bail with uniform `NOT_FOUND("Team member")` if absent, then read `role` off the included user for the admin-can-only-remove-staff and `cannot change owner role` guards. Single 404 shape regardless of cross-tenant existence.
