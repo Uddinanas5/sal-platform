@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
+import { AlertTriangle } from "lucide-react"
+import Link from "next/link"
 import { BookingPageClient } from "./client"
 import { getPublicBookingSettings } from "@/lib/actions/booking-settings"
 import type { Metadata } from "next"
@@ -13,7 +15,9 @@ function isConnectionError(error: unknown): boolean {
   // This page only does read queries on findFirst/findMany, which return null
   // rather than throwing for "no row found". So a thrown PrismaClient*Error
   // here is virtually always an infra problem (DB down, pool exhausted, socket
-  // dropped) — surface those as 503 instead of a raw 500.
+  // dropped). We render an unavailable card with 200 status rather than
+  // throwing — Next strips error metadata before handing the error to the
+  // boundary in prod, so the boundary can't reliably show friendly copy.
   return (
     error.name === "PrismaClientInitializationError" ||
     error.name === "PrismaClientKnownRequestError" ||
@@ -28,11 +32,33 @@ function isConnectionError(error: unknown): boolean {
   )
 }
 
-class ServiceUnavailableError extends Error {
-  constructor(message = "Database unreachable") {
-    super(message)
-    this.name = "ServiceUnavailableError"
-  }
+function BookingUnavailable({ businessName }: { businessName?: string }) {
+  return (
+    <div className="min-h-screen bg-cream flex items-center justify-center p-6">
+      <div className="max-w-md w-full text-center space-y-6">
+        <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center">
+          <AlertTriangle className="w-8 h-8 text-amber-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-heading font-bold text-foreground mb-2">
+            Booking is temporarily unavailable
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {businessName
+              ? `We're having trouble loading the booking page for ${businessName}.`
+              : "We're having trouble loading this booking page right now."}{" "}
+            Please try again in a few minutes, or call the salon directly to book.
+          </p>
+        </div>
+        <Link
+          href="/"
+          className="inline-flex items-center justify-center rounded-lg border border-sal-500 px-6 py-2.5 text-sm font-medium text-sal-600 hover:bg-sal-50 transition-colors"
+        >
+          Go home
+        </Link>
+      </div>
+    </div>
+  )
 }
 
 export async function generateMetadata({
@@ -66,9 +92,8 @@ export default async function PublicBookingPage({
 }) {
   const { businessSlug } = await params
 
-  // Look up business by slug. Distinguish connection errors (503) from
-  // "no such slug" (404) — without this, a DB outage returns 500 with a
-  // 404 body, which is confusing for both bots and humans.
+  // Look up business by slug. Distinguish connection errors (render
+  // unavailable, 200) from "no such slug" (notFound, 404).
   let business: { id: string; name: string; timezone: string | null } | null
   try {
     business = await prisma.business.findFirst({
@@ -81,7 +106,8 @@ export default async function PublicBookingPage({
     })
   } catch (error) {
     if (isConnectionError(error)) {
-      throw new ServiceUnavailableError()
+      console.error("Public booking DB unreachable:", error)
+      return <BookingUnavailable />
     }
     throw error
   }
@@ -91,7 +117,7 @@ export default async function PublicBookingPage({
   }
 
   // Fan out the remaining reads in parallel — they share the same DB, so any
-  // infra failure across the lot collapses to one 503 catch.
+  // infra failure across the lot collapses to one unavailable render.
   let bookingSettings, primaryLocation, dbBusinessHours, dbServices, dbStaff
   try {
     ;[bookingSettings, primaryLocation, dbBusinessHours, dbServices, dbStaff] = await Promise.all([
@@ -127,7 +153,8 @@ export default async function PublicBookingPage({
     ])
   } catch (error) {
     if (isConnectionError(error)) {
-      throw new ServiceUnavailableError()
+      console.error("Public booking DB unreachable:", error)
+      return <BookingUnavailable businessName={business.name} />
     }
     throw error
   }
