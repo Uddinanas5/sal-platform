@@ -98,10 +98,15 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
     const bookingSettings = await getPublicBookingSettings(service.businessId)
     const minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
 
-    // Resolve target staff list — either the explicit staffId, or all bookable staff for this service+location
+    // Resolve target staff list — either the explicit staffId, or all bookable staff for this service+location.
+    // Explicit-staffId branch must also be scoped to the service's business, otherwise a cross-tenant
+    // staffId would be honored (mirrors the locationId check above).
     const staffMembers = staffId
       ? await prisma.staff.findMany({
-          where: { id: staffId },
+          where: {
+            id: staffId,
+            primaryLocation: { businessId: service.businessId },
+          },
           include: {
             user: { select: { firstName: true, lastName: true, avatarUrl: true } },
           },
@@ -117,6 +122,16 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
             user: { select: { firstName: true, lastName: true, avatarUrl: true } },
           },
         })
+
+    // If an explicit staffId was provided but didn't resolve under the business scope,
+    // surface it as 404 rather than silently returning empty slots (which is
+    // indistinguishable from "fully booked").
+    if (staffId && staffMembers.length === 0) {
+      return NextResponse.json(
+        { error: 'Staff not found' },
+        { status: 404 }
+      )
+    }
 
     // Empty case — return the same envelope with empty slots/byStaff
     if (staffMembers.length === 0) {
