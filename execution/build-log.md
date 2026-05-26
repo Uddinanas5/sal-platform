@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-26] OPTIONS-LEAK / MCP gate — move `/api/mcp` from publicRoutes into bearer-or-session edge gate — committed at 8068861, push BLOCKED (auth)
+- **Files**: src/middleware.ts
+- **Approach**: Tester's OPTIONS sweep caught that `/api/mcp` was sitting in `publicRoutes`, so unauthenticated `OPTIONS /api/mcp` was hitting the route handler and getting back `Allow: DELETE, GET, POST` — full enumeration of the AI tool surface. Handler already requires bearer auth internally, so the public-routes listing was just inconsistent. Removed `/^\/api\/mcp$/` from `publicRoutes` and added `pathname === "/api/mcp" || pathname.startsWith("/api/mcp/")` to the same `handleBearerOrSession()` branch that gates `/api/v1/*`. Net: OPTIONS /api/mcp now 401s at the edge before the handler runs — Allow header gone. Tester's other findings (NextAuth `/api/auth/session` Allow leak, public booking paths advertising their unauthed methods) are intentional and stay as-is.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓ (middleware size 78.9 kB, unchanged). Push BLOCKED (no GH creds). Tester to re-curl `OPTIONS /api/mcp` (unauthed → 401 with no Allow), `OPTIONS /api/mcp` (with bearer → handler-served), plus the Origin-header variations they mentioned.
+- **Rollback**: `git revert 8068861`
+
 ## [2026-05-26] BUG-CHECKOUT-MUTATIONS follow-up — flip `totalSpent` to `amount` + port whole fix to v1 route — committed at 84b135d, push BLOCKED (auth)
 - **Files**: src/lib/actions/checkout.ts, src/app/api/v1/checkout/route.ts
 - **Approach**: Tester reading bc5b65d caught that the action only flipped `loyaltyPoints` to `amount` — `totalSpent` was still incrementing by `total` (tip + tax pollute lifetime spend / VIP tiering). Auditor flagged the v1/action drift in the same beat: `src/app/api/v1/checkout/route.ts` had never been patched at all, so both `totalSpent` and `loyaltyPoints` were still using `total` over there. This commit: (a) flips `totalSpent: { increment: amount }` in both files, (b) ports the full bc5b65d shape (server-side `resolvedClientId` derived from appointment when not explicitly supplied, `amount`-based loyalty + spend increments) to the v1 route, (c) the v1 route already had server-side prices + cents-rounding from an earlier round, so only the increment + client-resolution shape needed porting.
