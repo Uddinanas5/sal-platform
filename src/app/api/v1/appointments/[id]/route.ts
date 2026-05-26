@@ -1,7 +1,12 @@
 import { withV1Auth } from "@/lib/api/auth"
-import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { apiError, apiSuccess, ERRORS } from "@/lib/api/response"
 import { assertStaffOwned } from "@/lib/ownership"
 import { prisma } from "@/lib/prisma"
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from "@/lib/scheduling/working-hours"
 import { z } from "zod"
 
 const statusSchema = z.object({
@@ -93,6 +98,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       await prisma.$transaction(async (tx) => {
         for (const su of serviceUpdates) {
           if (!su.staffId) continue
+          await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime)
           const conflicting = await tx.appointmentService.findFirst({
             where: {
               staffId: su.staffId,
@@ -124,8 +130,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       })
       return apiSuccess({ rescheduled: true })
     } catch (e) {
-      if ((e as Error).message === "CONFLICT") {
+      const msg = (e as Error).message
+      if (msg === "CONFLICT") {
         return ERRORS.BAD_REQUEST("This time slot is already booked for the selected staff member")
+      }
+      if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+        return apiError("OUTSIDE_WORKING_HOURS", "Reschedule falls outside the staff member's working hours", 400)
+      }
+      if (msg === ERR_ON_APPROVED_TIME_OFF) {
+        return apiError("ON_APPROVED_TIME_OFF", "Reschedule overlaps approved staff time off", 400)
       }
       return ERRORS.SERVER_ERROR()
     }

@@ -8,91 +8,13 @@ import { bookingConfirmationEmail, appointmentCancelledEmail, appointmentResched
 import { getBusinessContext } from "@/lib/auth-utils"
 import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import { assertClientOwned, assertStaffOwned, generateBookingReference } from "@/lib/ownership"
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from "@/lib/scheduling/working-hours"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
-
-// Internal error sentinels thrown from within transactions and caught at the
-// action boundary. Keep these strings stable — UI maps them to toast copy.
-const ERR_OUTSIDE_WORKING_HOURS = "OUTSIDE_WORKING_HOURS"
-const ERR_ON_APPROVED_TIME_OFF = "ON_APPROVED_TIME_OFF"
-
-type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
-
-// Combines an appointment date with a `@db.Time` value from Prisma (which
-// arrives as a Date pinned to 1970-01-01 with the time-of-day in local time).
-// Mirrors `combineDateWithTime` in src/lib/availability.ts.
-function combineDateWithTime(date: Date, time: Date): Date {
-  const result = new Date(date)
-  result.setHours(time.getHours(), time.getMinutes(), time.getSeconds(), 0)
-  return result
-}
-
-// Asserts that [start, end) falls inside the staff member's working hours for
-// that weekday at that location, and does not overlap an approved time-off
-// window. Throws ERR_OUTSIDE_WORKING_HOURS or ERR_ON_APPROVED_TIME_OFF on
-// violation. Called from within an existing transaction to share the locked
-// staff schedule.
-async function assertSlotAllowed(
-  tx: TxClient,
-  staffId: string,
-  locationId: string,
-  start: Date,
-  end: Date,
-): Promise<void> {
-  const dayOfWeek = start.getDay()
-  const startOfDay = new Date(start)
-  startOfDay.setHours(0, 0, 0, 0)
-
-  const [schedule, timeOff] = await Promise.all([
-    tx.staffSchedule.findFirst({
-      where: {
-        staffId,
-        locationId,
-        dayOfWeek,
-        isWorking: true,
-        OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: startOfDay } }],
-        AND: [
-          {
-            OR: [
-              { effectiveUntil: null },
-              { effectiveUntil: { gte: startOfDay } },
-            ],
-          },
-        ],
-      },
-    }),
-    tx.staffTimeOff.findFirst({
-      where: {
-        staffId,
-        status: "approved",
-        startDate: { lte: startOfDay },
-        endDate: { gte: startOfDay },
-      },
-    }),
-  ])
-
-  if (!schedule) {
-    throw new Error(ERR_OUTSIDE_WORKING_HOURS)
-  }
-  const workStart = combineDateWithTime(start, schedule.startTime)
-  const workEnd = combineDateWithTime(start, schedule.endTime)
-  // Inclusive on boundaries: a service ending exactly at workEnd is fine.
-  if (start < workStart || end > workEnd) {
-    throw new Error(ERR_OUTSIDE_WORKING_HOURS)
-  }
-
-  if (timeOff) {
-    if (!timeOff.startTime || !timeOff.endTime) {
-      // Full-day off
-      throw new Error(ERR_ON_APPROVED_TIME_OFF)
-    }
-    const offStart = combineDateWithTime(start, timeOff.startTime)
-    const offEnd = combineDateWithTime(start, timeOff.endTime)
-    if (start < offEnd && end > offStart) {
-      throw new Error(ERR_ON_APPROVED_TIME_OFF)
-    }
-  }
-}
 
 const createAppointmentSchema = z.object({
   clientId: z.string().uuid(),
