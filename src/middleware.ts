@@ -33,6 +33,15 @@ const publicRoutes = [
 // inner middleware returns), and so OPTIONS gets 401'd at the edge instead of
 // leaking Allow headers from the route handler.
 function handleBearerOrSession(req: NextRequest): Response | undefined {
+  // OPTIONS is always 401'd: these endpoints are programmatic (no real browser
+  // CORS preflight), and Next's auto-OPTIONS would otherwise leak Allow headers
+  // listing every exported HTTP method on the route.
+  if (req.method === "OPTIONS") {
+    return Response.json(
+      { error: { code: "UNAUTHORIZED", message: "Authentication required" } },
+      { status: 401 }
+    )
+  }
   const hasBearer = req.headers.get("authorization")?.startsWith("Bearer ")
   const hasSessionCookie = req.cookies
     .getAll()
