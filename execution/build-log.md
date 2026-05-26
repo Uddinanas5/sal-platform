@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-26] GAP-001 PR1 — server-side working-hours + time-off guard on reschedule/resize — committed at c276052, push BLOCKED (auth)
+- **Files**: src/lib/actions/appointments.ts
+- **Approach**: Drag-investigation in chat with Tester + Auditor showed `rescheduleAppointment` (lines 316-358) and `resizeAppointment` (lines 434-449) only checked staff-overlap conflicts — zero working-hours check, zero time-off check. A drag could save an appointment ending past closing time or on approved PTO. Added a private `assertSlotAllowed(tx, staffId, locationId, start, end)` helper that joins one round-trip lookup for `StaffSchedule` (with effective-date filtering matching `src/lib/availability.ts`) and `StaffTimeOff` (status=approved, full-day or partial). Boundary check is inclusive on both ends — a service ending exactly at workEnd is allowed. Called inside the existing transaction before each per-service conflict check, throws `OUTSIDE_WORKING_HOURS` / `ON_APPROVED_TIME_OFF` which both catch blocks map to user-readable strings. Frontend rollback path from `!result.success` already exists, no UI plumbing needed. Tester's 4:45 + 60min @ 5pm-end probe will catch any off-by-one.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓ (calendar route unchanged at 42.8 kB). Push BLOCKED (no GH creds) — preview dev server hot-reloads from sandbox, so Tester can drag at http://178.105.195.98:3001/calendar right now. Asking Anas to push when convenient.
+- **Rollback**: `git revert c276052`
+
 ## [2026-05-26] API-HTML-404-001 — JSON 404 envelope for unmatched /api/v1/* — committed at 10a10a6, push BLOCKED (auth)
 - **Files**: src/app/api/v1/[[...path]]/route.ts (new)
 - **Approach**: Tester confirmed unmatched v1 paths (`/api/v1/health`, `/api/v1/nonexistent`, `POST /api/v1/missing`) were falling through to the App Router default → 17KB of React-rendered marketing HTML with `content-type: text/html`, breaking any client doing `res.json()` with `Unexpected token '<'`. Added an optional catch-all `[[...path]]/route.ts` that exports all seven HTTP methods → `apiError("NOT_FOUND", "Endpoint not found", 404)`. Next.js App Router prioritizes more-specific routes, so existing endpoints continue to win and only genuinely-unmatched paths hit this stub. Dynamic-segment misses like `/api/v1/clients/garbage` still 405 from the clients route — that path is untouched.
