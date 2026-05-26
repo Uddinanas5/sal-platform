@@ -217,7 +217,7 @@ export async function createPublicBooking(data: {
       return { success: false, error: "This time slot is already booked for the selected staff member" }
     }
     console.error("createPublicBooking error:", e)
-    return { success: false, error: msg }
+    return { success: false, error: "Failed to create booking. Please try again." }
   }
 }
 

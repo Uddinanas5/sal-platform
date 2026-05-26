@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
+import { publicError } from "@/lib/api/public-errors"
 
 type RouteHandler<C> = (
   req: NextRequest,
@@ -7,12 +8,12 @@ type RouteHandler<C> = (
 
 /**
  * Wraps a public unauth route handler with a catch-all that logs the raw
- * error server-side and returns a generic 500. Always returns the fixed
- * "Internal server error" string regardless of NODE_ENV — public endpoints
- * are reachable from the internet even in dev/preview, so leaking Prisma
- * bundles or stack traces to anonymous callers is never acceptable.
- * Handlers can still return their own non-500 responses (400 validation,
- * 404 not found) by returning normally — only thrown errors are caught.
+ * error server-side and returns the public-contract TEMPORARY_UNAVAILABLE
+ * envelope (503). Public endpoints are reachable from the internet even in
+ * dev/preview, so leaking Prisma bundles or stack traces to anonymous
+ * callers is never acceptable — keep the message generic regardless of env.
+ * Handlers can still return their own non-throw responses (validation,
+ * not-found) by returning normally — only thrown errors are caught here.
  */
 export function withSafeErrors<C = unknown>(
   name: string,
@@ -23,10 +24,7 @@ export function withSafeErrors<C = unknown>(
       return await handler(req, ctx)
     } catch (error) {
       console.error(`[${name}]`, error)
-      return NextResponse.json(
-        { error: "Internal server error" },
-        { status: 500 },
-      )
+      return publicError("TEMPORARY_UNAVAILABLE")
     }
   }
 }

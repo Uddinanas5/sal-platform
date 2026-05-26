@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getPublicBookingSettings } from '@/lib/actions/booking-settings'
 import { withSafeErrors } from '@/lib/api/safe-handler'
 import { isUuid } from '@/lib/api/uuid'
+import { publicError } from '@/lib/api/public-errors'
 import { parseYmd } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
@@ -39,24 +40,15 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
 
     // Validation
     if (!serviceId) {
-      return NextResponse.json(
-        { error: 'serviceId is required' },
-        { status: 400 }
-      )
+      return publicError('INVALID_REQUEST', 'serviceId is required')
     }
 
     if (!dateStr) {
-      return NextResponse.json(
-        { error: 'date is required (YYYY-MM-DD format)' },
-        { status: 400 }
-      )
+      return publicError('INVALID_REQUEST', 'date is required (YYYY-MM-DD format)')
     }
 
     if (!locationId) {
-      return NextResponse.json(
-        { error: 'locationId is required' },
-        { status: 400 }
-      )
+      return publicError('INVALID_REQUEST', 'locationId is required')
     }
 
     // PK columns are @db.Uuid — non-UUID strings cause Postgres to throw on
@@ -64,32 +56,30 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
     // log noise to anonymous callers. Shape-check before touching Prisma so
     // garbage IDs collapse to the same 404 a missing row would produce.
     if (!isUuid(serviceId)) {
-      return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+      return publicError('SERVICE_NOT_FOUND')
     }
     if (!isUuid(locationId)) {
-      return NextResponse.json({ error: 'Location not found' }, { status: 404 })
+      return publicError('LOCATION_NOT_FOUND')
     }
     if (staffId !== null && !isUuid(staffId)) {
-      return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
+      return publicError('STAFF_NOT_FOUND')
     }
 
     // Parse date strictly — `new Date('2027-02-30')` silently rolls to March 2,
     // so we round-trip the components to reject impossible calendar dates.
     const date = parseYmd(dateStr)
     if (!date) {
-      return NextResponse.json(
-        { error: 'Invalid date format. Use YYYY-MM-DD' },
-        { status: 400 }
-      )
+      return publicError('INVALID_REQUEST', 'Invalid date format. Use YYYY-MM-DD')
     }
 
-    // Check date is not in the past
+    // Past dates aren't a malformed request — the input parsed fine, it just
+    // falls outside the bookable window. Same code as the forward bound below.
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     if (date < today) {
-      return NextResponse.json(
-        { error: 'Cannot check availability for past dates' },
-        { status: 400 }
+      return publicError(
+        'OUT_OF_BOOKING_WINDOW',
+        'Cannot check availability for past dates'
       )
     }
 
@@ -99,10 +89,7 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       select: { businessId: true, durationMinutes: true },
     })
     if (!service?.businessId) {
-      return NextResponse.json(
-        { error: 'Service not found' },
-        { status: 404 }
-      )
+      return publicError('SERVICE_NOT_FOUND')
     }
 
     // Verify the location exists and belongs to the same business as the service.
@@ -113,10 +100,7 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       select: { id: true },
     })
     if (!location) {
-      return NextResponse.json(
-        { error: 'Location not found' },
-        { status: 404 }
-      )
+      return publicError('LOCATION_NOT_FOUND')
     }
 
     const bookingSettings = await getPublicBookingSettings(service.businessId)
@@ -130,9 +114,9 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
     const maxDate = new Date(today)
     maxDate.setDate(maxDate.getDate() + maxAdvanceDays)
     if (date > maxDate) {
-      return NextResponse.json(
-        { error: `Date is beyond the maximum advance booking window (${maxAdvanceDays} days)` },
-        { status: 400 }
+      return publicError(
+        'OUT_OF_BOOKING_WINDOW',
+        `Bookings must be made within the next ${maxAdvanceDays} days`
       )
     }
 
@@ -165,10 +149,7 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
     // surface it as 404 rather than silently returning empty slots (which is
     // indistinguishable from "fully booked").
     if (staffId && staffMembers.length === 0) {
-      return NextResponse.json(
-        { error: 'Staff not found' },
-        { status: 404 }
-      )
+      return publicError('STAFF_NOT_FOUND')
     }
 
     // Empty case — return the same envelope with empty slots/byStaff
