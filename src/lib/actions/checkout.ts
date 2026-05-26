@@ -1,6 +1,7 @@
 "use server"
 
 import { z } from "zod"
+import { randomBytes } from "crypto"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext } from "@/lib/auth-utils"
@@ -9,86 +10,139 @@ import { receiptEmail } from "@/lib/email-templates"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
+function generatePaymentReference() {
+  const now = new Date()
+  const yyyymmdd = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`
+  const suffix = randomBytes(4).toString("hex").toUpperCase()
+  return `PAY-${yyyymmdd}-${suffix}`
+}
+
 const processPaymentSchema = z.object({
   clientId: z.string().uuid().optional(),
   appointmentId: z.string().uuid().optional(),
   items: z.array(
     z.object({
       type: z.enum(["service", "product"]),
-      id: z.string().min(1),
-      price: z.number().nonnegative(),
+      id: z.string().uuid(),
       quantity: z.number().int().positive(),
     })
-  ),
-  subtotal: z.number().nonnegative(),
-  discount: z.number().nonnegative(),
-  tax: z.number().nonnegative(),
-  tip: z.number().nonnegative(),
-  total: z.number().nonnegative(),
+  ).min(1, "At least one item is required"),
+  discount: z.number().nonnegative().default(0),
+  tax: z.number().nonnegative().default(0),
+  tip: z.number().nonnegative().default(0),
   method: z.enum(["cash", "card", "gift_card", "other"]),
 })
 
 export async function processPayment(data: {
   clientId?: string
   appointmentId?: string
-  items: { type: "service" | "product"; id: string; price: number; quantity: number }[]
-  subtotal: number
+  items: { type: "service" | "product"; id: string; quantity: number }[]
   discount: number
   tax: number
   tip: number
-  total: number
   method: "cash" | "card" | "gift_card" | "other"
-}): Promise<ActionResult<{ receiptId: string; paymentReference: string }>> {
-  try {
-    processPaymentSchema.parse(data)
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      return { success: false, error: "Invalid input: " + e.issues[0]?.message }
-    }
-    throw e
+}): Promise<ActionResult<{ receiptId: string; paymentReference: string; subtotal: number; amount: number; total: number }>> {
+  const parsed = processPaymentSchema.safeParse(data)
+  if (!parsed.success) {
+    return { success: false, error: "Invalid input: " + (parsed.error.issues[0]?.message ?? "") }
   }
+  const input = parsed.data
 
   try {
     const { businessId } = await getBusinessContext()
 
+    const serviceIds = Array.from(new Set(input.items.filter((i) => i.type === "service").map((i) => i.id)))
+    const productIds = Array.from(new Set(input.items.filter((i) => i.type === "product").map((i) => i.id)))
+
+    const [services, products] = await Promise.all([
+      serviceIds.length
+        ? prisma.service.findMany({
+            where: { id: { in: serviceIds }, businessId, deletedAt: null },
+            select: { id: true, price: true },
+          })
+        : Promise.resolve([] as { id: string; price: import("@/generated/prisma").Prisma.Decimal }[]),
+      productIds.length
+        ? prisma.product.findMany({
+            where: { id: { in: productIds }, businessId, deletedAt: null },
+            select: { id: true, retailPrice: true },
+          })
+        : Promise.resolve([] as { id: string; retailPrice: import("@/generated/prisma").Prisma.Decimal }[]),
+    ])
+
+    if (services.length !== serviceIds.length) return { success: false, error: "One or more services not found" }
+    if (products.length !== productIds.length) return { success: false, error: "One or more products not found" }
+
+    const priceMap = new Map<string, number>()
+    for (const s of services) priceMap.set(`service:${s.id}`, Number(s.price))
+    for (const p of products) priceMap.set(`product:${p.id}`, Number(p.retailPrice))
+
+    let subtotal = 0
+    for (const item of input.items) {
+      const price = priceMap.get(`${item.type}:${item.id}`)
+      if (price === undefined) return { success: false, error: "Invalid item" }
+      subtotal += price * item.quantity
+    }
+    subtotal = Math.round(subtotal * 100) / 100
+
+    if (input.discount > subtotal) return { success: false, error: "Discount cannot exceed subtotal" }
+
+    const amount = Math.round((subtotal - input.discount) * 100) / 100
+    const total = Math.round((amount + input.tax + input.tip) * 100) / 100
+
+    if (input.appointmentId) {
+      const appt = await prisma.appointment.findFirst({
+        where: { id: input.appointmentId, businessId },
+        select: { clientId: true },
+      })
+      if (!appt) return { success: false, error: "Appointment not found" }
+      if (input.clientId && appt.clientId && appt.clientId !== input.clientId) {
+        return { success: false, error: "Appointment does not belong to this client" }
+      }
+    }
+
+    if (input.clientId) {
+      const client = await prisma.client.findFirst({
+        where: { id: input.clientId, businessId },
+        select: { id: true },
+      })
+      if (!client) return { success: false, error: "Client not found" }
+    }
+
     const payment = await prisma.$transaction(async (tx) => {
-      const count = await tx.payment.count({ where: { businessId } })
-      const paymentRef = `PAY-${String(count + 1).padStart(4, "0")}`
+      const paymentRef = generatePaymentReference()
 
       const created = await tx.payment.create({
         data: {
           businessId,
-          clientId: data.clientId || null,
-          appointmentId: data.appointmentId || null,
+          clientId: input.clientId ?? null,
+          appointmentId: input.appointmentId ?? null,
           paymentReference: paymentRef,
           type: "payment",
-          method: data.method,
+          method: input.method,
           status: "completed",
-          amount: data.subtotal - data.discount,
-          tipAmount: data.tip,
-          totalAmount: data.total,
+          amount,
+          tipAmount: input.tip,
+          totalAmount: total,
           currency: "USD",
           processedAt: new Date(),
         },
       })
 
-      // Update appointment status to completed if linked
-      if (data.appointmentId) {
+      if (input.appointmentId) {
         await tx.appointment.update({
-          where: { id: data.appointmentId, businessId },
+          where: { id: input.appointmentId, businessId },
           data: { status: "completed", completedAt: new Date() },
         })
       }
 
-      // Update client totals if linked
-      if (data.clientId) {
+      if (input.clientId) {
         await tx.client.update({
-          where: { id: data.clientId, businessId },
+          where: { id: input.clientId, businessId },
           data: {
-            totalSpent: { increment: data.total },
+            totalSpent: { increment: total },
             totalVisits: { increment: 1 },
             lastVisitAt: new Date(),
-            loyaltyPoints: { increment: Math.floor(data.total) },
+            loyaltyPoints: { increment: Math.floor(amount) },
           },
         })
       }
@@ -99,7 +153,16 @@ export async function processPayment(data: {
     revalidatePath("/checkout")
     revalidatePath("/dashboard")
     revalidatePath("/clients")
-    return { success: true, data: { receiptId: payment.id, paymentReference: payment.paymentReference } }
+    return {
+      success: true,
+      data: {
+        receiptId: payment.id,
+        paymentReference: payment.paymentReference,
+        subtotal,
+        amount,
+        total,
+      },
+    }
   } catch (e) {
     const msg = (e as Error).message
     if (msg === "Not authenticated" || msg === "No business context") {

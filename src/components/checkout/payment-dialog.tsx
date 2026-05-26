@@ -124,14 +124,11 @@ export function PaymentDialog({
         items: items.map((item) => ({
           type: item.type,
           id: item.id,
-          price: item.price,
           quantity: item.quantity,
         })),
-        subtotal,
         discount,
         tax,
         tip,
-        total,
         method: paymentMethod,
       })
 
@@ -146,7 +143,7 @@ export function PaymentDialog({
       toast.error("An unexpected error occurred")
       setStep("method")
     }
-  }, [paymentMethod, tenderedAmount, total, clientId, items, subtotal, discount, tax, tip])
+  }, [paymentMethod, tenderedAmount, total, clientId, items, discount, tax, tip])
 
   const handleEmailReceipt = async () => {
     if (!clientEmail) {
