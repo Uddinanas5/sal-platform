@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-26] GAP-026 — minimal-projection query for `/book/[slug]` public booking page — committed at 6b8d22b, push BLOCKED (auth)
+- **Files**: src/app/book/[businessSlug]/page.tsx, src/app/book/[businessSlug]/client.tsx, src/lib/queries/public-booking.ts (new), docs/PUBLIC_PROJECTIONS.md (new)
+- **Approach**: Public booking page previously did `prisma.business.findFirst({ include: { staff: true, services: { include: { category: true } }, ... } })` which dumped every staff column (email, phoneNumber, avatar, commissionRate, hireDate, etc.) and every service column to the wire for anonymous visitors. Replaced with a dedicated `getPublicBookingData(slug)` query in `src/lib/queries/public-booking.ts` using explicit `select:` projections — staff trimmed to `{ id, firstName, lastName, role }`, services to `{ id, name, description, price, duration, categoryId, category: { id, name } }`, business to `{ id, name, slug, logo, phone, address, city, state }`. client.tsx adapted to the trimmed shape (no behavior changes — booking flow uses none of the removed fields). docs/PUBLIC_PROJECTIONS.md documents the allowlist as a reference for future public-facing reads. Closes Auditor's GAP-026.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓ (route still ƒ Dynamic, 11.6 kB). Push BLOCKED (no GH creds). Backlog now **62 commits** on `agents/coder`. Live preview at http://178.105.195.98:3001/book/sal-salon is hot-reloading off this worktree so Tester can run the PII-on-the-wire audit immediately without waiting for the push.
+- **Rollback**: `git revert 6b8d22b`
+
 ## [2026-05-26] LEGACY-API-SERVICES-STAFF-CROSSTENANT — delete `/api/services` + `/api/staff` routes — committed at e0ab93f, push BLOCKED (auth)
 - **Files**: src/app/api/services/route.ts (deleted), src/app/api/staff/route.ts (deleted), src/middleware.ts (removed from publicRoutes allowlist)
 - **Approach**: Both legacy routes accepted `businessId`/`locationId` from query/body without comparing against `session.user.businessId`, allowing any authenticated user with a known victim tenant UUID to read or write cross-tenant (the "one-UUID-away" leak Tester flagged this tick). Confirmed via grep that no client code imports them — `/api/v1/services` and `/api/v1/staff` via `withV1Auth()` are the live consumers. Per Tester's request, flipped order: shipping the deletes before the safe-wrapper PR so the leak surface is gone in one move.
