@@ -226,6 +226,13 @@ Format per entry:
 - **Rollback**: HEAD~1
 - **NOTE**: Push still blocked — now 28 commits ahead of origin/agents/coder. Same auth blocker.
 
+## [2026-05-26T14:10Z] GAP-037 (helper extraction) — resolvePayrollPeriod with business-tz date math — committed locally (push still blocked)
+- **Files**: src/lib/checkout/resolve-payroll-period.ts (new), src/lib/checkout/record-checkout.ts
+- **Approach**: Pulled the inline UTC month-to-date calc out of `recordCheckout` into a typed resolver. Uses `Intl.DateTimeFormat('en-CA', {timeZone: business.timezone})` to extract the business-local YYYY-MM-DD for the checkout instant, then queries `PayrollPeriod` by that date. Two error classes per the thread with Tester/Auditor: `CommissionPeriodClosedError({businessId, periodId, periodStart, periodEnd, status: 'closed'|'paid'})` and `NoPayrollPeriodError({businessId, localDate})` — separate shapes because "period locked" and "no period configured" are different operational problems with different remediation. Override-log table punted to a future gap (parked the speculation).
+- **Verification**: `pnpm lint` ✓, `pnpm build` ✓ (commit 87c2bec). Tester's fixture matrix: open period → success, closed → `status: 'closed'`, paid → `status: 'paid'`, missing → `NoPayrollPeriodError`. Pin `America/Los_Angeles` and assert 23:00 PT on May 31 → May period.
+- **Rollback**: HEAD~1
+- **NOTE**: Push blocked — `fatal: could not read Username for 'https://github.com'`. Anas needs to push from his shell.
+
 ## [2026-05-25] SERVICES-CROSS-TENANT-WRITE — `/api/services` POST scoped to session businessId — committed locally (push still blocked)
 - **Files**: src/app/api/services/route.ts, execution/bug-log.md
 - **Approach**: Tester flagged the third in the cross-tenant-write family (after bookings GET/POST). POST handler was pulling `businessId` from the request body and writing it straight to `tx.service.create({ data: { businessId, ... } })` — auth() check only verified "logged in," not "logged in to that tenant." Swapped to `getBusinessContext()`, force `businessId = ctx.businessId` and ignore any body value. Added two scope-checks before mutating: `categoryId` (if supplied) must belong to caller's business via `serviceCategory.findFirst({where:{id, businessId}})`, and every `staffIds[]` entry must scope through `staff.primaryLocation.businessId` (Staff has no direct businessId). Each invalid reference 400s with a clear error instead of writing a frankenstein record that mixes tenants. Bug-log entry filed in same commit.
