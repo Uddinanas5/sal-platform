@@ -3,12 +3,21 @@ import { getMultiStaffAvailability } from '@/lib/availability'
 import { prisma } from '@/lib/prisma'
 import { getPublicBookingSettings } from '@/lib/actions/booking-settings'
 import { withSafeErrors } from '@/lib/api/safe-handler'
+import { isUuid } from '@/lib/api/uuid'
 import { parseYmd } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
 const LEAD_TIME_MAP: Record<string, number> = {
   none: 0, '1h': 60, '2h': 120, '4h': 240, '12h': 720, '24h': 1440, '48h': 2880,
+}
+
+// Mirrors MAX_ADVANCE_MAP in the public booking client. Kept in sync by hand
+// because the values rarely change and the client is a separate bundle —
+// the alternative is dragging client-page code into the API route's import
+// graph, which is worse.
+const MAX_ADVANCE_DAYS_MAP: Record<string, number> = {
+  '1w': 7, '2w': 14, '1m': 30, '2m': 60, '3m': 90,
 }
 
 /**
@@ -48,6 +57,20 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
         { error: 'locationId is required' },
         { status: 400 }
       )
+    }
+
+    // PK columns are @db.Uuid — non-UUID strings cause Postgres to throw on
+    // the findUnique call rather than returning null, surfacing as a 500 +
+    // log noise to anonymous callers. Shape-check before touching Prisma so
+    // garbage IDs collapse to the same 404 a missing row would produce.
+    if (!isUuid(serviceId)) {
+      return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+    }
+    if (!isUuid(locationId)) {
+      return NextResponse.json({ error: 'Location not found' }, { status: 404 })
+    }
+    if (staffId !== null && !isUuid(staffId)) {
+      return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
     }
 
     // Parse date strictly — `new Date('2027-02-30')` silently rolls to March 2,
@@ -98,6 +121,20 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
 
     const bookingSettings = await getPublicBookingSettings(service.businessId)
     const minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
+
+    // Enforce the same advance-booking ceiling the public booking calendar
+    // honours. Without this, `?date=9999-01-01` sails through and we return
+    // 200 + empty slots — indistinguishable from "fully booked" and the kind
+    // of input that tends to expose weird edges in the staff-schedule query.
+    const maxAdvanceDays = MAX_ADVANCE_DAYS_MAP[bookingSettings.maxAdvanceBooking] ?? 30
+    const maxDate = new Date(today)
+    maxDate.setDate(maxDate.getDate() + maxAdvanceDays)
+    if (date > maxDate) {
+      return NextResponse.json(
+        { error: `Date is beyond the maximum advance booking window (${maxAdvanceDays} days)` },
+        { status: 400 }
+      )
+    }
 
     // Resolve target staff list — either the explicit staffId, or all bookable staff for this service+location.
     // Explicit-staffId branch must also be scoped to the service's business, otherwise a cross-tenant
