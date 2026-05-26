@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-26] API-HTML-404-001 — JSON 404 envelope for unmatched /api/v1/* — committed at 10a10a6, push BLOCKED (auth)
+- **Files**: src/app/api/v1/[[...path]]/route.ts (new)
+- **Approach**: Tester confirmed unmatched v1 paths (`/api/v1/health`, `/api/v1/nonexistent`, `POST /api/v1/missing`) were falling through to the App Router default → 17KB of React-rendered marketing HTML with `content-type: text/html`, breaking any client doing `res.json()` with `Unexpected token '<'`. Added an optional catch-all `[[...path]]/route.ts` that exports all seven HTTP methods → `apiError("NOT_FOUND", "Endpoint not found", 404)`. Next.js App Router prioritizes more-specific routes, so existing endpoints continue to win and only genuinely-unmatched paths hit this stub. Dynamic-segment misses like `/api/v1/clients/garbage` still 405 from the clients route — that path is untouched.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓ (no route conflicts in the route table). Push BLOCKED (no GH creds). Tester to re-curl the three example paths and confirm JSON envelope + 404 status + `content-type: application/json`.
+- **Rollback**: `git revert 10a10a6`
+
 ## [2026-05-26] OPTIONS-LEAK / MCP gate — move `/api/mcp` from publicRoutes into bearer-or-session edge gate — committed at 8068861, push BLOCKED (auth)
 - **Files**: src/middleware.ts
 - **Approach**: Tester's OPTIONS sweep caught that `/api/mcp` was sitting in `publicRoutes`, so unauthenticated `OPTIONS /api/mcp` was hitting the route handler and getting back `Allow: DELETE, GET, POST` — full enumeration of the AI tool surface. Handler already requires bearer auth internally, so the public-routes listing was just inconsistent. Removed `/^\/api\/mcp$/` from `publicRoutes` and added `pathname === "/api/mcp" || pathname.startsWith("/api/mcp/")` to the same `handleBearerOrSession()` branch that gates `/api/v1/*`. Net: OPTIONS /api/mcp now 401s at the edge before the handler runs — Allow header gone. Tester's other findings (NextAuth `/api/auth/session` Allow leak, public booking paths advertising their unauthed methods) are intentional and stay as-is.
