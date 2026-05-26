@@ -26,7 +26,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { createPublicBooking, addToPublicWaitlist } from "@/lib/actions/public-booking"
 import { formatCurrency, formatDuration as fmtDuration } from "@/lib/utils"
-import type { Service, Staff } from "@/data/mock-data"
+import type { Service } from "@/data/mock-data"
+import type { PublicBookingStaff } from "@/lib/queries/public-booking"
+
+// Local alias — keeps the rest of the file readable while binding to the
+// wire-safe projection. Do NOT widen this to the full Staff type; any
+// additional field becomes scrapeable via the RSC payload.
+type Staff = PublicBookingStaff
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,24 +45,13 @@ interface BusinessHourData {
   isClosed: boolean
 }
 
-interface StaffScheduleData {
-  dayOfWeek: number
-  startTime: string
-  endTime: string
-  isWorking: boolean
-}
-
-interface StaffWithSchedules extends Staff {
-  schedules?: StaffScheduleData[]
-}
-
 interface BookingPageClientProps {
   businessSlug: string
   businessId: string
   businessName: string
   locationId: string
   services: Service[]
-  staff: StaffWithSchedules[]
+  staff: Staff[]
   businessHours: BusinessHourData[]
   maxAdvanceBooking?: string
   timezone: string

@@ -4,6 +4,7 @@ import { AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { BookingPageClient } from "./client"
 import { getPublicBookingSettings } from "@/lib/actions/booking-settings"
+import { getPublicBookingStaff } from "@/lib/queries/public-booking"
 import type { Metadata } from "next"
 
 export const dynamic = "force-dynamic"
@@ -118,9 +119,9 @@ export default async function PublicBookingPage({
 
   // Fan out the remaining reads in parallel — they share the same DB, so any
   // infra failure across the lot collapses to one unavailable render.
-  let bookingSettings, primaryLocation, dbBusinessHours, dbServices, dbStaff
+  let bookingSettings, primaryLocation, dbBusinessHours, dbServices, staff
   try {
-    ;[bookingSettings, primaryLocation, dbBusinessHours, dbServices, dbStaff] = await Promise.all([
+    ;[bookingSettings, primaryLocation, dbBusinessHours, dbServices, staff] = await Promise.all([
       getPublicBookingSettings(business.id),
       prisma.location.findFirst({
         where: { businessId: business.id, isPrimary: true, deletedAt: null },
@@ -137,19 +138,7 @@ export default async function PublicBookingPage({
         include: { category: true },
         orderBy: { sortOrder: "asc" },
       }),
-      prisma.staff.findMany({
-        where: {
-          isActive: true,
-          deletedAt: null,
-          primaryLocation: { businessId: business.id },
-        },
-        include: {
-          user: true,
-          staffServices: true,
-          staffSchedules: true,
-        },
-        orderBy: { sortOrder: "asc" },
-      }),
+      getPublicBookingStaff(business.id),
     ])
   } catch (error) {
     if (isConnectionError(error)) {
@@ -180,26 +169,6 @@ export default async function PublicBookingPage({
     isActive: s.isActive,
   }))
 
-  const staff = dbStaff.map((s) => ({
-    id: s.id,
-    name: `${s.user.firstName} ${s.user.lastName}`,
-    email: s.user.email,
-    phone: s.user.phone || "",
-    avatar: s.user.avatarUrl || undefined,
-    role: s.user.role === "admin" ? "admin" as const : s.user.role === "owner" ? "admin" as const : "staff" as const,
-    services: s.staffServices.map((ss: typeof s.staffServices[number]) => ss.serviceId),
-    workingHours: {} as Record<string, { start: string; end: string } | null>,
-    schedules: s.staffSchedules.map((sch) => ({
-      dayOfWeek: sch.dayOfWeek,
-      startTime: sch.startTime.toISOString(),
-      endTime: sch.endTime.toISOString(),
-      isWorking: sch.isWorking,
-    })),
-    color: s.color || "#059669",
-    isActive: s.isActive,
-    commission: Number(s.commissionRate),
-  }))
-
   return (
     <BookingPageClient
       businessSlug={businessSlug}
@@ -207,7 +176,7 @@ export default async function PublicBookingPage({
       businessName={business.name}
       locationId={primaryLocation?.id ?? ""}
       services={services as never[]} // eslint-disable-line @typescript-eslint/no-explicit-any
-      staff={staff as never[]} // eslint-disable-line @typescript-eslint/no-explicit-any
+      staff={staff}
       businessHours={businessHours}
       maxAdvanceBooking={bookingSettings.maxAdvanceBooking}
       timezone={timezone}
