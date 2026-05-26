@@ -3,20 +3,26 @@ import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
 
-function categorizeError(error: unknown): { category: string; code?: string } {
-  if (!(error instanceof Error)) return { category: "unknown" }
+// GAP-032: wire-format enum for /api/health failure mode. Kept tiny so on-call
+// has a finite set to memorize and the response stays opaque to anonymous
+// callers. MIGRATIONS_PENDING is reserved — slot held for forward-stable wire
+// when schema-drift detection lands. See execution/fresha-gaps.md → GAP-032.
+export type HealthErrorCode =
+  | "DB_UNREACHABLE"
+  | "MIGRATIONS_PENDING" // TODO: detection — query _prisma_migrations vs. filesystem migration count
+  | "UNKNOWN"
+
+function classifyHealthError(error: unknown): HealthErrorCode {
+  if (!(error instanceof Error)) return "UNKNOWN"
   const name = error.name
-  const code = (error as { code?: string }).code
-  if (name === "PrismaClientInitializationError" || code === "P1001" || code === "P1017") {
-    return { category: "db_unreachable", code }
+  if (
+    name === "PrismaClientInitializationError" ||
+    name === "PrismaClientKnownRequestError" ||
+    name === "PrismaClientRustPanicError"
+  ) {
+    return "DB_UNREACHABLE"
   }
-  if (name === "PrismaClientKnownRequestError") {
-    return { category: "db_request_error", code }
-  }
-  if (name === "PrismaClientRustPanicError") {
-    return { category: "db_panic", code }
-  }
-  return { category: "unknown", code }
+  return "UNKNOWN"
 }
 
 export async function GET() {
@@ -24,13 +30,12 @@ export async function GET() {
   try {
     await prisma.$queryRaw`SELECT 1`
     return NextResponse.json({ status: "ok", timestamp })
-  } catch (error) {
-    const { category, code } = categorizeError(error)
-    const body: Record<string, unknown> = { status: "error", timestamp, category }
-    if (process.env.NODE_ENV !== "production") {
-      body.code = code
-      body.message = error instanceof Error ? error.message : String(error)
-    }
-    return NextResponse.json(body, { status: 503 })
+  } catch (e) {
+    const code = classifyHealthError(e)
+    console.error("[/api/health] failed", { code, error: e })
+    return NextResponse.json(
+      { status: "error", code, timestamp },
+      { status: 503 }
+    )
   }
 }
