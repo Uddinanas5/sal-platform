@@ -22,7 +22,7 @@ const processPaymentSchema = z.object({
   discount: z.number().nonnegative().default(0),
   tax: z.number().nonnegative().default(0),
   tip: z.number().nonnegative().default(0),
-  method: z.enum(["cash", "card", "gift_card", "other"]),
+  method: z.enum(["cash", "card", "online", "gift_card", "other"]),
 })
 
 export async function POST(req: Request) {

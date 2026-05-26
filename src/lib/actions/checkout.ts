@@ -30,7 +30,7 @@ const processPaymentSchema = z.object({
   discount: z.number().nonnegative().default(0),
   tax: z.number().nonnegative().default(0),
   tip: z.number().nonnegative().default(0),
-  method: z.enum(["cash", "card", "gift_card", "other"]),
+  method: z.enum(["cash", "card", "online", "gift_card", "other"]),
 })
 
 export async function processPayment(data: {
@@ -40,7 +40,7 @@ export async function processPayment(data: {
   discount: number
   tax: number
   tip: number
-  method: "cash" | "card" | "gift_card" | "other"
+  method: "cash" | "card" | "online" | "gift_card" | "other"
 }): Promise<ActionResult<{ receiptId: string; paymentReference: string; subtotal: number; amount: number; total: number }>> {
   const parsed = processPaymentSchema.safeParse(data)
   if (!parsed.success) {

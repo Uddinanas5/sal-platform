@@ -16,7 +16,7 @@ export type RecordCheckoutInput = {
   discount: number
   tax: number
   tip: number
-  method: "cash" | "card" | "gift_card" | "other"
+  method: "cash" | "card" | "online" | "gift_card" | "other"
 }
 
 export type RecordCheckoutResult = {
