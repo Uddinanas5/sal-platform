@@ -1,5 +1,15 @@
 import type { Prisma } from "@/generated/prisma"
 
+// Stable error codes — load-bearing across dashboard action, v1 route, and MCP
+// tool. Tester keys assertions on these strings; rename in one place only.
+export const CHECKOUT_ERROR_CODES = {
+  COMMISSION_PERIOD_CLOSED: "COMMISSION_PERIOD_CLOSED",
+  NO_PAYROLL_PERIOD: "NO_PAYROLL_PERIOD",
+} as const
+
+export type CheckoutErrorCode =
+  (typeof CHECKOUT_ERROR_CODES)[keyof typeof CHECKOUT_ERROR_CODES]
+
 export class CommissionPeriodClosedError extends Error {
   constructor(
     public payload: {
@@ -13,6 +23,7 @@ export class CommissionPeriodClosedError extends Error {
     super(`Payroll period ${payload.periodId} is ${payload.status}`)
     this.name = "CommissionPeriodClosedError"
   }
+  readonly code = CHECKOUT_ERROR_CODES.COMMISSION_PERIOD_CLOSED
 }
 
 export class NoPayrollPeriodError extends Error {
@@ -20,6 +31,7 @@ export class NoPayrollPeriodError extends Error {
     super(`No payroll period configured for ${payload.businessId} on ${payload.localDate}`)
     this.name = "NoPayrollPeriodError"
   }
+  readonly code = CHECKOUT_ERROR_CODES.NO_PAYROLL_PERIOD
 }
 
 export type ResolvedPayrollPeriod = {
