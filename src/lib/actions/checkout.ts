@@ -89,6 +89,7 @@ export async function processPayment(data: {
     const amount = Math.round((subtotal - input.discount) * 100) / 100
     const total = Math.round((amount + input.tax + input.tip) * 100) / 100
 
+    let resolvedClientId: string | undefined = input.clientId
     if (input.appointmentId) {
       const appt = await prisma.appointment.findFirst({
         where: { id: input.appointmentId, businessId },
@@ -98,11 +99,14 @@ export async function processPayment(data: {
       if (input.clientId && appt.clientId && appt.clientId !== input.clientId) {
         return { success: false, error: "Appointment does not belong to this client" }
       }
+      if (!resolvedClientId && appt.clientId) {
+        resolvedClientId = appt.clientId
+      }
     }
 
-    if (input.clientId) {
+    if (resolvedClientId) {
       const client = await prisma.client.findFirst({
-        where: { id: input.clientId, businessId },
+        where: { id: resolvedClientId, businessId },
         select: { id: true },
       })
       if (!client) return { success: false, error: "Client not found" }
@@ -114,7 +118,7 @@ export async function processPayment(data: {
       const created = await tx.payment.create({
         data: {
           businessId,
-          clientId: input.clientId ?? null,
+          clientId: resolvedClientId ?? null,
           appointmentId: input.appointmentId ?? null,
           paymentReference: paymentRef,
           type: "payment",
@@ -135,11 +139,11 @@ export async function processPayment(data: {
         })
       }
 
-      if (input.clientId) {
+      if (resolvedClientId) {
         await tx.client.update({
-          where: { id: input.clientId, businessId },
+          where: { id: resolvedClientId, businessId },
           data: {
-            totalSpent: { increment: total },
+            totalSpent: { increment: amount },
             totalVisits: { increment: 1 },
             lastVisitAt: new Date(),
             loyaltyPoints: { increment: Math.floor(amount) },

@@ -75,6 +75,7 @@ export async function POST(req: Request) {
   const amount = Math.round((subtotal - data.discount) * 100) / 100
   const total = Math.round((amount + data.tax + data.tip) * 100) / 100
 
+  let resolvedClientId: string | undefined = data.clientId
   if (data.appointmentId) {
     const appt = await prisma.appointment.findFirst({
       where: { id: data.appointmentId, businessId: ctx.businessId },
@@ -83,6 +84,9 @@ export async function POST(req: Request) {
     if (!appt) return ERRORS.NOT_FOUND("Appointment")
     if (data.clientId && appt.clientId && appt.clientId !== data.clientId) {
       return ERRORS.BAD_REQUEST("Appointment does not belong to this client")
+    }
+    if (!resolvedClientId && appt.clientId) {
+      resolvedClientId = appt.clientId
     }
   }
 
@@ -93,7 +97,7 @@ export async function POST(req: Request) {
       const created = await tx.payment.create({
         data: {
           businessId: ctx.businessId,
-          clientId: data.clientId ?? null,
+          clientId: resolvedClientId ?? null,
           appointmentId: data.appointmentId ?? null,
           paymentReference: paymentRef,
           type: "payment",
@@ -114,11 +118,11 @@ export async function POST(req: Request) {
         })
       }
 
-      if (data.clientId) {
+      if (resolvedClientId) {
         await tx.client.update({
-          where: { id: data.clientId, businessId: ctx.businessId },
+          where: { id: resolvedClientId, businessId: ctx.businessId },
           data: {
-            totalSpent: { increment: total },
+            totalSpent: { increment: amount },
             totalVisits: { increment: 1 },
             lastVisitAt: new Date(),
             loyaltyPoints: { increment: Math.floor(amount) },
