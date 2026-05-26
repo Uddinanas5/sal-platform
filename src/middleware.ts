@@ -1,3 +1,4 @@
+import type { NextRequest } from "next/server"
 import NextAuth from "next-auth"
 import { authConfig } from "@/lib/auth.config"
 import { STAFF_BLOCKED_ROUTES, STAFF_LIST_BLOCKED_ROUTES } from "@/lib/permissions"
@@ -22,12 +23,29 @@ const publicRoutes = [
   /^\/api\/health$/,
   /^\/.well-known\/.*/,
   /^\/api\/oauth\/.*/,
-  /^\/api\/mcp$/,
   /^\/api\/v1\/.*/,
   /^\/oauth\/authorize$/,
 ]
 
-export default auth((req) => {
+// Bearer-or-session gate used by /api/v1/* and /api/mcp. Handled outside the
+// auth() HOC so NextAuth doesn't mint csrf / callback-url cookies on
+// unauthenticated 401 responses (the HOC appends those regardless of what the
+// inner middleware returns), and so OPTIONS gets 401'd at the edge instead of
+// leaking Allow headers from the route handler.
+function handleBearerOrSession(req: NextRequest): Response | undefined {
+  const hasBearer = req.headers.get("authorization")?.startsWith("Bearer ")
+  const hasSessionCookie = req.cookies
+    .getAll()
+    .some((c) => c.name.includes("authjs.session-token"))
+  if (!hasBearer && !hasSessionCookie) {
+    return Response.json(
+      { error: { code: "UNAUTHORIZED", message: "Authentication required" } },
+      { status: 401 }
+    )
+  }
+}
+
+const authMiddleware = auth((req) => {
   const { pathname } = req.nextUrl
 
   const isPublic = publicRoutes.some((pattern) => pattern.test(pathname))
@@ -68,6 +86,18 @@ export default auth((req) => {
     }
   }
 })
+
+export default function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl
+  if (pathname === "/api/v1" || pathname.startsWith("/api/v1/")) {
+    return handleBearerOrSession(req)
+  }
+  if (pathname === "/api/mcp" || pathname.startsWith("/api/mcp/")) {
+    return handleBearerOrSession(req)
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (authMiddleware as any)(req)
+}
 
 export const config = {
   matcher: [
