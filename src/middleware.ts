@@ -18,8 +18,6 @@ const publicRoutes = [
   /^\/_next\/.*/,
   /^\/favicon\.ico$/,
   /^\/api\/availability$/,
-  /^\/api\/services$/,
-  /^\/api\/staff$/,
   /^\/api\/bookings(\/.*)?$/,
   /^\/api\/health$/,
   /^\/.well-known\/.*/,
