@@ -43,3 +43,16 @@ Format per entry:
 - **Priority**: P0
 - **Status**: open
 
+---
+
+## Checkout > Payment method enum > Untyped "other" bucket
+- **Fresha behavior**: N/A — internal data-model issue surfaced during GAP-037 (EOD report) discovery. Logging here so it doesn't get lost in the EOD thread; this needs resolving *before* any reconciliation report ships, because "other: $342" defeats the point of tender breakdown.
+- **SAL today**: **present-but-different**. `PaymentMethod` enum in `prisma/schema.prisma:115` has values `cash | card | online | gift_card | other`. But the checkout zod schemas in `src/lib/actions/checkout.ts:33`, `src/lib/actions/checkout.ts:43`, `src/lib/mcp/tools/checkout.ts:25`, and `src/app/api/v1/checkout/route.ts:25` only accept `cash | card | gift_card | other` — `online` is unreachable from the checkout UI/API. So `other` is silently absorbing anything that isn't cash/card/gift card (mobile wallet, bank transfer, store credit, etc.), and `online` exists in the DB but nothing writes it.
+- **Gap**: (1) schema vs. zod enum drift — `online` is dead code in the DB; (2) `other` has no sub-type metadata, so EOD reconciliation can't break it down by actual tender; (3) no UI affordance to capture *what* "other" means at point of sale.
+- **Spec for coder**:
+  - **Decision point** (needs Anas + Auditor): either (a) widen the zod enums to include `online` and add named values for the MENA-common tenders (`mobile_wallet`, `bank_transfer`, `store_credit`), eliminating `other`; or (b) keep `other` and add a sibling `methodNote: String?` column on `Payment` so the UI captures a free-text qualifier ("Apple Pay", "Benefit", etc.) at checkout time. (a) is cleaner for reporting, (b) is more flexible for one-off cases. MENA market context (option (a) examples = Mada, STC Pay, Benefit, Knet) matters here.
+  - **Files** (regardless of choice): align all four zod enums above with `PaymentMethod`, add a migration if (b), update `processPayment` action to persist the new field, surface in checkout UI (`src/components/checkout/payment-step.tsx` or equivalent).
+  - **Acceptance criteria**: (1) zod-allowed values == Prisma enum values; (2) EOD reconciliation (future GAP-037) can produce a clean per-tender total with no mystery "other"; (3) existing `Payment` rows with `method: "other"` keep working (backfill nullable or leave untouched).
+- **Priority**: P2 (low urgency on its own, but P1 if GAP-037 EOD report gets greenlit — it's a blocker for clean reconciliation)
+- **Status**: open
+
