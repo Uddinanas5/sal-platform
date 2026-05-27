@@ -17,6 +17,9 @@ export const ERRORS = {
   UNAUTHORIZED: () => apiError("UNAUTHORIZED", "Authentication required", 401),
   FORBIDDEN: () => apiError("FORBIDDEN", "Insufficient permissions", 403),
   NOT_FOUND: (r = "Resource") => apiError("NOT_FOUND", `${r} not found`, 404),
+  CONFLICT: (r = "Resource") => apiError("CONFLICT", `${r} already exists`, 409),
+  INVALID_REFERENCE: (r = "resource") =>
+    apiError("INVALID_REFERENCE", `Referenced ${r} does not exist`, 422),
   BAD_REQUEST: (msg: string) => apiError("BAD_REQUEST", msg, 400),
   SERVER_ERROR: () => apiError("SERVER_ERROR", "Internal server error", 500),
 }
