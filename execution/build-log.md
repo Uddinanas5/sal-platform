@@ -14,6 +14,12 @@ Format per entry:
 
 ---
 
+## [2026-05-27] GAP-004 PR2 — live conflict ring on drag-over (calendar reschedule) — committed at fd1c035, push BLOCKED (auth)
+- **Files**: src/app/(dashboard)/calendar/client.tsx, src/components/calendar/appointment-block.tsx
+- **Approach**: Pre-drop visual signal so users see the conflict before releasing. Wired `useDndMonitor`-style `onDragOver` into the existing DndContext, reusing the same conflict check shape as `handleDragEnd` (same staff filter, same cancelled/no-show exclusion, same `aStart < proposedEnd && aEnd > proposedStart` interval test). Toggles a new `isOverInvalid` state, which feeds an `invalidDropTarget` prop on the drag overlay's `AppointmentBlock` → red ring + 60% opacity. Drop itself is unchanged — the existing handleDragEnd guard + toast still fires if the user releases anyway. No DB, no server action changes.
+- **Verification**: `pnpm lint` ✓. `pnpm build` ✓ (calendar route 43 kB, +0.2 kB from drag-over handler). Push BLOCKED (no GH creds). Manual visual test at http://178.105.195.98:3001/calendar — drag any appt over another booked slot, ring should turn red mid-drag; over an empty slot, normal sal-500 ring.
+- **Rollback**: `git revert fd1c035`
+
 ## [2026-05-26] GAP-001 PR1b — wire working-hours guard into v1 PATCH /appointments — committed at 1ce0d4f, push BLOCKED (auth)
 - **Files**: src/lib/scheduling/working-hours.ts (new), src/lib/actions/appointments.ts, src/app/api/v1/appointments/[id]/route.ts
 - **Approach**: Tester flagged that c276052 hardened the dashboard actions but the v1 reschedule path (`PATCH /api/v1/appointments/[id]?action=reschedule`, route.ts:49-90) had the same pre-fix shape — staff overlap check only, no working-hours guard. An API client could drive an appointment outside hours regardless of the dashboard fix. Extracted `assertSlotAllowed` + the `ERR_OUTSIDE_WORKING_HOURS` / `ERR_ON_APPROVED_TIME_OFF` sentinels to `src/lib/scheduling/working-hours.ts`, removed the inline copy from appointments.ts (behavior-preserving), and added a call inside the v1 PATCH transaction before the conflict check. Catch block maps the sentinels to `apiError("OUTSIDE_WORKING_HOURS", ..., 400)` / `apiError("ON_APPROVED_TIME_OFF", ..., 400)` so API clients see structured codes, not the generic "CONFLICT". Same inclusive-boundary semantics across all three sites.
