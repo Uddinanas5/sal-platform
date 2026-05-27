@@ -70,6 +70,8 @@ interface AppointmentBlockProps {
   overlapTotalColumns?: number
   /** If true, render as drag overlay ghost (no draggable wiring, no positioning). */
   asOverlay?: boolean
+  /** Overlay only: signal that the current hover target would conflict. Applies a red ring + dimmed opacity. */
+  invalidDropTarget?: boolean
 }
 
 const NON_DRAGGABLE_STATUSES = new Set(["cancelled", "no-show", "completed"])
@@ -88,6 +90,7 @@ export function AppointmentBlock({
   overlapColumn = 0,
   overlapTotalColumns = 1,
   asOverlay = false,
+  invalidDropTarget = false,
 }: AppointmentBlockProps) {
   const isDraggable = !asOverlay && !NON_DRAGGABLE_STATUSES.has(appointment.status)
   const canResize = isDraggable && !!onResize
@@ -225,6 +228,7 @@ export function AppointmentBlock({
         "rounded-md overflow-hidden border-l-[3px] px-1.5 py-1",
         isDraggable && !asOverlay ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         isDragging && "ring-2 ring-sal-500/40",
+        asOverlay && invalidDropTarget && "ring-2 ring-red-500 ring-offset-1 opacity-60",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sal-500 focus-visible:ring-offset-1"
       )}
       style={overlayStyle}

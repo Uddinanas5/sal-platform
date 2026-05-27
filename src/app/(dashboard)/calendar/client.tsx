@@ -13,6 +13,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core"
 import { updateAppointmentStatus, rescheduleAppointment, resizeAppointment } from "@/lib/actions/appointments"
@@ -297,6 +298,7 @@ export function CalendarClient(props: CalendarClientProps) {
     useSensor(KeyboardSensor)
   )
   const [draggingAppointment, setDraggingAppointment] = useState<Appointment | null>(null)
+  const [isOverInvalid, setIsOverInvalid] = useState(false)
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const data = event.active.data.current as { appointmentId?: string } | undefined
@@ -305,11 +307,51 @@ export function CalendarClient(props: CalendarClientProps) {
     if (appt) setDraggingAppointment(appt)
   }, [appointments])
 
-  const handleDragCancel = useCallback(() => { setDraggingAppointment(null) }, [])
+  const handleDragCancel = useCallback(() => {
+    setDraggingAppointment(null)
+    setIsOverInvalid(false)
+  }, [])
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const dragged = draggingAppointment
+    if (!dragged || !event.over) {
+      setIsOverInvalid(false)
+      return
+    }
+    const overId = String(event.over.id)
+    let newStaffId: string | undefined
+    let newStart: Date | null = null
+    const staffSlot = parseSlotId(overId)
+    if (staffSlot) {
+      newStaffId = staffSlot.staffId
+      newStart = staffSlot.slotStart
+    } else {
+      const weekSlot = parseWeekSlotId(overId)
+      if (weekSlot) newStart = weekSlot.slotStart
+    }
+    if (!newStart) {
+      setIsOverInvalid(false)
+      return
+    }
+    const effectiveStaff = newStaffId || dragged.staffId
+    const durationMs = new Date(dragged.endTime).getTime() - new Date(dragged.startTime).getTime()
+    const proposedEnd = new Date(newStart.getTime() + durationMs).getTime()
+    const proposedStart = newStart.getTime()
+    const hasConflict = appointments.some((a) => {
+      if (a.id === dragged.id) return false
+      if (a.staffId !== effectiveStaff) return false
+      if (a.status === "cancelled" || a.status === "no-show") return false
+      const aStart = new Date(a.startTime).getTime()
+      const aEnd = new Date(a.endTime).getTime()
+      return aStart < proposedEnd && aEnd > proposedStart
+    })
+    setIsOverInvalid(hasConflict)
+  }, [appointments, draggingAppointment])
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const dragged = draggingAppointment
     setDraggingAppointment(null)
+    setIsOverInvalid(false)
     if (!event.over || !dragged) return
 
     const overId = String(event.over.id)
@@ -455,6 +497,7 @@ export function CalendarClient(props: CalendarClientProps) {
           <DndContext
             sensors={sensors}
             onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
           >
@@ -581,6 +624,7 @@ export function CalendarClient(props: CalendarClientProps) {
                 serviceList={props.services}
                 onClick={() => {}}
                 asOverlay
+                invalidDropTarget={isOverInvalid}
               />
             ) : null}
           </DragOverlay>
