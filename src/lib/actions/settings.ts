@@ -258,7 +258,7 @@ const paymentSettingsSchema = z.object({
   tipAmounts: z.array(z.string()).default(["15", "18", "20"]),
   customTip: z.boolean().default(true),
   autoSendReceipt: z.boolean().default(true),
-  receiptChannel: z.enum(["email", "sms", "both"]).default("email"),
+  receiptChannel: z.preprocess((value) => (value === "email" ? value : "email"), z.literal("email")).default("email"),
   receiptFooter: z
     .string()
     .default(

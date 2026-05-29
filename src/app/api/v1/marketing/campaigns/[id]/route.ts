@@ -8,7 +8,7 @@ const updateCampaignSchema = z.object({
   name: z.string().min(1).optional(),
   subject: z.string().optional(),
   body: z.string().min(1).optional(),
-  channel: z.enum(["email", "sms", "both"]).optional(),
+  channel: z.literal("email").optional(),
   audienceType: z.string().optional(),
   scheduledAt: z.coerce.date().nullable().optional(),
 })

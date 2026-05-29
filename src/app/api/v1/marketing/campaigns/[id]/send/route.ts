@@ -10,6 +10,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params
 
   try {
+    const existing = await prisma.campaign.findFirst({
+      where: { id, businessId: ctx.businessId },
+      select: { channel: true },
+    })
+    if (!existing) return ERRORS.NOT_FOUND("Campaign")
+    if (existing.channel !== "email") return ERRORS.BAD_REQUEST("SMS messaging is not configured yet")
+
     const campaign = await prisma.campaign.update({
       where: { id, businessId: ctx.businessId },
       data: { status: "sent", sentAt: new Date() },

@@ -81,9 +81,7 @@ export function PaymentsSettingsTab({
   const [tipAmounts, setTipAmounts] = useState(initialSettings?.tipAmounts ?? ["15", "18", "20"])
   const [customTip, setCustomTip] = useState(initialSettings?.customTip ?? true)
   const [autoSendReceipt, setAutoSendReceipt] = useState(initialSettings?.autoSendReceipt ?? true)
-  const [receiptChannel, setReceiptChannel] = useState<"email" | "sms" | "both">(
-    initialSettings?.receiptChannel ?? "email"
-  )
+  const [receiptChannel] = useState<"email">("email")
   const [receiptFooter, setReceiptFooter] = useState(
     initialSettings?.receiptFooter ??
       "Thank you for choosing SAL Beauty Studio! We look forward to seeing you again."
@@ -360,14 +358,12 @@ export function PaymentsSettingsTab({
                   label="Receipt Channel"
                   description="How receipts are delivered to clients"
                 >
-                  <Select value={receiptChannel} onValueChange={(v) => setReceiptChannel(v as "email" | "sms" | "both")}>
+                  <Select value={receiptChannel} disabled>
                     <SelectTrigger className="w-36">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="sms">SMS</SelectItem>
-                      <SelectItem value="both">Both</SelectItem>
                     </SelectContent>
                   </Select>
                 </SettingRow>

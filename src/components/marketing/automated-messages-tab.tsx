@@ -119,16 +119,28 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
   const [editSubject, setEditSubject] = useState("")
 
   const handleToggle = async (messageId: string, checked: boolean) => {
+    const msg = messages.find((m) => m.id === messageId)
+    if (checked && msg?.channel !== "email") {
+      toast.error("SMS automation is disabled for beta")
+      return
+    }
+
     setMessages((prev) =>
       prev.map((m) =>
         m.id === messageId ? { ...m, isActive: checked } : m
       )
     )
-    const msg = messages.find((m) => m.id === messageId)
     try {
-      await toggleAutomatedMessage(messageId, checked)
-    } catch {
-      // Already toggled optimistically in state
+      const result = await toggleAutomatedMessage(messageId, checked)
+      if (result?.success === false) throw new Error(result.error)
+    } catch (error) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, isActive: !checked } : m
+        )
+      )
+      toast.error(error instanceof Error ? error.message : "Failed to update automation")
+      return
     }
     toast.success(
       checked
@@ -226,6 +238,7 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
                     </Button>
                     <Switch
                       checked={message.isActive}
+                      disabled={message.channel !== "email"}
                       onCheckedChange={(checked) =>
                         handleToggle(message.id, checked)
                       }

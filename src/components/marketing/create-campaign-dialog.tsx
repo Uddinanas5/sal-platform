@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { toast } from "sonner"
-import { Check, ChevronLeft, ChevronRight, Mail, MessageSquare } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, Mail } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ interface CreateCampaignDialogProps {
   onCreated?: () => void
 }
 
-type CampaignType = "email" | "sms"
+type CampaignType = "email"
 type AudienceOption = "All Clients" | "VIP Clients" | "Active Clients" | "Inactive Clients" | "Custom"
 type ScheduleOption = "now" | "later"
 
@@ -86,7 +86,7 @@ export function CreateCampaignDialog({
       case 2:
         return (
           content.trim().length > 0 &&
-          (campaignType === "sms" || subject.trim().length > 0)
+          subject.trim().length > 0
         )
       case 3:
         return (
@@ -121,13 +121,8 @@ export function CreateCampaignDialog({
           : "Campaign scheduled successfully!"
       )
       onCreated?.()
-    } catch {
-      // Fallback: still show success toast even if DB fails
-      toast.success(
-        scheduleOption === "now"
-          ? "Campaign sent successfully!"
-          : "Campaign scheduled successfully!"
-      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create campaign")
     }
     handleClose(false)
   }
@@ -175,7 +170,7 @@ export function CreateCampaignDialog({
               <label className="text-sm font-medium text-foreground">
                 Campaign Type
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3">
                 <button
                   onClick={() => setCampaignType("email")}
                   className={cn(
@@ -202,34 +197,6 @@ export function CreateCampaignDialog({
                     )}
                   >
                     Email
-                  </span>
-                </button>
-                <button
-                  onClick={() => setCampaignType("sms")}
-                  className={cn(
-                    "p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2",
-                    campaignType === "sms"
-                      ? "border-sal-500 bg-sal-50"
-                      : "border-cream-200 hover:border-cream-300"
-                  )}
-                >
-                  <MessageSquare
-                    className={cn(
-                      "w-6 h-6",
-                      campaignType === "sms"
-                        ? "text-sal-600"
-                        : "text-muted-foreground/70"
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "text-sm font-medium",
-                      campaignType === "sms"
-                        ? "text-sal-700"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    SMS
                   </span>
                 </button>
               </div>
@@ -291,37 +258,26 @@ export function CreateCampaignDialog({
         {/* Step 3: Content */}
         {step === 2 && (
           <div className="space-y-4 py-2">
-            {campaignType === "email" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Subject Line
-                </label>
-                <Input
-                  placeholder="e.g., Exclusive offer just for you!"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                />
-              </div>
-            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Subject Line
+              </label>
+              <Input
+                placeholder="e.g., Exclusive offer just for you!"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
+            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
                 Message Content
               </label>
               <Textarea
-                placeholder={
-                  campaignType === "email"
-                    ? "Write your email content..."
-                    : "Write your SMS message (160 chars recommended)..."
-                }
+                placeholder="Write your email content..."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={5}
               />
-              {campaignType === "sms" && (
-                <p className="text-xs text-muted-foreground/70">
-                  {content.length}/160 characters
-                </p>
-              )}
             </div>
           </div>
         )}
@@ -423,9 +379,7 @@ export function CreateCampaignDialog({
                   variant="secondary"
                   className={cn(
                     "text-xs capitalize",
-                    campaignType === "email"
-                      ? "bg-blue-500/10 text-blue-700 dark:text-blue-300"
-                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    "bg-blue-500/10 text-blue-700 dark:text-blue-300"
                   )}
                 >
                   {campaignType}
@@ -437,7 +391,7 @@ export function CreateCampaignDialog({
                   {audience} ({selectedAudienceCount})
                 </span>
               </div>
-              {campaignType === "email" && subject && (
+              {subject && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Subject</span>
                   <span className="text-sm font-medium text-foreground max-w-[200px] truncate">

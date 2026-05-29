@@ -7,7 +7,7 @@ import { z } from "zod"
 const createAutomatedMessageSchema = z.object({
   name: z.string().min(1),
   trigger: z.string().min(1),
-  channel: z.enum(["email", "sms", "both"]),
+  channel: z.literal("email"),
   subject: z.string().optional(),
   body: z.string().min(1),
   delayHours: z.number().int().nonnegative().optional(),
