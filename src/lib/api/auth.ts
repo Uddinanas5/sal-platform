@@ -13,7 +13,9 @@ export async function withV1Auth(req: Request): Promise<ApiContext | null> {
   const authHeader = req.headers.get("authorization")
   if (authHeader?.startsWith("Bearer ")) {
     const rawKey = authHeader.slice(7)
-    const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex")
+    const apiKeySecret = rawKey.startsWith("sal_") ? rawKey.slice(4) : rawKey
+    const keyHash = crypto.createHash("sha256").update(apiKeySecret).digest("hex")
+    const oauthHash = crypto.createHash("sha256").update(rawKey).digest("hex")
 
     try {
       // Try API key first
@@ -29,7 +31,7 @@ export async function withV1Auth(req: Request): Promise<ApiContext | null> {
 
       // Try OAuth access token
       const oauthToken = await prisma.oAuthAccessToken.findUnique({
-        where: { tokenHash: keyHash },
+        where: { tokenHash: oauthHash },
       })
       if (oauthToken && !oauthToken.revokedAt && oauthToken.expiresAt >= new Date()) {
         return { userId: oauthToken.userId, businessId: oauthToken.businessId, role: "admin" }

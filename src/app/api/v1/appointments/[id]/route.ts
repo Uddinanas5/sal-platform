@@ -1,5 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiError, apiSuccess, ERRORS } from "@/lib/api/response"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { assertStaffOwned } from "@/lib/ownership"
 import { prisma } from "@/lib/prisma"
 import {
@@ -22,6 +23,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   const { id } = await params
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
 
   const appointment = await prisma.appointment.findUnique({
     where: { id, businessId: ctx.businessId },
@@ -45,6 +47,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   const { id } = await params
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
 
   let body: unknown
   try { body = await req.json() } catch { return ERRORS.BAD_REQUEST("Invalid JSON") }
@@ -169,6 +172,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   const { id } = await params
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
 
   try {
     await prisma.appointment.update({

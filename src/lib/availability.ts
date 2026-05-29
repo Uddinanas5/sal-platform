@@ -1,4 +1,5 @@
 import { prisma } from './prisma'
+import { generateBookingReference as generateSecureBookingReference } from "@/lib/booking-reference"
 
 interface TimeSlot {
   start: Date
@@ -349,10 +350,5 @@ export async function getMultiStaffAvailability(params: {
  * Generate a unique booking reference
  */
 export function generateBookingReference(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let result = 'SAL-'
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return result
+  return generateSecureBookingReference()
 }

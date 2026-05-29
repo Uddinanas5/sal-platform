@@ -7,6 +7,7 @@ import { bookingConfirmationEmail, appointmentCancelledEmail } from "@/lib/email
 import { revalidatePath } from "next/cache"
 import { z, ZodError } from "zod"
 import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { generateBookingReference } from "@/lib/booking-reference"
 
 const addToPublicWaitlistSchema = z.object({
   businessId: z.string().uuid(),
@@ -131,10 +132,7 @@ export async function createPublicBooking(data: {
         throw new Error("CONFLICT")
       }
 
-      // Atomic booking reference via timestamp + random suffix
-      const timestamp = Date.now().toString(36)
-      const random = Math.random().toString(36).substring(2, 6)
-      const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
+      const bookingRef = generateBookingReference()
 
       const appt = await tx.appointment.create({
         data: {
