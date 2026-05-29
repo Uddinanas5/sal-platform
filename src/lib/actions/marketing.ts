@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { requireMinRole } from "@/lib/auth-utils"
 
-const channelEnum = z.enum(["email", "sms", "both"])
+const channelEnum = z.literal("email")
 
 const createCampaignSchema = z.object({
   name: z.string().min(1),
@@ -106,6 +106,15 @@ export async function updateCampaign(
 
     const { businessId } = await requireMinRole("admin")
 
+    const existing = await prisma.campaign.findFirst({
+      where: { id: parsed.id, businessId },
+      select: { channel: true },
+    })
+    if (!existing) return { success: false, error: "Campaign not found" }
+    if (existing.channel !== "email") {
+      return { success: false, error: "SMS messaging is not configured yet" }
+    }
+
     const campaign = await prisma.campaign.update({
       where: { id: parsed.id, businessId },
       data: {
@@ -144,6 +153,15 @@ export async function sendCampaign(id: string) {
     const parsed = idSchema.parse({ id })
 
     const { businessId } = await requireMinRole("admin")
+
+    const existing = await prisma.campaign.findFirst({
+      where: { id: parsed.id, businessId },
+      select: { channel: true },
+    })
+    if (!existing) return { success: false, error: "Campaign not found" }
+    if (existing.channel !== "email") {
+      return { success: false, error: "SMS messaging is not configured yet" }
+    }
 
     const campaign = await prisma.campaign.update({
       where: { id: parsed.id, businessId },
@@ -251,6 +269,17 @@ export async function toggleAutomatedMessage(id: string, isActive: boolean) {
     const parsed = toggleAutomatedMessageSchema.parse({ id, isActive })
 
     const { businessId } = await requireMinRole("admin")
+
+    if (parsed.isActive) {
+      const message = await prisma.automatedMessage.findFirst({
+        where: { id: parsed.id, businessId },
+        select: { channel: true },
+      })
+      if (!message) return { success: false, error: "Automated message not found" }
+      if (message.channel !== "email") {
+        return { success: false, error: "SMS messaging is not configured yet" }
+      }
+    }
 
     await prisma.automatedMessage.update({
       where: { id: parsed.id, businessId },

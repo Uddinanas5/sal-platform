@@ -10,7 +10,6 @@ import {
   Loader2,
   Printer,
   Mail,
-  MessageSquare,
   Receipt,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -541,14 +540,6 @@ export function PaymentDialog({
                     <span className="text-xs">
                       {isSendingEmail ? "Sending…" : "Email"}
                     </span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-col gap-1.5 h-auto py-3"
-                    onClick={() => toast.info("SMS sending is not yet configured")}
-                  >
-                    <MessageSquare className="h-5 w-5" />
-                    <span className="text-xs">SMS</span>
                   </Button>
                 </div>
 

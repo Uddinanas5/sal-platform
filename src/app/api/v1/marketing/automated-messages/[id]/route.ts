@@ -19,6 +19,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
 
   try {
+    if (parsed.data.isActive) {
+      const existing = await prisma.automatedMessage.findFirst({
+        where: { id, businessId: ctx.businessId },
+        select: { channel: true },
+      })
+      if (!existing) return ERRORS.NOT_FOUND("Automated message")
+      if (existing.channel !== "email") return ERRORS.BAD_REQUEST("SMS messaging is not configured yet")
+    }
+
     const msg = await prisma.automatedMessage.update({
       where: { id, businessId: ctx.businessId },
       data: { isActive: parsed.data.isActive },

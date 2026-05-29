@@ -4,7 +4,7 @@ import { hasRole } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
-const channelEnum = z.enum(["email", "sms", "both"])
+const channelEnum = z.literal("email")
 
 const createCampaignSchema = z.object({
   name: z.string().min(1),

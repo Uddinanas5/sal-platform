@@ -108,47 +108,6 @@ const defaultInternalAlerts: NotificationSettings["internalAlerts"] = {
   dailySummary: true,
 }
 
-function SmsTemplateField({
-  value,
-  onChange,
-}: {
-  value: string
-  onChange: (value: string) => void
-}) {
-  const charCount = value.length
-  const segments = Math.ceil(charCount / 160)
-
-  return (
-    <div className="space-y-2">
-      <Textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={3}
-        className="font-mono text-sm"
-      />
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          Use merge fields like {"{client_name}"}, {"{service_name}"}, etc.
-        </p>
-        <div className="flex items-center gap-2">
-          <span
-            className={`text-xs font-medium ${
-              charCount > 160 ? "text-amber-600" : "text-muted-foreground"
-            }`}
-          >
-            {charCount} / 160 characters
-          </span>
-          {segments > 1 && (
-            <Badge variant="secondary" className="text-xs">
-              {segments} segments
-            </Badge>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 interface NotificationsSettingsTabProps {
   initialSettings?: NotificationSettings
 }
@@ -157,9 +116,7 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
   const [emailTemplates, setEmailTemplates] = useState(
     initialSettings?.emailTemplates ?? defaultEmailTemplates
   )
-  const [smsTemplates, setSmsTemplates] = useState(
-    initialSettings?.smsTemplates ?? defaultSmsTemplates
-  )
+  const smsTemplates = initialSettings?.smsTemplates ?? defaultSmsTemplates
   const [internalAlerts, setInternalAlerts] = useState(
     initialSettings?.internalAlerts ?? defaultInternalAlerts
   )
@@ -319,67 +276,13 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
               SMS Notifications
             </CardTitle>
             <CardDescription>
-              Customize SMS templates sent to your clients
+              SMS delivery requires provider setup and compliance approval before it can be enabled.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="sms-booking-confirmation">
-                <AccordionTrigger className="text-sm font-medium">
-                  Booking Confirmation
-                </AccordionTrigger>
-                <AccordionContent>
-                  <SmsTemplateField
-                    value={smsTemplates.bookingConfirmation}
-                    onChange={(v) =>
-                      setSmsTemplates({ ...smsTemplates, bookingConfirmation: v })
-                    }
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="sms-appointment-reminder">
-                <AccordionTrigger className="text-sm font-medium">
-                  Appointment Reminder
-                </AccordionTrigger>
-                <AccordionContent>
-                  <SmsTemplateField
-                    value={smsTemplates.appointmentReminder}
-                    onChange={(v) =>
-                      setSmsTemplates({ ...smsTemplates, appointmentReminder: v })
-                    }
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="sms-cancellation-notice">
-                <AccordionTrigger className="text-sm font-medium">
-                  Cancellation Notice
-                </AccordionTrigger>
-                <AccordionContent>
-                  <SmsTemplateField
-                    value={smsTemplates.cancellationNotice}
-                    onChange={(v) =>
-                      setSmsTemplates({ ...smsTemplates, cancellationNotice: v })
-                    }
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="sms-follow-up">
-                <AccordionTrigger className="text-sm font-medium">
-                  Follow-up / Review Request
-                </AccordionTrigger>
-                <AccordionContent>
-                  <SmsTemplateField
-                    value={smsTemplates.followUp}
-                    onChange={(v) =>
-                      setSmsTemplates({ ...smsTemplates, followUp: v })
-                    }
-                  />
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              SMS is disabled for beta. Email confirmations and staff invitations are available now.
+            </div>
           </CardContent>
         </Card>
       </motion.div>
