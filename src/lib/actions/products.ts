@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
+import { requireMinRole } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -96,7 +96,7 @@ export async function adjustStock(
     adjustment = parsed.adjustment
     reason = parsed.reason
 
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
 
     const inventory = await prisma.productInventory.findFirst({
       where: { productId, product: { businessId } },
@@ -129,8 +129,12 @@ export async function adjustStock(
     return { success: true, data: undefined }
   } catch (e) {
     if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    const msg = e instanceof Error ? e.message : "Failed to adjust stock"
+    if (msg === "Not authenticated" || msg === "No business context" || msg.startsWith("Insufficient permissions")) {
+      return { success: false, error: msg }
+    }
     console.error("adjustStock error:", e)
-    return { success: false, error: (e as Error).message }
+    return { success: false, error: "Failed to adjust stock" }
   }
 }
 

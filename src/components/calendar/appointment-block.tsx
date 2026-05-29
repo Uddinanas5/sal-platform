@@ -3,6 +3,7 @@
 import React from "react"
 import { motion } from "framer-motion"
 import { format } from "date-fns"
+import { useDraggable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
 import {
   Tooltip,
@@ -61,11 +62,19 @@ interface AppointmentBlockProps {
   staffList: Staff[]
   serviceList: Service[]
   onClick: (appointment: Appointment) => void
+  onResize?: (appointmentId: string, newDurationMinutes: number) => void
+  slotIncrementMinutes?: number
   startHour?: number
   compact?: boolean
   overlapColumn?: number
   overlapTotalColumns?: number
+  /** If true, render as drag overlay ghost (no draggable wiring, no positioning). */
+  asOverlay?: boolean
+  /** Overlay only: signal that the current hover target would conflict. Applies a red ring + dimmed opacity. */
+  invalidDropTarget?: boolean
 }
+
+const NON_DRAGGABLE_STATUSES = new Set(["cancelled", "no-show", "completed"])
 
 export function AppointmentBlock({
   appointment,
@@ -74,11 +83,22 @@ export function AppointmentBlock({
   staffList,
   serviceList,
   onClick,
+  onResize,
+  slotIncrementMinutes = 15,
   startHour = 8,
   compact = false,
   overlapColumn = 0,
   overlapTotalColumns = 1,
+  asOverlay = false,
+  invalidDropTarget = false,
 }: AppointmentBlockProps) {
+  const isDraggable = !asOverlay && !NON_DRAGGABLE_STATUSES.has(appointment.status)
+  const canResize = isDraggable && !!onResize
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `appt:${appointment.id}`,
+    disabled: !isDraggable,
+    data: { appointmentId: appointment.id, type: "appointment" },
+  })
   const pixelsPerMinute = (60 * zoom) / 30
   const startMinutes =
     appointment.startTime.getHours() * 60 + appointment.startTime.getMinutes()
@@ -87,7 +107,52 @@ export function AppointmentBlock({
   const durationMinutes = endMinutes - startMinutes
 
   const top = (startMinutes - startHour * 60) * pixelsPerMinute
-  const height = Math.max(durationMinutes * pixelsPerMinute, 24)
+  const baseHeight = Math.max(durationMinutes * pixelsPerMinute, 24)
+
+  const [resizeDeltaPx, setResizeDeltaPx] = React.useState(0)
+  const isResizing = resizeDeltaPx !== 0
+  const previewDuration = Math.max(
+    slotIncrementMinutes,
+    Math.round((durationMinutes + resizeDeltaPx / pixelsPerMinute) / slotIncrementMinutes) *
+      slotIncrementMinutes
+  )
+  const height = isResizing
+    ? Math.max(previewDuration * pixelsPerMinute, 24)
+    : baseHeight
+
+  const handleResizePointerDown = React.useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!canResize) return
+      e.stopPropagation()
+      e.preventDefault()
+      const startY = e.clientY
+      const startDuration = durationMinutes
+      const target = e.currentTarget
+      target.setPointerCapture(e.pointerId)
+
+      const onMove = (ev: PointerEvent) => {
+        setResizeDeltaPx(ev.clientY - startY)
+      }
+      const onUp = (ev: PointerEvent) => {
+        target.releasePointerCapture(ev.pointerId)
+        window.removeEventListener("pointermove", onMove)
+        window.removeEventListener("pointerup", onUp)
+        const deltaMinutes = (ev.clientY - startY) / pixelsPerMinute
+        const newDuration = Math.max(
+          slotIncrementMinutes,
+          Math.round((startDuration + deltaMinutes) / slotIncrementMinutes) *
+            slotIncrementMinutes
+        )
+        setResizeDeltaPx(0)
+        if (newDuration !== startDuration && onResize) {
+          onResize(appointment.id, newDuration)
+        }
+      }
+      window.addEventListener("pointermove", onMove)
+      window.addEventListener("pointerup", onUp)
+    },
+    [canResize, durationMinutes, pixelsPerMinute, slotIncrementMinutes, onResize, appointment.id]
+  )
 
   const colors = getBlockColors(appointment, colorBy, staffList, serviceList)
   const timeRange = `${format(appointment.startTime, "h:mm a")} - ${format(
@@ -111,49 +176,70 @@ export function AppointmentBlock({
   // Status label for tooltip
   const statusLabel = appointment.status.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 
-  return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
+  // When in DragOverlay we want fixed dimensions and no absolute positioning.
+  const overlayStyle: React.CSSProperties = asOverlay
+    ? {
+        height: `${height}px`,
+        width: "200px",
+        backgroundColor: colors.bg,
+        borderLeftColor: colors.border,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+      }
+    : {
+        top: `${top}px`,
+        height: `${height}px`,
+        left:
+          overlapTotalColumns > 1
+            ? `calc(${leftPercent}% + ${paddingPx}px)`
+            : "4px",
+        right:
+          overlapTotalColumns > 1
+            ? `calc(${rightPercent}% + ${paddingPx}px)`
+            : "4px",
+        backgroundColor: colors.bg,
+        borderLeftColor: colors.border,
+      }
+
+  const innerBlock = (
     <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={{
-        scale: 1.02,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-        zIndex: 20,
-      }}
+      ref={asOverlay ? undefined : setNodeRef}
+      layout={!isDragging && !asOverlay}
+      initial={asOverlay ? false : { opacity: 0, scale: 0.95 }}
+      animate={{ opacity: isDragging ? 0.35 : 1, scale: 1 }}
+      whileHover={
+        asOverlay || isDragging
+          ? undefined
+          : {
+              scale: 1.02,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              zIndex: 20,
+            }
+      }
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
-      tabIndex={0}
-      role="button"
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
+        if (asOverlay) return
+        if (e.key === "Enter") {
           e.preventDefault()
           onClick(appointment)
         }
       }}
       className={cn(
-        "absolute rounded-md cursor-pointer overflow-hidden",
-        "border-l-[3px] px-1.5 py-1",
+        asOverlay ? "relative" : "absolute",
+        "rounded-md overflow-hidden border-l-[3px] px-1.5 py-1",
+        isDraggable && !asOverlay ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+        isDragging && "ring-2 ring-sal-500/40",
+        asOverlay && invalidDropTarget && "ring-2 ring-red-500 ring-offset-1 opacity-60",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sal-500 focus-visible:ring-offset-1"
       )}
-      style={{
-        top: `${top}px`,
-        height: `${height}px`,
-        left: overlapTotalColumns > 1
-          ? `calc(${leftPercent}% + ${paddingPx}px)`
-          : "4px",
-        right: overlapTotalColumns > 1
-          ? `calc(${rightPercent}% + ${paddingPx}px)`
-          : "4px",
-        backgroundColor: colors.bg,
-        borderLeftColor: colors.border,
-      }}
+      style={overlayStyle}
       onClick={(e) => {
+        if (asOverlay) return
         e.stopPropagation()
-        onClick(appointment)
+        if (!isDragging) onClick(appointment)
       }}
+      {...(asOverlay || !isDraggable
+        ? { role: "button" as const, tabIndex: asOverlay ? -1 : 0 }
+        : { ...attributes, ...listeners })}
     >
       {isShort ? (
         <div className="flex items-center gap-1.5 h-full overflow-hidden">
@@ -167,6 +253,14 @@ export function AppointmentBlock({
             <span className="text-[10px] text-muted-foreground truncate">
               {appointment.serviceName}
             </span>
+          )}
+          {canResize && (
+            <div
+              onPointerDown={handleResizePointerDown}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize opacity-0 hover:opacity-100 transition-opacity bg-gradient-to-t from-black/15 to-transparent"
+              aria-hidden
+            />
           )}
         </div>
       ) : (
@@ -194,10 +288,32 @@ export function AppointmentBlock({
               )}
             </>
           )}
+          {canResize && (
+            <div
+              onPointerDown={handleResizePointerDown}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize opacity-0 hover:opacity-100 transition-opacity bg-gradient-to-t from-black/15 to-transparent"
+              aria-hidden
+            />
+          )}
+          {isResizing && (
+            <span className="absolute -top-5 right-0 text-[10px] font-semibold bg-foreground text-background px-1.5 py-0.5 rounded shadow">
+              {previewDuration >= 60
+                ? `${Math.floor(previewDuration / 60)}h${previewDuration % 60 > 0 ? ` ${previewDuration % 60}m` : ""}`
+                : `${previewDuration}m`}
+            </span>
+          )}
         </div>
       )}
     </motion.div>
-        </TooltipTrigger>
+  )
+
+  if (asOverlay) return innerBlock
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>{innerBlock}</TooltipTrigger>
         <TooltipContent side="right" className="max-w-[220px] p-0">
           <div className="px-3 py-2 space-y-1">
             <p className="font-semibold text-sm">{appointment.clientName}</p>

@@ -24,7 +24,7 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
       tax: z.number().nonnegative().describe("Tax amount"),
       tip: z.number().nonnegative().describe("Tip amount"),
       total: z.number().nonnegative().describe("Total amount charged"),
-      method: z.enum(["cash", "card", "gift_card", "other"]).describe("Payment method"),
+      method: z.enum(["cash", "card", "online", "gift_card", "other"]).describe("Payment method"),
     },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async ({ clientId, appointmentId, items, subtotal, discount, tax, tip, total, method }) => {

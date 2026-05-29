@@ -6,8 +6,19 @@ import { stripe } from "@/lib/stripe"
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
+function toCents(amount: unknown): number {
+  return Math.round(Number(amount || 0) * 100)
+}
+
 export async function POST(request: NextRequest) {
   try {
+    if (!webhookSecret) {
+      return NextResponse.json(
+        { error: "Stripe webhook is not configured" },
+        { status: 500 }
+      )
+    }
+
     const body = await request.text()
     const headersList = await headers()
     const signature = headersList.get("stripe-signature")
@@ -59,31 +70,53 @@ export async function POST(request: NextRequest) {
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
 
-        // Update the Payment record to "completed"
         const succeededPayment = await prisma.payment.findFirst({
           where: { processorId: paymentIntent.id },
+          include: { appointment: true },
         })
 
         if (succeededPayment) {
-          await prisma.payment.update({
-            where: { id: succeededPayment.id },
-            data: {
-              status: "completed",
-              processedAt: new Date(),
-            },
-          })
+          const expectedAmount = toCents(succeededPayment.totalAmount)
+          const receivedAmount = paymentIntent.amount_received || paymentIntent.amount
+          const currencyMatches = paymentIntent.currency.toUpperCase() === succeededPayment.currency.toUpperCase()
 
-          // If there's an associated appointment, confirm it
-          const appointmentId =
-            succeededPayment.appointmentId ??
-            (paymentIntent.metadata?.appointmentId || null)
-
-          if (appointmentId) {
-            await prisma.appointment.update({
-              where: { id: appointmentId },
-              data: { status: "confirmed" },
+          if (receivedAmount < expectedAmount || !currencyMatches) {
+            await prisma.payment.update({
+              where: { id: succeededPayment.id },
+              data: {
+                status: "failed",
+                processorResponse: {
+                  reason: "amount_or_currency_mismatch",
+                  expectedAmount,
+                  receivedAmount,
+                  expectedCurrency: succeededPayment.currency,
+                  receivedCurrency: paymentIntent.currency,
+                },
+              },
             })
+            break
           }
+
+          await prisma.$transaction(async (tx) => {
+            await tx.payment.update({
+              where: { id: succeededPayment.id },
+              data: {
+                status: "completed",
+                processedAt: new Date(),
+                processorResponse: paymentIntent as unknown as object,
+              },
+            })
+
+            if (succeededPayment.appointmentId) {
+              await tx.appointment.update({
+                where: {
+                  id: succeededPayment.appointmentId,
+                  businessId: succeededPayment.businessId,
+                },
+                data: { status: "confirmed" },
+              })
+            }
+          })
         }
 
         break
@@ -153,4 +186,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

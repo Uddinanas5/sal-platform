@@ -649,6 +649,7 @@ model Client {
   preferredLocationId String?   @map("preferred_location_id") @db.Uuid
   preferredStaffId    String?   @map("preferred_staff_id") @db.Uuid
   notes               String?   @db.Text
+  allergies           String?   @db.Text
   tags                String[]  @default([])
   source              String?   @db.VarChar(50)
   referralSource      String?   @map("referral_source") @db.VarChar(255)

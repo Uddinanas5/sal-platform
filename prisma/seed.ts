@@ -2,11 +2,14 @@ import "dotenv/config"
 import { PrismaClient } from "./generated/prisma/client/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import bcrypt from "bcryptjs"
+import crypto from "crypto"
 
 const connectionString = process.env.DATABASE_URL!
+const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1')
+const sslmode = isLocal ? 'disable' : 'require'
 const sslUrl = connectionString.includes('?')
-  ? `${connectionString}&sslmode=require&uselibpqcompat=true`
-  : `${connectionString}?sslmode=require&uselibpqcompat=true`
+  ? `${connectionString}&sslmode=${sslmode}&uselibpqcompat=true`
+  : `${connectionString}?sslmode=${sslmode}&uselibpqcompat=true`
 const adapter = new PrismaPg({ connectionString: sslUrl })
 const prisma = new PrismaClient({ adapter })
 
@@ -52,6 +55,7 @@ async function main() {
   await prisma.discount.deleteMany()
   await prisma.payrollPeriod.deleteMany()
   await prisma.auditLog.deleteMany()
+  await prisma.apiKey.deleteMany()
   await prisma.location.deleteMany()
   await prisma.business.deleteMany()
   await prisma.user.deleteMany()
@@ -135,6 +139,26 @@ async function main() {
     })
   }
   console.log("  Created business hours (Mon-Sat open, Sunday closed)")
+
+  // ============================================================================
+  // 2c. Create Dev-Seeded API Key (for local testing only)
+  // ============================================================================
+  const devKeyBody = crypto.randomBytes(24).toString("hex")
+  const devApiKey = `sal_devseed_${devKeyBody}`
+  const devKeyHash = crypto.createHash("sha256").update(devApiKey).digest("hex")
+  const devKeyPrefix = devApiKey.slice(0, 12)
+
+  await prisma.apiKey.create({
+    data: {
+      businessId: business.id,
+      name: "Dev Seed Key",
+      keyHash: devKeyHash,
+      keyPrefix: devKeyPrefix,
+      role: "owner",
+      createdById: adminUser.id,
+    },
+  })
+  console.log(`  Created dev API key: ${devApiKey}`)
 
   // ============================================================================
   // 3. Create Staff Users
@@ -631,7 +655,8 @@ async function main() {
   console.log(`  Created ${transactionsData.length} payments`)
 
   console.log("\n✅ Seeding complete!")
-  console.log("   Login: admin@sal.app / password")
+  console.log("   Login:   admin@sal.app / password")
+  console.log(`   API key: ${devApiKey}`)
 }
 
 main()

@@ -1,5 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { withV1Errors } from "@/lib/api/v1-safe-handler"
 import { hasRole } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
@@ -13,7 +14,7 @@ const createServiceSchema = z.object({
   color: z.string().optional(),
 })
 
-export async function GET(req: Request) {
+export const GET = withV1Errors("v1.services.GET", async (req: Request) => {
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
 
@@ -24,9 +25,9 @@ export async function GET(req: Request) {
   })
 
   return apiSuccess(services)
-}
+})
 
-export async function POST(req: Request) {
+export const POST = withV1Errors("v1.services.POST", async (req: Request) => {
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   if (!hasRole(ctx.role, "admin")) return ERRORS.FORBIDDEN()
@@ -36,6 +37,12 @@ export async function POST(req: Request) {
 
   const parsed = createServiceSchema.safeParse(body)
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
+
+  const category = await prisma.serviceCategory.findFirst({
+    where: { id: parsed.data.categoryId, businessId: ctx.businessId },
+    select: { id: true },
+  })
+  if (!category) return ERRORS.BAD_REQUEST("Category not found")
 
   const service = await prisma.service.create({
     data: {
@@ -51,4 +58,4 @@ export async function POST(req: Request) {
   })
 
   return apiSuccess(service, 201)
-}
+})

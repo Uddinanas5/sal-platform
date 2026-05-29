@@ -1,10 +1,8 @@
 import { prisma } from "@/lib/prisma"
 
-export async function getProducts(businessId?: string) {
-  const businessFilter = businessId ? { businessId } : {}
-
+export async function getProducts(businessId: string) {
   const products = await prisma.product.findMany({
-    where: { isActive: true, deletedAt: null, ...businessFilter },
+    where: { isActive: true, deletedAt: null, businessId },
     select: {
       id: true,
       name: true,
@@ -38,7 +36,7 @@ export async function getProducts(businessId?: string) {
   })
 }
 
-export async function getLowStockProducts(businessId?: string) {
+export async function getLowStockProducts(businessId: string) {
   const products = await getProducts(businessId)
   return products.filter((p) => p.stockLevel <= p.reorderLevel)
 }

@@ -1,7 +1,9 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { format, setHours, setMinutes, isSameDay } from "date-fns"
+import { createAppointment } from "@/lib/actions/appointments"
 import {
   Search,
   ChevronRight,
@@ -116,6 +118,9 @@ export function NewAppointmentDialog({
   const [isGroupBooking, setIsGroupBooking] = useState(false)
   const [maxParticipants, setMaxParticipants] = useState(4)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const router = useRouter()
 
   // Reset state when dialog opens
   React.useEffect(() => {
@@ -139,6 +144,7 @@ export function NewAppointmentDialog({
       setIsGroupBooking(false)
       setMaxParticipants(4)
       setShowAdvanced(false)
+      setIsSaving(false)
 
       // Pre-select staff if provided
       if (initialStaffId) {
@@ -209,7 +215,7 @@ export function NewAppointmentDialog({
     if (step > 1) setStep((step - 1) as Step)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!selectedClient || !selectedService || !selectedStaff || !selectedDate || !selectedTime) {
       toast.error("Please complete all required fields")
       return
@@ -220,21 +226,29 @@ export function NewAppointmentDialog({
       selectedTime.minute
     )
 
-    const extras: string[] = []
-    if (isRecurring) extras.push(`Recurring ${recurrenceRule}`)
-    if (isGroupBooking) extras.push(`Group (max ${maxParticipants})`)
+    setIsSaving(true)
+    const result = await createAppointment({
+      clientId: selectedClient.id,
+      serviceId: selectedService.id,
+      staffId: selectedStaff.id,
+      startTime: startTime.toISOString(),
+      notes: notes.trim() || undefined,
+    })
+
+    if (!result.success) {
+      setIsSaving(false)
+      toast.error(result.error)
+      return
+    }
 
     const description = `${selectedService.name} with ${selectedStaff.name} on ${format(
       startTime,
       "MMM d 'at' h:mm a"
-    )}${extras.length > 0 ? ` — ${extras.join(", ")}` : ""}`
+    )}`
 
-    toast.success(
-      isRecurring ? "Recurring appointments created" : "Appointment created",
-      { description }
-    )
-
+    toast.success("Appointment created", { description })
     onOpenChange(false)
+    router.refresh()
   }
 
   const canProceed = (): boolean => {
@@ -749,9 +763,9 @@ export function NewAppointmentDialog({
               <ChevronRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button size="sm" onClick={handleSave} className="gap-1">
+            <Button size="sm" onClick={handleSave} disabled={isSaving} className="gap-1">
               <Check className="h-4 w-4" />
-              Create Appointment
+              {isSaving ? "Creating…" : "Create Appointment"}
             </Button>
           )}
         </div>

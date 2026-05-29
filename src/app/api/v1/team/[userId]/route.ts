@@ -14,17 +14,15 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ userI
 
   if (userId === ctx.userId) return ERRORS.BAD_REQUEST("You cannot remove yourself")
 
-  const targetUser = await prisma.user.findUnique({ where: { id: userId } })
-  if (!targetUser) return ERRORS.NOT_FOUND("User")
-
-  if (ctx.role === "admin" && targetUser.role !== "staff") {
-    return ERRORS.FORBIDDEN()
-  }
-
   const staffProfile = await prisma.staff.findFirst({
     where: { userId, primaryLocation: { businessId: ctx.businessId }, isActive: true },
+    include: { user: true },
   })
-  if (!staffProfile) return ERRORS.NOT_FOUND("Team member")
+  if (!staffProfile?.user) return ERRORS.NOT_FOUND("Team member")
+
+  if (ctx.role === "admin" && staffProfile.user.role !== "staff") {
+    return ERRORS.FORBIDDEN()
+  }
 
   await prisma.staff.update({
     where: { id: staffProfile.id },
@@ -48,14 +46,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
   const parsed = updateRoleSchema.safeParse(body)
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
 
-  const targetUser = await prisma.user.findUnique({ where: { id: userId } })
-  if (!targetUser) return ERRORS.NOT_FOUND("User")
-  if (targetUser.role === "owner") return ERRORS.BAD_REQUEST("Cannot change another owner's role")
-
   const staffProfile = await prisma.staff.findFirst({
     where: { userId, primaryLocation: { businessId: ctx.businessId } },
+    include: { user: true },
   })
-  if (!staffProfile) return ERRORS.NOT_FOUND("Team member")
+  if (!staffProfile?.user) return ERRORS.NOT_FOUND("Team member")
+  if (staffProfile.user.role === "owner") return ERRORS.BAD_REQUEST("Cannot change another owner's role")
 
   await prisma.user.update({ where: { id: userId }, data: { role: parsed.data.newRole } })
   return apiSuccess({ updated: true, newRole: parsed.data.newRole })

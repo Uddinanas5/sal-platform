@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAvailability, getMultiStaffAvailability } from '@/lib/availability'
+import { getMultiStaffAvailability } from '@/lib/availability'
 import { prisma } from '@/lib/prisma'
 import { getPublicBookingSettings } from '@/lib/actions/booking-settings'
+import { withSafeErrors } from '@/lib/api/safe-handler'
+import { isUuid } from '@/lib/api/uuid'
+import { publicError } from '@/lib/api/public-errors'
+import { parseYmd } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
 const LEAD_TIME_MAP: Record<string, number> = {
   none: 0, '1h': 60, '2h': 120, '4h': 240, '12h': 720, '24h': 1440, '48h': 2880,
+}
+
+// Mirrors MAX_ADVANCE_MAP in the public booking client. Kept in sync by hand
+// because the values rarely change and the client is a separate bundle —
+// the alternative is dragging client-page code into the API route's import
+// graph, which is worse.
+const MAX_ADVANCE_DAYS_MAP: Record<string, number> = {
+  '1w': 7, '2w': 14, '1m': 30, '2m': 60, '3m': 90,
 }
 
 /**
@@ -19,8 +31,7 @@ const LEAD_TIME_MAP: Record<string, number> = {
  * - locationId (required): The location
  * - staffId (optional): Specific staff member, or returns all staff availability
  */
-export async function GET(request: NextRequest) {
-  try {
+export const GET = withSafeErrors('GET /api/availability', async (request: NextRequest) => {
     const searchParams = request.nextUrl.searchParams
     const serviceId = searchParams.get('serviceId')
     const dateStr = searchParams.get('date')
@@ -29,133 +40,129 @@ export async function GET(request: NextRequest) {
 
     // Validation
     if (!serviceId) {
-      return NextResponse.json(
-        { error: 'serviceId is required' },
-        { status: 400 }
-      )
+      return publicError('INVALID_REQUEST', 'serviceId is required')
     }
 
     if (!dateStr) {
-      return NextResponse.json(
-        { error: 'date is required (YYYY-MM-DD format)' },
-        { status: 400 }
-      )
+      return publicError('INVALID_REQUEST', 'date is required (YYYY-MM-DD format)')
     }
 
     if (!locationId) {
-      return NextResponse.json(
-        { error: 'locationId is required' },
-        { status: 400 }
-      )
+      return publicError('INVALID_REQUEST', 'locationId is required')
     }
 
-    // Parse date
-    const date = new Date(dateStr)
-    if (isNaN(date.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid date format. Use YYYY-MM-DD' },
-        { status: 400 }
-      )
+    // PK columns are @db.Uuid — non-UUID strings cause Postgres to throw on
+    // the findUnique call rather than returning null, surfacing as a 500 +
+    // log noise to anonymous callers. Shape-check before touching Prisma so
+    // garbage IDs collapse to the same 404 a missing row would produce.
+    if (!isUuid(serviceId)) {
+      return publicError('SERVICE_NOT_FOUND')
+    }
+    if (!isUuid(locationId)) {
+      return publicError('LOCATION_NOT_FOUND')
+    }
+    if (staffId !== null && !isUuid(staffId)) {
+      return publicError('STAFF_NOT_FOUND')
     }
 
-    // Check date is not in the past
+    // Parse date strictly — `new Date('2027-02-30')` silently rolls to March 2,
+    // so we round-trip the components to reject impossible calendar dates.
+    const date = parseYmd(dateStr)
+    if (!date) {
+      return publicError('INVALID_REQUEST', 'Invalid date format. Use YYYY-MM-DD')
+    }
+
+    // Past dates aren't a malformed request — the input parsed fine, it just
+    // falls outside the bookable window. Same code as the forward bound below.
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     if (date < today) {
-      return NextResponse.json(
-        { error: 'Cannot check availability for past dates' },
-        { status: 400 }
+      return publicError(
+        'OUT_OF_BOOKING_WINDOW',
+        'Cannot check availability for past dates'
       )
     }
 
-    // Fetch booking settings to enforce lead time
-    let minLeadTimeMinutes = 30 // default fallback
-    const serviceForBusiness = await prisma.service.findUnique({
+    // Fetch service + booking settings to enforce lead time
+    const service = await prisma.service.findUnique({
       where: { id: serviceId },
-      select: { businessId: true },
+      select: { businessId: true, durationMinutes: true },
     })
-    if (serviceForBusiness?.businessId) {
-      const bookingSettings = await getPublicBookingSettings(serviceForBusiness.businessId)
-      minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
+    if (!service?.businessId) {
+      return publicError('SERVICE_NOT_FOUND')
     }
 
-    // If staffId provided, get availability for that staff member
-    if (staffId) {
-      const availability = await getAvailability({
-        staffId,
-        serviceId,
-        date,
-        locationId,
-        minLeadTimeMinutes,
-      })
+    // Verify the location exists and belongs to the same business as the service.
+    // Without this, a bogus or cross-tenant locationId leaks through as an empty
+    // staff list (200 with no slots), which is indistinguishable from "all booked".
+    const location = await prisma.location.findFirst({
+      where: { id: locationId, businessId: service.businessId },
+      select: { id: true },
+    })
+    if (!location) {
+      return publicError('LOCATION_NOT_FOUND')
+    }
 
-      // Get staff details
-      const staff = await prisma.staff.findUnique({
-        where: { id: staffId },
-        include: {
-          user: {
-            select: {
-              firstName: true,
-              lastName: true,
-              avatarUrl: true,
-            },
+    const bookingSettings = await getPublicBookingSettings(service.businessId)
+    const minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
+
+    // Enforce the same advance-booking ceiling the public booking calendar
+    // honours. Without this, `?date=9999-01-01` sails through and we return
+    // 200 + empty slots — indistinguishable from "fully booked" and the kind
+    // of input that tends to expose weird edges in the staff-schedule query.
+    const maxAdvanceDays = MAX_ADVANCE_DAYS_MAP[bookingSettings.maxAdvanceBooking] ?? 30
+    const maxDate = new Date(today)
+    maxDate.setDate(maxDate.getDate() + maxAdvanceDays)
+    if (date > maxDate) {
+      return publicError(
+        'OUT_OF_BOOKING_WINDOW',
+        `Bookings must be made within the next ${maxAdvanceDays} days`
+      )
+    }
+
+    // Resolve target staff list — either the explicit staffId, or all bookable staff for this service+location.
+    // Explicit-staffId branch must also be scoped to the service's business, otherwise a cross-tenant
+    // staffId would be honored (mirrors the locationId check above).
+    const staffMembers = staffId
+      ? await prisma.staff.findMany({
+          where: {
+            id: staffId,
+            primaryLocation: { businessId: service.businessId },
           },
-        },
-      })
-
-      return NextResponse.json({
-        date: availability.date,
-        serviceId: availability.serviceId,
-        serviceDuration: availability.serviceDuration,
-        staff: staff ? {
-          id: staff.id,
-          name: `${staff.user.firstName} ${staff.user.lastName}`,
-          avatarUrl: staff.user.avatarUrl,
-        } : null,
-        slots: availability.slots.map(slot => ({
-          start: slot.start.toISOString(),
-          end: slot.end.toISOString(),
-          startTime: formatTime(slot.start),
-          endTime: formatTime(slot.end),
-        })),
-        totalSlots: availability.slots.length,
-      })
-    }
-
-    // Get all staff who provide this service at this location
-    const staffMembers = await prisma.staff.findMany({
-      where: {
-        locationId,
-        isActive: true,
-        canAcceptBookings: true,
-        staffServices: {
-          some: {
-            serviceId,
+          include: {
+            user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+          },
+        })
+      : await prisma.staff.findMany({
+          where: {
+            locationId,
             isActive: true,
+            canAcceptBookings: true,
+            staffServices: { some: { serviceId, isActive: true } },
           },
-        },
-      },
-      include: {
-        user: {
-          select: {
-            firstName: true,
-            lastName: true,
-            avatarUrl: true,
+          include: {
+            user: { select: { firstName: true, lastName: true, avatarUrl: true } },
           },
-        },
-      },
-    })
+        })
 
+    // If an explicit staffId was provided but didn't resolve under the business scope,
+    // surface it as 404 rather than silently returning empty slots (which is
+    // indistinguishable from "fully booked").
+    if (staffId && staffMembers.length === 0) {
+      return publicError('STAFF_NOT_FOUND')
+    }
+
+    // Empty case — return the same envelope with empty slots/byStaff
     if (staffMembers.length === 0) {
       return NextResponse.json({
         date: dateStr,
         serviceId,
-        message: 'No staff members available for this service',
-        availability: [],
+        serviceDuration: service.durationMinutes,
+        slots: [],
+        byStaff: [],
       })
     }
 
-    // Get availability for all staff
     const availabilityMap = await getMultiStaffAvailability({
       staffIds: staffMembers.map(s => s.id),
       serviceId,
@@ -164,7 +171,7 @@ export async function GET(request: NextRequest) {
       minLeadTimeMinutes,
     })
 
-    const availability = staffMembers.map(staff => {
+    const byStaff = staffMembers.map(staff => {
       const staffAvailability = availabilityMap.get(staff.id)
       return {
         staff: {
@@ -182,29 +189,27 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Also return a combined list of all unique times with available staff
-    const allSlots = new Map<string, { time: string; staffIds: string[] }>()
-
+    // Unified slot list — keyed by start time, with the staff who can take it
+    const slotMap = new Map<string, { end: Date; start: Date; staffIds: string[] }>()
     for (const [sId, result] of Array.from(availabilityMap.entries())) {
       for (const slot of result.slots) {
         const key = slot.start.toISOString()
-        const existing = allSlots.get(key)
+        const existing = slotMap.get(key)
         if (existing) {
           existing.staffIds.push(sId)
         } else {
-          allSlots.set(key, {
-            time: formatTime(slot.start),
-            staffIds: [sId],
-          })
+          slotMap.set(key, { start: slot.start, end: slot.end, staffIds: [sId] })
         }
       }
     }
 
-    const combinedSlots = Array.from(allSlots.entries())
+    const slots = Array.from(slotMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([startTime, data]) => ({
-        startTime,
-        displayTime: data.time,
+      .map(([, data]) => ({
+        start: data.start.toISOString(),
+        end: data.end.toISOString(),
+        startTime: formatTime(data.start),
+        endTime: formatTime(data.end),
         availableStaff: data.staffIds,
         staffCount: data.staffIds.length,
       }))
@@ -212,20 +217,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       date: dateStr,
       serviceId,
-      serviceDuration: availabilityMap.values().next().value?.serviceDuration || 0,
-      byStaff: availability,
-      allSlots: combinedSlots,
-      totalAvailableSlots: combinedSlots.length,
+      serviceDuration: availabilityMap.values().next().value?.serviceDuration ?? service.durationMinutes,
+      slots,
+      byStaff,
     })
-  } catch (error) {
-    console.error('GET /api/availability error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to check availability'
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    )
-  }
-}
+})
 
 /**
  * Format time for display (e.g., "10:30 AM")

@@ -1,5 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { prisma } from "@/lib/prisma"
 
 export async function DELETE(
@@ -9,6 +10,7 @@ export async function DELETE(
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   const { id, clientId } = await params
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
 
   const appointment = await prisma.appointment.findUnique({
     where: { id, businessId: ctx.businessId },

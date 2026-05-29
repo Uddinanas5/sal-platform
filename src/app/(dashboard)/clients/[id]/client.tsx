@@ -241,6 +241,22 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
           </Card>
         </motion.div>
 
+        {/* Allergy Alert Banner */}
+        {client.allergies && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="flex items-start gap-3 p-4 bg-red-50 border border-red-300 rounded-xl"
+          >
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-red-800">Allergies / Medical Alert</p>
+              <p className="text-sm text-red-700 mt-0.5 whitespace-pre-wrap">{client.allergies}</p>
+            </div>
+          </motion.div>
+        )}
+
         {/* Client Alert Banner */}
         {client.notes && (
           <motion.div

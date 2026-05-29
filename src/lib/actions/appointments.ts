@@ -6,6 +6,13 @@ import { revalidatePath } from "next/cache"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail, appointmentCancelledEmail, appointmentRescheduledEmail } from "@/lib/email-templates"
 import { getBusinessContext } from "@/lib/auth-utils"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { assertClientOwned, assertStaffOwned, generateBookingReference } from "@/lib/ownership"
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from "@/lib/scheduling/working-hours"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -28,6 +35,11 @@ const rescheduleAppointmentSchema = z.object({
   newStaffId: z.string().uuid().optional(),
 })
 
+const resizeAppointmentSchema = z.object({
+  id: z.string().uuid(),
+  newDurationMinutes: z.number().int().min(5).max(720),
+})
+
 export async function createAppointment(data: {
   clientId: string
   serviceId: string
@@ -47,7 +59,10 @@ export async function createAppointment(data: {
   try {
     const { businessId } = await getBusinessContext()
 
-    const service = await prisma.service.findUnique({ where: { id: data.serviceId } })
+    await assertClientOwned(data.clientId, businessId)
+    await assertStaffOwned(data.staffId, businessId)
+
+    const service = await prisma.service.findFirst({ where: { id: data.serviceId, businessId } })
     if (!service) return { success: false, error: "Service not found" }
 
     const startTime = new Date(data.startTime)
@@ -64,6 +79,7 @@ export async function createAppointment(data: {
 
     // Transaction: conflict check + create must be atomic to prevent race conditions
     const appointment = await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, businessId, data.staffId)
       // Double-booking prevention: check for overlapping appointments for the same staff member
       const conflicting = await tx.appointmentService.findFirst({
         where: {
@@ -79,10 +95,7 @@ export async function createAppointment(data: {
         throw new Error("CONFLICT")
       }
 
-      // Atomic booking reference via random suffix to avoid count race condition
-      const timestamp = Date.now().toString(36)
-      const random = Math.random().toString(36).substring(2, 6)
-      const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
+      const bookingRef = generateBookingReference()
 
       const appt = await tx.appointment.create({
         data: {
@@ -286,21 +299,45 @@ export async function rescheduleAppointment(
     const startTime = new Date(newStart)
     const endTime = new Date(startTime)
     endTime.setMinutes(endTime.getMinutes() + appointment.totalDuration)
+    const deltaMs = startTime.getTime() - oldStartTime.getTime()
 
-    // Transaction: conflict check + update must be atomic
-    const effectiveStaffId = newStaffId || appointment.services[0]?.staffId
+    // Shift every service row by the same delta. Preserves intra-appointment
+    // ordering/gaps and avoids leaving services 2..N at the old slot.
+    const sortedServices = [...appointment.services].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+    )
+    const serviceUpdates = sortedServices.map((s, i) => ({
+      id: s.id,
+      startTime: new Date(s.startTime.getTime() + deltaMs),
+      endTime: new Date(s.endTime.getTime() + deltaMs),
+      // `newStaffId` reassigns the lead service only; services[1..N] keep
+      // their original staff. The API has no per-service reassignment field,
+      // so this is the implicit contract — revisit if the UI ever surfaces
+      // per-service staff picking on reschedule.
+      staffId: newStaffId && i === 0 ? newStaffId : s.staffId,
+      applyStaffUpdate: Boolean(newStaffId && i === 0),
+    }))
 
     await prisma.$transaction(async (tx) => {
-      if (effectiveStaffId) {
+      const uniqueStaffIds = Array.from(
+        new Set(serviceUpdates.map((s) => s.staffId).filter(Boolean) as string[]),
+      ).sort()
+      for (const staffId of uniqueStaffIds) {
+        await lockStaffSchedule(tx, businessId, staffId)
+      }
+
+      for (const su of serviceUpdates) {
+        if (!su.staffId) continue
+        await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime)
         const conflicting = await tx.appointmentService.findFirst({
           where: {
-            staffId: effectiveStaffId,
+            staffId: su.staffId,
             appointmentId: { not: id },
             appointment: {
               status: { notIn: ["cancelled", "no_show"] },
             },
-            startTime: { lt: endTime },
-            endTime: { gt: startTime },
+            startTime: { lt: su.endTime },
+            endTime: { gt: su.startTime },
           },
         })
         if (conflicting) {
@@ -313,12 +350,14 @@ export async function rescheduleAppointment(
         data: { startTime, endTime },
       })
 
-      if (appointment.services[0]) {
-        const updateData: Record<string, unknown> = { startTime, endTime }
-        if (newStaffId) updateData.staffId = newStaffId
-
+      for (const su of serviceUpdates) {
+        const updateData: Record<string, unknown> = {
+          startTime: su.startTime,
+          endTime: su.endTime,
+        }
+        if (su.applyStaffUpdate) updateData.staffId = su.staffId
         await tx.appointmentService.update({
-          where: { id: appointment.services[0].id },
+          where: { id: su.id },
           data: updateData,
         })
       }
@@ -365,7 +404,94 @@ export async function rescheduleAppointment(
     if (msg === "CONFLICT") {
       return { success: false, error: "This time slot is already booked for the selected staff member" }
     }
+    if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+      return { success: false, error: "Outside the staff member's working hours" }
+    }
+    if (msg === ERR_ON_APPROVED_TIME_OFF) {
+      return { success: false, error: "Staff member has approved time off during this slot" }
+    }
     console.error("rescheduleAppointment error:", e)
+    return { success: false, error: msg }
+  }
+}
+
+export async function resizeAppointment(
+  id: string,
+  newDurationMinutes: number
+): Promise<ActionResult> {
+  try {
+    resizeAppointmentSchema.parse({ id, newDurationMinutes })
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: "Invalid input: " + e.issues[0]?.message }
+    }
+    throw e
+  }
+
+  try {
+    const { businessId } = await getBusinessContext()
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id, businessId },
+      include: { services: true },
+    })
+    if (!appointment) return { success: false, error: "Appointment not found" }
+
+    const startTime = appointment.startTime
+    const newEndTime = new Date(startTime)
+    newEndTime.setMinutes(newEndTime.getMinutes() + newDurationMinutes)
+
+    const staffId = appointment.services[0]?.staffId
+
+    await prisma.$transaction(async (tx) => {
+      if (staffId) {
+        await assertSlotAllowed(tx, staffId, appointment.locationId, startTime, newEndTime)
+        const conflicting = await tx.appointmentService.findFirst({
+          where: {
+            staffId,
+            appointmentId: { not: id },
+            appointment: {
+              status: { notIn: ["cancelled", "no_show"] },
+            },
+            startTime: { lt: newEndTime },
+            endTime: { gt: startTime },
+          },
+        })
+        if (conflicting) {
+          throw new Error("CONFLICT")
+        }
+      }
+
+      await tx.appointment.update({
+        where: { id, businessId },
+        data: { endTime: newEndTime, totalDuration: newDurationMinutes },
+      })
+
+      if (appointment.services[0]) {
+        await tx.appointmentService.update({
+          where: { id: appointment.services[0].id },
+          data: {
+            endTime: newEndTime,
+            durationMinutes: newDurationMinutes,
+          },
+        })
+      }
+    })
+
+    revalidatePath("/calendar")
+    return { success: true, data: undefined }
+  } catch (e) {
+    const msg = (e as Error).message
+    if (msg === "CONFLICT") {
+      return { success: false, error: "Resizing would overlap another booking" }
+    }
+    if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+      return { success: false, error: "Resized end time falls outside the staff member's working hours" }
+    }
+    if (msg === ERR_ON_APPROVED_TIME_OFF) {
+      return { success: false, error: "Resized end time overlaps approved staff time off" }
+    }
+    console.error("resizeAppointment error:", e)
     return { success: false, error: msg }
   }
 }

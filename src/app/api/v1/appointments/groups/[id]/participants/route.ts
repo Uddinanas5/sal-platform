@@ -1,5 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -11,6 +12,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   const { id } = await params
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
 
   let body: unknown
   try { body = await req.json() } catch { return ERRORS.BAD_REQUEST("Invalid JSON") }

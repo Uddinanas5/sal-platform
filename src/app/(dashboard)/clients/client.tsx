@@ -466,6 +466,7 @@ export function ClientsClient(props: ClientsClientProps) {
   const [newClientEmail, setNewClientEmail] = useState("")
   const [newClientPhone, setNewClientPhone] = useState("")
   const [newClientNotes, setNewClientNotes] = useState("")
+  const [newClientAllergies, setNewClientAllergies] = useState("")
   const [addClientErrors, setAddClientErrors] = useState<{ name?: string; email?: string }>({})
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null)
 
@@ -718,6 +719,17 @@ export function ClientsClient(props: ClientsClientProps) {
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-red-700">
+                      Allergies / Medical Alerts
+                    </label>
+                    <Input
+                      placeholder="e.g. PPD, latex, fragrance"
+                      value={newClientAllergies}
+                      onChange={(e) => setNewClientAllergies(e.target.value)}
+                      className="border-red-200 focus-visible:ring-red-300"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium">Notes</label>
                     <Input
                       placeholder="Any additional notes..."
@@ -749,6 +761,7 @@ export function ClientsClient(props: ClientsClientProps) {
                       email: newClientEmail.trim() || undefined,
                       phone: newClientPhone.trim() || undefined,
                       notes: newClientNotes.trim() || undefined,
+                      allergies: newClientAllergies.trim() || undefined,
                     })
                     if (result.success) {
                       toast.success(`Client "${newClientName.trim()}" added successfully`)
@@ -757,6 +770,7 @@ export function ClientsClient(props: ClientsClientProps) {
                       setNewClientEmail("")
                       setNewClientPhone("")
                       setNewClientNotes("")
+                      setNewClientAllergies("")
                       setAddClientErrors({})
                       router.refresh()
                     } else {

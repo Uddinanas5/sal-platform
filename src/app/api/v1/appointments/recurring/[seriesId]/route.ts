@@ -1,11 +1,13 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { canAccessAppointmentSeries } from "@/lib/api/appointment-access"
 import { prisma } from "@/lib/prisma"
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ seriesId: string }> }) {
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   const { seriesId } = await params
+  if (!(await canAccessAppointmentSeries(ctx, seriesId))) return ERRORS.FORBIDDEN()
 
   const url = new URL(req.url)
   const cancelFrom = url.searchParams.get("cancelFrom")

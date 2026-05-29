@@ -1,23 +1,28 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
+import { randomBytes } from "crypto"
 import { z } from "zod"
+
+function generatePaymentReference() {
+  const now = new Date()
+  const yyyymmdd = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`
+  const suffix = randomBytes(4).toString("hex").toUpperCase()
+  return `PAY-${yyyymmdd}-${suffix}`
+}
 
 const processPaymentSchema = z.object({
   clientId: z.string().uuid().optional(),
   appointmentId: z.string().uuid().optional(),
   items: z.array(z.object({
     type: z.enum(["service", "product"]),
-    id: z.string().min(1),
-    price: z.number().nonnegative(),
+    id: z.string().uuid(),
     quantity: z.number().int().positive(),
-  })),
-  subtotal: z.number().nonnegative(),
-  discount: z.number().nonnegative(),
-  tax: z.number().nonnegative(),
-  tip: z.number().nonnegative(),
-  total: z.number().nonnegative(),
-  method: z.enum(["cash", "card", "gift_card", "other"]),
+  })).min(1, "At least one item is required"),
+  discount: z.number().nonnegative().default(0),
+  tax: z.number().nonnegative().default(0),
+  tip: z.number().nonnegative().default(0),
+  method: z.enum(["cash", "card", "online", "gift_card", "other"]),
 })
 
 export async function POST(req: Request) {
@@ -32,23 +37,75 @@ export async function POST(req: Request) {
 
   const data = parsed.data
 
+  const serviceIds = Array.from(new Set(data.items.filter(i => i.type === "service").map(i => i.id)))
+  const productIds = Array.from(new Set(data.items.filter(i => i.type === "product").map(i => i.id)))
+
+  const [services, products] = await Promise.all([
+    serviceIds.length
+      ? prisma.service.findMany({
+          where: { id: { in: serviceIds }, businessId: ctx.businessId, deletedAt: null },
+          select: { id: true, price: true },
+        })
+      : Promise.resolve([] as { id: string; price: import("@/generated/prisma").Prisma.Decimal }[]),
+    productIds.length
+      ? prisma.product.findMany({
+          where: { id: { in: productIds }, businessId: ctx.businessId, deletedAt: null },
+          select: { id: true, retailPrice: true },
+        })
+      : Promise.resolve([] as { id: string; retailPrice: import("@/generated/prisma").Prisma.Decimal }[]),
+  ])
+
+  if (services.length !== serviceIds.length) return ERRORS.BAD_REQUEST("One or more services not found")
+  if (products.length !== productIds.length) return ERRORS.BAD_REQUEST("One or more products not found")
+
+  const priceMap = new Map<string, number>()
+  for (const s of services) priceMap.set(`service:${s.id}`, Number(s.price))
+  for (const p of products) priceMap.set(`product:${p.id}`, Number(p.retailPrice))
+
+  let subtotal = 0
+  for (const item of data.items) {
+    const price = priceMap.get(`${item.type}:${item.id}`)
+    if (price === undefined) return ERRORS.BAD_REQUEST("Invalid item")
+    subtotal += price * item.quantity
+  }
+  subtotal = Math.round(subtotal * 100) / 100
+
+  if (data.discount > subtotal) return ERRORS.BAD_REQUEST("Discount cannot exceed subtotal")
+
+  const amount = Math.round((subtotal - data.discount) * 100) / 100
+  const total = Math.round((amount + data.tax + data.tip) * 100) / 100
+
+  let resolvedClientId: string | undefined = data.clientId
+  if (data.appointmentId) {
+    const appt = await prisma.appointment.findFirst({
+      where: { id: data.appointmentId, businessId: ctx.businessId },
+      select: { clientId: true },
+    })
+    if (!appt) return ERRORS.NOT_FOUND("Appointment")
+    if (data.clientId && appt.clientId && appt.clientId !== data.clientId) {
+      return ERRORS.BAD_REQUEST("Appointment does not belong to this client")
+    }
+    if (!resolvedClientId && appt.clientId) {
+      resolvedClientId = appt.clientId
+    }
+  }
+
   try {
     const payment = await prisma.$transaction(async (tx) => {
-      const count = await tx.payment.count({ where: { businessId: ctx.businessId } })
-      const paymentRef = `PAY-${String(count + 1).padStart(4, "0")}`
+      const paymentRef = generatePaymentReference()
 
       const created = await tx.payment.create({
         data: {
           businessId: ctx.businessId,
-          clientId: data.clientId ?? null,
+          clientId: resolvedClientId ?? null,
           appointmentId: data.appointmentId ?? null,
           paymentReference: paymentRef,
           type: "payment",
           method: data.method,
           status: "completed",
-          amount: data.subtotal - data.discount,
+          amount,
           tipAmount: data.tip,
-          totalAmount: data.total,
+          totalAmount: total,
           currency: "USD",
           processedAt: new Date(),
         },
@@ -61,14 +118,14 @@ export async function POST(req: Request) {
         })
       }
 
-      if (data.clientId) {
+      if (resolvedClientId) {
         await tx.client.update({
-          where: { id: data.clientId, businessId: ctx.businessId },
+          where: { id: resolvedClientId, businessId: ctx.businessId },
           data: {
-            totalSpent: { increment: data.total },
+            totalSpent: { increment: amount },
             totalVisits: { increment: 1 },
             lastVisitAt: new Date(),
-            loyaltyPoints: { increment: Math.floor(data.total) },
+            loyaltyPoints: { increment: Math.floor(amount) },
           },
         })
       }
@@ -76,7 +133,7 @@ export async function POST(req: Request) {
       return created
     })
 
-    return apiSuccess({ receiptId: payment.id }, 201)
+    return apiSuccess({ receiptId: payment.id, subtotal, amount, total }, 201)
   } catch (e) {
     console.error("POST /api/v1/checkout error:", e)
     return ERRORS.SERVER_ERROR()

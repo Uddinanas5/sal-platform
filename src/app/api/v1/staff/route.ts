@@ -43,28 +43,50 @@ export async function POST(req: Request) {
   const location = await prisma.location.findFirst({ where: { businessId: ctx.businessId } })
   if (!location) return ERRORS.BAD_REQUEST("Business not configured")
 
-  const existingUser = await prisma.user.findUnique({ where: { email: parsed.data.email } })
-  if (existingUser) return ERRORS.BAD_REQUEST("A user with this email already exists")
+  const serviceIds = parsed.data.serviceIds ?? []
 
-  const user = await prisma.user.create({
-    data: {
-      email: parsed.data.email,
-      firstName: parsed.data.firstName,
-      lastName: parsed.data.lastName,
-      phone: parsed.data.phone,
-      role: "staff",
-    },
-  })
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      if (serviceIds.length) {
+        const ownedCount = await tx.service.count({
+          where: { id: { in: serviceIds }, businessId: ctx.businessId },
+        })
+        if (ownedCount !== serviceIds.length) {
+          throw new Error("INVALID_SERVICE_IDS")
+        }
+      }
 
-  const staff = await prisma.staff.create({
-    data: { userId: user.id, locationId: location.id, title: parsed.data.role, isActive: true },
-  })
+      const existingUser = await tx.user.findUnique({ where: { email: parsed.data.email } })
+      if (existingUser) throw new Error("EMAIL_EXISTS")
 
-  if (parsed.data.serviceIds?.length) {
-    for (const serviceId of parsed.data.serviceIds) {
-      await prisma.staffService.create({ data: { staffId: staff.id, serviceId } })
-    }
+      const user = await tx.user.create({
+        data: {
+          email: parsed.data.email,
+          firstName: parsed.data.firstName,
+          lastName: parsed.data.lastName,
+          phone: parsed.data.phone,
+          role: "staff",
+        },
+      })
+
+      const staff = await tx.staff.create({
+        data: { userId: user.id, locationId: location.id, title: parsed.data.role, isActive: true },
+      })
+
+      if (serviceIds.length) {
+        await tx.staffService.createMany({
+          data: serviceIds.map((serviceId) => ({ staffId: staff.id, serviceId })),
+        })
+      }
+
+      return { id: staff.id, userId: user.id }
+    })
+
+    return apiSuccess(result, 201)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : ""
+    if (msg === "INVALID_SERVICE_IDS") return ERRORS.BAD_REQUEST("One or more serviceIds are invalid")
+    if (msg === "EMAIL_EXISTS") return ERRORS.BAD_REQUEST("A user with this email already exists")
+    throw e
   }
-
-  return apiSuccess({ id: staff.id, userId: user.id }, 201)
 }

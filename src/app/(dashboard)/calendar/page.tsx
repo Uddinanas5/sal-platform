@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { getAppointments } from "@/lib/queries/appointments"
 import { getStaff } from "@/lib/queries/staff"
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic"
 export default async function CalendarPage() {
   const session = await auth()
   const businessId = session?.user?.businessId ?? undefined
+  if (!businessId) redirect("/onboarding")
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const role = (session?.user as any)?.role as string | undefined
   const userId = session?.user?.id as string | undefined

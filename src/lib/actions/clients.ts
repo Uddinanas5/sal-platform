@@ -13,6 +13,7 @@ const createClientSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   notes: z.string().optional(),
+  allergies: z.string().optional(),
   tags: z.array(z.string()).optional(),
 })
 
@@ -22,6 +23,7 @@ const updateClientSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   notes: z.string().optional(),
+  allergies: z.string().optional(),
   tags: z.array(z.string()).optional(),
 })
 
@@ -31,6 +33,7 @@ export async function createClient(data: {
   email?: string
   phone?: string
   notes?: string
+  allergies?: string
   tags?: string[]
 }): Promise<ActionResult<{ id: string }>> {
   try {
@@ -62,6 +65,7 @@ export async function createClient(data: {
         email: normalizedEmail,
         phone: data.phone || null,
         notes: data.notes || null,
+        allergies: data.allergies?.trim() || null,
         tags: data.tags || [],
       },
     })
@@ -87,6 +91,7 @@ export async function updateClient(
     email?: string
     phone?: string
     notes?: string
+    allergies?: string
     tags?: string[]
   }
 ): Promise<ActionResult> {
@@ -120,6 +125,7 @@ export async function updateClient(
         email: data.email,
         phone: data.phone,
         notes: data.notes,
+        allergies: data.allergies !== undefined ? (data.allergies.trim() || null) : undefined,
         tags: data.tags,
       },
     })

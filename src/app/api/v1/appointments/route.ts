@@ -3,6 +3,7 @@ import { apiSuccess, apiPaginated, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail } from "@/lib/email-templates"
+import { parseYmd } from "@/lib/date-utils"
 import { z } from "zod"
 
 const createAppointmentSchema = z.object({
@@ -33,9 +34,24 @@ export async function GET(req: Request) {
   if (clientId) where.clientId = clientId
   if (status) where.status = status
   if (dateFrom || dateTo) {
+    // Strict YYYY-MM-DD parse — `new Date('2026-06-31')` silently rolls to
+    // July 1, so we reject impossible dates with a 400 instead.
+    let gte: Date | undefined
+    let lte: Date | undefined
+    if (dateFrom) {
+      const from = parseYmd(dateFrom)
+      if (!from) return ERRORS.BAD_REQUEST("Invalid dateFrom. Use YYYY-MM-DD")
+      gte = from
+    }
+    if (dateTo) {
+      const to = parseYmd(dateTo)
+      if (!to) return ERRORS.BAD_REQUEST("Invalid dateTo. Use YYYY-MM-DD")
+      to.setHours(23, 59, 59, 999)
+      lte = to
+    }
     where.startTime = {
-      ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-      ...(dateTo ? { lte: new Date(dateTo) } : {}),
+      ...(gte ? { gte } : {}),
+      ...(lte ? { lte } : {}),
     }
   }
   if (effectiveStaffId) {
@@ -84,8 +100,30 @@ export async function POST(req: Request) {
 
   const { clientId, serviceId, staffId, startTime: startTimeStr, notes } = parsed.data
 
-  const service = await prisma.service.findUnique({ where: { id: serviceId } })
+  // Scope every entity lookup by caller's business — prevents cross-tenant
+  // booking creation and frankenstein-mix (e.g. biz-A service + biz-B staff).
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, businessId: ctx.businessId },
+  })
   if (!service) return ERRORS.NOT_FOUND("Service")
+
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, businessId: ctx.businessId },
+    select: { id: true },
+  })
+  if (!client) return ERRORS.NOT_FOUND("Client")
+
+  // Staff has no direct businessId — route through primaryLocation.
+  // Also verify staffServices link: this staff must be allowed to do this service.
+  const staffRecord = await prisma.staff.findFirst({
+    where: {
+      id: staffId,
+      primaryLocation: { businessId: ctx.businessId },
+      staffServices: { some: { serviceId, isActive: true } },
+    },
+    select: { id: true },
+  })
+  if (!staffRecord) return ERRORS.NOT_FOUND("Staff")
 
   const [business, location] = await Promise.all([
     prisma.business.findUnique({ where: { id: ctx.businessId } }),
@@ -106,7 +144,10 @@ export async function POST(req: Request) {
       const conflicting = await tx.appointmentService.findFirst({
         where: {
           staffId,
-          appointment: { status: { notIn: ["cancelled", "no_show"] } },
+          appointment: {
+            businessId: ctx.businessId,
+            status: { notIn: ["cancelled", "no_show"] },
+          },
           startTime: { lt: endTime },
           endTime: { gt: startTime },
         },
@@ -152,23 +193,29 @@ export async function POST(req: Request) {
       return appt
     })
 
-    // Send confirmation email (non-blocking)
-    const [client, staff] = await Promise.all([
-      prisma.client.findUnique({ where: { id: clientId } }),
-      prisma.staff.findUnique({ where: { id: staffId }, include: { user: true } }),
+    // Send confirmation email (non-blocking). Re-fetch is tenant-scoped as
+    // defense-in-depth: upstream gates already prove these IDs belong to
+    // ctx.businessId, but scoping here prevents a future refactor from
+    // silently leaking foreign rows into the email body.
+    const [emailClient, emailStaff] = await Promise.all([
+      prisma.client.findFirst({ where: { id: clientId, businessId: ctx.businessId } }),
+      prisma.staff.findFirst({
+        where: { id: staffId, primaryLocation: { businessId: ctx.businessId } },
+        include: { user: true },
+      }),
     ])
-    if (client?.email) {
+    if (emailClient?.email) {
       const dateTime = new Intl.DateTimeFormat("en-US", {
         weekday: "long", month: "long", day: "numeric", year: "numeric",
         hour: "numeric", minute: "2-digit", hour12: true,
       }).format(startTime)
       sendEmail({
-        to: client.email,
+        to: emailClient.email,
         subject: `Booking Confirmed - ${service.name}`,
         html: bookingConfirmationEmail({
-          clientName: `${client.firstName} ${client.lastName}`,
+          clientName: `${emailClient.firstName} ${emailClient.lastName}`,
           serviceName: service.name,
-          staffName: staff ? `${staff.user.firstName} ${staff.user.lastName}` : "Our team",
+          staffName: emailStaff ? `${emailStaff.user.firstName} ${emailStaff.user.lastName}` : "Our team",
           dateTime,
           businessName: business.name,
           bookingRef: appointment.bookingReference,

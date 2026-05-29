@@ -15,7 +15,10 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { type Client } from "@/data/mock-data"
+import { updateClient } from "@/lib/actions/clients"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { AlertTriangle } from "lucide-react"
 
 interface EditClientDialogProps {
   client: Client
@@ -24,6 +27,7 @@ interface EditClientDialogProps {
 }
 
 export function EditClientDialog({ client, open, onOpenChange }: EditClientDialogProps) {
+  const router = useRouter()
   const [name, setName] = useState(client.name)
   const [email, setEmail] = useState(client.email)
   const [phone, setPhone] = useState(client.phone)
@@ -33,8 +37,10 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
       : ""
   )
   const [notes, setNotes] = useState(client.notes || "")
+  const [allergies, setAllergies] = useState(client.allergies || "")
   const [tags, setTags] = useState<string[]>(client.tags || [])
   const [newTag, setNewTag] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const handleAddTag = () => {
     if (newTag.trim() && !tags.includes(newTag.trim())) {
@@ -54,7 +60,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       toast.error("Name is required")
       return
@@ -64,9 +70,29 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
       return
     }
 
-    // In a real app, this would call an API
-    toast.success("Client information updated successfully")
-    onOpenChange(false)
+    const nameParts = name.trim().split(" ")
+    const firstName = nameParts[0]
+    const lastName = nameParts.slice(1).join(" ") || ""
+
+    setSaving(true)
+    const result = await updateClient(client.id, {
+      firstName,
+      lastName,
+      email: email.trim(),
+      phone: phone.trim(),
+      notes,
+      allergies,
+      tags,
+    })
+    setSaving(false)
+
+    if (result.success) {
+      toast.success("Client updated")
+      onOpenChange(false)
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to update client")
+    }
   }
 
   const handleCancel = () => {
@@ -80,6 +106,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
         : ""
     )
     setNotes(client.notes || "")
+    setAllergies(client.allergies || "")
     setTags(client.tags || [])
     setNewTag("")
     onOpenChange(false)
@@ -173,6 +200,22 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
           </div>
 
           <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center gap-1.5 text-red-700">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Allergies / Medical Alerts
+            </label>
+            <Textarea
+              value={allergies}
+              onChange={(e) => setAllergies(e.target.value)}
+              placeholder="e.g. PPD allergy, latex, fragrance — leave blank if none"
+              rows={2}
+              maxLength={500}
+              showCounter
+              className="border-red-200 focus-visible:ring-red-300"
+            />
+          </div>
+
+          <div className="space-y-2">
             <label className="text-sm font-medium">Notes</label>
             <Textarea
               value={notes}
@@ -186,10 +229,12 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

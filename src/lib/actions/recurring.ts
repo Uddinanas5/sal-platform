@@ -5,6 +5,12 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { addWeeks, addMonths } from "date-fns"
 import { getBusinessContext } from "@/lib/auth-utils"
+import {
+  assertClientOwned,
+  assertClientsOwned,
+  assertStaffOwned,
+  generateBookingReference,
+} from "@/lib/ownership"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -42,7 +48,10 @@ export async function createRecurringAppointment(data: {
     const parsed = createRecurringSchema.parse(data)
     const { businessId } = await getBusinessContext()
 
-    const service = await prisma.service.findUnique({ where: { id: parsed.serviceId } })
+    await assertClientOwned(parsed.clientId, businessId)
+    await assertStaffOwned(parsed.staffId, businessId)
+
+    const service = await prisma.service.findFirst({ where: { id: parsed.serviceId, businessId } })
     if (!service) return { success: false, error: "Service not found" }
 
     const location = await prisma.location.findFirst({ where: { businessId } })
@@ -83,8 +92,7 @@ export async function createRecurringAppointment(data: {
       const endTime = new Date(startTime)
       endTime.setMinutes(endTime.getMinutes() + service.durationMinutes)
 
-      const count = await prisma.appointment.count({ where: { businessId } })
-      const bookingRef = `SAL-${String(count + 1).padStart(4, "0")}`
+      const bookingRef = generateBookingReference()
 
       const appointment: { id: string } = await prisma.appointment.create({
         data: {
@@ -206,7 +214,10 @@ export async function createGroupBooking(data: {
 
     const { businessId } = await getBusinessContext()
 
-    const service = await prisma.service.findUnique({ where: { id: parsed.serviceId } })
+    await assertStaffOwned(parsed.staffId, businessId)
+    await assertClientsOwned(parsed.clientIds, businessId)
+
+    const service = await prisma.service.findFirst({ where: { id: parsed.serviceId, businessId } })
     if (!service) return { success: false, error: "Service not found" }
 
     const location = await prisma.location.findFirst({ where: { businessId } })
@@ -219,8 +230,7 @@ export async function createGroupBooking(data: {
     const price = Number(service.price)
     const taxRate = service.isTaxable && service.taxRate ? Number(service.taxRate) / 100 : 0
     const tax = Math.round(price * taxRate * 100) / 100
-    const count = await prisma.appointment.count({ where: { businessId } })
-    const bookingRef = `SAL-${String(count + 1).padStart(4, "0")}`
+    const bookingRef = generateBookingReference()
 
     // Create the group appointment (primary client is first in list)
     const appointment = await prisma.appointment.create({
@@ -303,6 +313,8 @@ export async function addGroupParticipant(
     if (appointment.groupParticipants.length >= appointment.maxParticipants) {
       return { success: false, error: "Group is full" }
     }
+
+    await assertClientOwned(parsedClientId, businessId)
 
     await prisma.groupParticipant.create({
       data: { appointmentId: parsedAppointmentId, clientId: parsedClientId },

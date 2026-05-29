@@ -1,11 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
-export async function getClients(search?: string, businessId?: string) {
-  const where: Record<string, unknown> = { deletedAt: null }
-
-  if (businessId) {
-    where.businessId = businessId
-  }
+export async function getClients(search: string | undefined, businessId: string) {
+  const where: Record<string, unknown> = { deletedAt: null, businessId }
 
   if (search) {
     where.OR = [
@@ -30,6 +26,7 @@ export async function getClients(search?: string, businessId?: string) {
       createdAt: true,
       tags: true,
       notes: true,
+      allergies: true,
       loyaltyPoints: true,
       dateOfBirth: true,
     },
@@ -48,6 +45,7 @@ export async function getClients(search?: string, businessId?: string) {
     createdAt: c.createdAt,
     tags: c.tags,
     notes: c.notes || undefined,
+    allergies: c.allergies || undefined,
     loyaltyPoints: c.loyaltyPoints,
     dateOfBirth: c.dateOfBirth || undefined,
     walletBalance: 0,
@@ -69,6 +67,7 @@ export async function getClientById(id: string, businessId: string) {
       createdAt: true,
       tags: true,
       notes: true,
+      allergies: true,
       loyaltyPoints: true,
       dateOfBirth: true,
       appointments: {
@@ -111,6 +110,7 @@ export async function getClientById(id: string, businessId: string) {
     createdAt: client.createdAt,
     tags: client.tags,
     notes: client.notes || undefined,
+    allergies: client.allergies || undefined,
     loyaltyPoints: client.loyaltyPoints,
     dateOfBirth: client.dateOfBirth || undefined,
     walletBalance: 0,

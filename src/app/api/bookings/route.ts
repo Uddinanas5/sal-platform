@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { getBusinessContext } from '@/lib/auth-utils'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
+import { withSafeErrors } from '@/lib/api/safe-handler'
+import { parseYmd } from '@/lib/date-utils'
 import type { Prisma } from '@/generated/prisma'
 
 /**
  * GET /api/bookings
  * List appointments with optional filters
  */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth()
-    if (!session?.user) {
+export const GET = withSafeErrors('GET /api/bookings', async (request: NextRequest) => {
+    let ctx
+    try {
+      ctx = await getBusinessContext()
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const searchParams = request.nextUrl.searchParams
-    const businessId = searchParams.get('businessId')
     const locationId = searchParams.get('locationId')
     const staffId = searchParams.get('staffId')
     const clientId = searchParams.get('clientId')
@@ -27,16 +29,9 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
-    if (!businessId) {
-      return NextResponse.json(
-        { error: 'businessId is required' },
-        { status: 400 }
-      )
-    }
-
-    // Build where clause
+    // businessId is always the caller's business — ignore any value in the query string
     const where: Prisma.AppointmentWhereInput = {
-      businessId,
+      businessId: ctx.businessId,
     }
 
     if (locationId) {
@@ -58,28 +53,49 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Date filtering
+    // Date filtering — parse YYYY-MM-DD strictly so impossible calendar dates
+    // like 2026-06-31 reject with 400 instead of silently rolling to July 1.
     if (date) {
-      const startOfDay = new Date(date)
-      startOfDay.setHours(0, 0, 0, 0)
-      const endOfDay = new Date(date)
+      const startOfDay = parseYmd(date)
+      if (!startOfDay) {
+        return NextResponse.json(
+          { error: 'Invalid date. Use YYYY-MM-DD' },
+          { status: 400 }
+        )
+      }
+      const endOfDay = parseYmd(date)!
       endOfDay.setHours(23, 59, 59, 999)
-      
+
       where.startTime = {
         gte: startOfDay,
         lte: endOfDay,
       }
     } else {
       if (dateFrom) {
+        const from = parseYmd(dateFrom)
+        if (!from) {
+          return NextResponse.json(
+            { error: 'Invalid dateFrom. Use YYYY-MM-DD' },
+            { status: 400 }
+          )
+        }
         where.startTime = {
           ...(where.startTime as object || {}),
-          gte: new Date(dateFrom),
+          gte: from,
         }
       }
       if (dateTo) {
+        const to = parseYmd(dateTo)
+        if (!to) {
+          return NextResponse.json(
+            { error: 'Invalid dateTo. Use YYYY-MM-DD' },
+            { status: 400 }
+          )
+        }
+        to.setHours(23, 59, 59, 999)
         where.startTime = {
           ...(where.startTime as object || {}),
-          lte: new Date(dateTo),
+          lte: to,
         }
       }
     }
@@ -142,25 +158,25 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch (error) {
-    console.error('GET /api/bookings error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch appointments' },
-      { status: 500 }
-    )
-  }
-}
+})
 
 /**
  * POST /api/bookings
  * Create a new appointment
  */
-export async function POST(request: NextRequest) {
-  try {
+export const POST = withSafeErrors('POST /api/bookings', async (request: NextRequest) => {
+    // Require authentication for dashboard-created bookings
+    // Public booking widget uses /book/[businessSlug] via server actions instead
+    let ctx
+    try {
+      ctx = await getBusinessContext()
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
 
     const {
-      businessId,
       locationId,
       clientId,
       services, // Array of { serviceId, staffId, startTime }
@@ -168,42 +184,55 @@ export async function POST(request: NextRequest) {
       source = 'online',
     } = body
 
-    // Require authentication for dashboard-created bookings
-    // Public booking widget uses /book/[businessSlug] via server actions instead
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // businessId is always the caller's business — ignore any value in the body
+    const businessId = ctx.businessId
 
     // Validation
-    if (!businessId || !locationId || !services || services.length === 0) {
+    if (!locationId || !services || services.length === 0) {
       return NextResponse.json(
-        { error: 'businessId, locationId, and at least one service are required' },
+        { error: 'locationId and at least one service are required' },
         { status: 400 }
       )
     }
 
-    // Validate that the business exists
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
+    // Validate location belongs to caller's business
+    const location = await prisma.location.findFirst({
+      where: { id: locationId, businessId },
       select: { id: true },
     })
-
-    if (!business) {
+    if (!location) {
       return NextResponse.json(
-        { error: 'Business not found' },
+        { error: 'Location not found' },
         { status: 404 }
       )
+    }
+
+    // If a clientId is provided, validate it belongs to caller's business
+    if (clientId) {
+      const client = await prisma.client.findFirst({
+        where: { id: clientId, businessId },
+        select: { id: true },
+      })
+      if (!client) {
+        return NextResponse.json(
+          { error: 'Client not found' },
+          { status: 404 }
+        )
+      }
     }
 
     // Fetch service details and validate availability
     const serviceDetails = await Promise.all(
       services.map(async (svc: { serviceId: string; staffId: string; startTime: string }) => {
-        const service = await prisma.service.findUnique({
-          where: { id: svc.serviceId },
+        const service = await prisma.service.findFirst({
+          where: { id: svc.serviceId, businessId },
           include: {
             staffServices: {
-              where: { staffId: svc.staffId, isActive: true },
+              where: {
+                staffId: svc.staffId,
+                isActive: true,
+                staff: { primaryLocation: { businessId } },
+              },
             },
           },
         })
@@ -314,10 +343,11 @@ export async function POST(request: NextRequest) {
         })),
       })
 
-      // Update client visit stats if client exists
+      // Update client visit stats if client exists — scope the write itself
+      // by businessId so a stale clientId or refactored validation can't write cross-tenant.
       if (clientId) {
-        await tx.client.update({
-          where: { id: clientId },
+        await tx.client.updateMany({
+          where: { id: clientId, businessId },
           data: {
             totalVisits: { increment: 1 },
             lastVisitAt: appointmentStart,
@@ -366,12 +396,4 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(fullAppointment, { status: 201 })
-  } catch (error) {
-    console.error('POST /api/bookings error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to create appointment'
-    return NextResponse.json(
-      { error: message },
-      { status: 400 }
-    )
-  }
-}
+})

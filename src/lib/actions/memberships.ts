@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
+import { assertServicesOwned } from "@/lib/ownership"
 
 const billingCycleEnum = z.enum(["monthly", "quarterly", "yearly", "one_time"])
 
@@ -54,6 +55,7 @@ export async function createMembershipPlan(data: {
     const parsed = createMembershipPlanSchema.parse(data)
 
     const { businessId } = await requireMinRole("admin")
+    await assertServicesOwned(parsed.serviceIds ?? [], businessId)
 
     const plan = await prisma.membershipPlan.create({
       data: {
@@ -128,8 +130,14 @@ export async function createMembership(data: {
   try {
     const parsed = createMembershipSchema.parse(data)
 
-    const plan = await prisma.membershipPlan.findUnique({ where: { id: parsed.planId } })
+    const { businessId } = await getBusinessContext()
+
+    const [plan, client] = await Promise.all([
+      prisma.membershipPlan.findFirst({ where: { id: parsed.planId, businessId } }),
+      prisma.client.findFirst({ where: { id: parsed.clientId, businessId }, select: { id: true } }),
+    ])
     if (!plan) throw new Error("Plan not found")
+    if (!client) throw new Error("Client not found")
 
     const membership = await prisma.membership.create({
       data: {

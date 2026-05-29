@@ -1,11 +1,24 @@
 "use client"
 
-import React, { useState, useMemo, useCallback, useEffect } from "react"
-import { addDays, subDays, addMonths, subMonths, startOfDay, isSameDay } from "date-fns"
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import { addDays, subDays, addMonths, subMonths, startOfDay, isSameDay, format } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { updateAppointmentStatus } from "@/lib/actions/appointments"
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core"
+import { updateAppointmentStatus, rescheduleAppointment, resizeAppointment } from "@/lib/actions/appointments"
+import { parseSlotId } from "@/components/calendar/staff-column"
+import { parseWeekSlotId } from "@/components/calendar/week-view"
 import { Plus, ChevronLeft, ChevronRight, ListChecks } from "lucide-react"
 import { Header } from "@/components/dashboard/header"
 import { Card } from "@/components/ui/card"
@@ -19,7 +32,7 @@ import { MonthView } from "@/components/calendar/month-view"
 import { NewAppointmentDialog } from "@/components/calendar/new-appointment-dialog"
 import { AppointmentDetailSheet } from "@/components/calendar/appointment-detail-sheet"
 import { WaitlistPanel } from "@/components/calendar/waitlist-panel"
-import type { ColorByMode } from "@/components/calendar/appointment-block"
+import { AppointmentBlock, type ColorByMode } from "@/components/calendar/appointment-block"
 import type { Appointment } from "@/data/mock-data"
 
 interface WaitlistEntryData {
@@ -219,6 +232,22 @@ export function CalendarClient(props: CalendarClientProps) {
     setSelectedAppointment(appointment)
     setDetailSheetOpen(true)
   }, [])
+
+  // Deep-link: open detail sheet when ?appointmentId=<id> is present (GAP-020).
+  // Effect re-runs when appointments hydrate so the lookup doesn't miss on slow networks.
+  const searchParams = useSearchParams()
+  const deepLinkAppointmentId = searchParams.get("appointmentId")
+  const lastOpenedDeepLinkId = useRef<string | null>(null)
+  useEffect(() => {
+    if (!deepLinkAppointmentId) return
+    if (lastOpenedDeepLinkId.current === deepLinkAppointmentId) return
+    const target = appointments.find((a) => a.id === deepLinkAppointmentId)
+    if (!target) return
+    lastOpenedDeepLinkId.current = deepLinkAppointmentId
+    setSelectedDate(startOfDay(target.startTime))
+    setSelectedAppointment(target)
+    setDetailSheetOpen(true)
+  }, [deepLinkAppointmentId, appointments])
   // Status change handler — optimistic UI + server action
   const handleStatusChange = useCallback(async (appointmentId: string, newStatus: string) => {
     // Optimistic update: apply immediately for responsive UI
@@ -262,6 +291,153 @@ export function CalendarClient(props: CalendarClientProps) {
     setNewApptInitialMinute(undefined)
     setNewApptOpen(true)
   }, [selectedDate])
+
+  // ─── Drag-and-drop reschedule wiring ───────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor)
+  )
+  const [draggingAppointment, setDraggingAppointment] = useState<Appointment | null>(null)
+  const [isOverInvalid, setIsOverInvalid] = useState(false)
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current as { appointmentId?: string } | undefined
+    if (!data?.appointmentId) return
+    const appt = appointments.find((a) => a.id === data.appointmentId)
+    if (appt) setDraggingAppointment(appt)
+  }, [appointments])
+
+  const handleDragCancel = useCallback(() => {
+    setDraggingAppointment(null)
+    setIsOverInvalid(false)
+  }, [])
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const dragged = draggingAppointment
+    if (!dragged || !event.over) {
+      setIsOverInvalid(false)
+      return
+    }
+    const overId = String(event.over.id)
+    let newStaffId: string | undefined
+    let newStart: Date | null = null
+    const staffSlot = parseSlotId(overId)
+    if (staffSlot) {
+      newStaffId = staffSlot.staffId
+      newStart = staffSlot.slotStart
+    } else {
+      const weekSlot = parseWeekSlotId(overId)
+      if (weekSlot) newStart = weekSlot.slotStart
+    }
+    if (!newStart) {
+      setIsOverInvalid(false)
+      return
+    }
+    const effectiveStaff = newStaffId || dragged.staffId
+    const durationMs = new Date(dragged.endTime).getTime() - new Date(dragged.startTime).getTime()
+    const proposedEnd = new Date(newStart.getTime() + durationMs).getTime()
+    const proposedStart = newStart.getTime()
+    const hasConflict = appointments.some((a) => {
+      if (a.id === dragged.id) return false
+      if (a.staffId !== effectiveStaff) return false
+      if (a.status === "cancelled" || a.status === "no-show") return false
+      const aStart = new Date(a.startTime).getTime()
+      const aEnd = new Date(a.endTime).getTime()
+      return aStart < proposedEnd && aEnd > proposedStart
+    })
+    setIsOverInvalid(hasConflict)
+  }, [appointments, draggingAppointment])
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const dragged = draggingAppointment
+    setDraggingAppointment(null)
+    setIsOverInvalid(false)
+    if (!event.over || !dragged) return
+
+    const overId = String(event.over.id)
+    let newStaffId: string | undefined
+    let newStart: Date | null = null
+
+    const staffSlot = parseSlotId(overId)
+    if (staffSlot) {
+      newStaffId = staffSlot.staffId
+      newStart = staffSlot.slotStart
+    } else {
+      const weekSlot = parseWeekSlotId(overId)
+      if (weekSlot) newStart = weekSlot.slotStart
+    }
+    if (!newStart) return
+
+    const sameTime = newStart.getTime() === new Date(dragged.startTime).getTime()
+    const sameStaff = !newStaffId || newStaffId === dragged.staffId
+    if (sameTime && sameStaff) return
+
+    const effectiveStaff = newStaffId || dragged.staffId
+    const durationMs = new Date(dragged.endTime).getTime() - new Date(dragged.startTime).getTime()
+    const proposedEnd = new Date(newStart.getTime() + durationMs)
+    const conflict = appointments.find((a) => {
+      if (a.id === dragged.id) return false
+      if (a.staffId !== effectiveStaff) return false
+      if (a.status === "cancelled" || a.status === "no-show") return false
+      const aStart = new Date(a.startTime).getTime()
+      const aEnd = new Date(a.endTime).getTime()
+      return aStart < proposedEnd.getTime() && aEnd > newStart!.getTime()
+    })
+    if (conflict) {
+      const staffName = props.staff.find((s) => s.id === effectiveStaff)?.name || "staff"
+      toast.error(`Time slot is already booked for ${staffName}`)
+      return
+    }
+
+    const prev = appointments
+    setAppointments((current) =>
+      current.map((a) =>
+        a.id === dragged.id
+          ? { ...a, startTime: newStart!, endTime: proposedEnd, staffId: effectiveStaff }
+          : a
+      )
+    )
+    const result = await rescheduleAppointment(dragged.id, newStart.toISOString(), newStaffId)
+    if (!result.success) {
+      setAppointments(prev)
+      toast.error(result.error || "Failed to reschedule appointment")
+    } else {
+      toast.success(`Rescheduled to ${format(newStart, "EEE MMM d, h:mm a")}`)
+      router.refresh()
+    }
+  }, [appointments, draggingAppointment, props.staff, router])
+
+  // Resize handler
+  const handleResize = useCallback(async (appointmentId: string, newDurationMinutes: number) => {
+    const original = appointments.find((a) => a.id === appointmentId)
+    if (!original) return
+    const newEnd = new Date(original.startTime)
+    newEnd.setMinutes(newEnd.getMinutes() + newDurationMinutes)
+    const conflict = appointments.find((a) => {
+      if (a.id === appointmentId) return false
+      if (a.staffId !== original.staffId) return false
+      if (a.status === "cancelled" || a.status === "no-show") return false
+      const aStart = new Date(a.startTime).getTime()
+      const aEnd = new Date(a.endTime).getTime()
+      return aStart < newEnd.getTime() && aEnd > new Date(original.startTime).getTime()
+    })
+    if (conflict) {
+      toast.error("Resizing would overlap another booking")
+      return
+    }
+    const prev = appointments
+    setAppointments((current) =>
+      current.map((a) => (a.id === appointmentId ? { ...a, endTime: newEnd } : a))
+    )
+    const result = await resizeAppointment(appointmentId, newDurationMinutes)
+    if (!result.success) {
+      setAppointments(prev)
+      toast.error(result.error || "Failed to resize appointment")
+    } else {
+      toast.success(`Duration set to ${newDurationMinutes}m`)
+      router.refresh()
+    }
+  }, [appointments, router])
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -318,6 +494,13 @@ export function CalendarClient(props: CalendarClientProps) {
 
         {/* Calendar grid */}
         <Card className="flex-1 overflow-hidden border-cream-200 shadow-sm flex flex-col min-h-[600px]">
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
           {/* Mobile staff navigation - shown when multiple staff on small screens */}
           {showMobileStaffNav && (
             <div className="flex items-center gap-1 px-2 py-1.5 bg-cream-50 border-b border-cream-200 shrink-0">
@@ -383,6 +566,7 @@ export function CalendarClient(props: CalendarClientProps) {
                   zoom={zoom}
                   onAppointmentClick={handleAppointmentClick}
                   onEmptySlotClick={handleEmptySlotClick}
+                  onAppointmentResize={handleResize}
                   showWorkingHours={showWorkingHours}
                 />
               )}
@@ -397,6 +581,7 @@ export function CalendarClient(props: CalendarClientProps) {
                   zoom={zoom}
                   onAppointmentClick={handleAppointmentClick}
                   onEmptySlotClick={handleEmptySlotClick}
+                  onAppointmentResize={handleResize}
                   showWorkingHours={showWorkingHours}
                 />
               )}
@@ -411,6 +596,7 @@ export function CalendarClient(props: CalendarClientProps) {
                   zoom={zoom}
                   onAppointmentClick={handleAppointmentClick}
                   onEmptySlotClick={handleEmptySlotClick}
+                  onAppointmentResize={handleResize}
                   showWorkingHours={showWorkingHours}
                 />
               )}
@@ -428,6 +614,21 @@ export function CalendarClient(props: CalendarClientProps) {
               )}
             </motion.div>
           </AnimatePresence>
+          <DragOverlay dropAnimation={null}>
+            {draggingAppointment ? (
+              <AppointmentBlock
+                appointment={draggingAppointment}
+                colorBy={colorBy}
+                zoom={zoom}
+                staffList={props.staff}
+                serviceList={props.services}
+                onClick={() => {}}
+                asOverlay
+                invalidDropTarget={isOverInvalid}
+              />
+            ) : null}
+          </DragOverlay>
+          </DndContext>
         </Card>
 
       </div>

@@ -5,30 +5,28 @@ import type { Appointment } from "@/data/mock-data"
 type AppointmentStatus = Appointment["status"]
 
 // Returns appointments in the shape the frontend expects
-export async function getAppointments(filters?: {
+export async function getAppointments(filters: {
+  businessId: string
   dateFrom?: Date
   dateTo?: Date
   staffId?: string
   status?: string
-  businessId?: string
 }) {
-  const where: Record<string, unknown> = {}
-
-  if (filters?.businessId) {
-    where.businessId = filters.businessId
+  const where: Record<string, unknown> = {
+    businessId: filters.businessId,
   }
 
-  if (filters?.dateFrom || filters?.dateTo) {
+  if (filters.dateFrom || filters.dateTo) {
     where.startTime = {}
     if (filters.dateFrom) (where.startTime as Record<string, unknown>).gte = filters.dateFrom
     if (filters.dateTo) (where.startTime as Record<string, unknown>).lte = filters.dateTo
   }
 
-  if (filters?.staffId) {
+  if (filters.staffId) {
     where.services = { some: { staffId: filters.staffId } }
   }
 
-  if (filters?.status) {
+  if (filters.status) {
     where.status = filters.status
   }
 
@@ -87,7 +85,7 @@ export async function getAppointments(filters?: {
   })
 }
 
-export async function getTodaysAppointments(businessId?: string) {
+export async function getTodaysAppointments(businessId: string) {
   const now = new Date()
   return getAppointments({
     dateFrom: startOfDay(now),
@@ -96,12 +94,12 @@ export async function getTodaysAppointments(businessId?: string) {
   })
 }
 
-export async function getDashboardStats(businessId?: string) {
+export async function getDashboardStats(businessId: string) {
   const now = new Date()
   const todayStart = startOfDay(now)
   const todayEnd = endOfDay(now)
 
-  const businessFilter = businessId ? { businessId } : {}
+  const businessFilter = { businessId }
 
   const weekAgo = new Date()
   weekAgo.setDate(weekAgo.getDate() - 7)

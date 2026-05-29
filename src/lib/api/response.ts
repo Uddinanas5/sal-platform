@@ -17,6 +17,25 @@ export const ERRORS = {
   UNAUTHORIZED: () => apiError("UNAUTHORIZED", "Authentication required", 401),
   FORBIDDEN: () => apiError("FORBIDDEN", "Insufficient permissions", 403),
   NOT_FOUND: (r = "Resource") => apiError("NOT_FOUND", `${r} not found`, 404),
+  CONFLICT: (r = "Resource") => apiError("CONFLICT", `${r} already exists`, 409),
+  INVALID_REFERENCE: (r = "resource") =>
+    apiError("INVALID_REFERENCE", `Referenced ${r} does not exist`, 422),
   BAD_REQUEST: (msg: string) => apiError("BAD_REQUEST", msg, 400),
   SERVER_ERROR: () => apiError("SERVER_ERROR", "Internal server error", 500),
+}
+
+/**
+ * Returns a client-safe error message. In production, always returns the
+ * curated fallback so we never leak Prisma internals, stack traces, table
+ * names, or other implementation details. In dev, surfaces the real
+ * `error.message` to keep the browser DevTools useful while debugging.
+ *
+ * The caller is responsible for logging the raw error (e.g. via console.error)
+ * with route context before calling this.
+ */
+export function clientSafeMessage(e: unknown, fallback: string): string {
+  if (process.env.NODE_ENV !== "production" && e instanceof Error) {
+    return e.message
+  }
+  return fallback
 }

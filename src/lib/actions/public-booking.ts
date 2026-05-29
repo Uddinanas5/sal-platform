@@ -6,6 +6,8 @@ import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail, appointmentCancelledEmail } from "@/lib/email-templates"
 import { revalidatePath } from "next/cache"
 import { z, ZodError } from "zod"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { generateBookingReference } from "@/lib/booking-reference"
 
 const addToPublicWaitlistSchema = z.object({
   businessId: z.string().uuid(),
@@ -114,6 +116,7 @@ export async function createPublicBooking(data: {
 
     // 5-7. Transaction: conflict check + create must be atomic
     const appointment = await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, business.id, data.staffId)
       // Double-booking prevention
       const conflicting = await tx.appointmentService.findFirst({
         where: {
@@ -129,10 +132,7 @@ export async function createPublicBooking(data: {
         throw new Error("CONFLICT")
       }
 
-      // Atomic booking reference via timestamp + random suffix
-      const timestamp = Date.now().toString(36)
-      const random = Math.random().toString(36).substring(2, 6)
-      const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
+      const bookingRef = generateBookingReference()
 
       const appt = await tx.appointment.create({
         data: {
@@ -215,7 +215,7 @@ export async function createPublicBooking(data: {
       return { success: false, error: "This time slot is already booked for the selected staff member" }
     }
     console.error("createPublicBooking error:", e)
-    return { success: false, error: msg }
+    return { success: false, error: "Failed to create booking. Please try again." }
   }
 }
 
