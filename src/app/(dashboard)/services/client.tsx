@@ -229,9 +229,13 @@ export function ServicesClient(props: ServicesClientProps) {
   const totalServices = props.initialServices.length
   const activeServices = props.initialServices.filter((s) => s.isActive).length
   const avgPrice =
-    props.initialServices.reduce((sum, s) => sum + s.price, 0) / totalServices
+    totalServices > 0
+      ? props.initialServices.reduce((sum, s) => sum + s.price, 0) / totalServices
+      : 0
   const avgDuration =
-    props.initialServices.reduce((sum, s) => sum + s.duration, 0) / totalServices
+    totalServices > 0
+      ? props.initialServices.reduce((sum, s) => sum + s.duration, 0) / totalServices
+      : 0
 
   const handleServiceClick = (service: Service) => {
     setSelectedService(service)
@@ -268,6 +272,7 @@ export function ServicesClient(props: ServicesClientProps) {
       price: formData.price,
       categoryId: formData.category,
       color: formData.color,
+      assignedStaff: formData.assignedStaff,
     })
     if (result.success) {
       toast.success("Service created successfully")
