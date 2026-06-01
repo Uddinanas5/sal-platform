@@ -40,6 +40,21 @@ export async function POST(request: NextRequest) {
     let amount = parsed.data.amount
     let clientId: string | null = null
 
+    const business = await prisma.business.findFirst({
+      where: { id: user.businessId, deletedAt: null },
+      select: {
+        stripeAccountId: true,
+        stripeAccountStatus: true,
+      },
+    })
+
+    if (!business?.stripeAccountId || business.stripeAccountStatus !== 'active') {
+      return NextResponse.json(
+        { error: 'Online payments are not enabled for this business yet. Connect Stripe in Settings first.' },
+        { status: 400 }
+      )
+    }
+
     if (appointmentId) {
       const appointment = await prisma.appointment.findFirst({
         where: { id: appointmentId, businessId: user.businessId },
@@ -87,10 +102,12 @@ export async function POST(request: NextRequest) {
     const result = await createPaymentIntent({
       amount: Math.round(amount * 100), // Convert to cents
       customerId,
+      connectedAccountId: business.stripeAccountId,
       metadata: {
         appointmentId: appointmentId || '',
         items: items ? JSON.stringify(items) : '',
         businessId: user.businessId,
+        connectedAccountId: business.stripeAccountId,
       },
     })
 
