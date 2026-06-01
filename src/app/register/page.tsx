@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -14,7 +13,6 @@ import { Eye, EyeOff } from "lucide-react"
 import { registerBusiness } from "@/lib/actions/register"
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [businessName, setBusinessName] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -48,11 +46,12 @@ export default function RegisterPage() {
 
     setLoading(true)
 
+    const normalizedEmail = email.trim().toLowerCase()
     const result = await registerBusiness({
       businessName,
       firstName,
       lastName,
-      email,
+      email: normalizedEmail,
       password,
     })
 
@@ -64,7 +63,7 @@ export default function RegisterPage() {
 
     // Sign in with the new credentials
     const signInResult = await signIn("credentials", {
-      email,
+      email: normalizedEmail,
       password,
       redirect: false,
     })
@@ -76,8 +75,7 @@ export default function RegisterPage() {
       return
     }
 
-    router.push("/onboarding")
-    router.refresh()
+    window.location.assign("/onboarding")
   }
 
   return (
