@@ -86,30 +86,20 @@ function formatTimeLabel(hour: number, minute: number): string {
   return `${h}:${m} ${ampm}`
 }
 
-function formatTimeInTimezone(isoString: string, timezone: string): string {
-  return new Date(isoString).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: timezone,
-  })
-}
-
-function formatDateInTimezone(isoString: string, timezone: string): string {
-  return new Date(isoString).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: timezone,
-  })
-}
-
 function getTimezoneAbbr(timezone: string): string {
   return (
     new Intl.DateTimeFormat("en-US", { timeZone: timezone, timeZoneName: "short" })
       .formatToParts(new Date())
       .find((p) => p.type === "timeZoneName")?.value || timezone
   )
+}
+
+function formatSelectedDate(date: Date, options: Intl.DateTimeFormatOptions = {}): string {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0))
+    .toLocaleDateString("en-US", {
+      timeZone: "UTC",
+      ...options,
+    })
 }
 
 function getDaysInMonth(year: number, month: number): number {
@@ -785,13 +775,6 @@ function DateTimeStep({
       {selectedDate && (() => {
         const dayOfWeek = selectedDate.getDay()
         const timeSlots = getTimeSlotsForDay(dayOfWeek, businessHours)
-        // Build a date string for the selected date in business timezone context
-        const selectedDateIso = new Date(
-          selectedDate.getFullYear(),
-          selectedDate.getMonth(),
-          selectedDate.getDate(),
-          12, 0, 0
-        ).toISOString()
         const tzAbbr = getTimezoneAbbr(timezone)
         return (
           <motion.div
@@ -801,7 +784,11 @@ function DateTimeStep({
           >
             <h3 className="text-sm font-semibold text-foreground mb-3">
               Available times for{" "}
-              {formatDateInTimezone(selectedDateIso, timezone).replace(/,\s*\d{4}$/, "")}
+              {formatSelectedDate(selectedDate, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
             </h3>
             {timeSlots.length === 0 ? (
               <div className="py-2">
@@ -984,7 +971,11 @@ function DateTimeStep({
                     <p className="text-sm text-muted-foreground">
                       No available slots for{" "}
                       <span className="font-medium text-foreground">
-                        {formatDateInTimezone(selectedDateIso, timezone).replace(/,\s*\d{4}$/, "")}
+                      {formatSelectedDate(selectedDate, {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })}
                       </span>
                       .
                     </p>
@@ -1171,17 +1162,13 @@ function ConfirmationStep({
   onConfirm: () => void
   timezone: string
 }) {
-  // Build an ISO string representing the selected date+time for timezone-aware formatting
-  const appointmentIso = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    time.hour,
-    time.minute,
-    0
-  ).toISOString()
-  const dateStr = formatDateInTimezone(appointmentIso, timezone)
-  const timeStr = formatTimeInTimezone(appointmentIso, timezone)
+  const dateStr = formatSelectedDate(date, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+  const timeStr = formatTimeLabel(time.hour, time.minute)
   const tzAbbr = getTimezoneAbbr(timezone)
   const staffName = staffMember === "any" ? "Any available" : staffMember.name
 
@@ -1322,21 +1309,12 @@ function SuccessState({
     return () => clearTimeout(timer)
   }, [])
 
-  const appointmentIso = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    time.hour,
-    time.minute,
-    0
-  ).toISOString()
-  const dateStr = new Date(appointmentIso).toLocaleDateString("en-US", {
+  const dateStr = formatSelectedDate(date, {
     weekday: "long",
     month: "long",
     day: "numeric",
-    timeZone: timezone,
   })
-  const timeStr = formatTimeInTimezone(appointmentIso, timezone)
+  const timeStr = formatTimeLabel(time.hour, time.minute)
   const tzAbbr = getTimezoneAbbr(timezone)
   const staffName = staffMember === "any" ? "Any available" : staffMember.name
 
