@@ -21,6 +21,7 @@ const publicRoutes = [
   /^\/api\/availability$/,
   /^\/api\/bookings(\/.*)?$/,
   /^\/api\/health$/,
+  /^\/api\/stripe\/webhook$/,
   /^\/.well-known\/.*/,
   /^\/api\/oauth\/.*/,
   /^\/api\/v1\/.*/,
