@@ -50,14 +50,14 @@ export function StripeConnectSection({
       })
 
       if (!response.ok) {
-        throw new Error("Failed to create Stripe account")
+        throw new Error("Failed to start SAL Payments setup")
       }
 
       const { onboardingUrl } = await response.json()
       window.location.href = onboardingUrl
     } catch (error) {
-      console.error("Error connecting Stripe:", error)
-      toast.error("Failed to start Stripe onboarding. Please try again.")
+      console.error("Error starting SAL Payments setup:", error)
+      toast.error("Failed to start SAL Payments setup. Please try again.")
     } finally {
       setIsConnecting(false)
     }
@@ -81,8 +81,8 @@ export function StripeConnectSection({
       const { url } = await response.json()
       window.open(url, "_blank")
     } catch (error) {
-      console.error("Error opening dashboard:", error)
-      toast.error("Failed to open Stripe dashboard. Please try again.")
+      console.error("Error opening payment dashboard:", error)
+      toast.error("Failed to open payment dashboard. Please try again.")
     } finally {
       setIsLoadingDashboard(false)
     }
@@ -126,19 +126,19 @@ export function StripeConnectSection({
       animate={{ opacity: 1, y: 0 }}
     >
       <Card className="overflow-hidden">
-        <CardHeader className="border-b bg-gradient-to-r from-[#635bff]/5 to-[#00d4ff]/5">
+        <CardHeader className="border-b bg-gradient-to-r from-sal-500/10 to-emerald-400/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#635bff] rounded-lg">
+              <div className="p-2 bg-sal-500 rounded-lg">
                 <CreditCard className="w-5 h-5 text-white" />
               </div>
               <div>
                 <CardTitle className="font-heading flex items-center gap-2">
-                  Stripe Connect
+                  SAL Payments
                   {getStatusBadge()}
                 </CardTitle>
                 <CardDescription>
-                  Accept card payments and manage payouts securely
+                  Accept client payments and manage payouts securely
                 </CardDescription>
               </div>
             </div>
@@ -182,22 +182,22 @@ export function StripeConnectSection({
                 <div>
                   <p className="font-medium">Ready to accept payments?</p>
                   <p className="text-sm text-muted-foreground">
-                    Connect your Stripe account in just a few minutes
+                    Activate payments in just a few minutes
                   </p>
                 </div>
                 <Button
                   onClick={handleConnect}
                   disabled={isConnecting}
-                  className="bg-[#635bff] hover:bg-[#5851e6] text-white shrink-0"
+                  className="bg-sal-500 hover:bg-sal-600 text-white shrink-0"
                 >
                   {isConnecting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Connecting...
+                      Starting setup...
                     </>
                   ) : (
                     <>
-                      Connect with Stripe
+                      Activate SAL Payments
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}
@@ -205,7 +205,7 @@ export function StripeConnectSection({
               </div>
 
               <p className="text-xs text-muted-foreground text-center">
-                By connecting, you agree to Stripe&apos;s{" "}
+                SAL Payments is powered by Stripe. By activating payments, you agree to Stripe&apos;s{" "}
                 <a
                   href="https://stripe.com/legal/connect-account"
                   target="_blank"
@@ -241,7 +241,7 @@ export function StripeConnectSection({
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      Open Stripe Dashboard
+                      Open payment dashboard
                       <ExternalLink className="w-4 h-4 ml-2" />
                     </>
                   )}
@@ -273,7 +273,7 @@ export function StripeConnectSection({
                     </p>
                     <p className={`text-sm ${isPending ? "text-yellow-700" : "text-red-700"}`}>
                       {isPending
-                        ? "Stripe is reviewing your information"
+                        ? "Your payment setup is being reviewed"
                         : "Please complete the required information"}
                     </p>
                   </div>

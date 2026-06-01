@@ -114,7 +114,7 @@ export function PaymentsSettingsTab({
 
   return (
     <div className="grid gap-6 max-w-4xl">
-      {/* Stripe Connect */}
+      {/* SAL Payments */}
       {businessId && (
         <StripeConnectSection
           businessId={businessId}

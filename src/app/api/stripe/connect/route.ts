@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     if (!result) {
       return NextResponse.json(
-        { error: "Failed to create Stripe account" },
+        { error: "Failed to start SAL Payments setup" },
         { status: 500 }
       )
     }
