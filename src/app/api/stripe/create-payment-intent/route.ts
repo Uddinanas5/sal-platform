@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     if (!business?.stripeAccountId || business.stripeAccountStatus !== 'active') {
       return NextResponse.json(
-        { error: 'Online payments are not enabled for this business yet. Connect Stripe in Settings first.' },
+        { error: 'Online payments are not enabled for this business yet. Activate SAL Payments in Settings first.' },
         { status: 400 }
       )
     }

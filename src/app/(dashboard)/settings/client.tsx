@@ -574,7 +574,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
                   <CardContent className="space-y-4">
                     {[
                       { name: "Google Calendar", status: "connected", icon: "\uD83D\uDCC5" },
-                      { name: "Stripe", status: "connected", icon: "\uD83D\uDCB3" },
+                      { name: "SAL Payments", status: "connected", icon: "\uD83D\uDCB3" },
                       { name: "Mailchimp", status: "disconnected", icon: "\uD83D\uDCE7" },
                       { name: "Instagram", status: "disconnected", icon: "\uD83D\uDCF8" },
                     ].map((integration) => (
