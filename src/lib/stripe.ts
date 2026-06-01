@@ -25,11 +25,15 @@ export async function createPaymentIntent({
   amount,
   currency = 'usd',
   customerId,
+  connectedAccountId,
+  applicationFeeAmount,
   metadata,
 }: {
   amount: number // in cents
   currency?: string
   customerId?: string
+  connectedAccountId?: string
+  applicationFeeAmount?: number
   metadata?: Record<string, string>
 }) {
   try {
@@ -40,6 +44,16 @@ export async function createPaymentIntent({
       automatic_payment_methods: {
         enabled: true,
       },
+      ...(connectedAccountId
+        ? {
+            transfer_data: {
+              destination: connectedAccountId,
+            },
+          }
+        : {}),
+      ...(applicationFeeAmount && applicationFeeAmount > 0
+        ? { application_fee_amount: applicationFeeAmount }
+        : {}),
       metadata: metadata || {},
     })
 
