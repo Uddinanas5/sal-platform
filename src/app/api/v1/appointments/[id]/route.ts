@@ -3,6 +3,7 @@ import { apiError, apiSuccess, ERRORS } from "@/lib/api/response"
 import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { assertStaffOwned } from "@/lib/ownership"
 import { prisma } from "@/lib/prisma"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import {
   assertSlotAllowed,
   ERR_OUTSIDE_WORKING_HOURS,
@@ -99,6 +100,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     try {
       await prisma.$transaction(async (tx) => {
+        // Lock every involved staff member (sorted, to avoid deadlocks) before
+        // the conflict checks so this reschedule serializes against concurrent
+        // create/reschedule on the same staff (BOOKING-CONCURRENCY-001).
+        const uniqueStaffIds = Array.from(
+          new Set(serviceUpdates.map((s) => s.staffId).filter(Boolean) as string[]),
+        ).sort()
+        for (const sid of uniqueStaffIds) {
+          await lockStaffSchedule(tx, ctx.businessId, sid)
+        }
+
         for (const su of serviceUpdates) {
           if (!su.staffId) continue
           await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime)

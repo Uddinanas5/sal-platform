@@ -1,6 +1,7 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, apiPaginated, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail } from "@/lib/email-templates"
 import { parseYmd } from "@/lib/date-utils"
@@ -141,6 +142,9 @@ export async function POST(req: Request) {
 
   try {
     const appointment = await prisma.$transaction(async (tx) => {
+      // Serialize concurrent writes for this staff member so the conflict
+      // check + create below cannot race a parallel booking (BOOKING-CONCURRENCY-001).
+      await lockStaffSchedule(tx, ctx.businessId, staffId)
       const conflicting = await tx.appointmentService.findFirst({
         where: {
           staffId,
