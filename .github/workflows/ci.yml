@@ -1,0 +1,57 @@
+name: CI
+
+# Safety net: every push and PR to main must compile, lint, type-check, and
+# pass tests before it can be merged. This does NOT use production secrets —
+# it runs with throwaway env values purely so Prisma can generate its client
+# and Next can build. Production env correctness is enforced separately by
+# `npm run check:launch` (with real env) before a deploy.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Throwaway values — NOT real credentials. Prisma needs a URL shape to
+      # generate the client; Next needs these present to build. No DB is
+      # contacted (all data pages are force-dynamic and not rendered at build).
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+      NEXTAUTH_SECRET: ci-placeholder-secret-not-used-in-production-32
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        # `npm install` (not `npm ci`) for cross-platform robustness: the
+        # committed lockfile is generated on the maintainer's machine and the
+        # strict `npm ci` sync check is brittle across OS-specific optional
+        # deps. install resolves the correct tree for the CI runner.
+        run: npm install --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
