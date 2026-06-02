@@ -55,7 +55,7 @@ export interface Staff {
   role: 'admin' | 'manager' | 'staff';
   services: string[]; // service IDs
   workingHours: {
-    [day: string]: { start: string; end: string } | null;
+    [day: string]: { start: string; end: string; break?: { start: string; end: string } | null } | null;
   };
   color: string;
   isActive: boolean;

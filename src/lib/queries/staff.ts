@@ -114,13 +114,21 @@ export async function getStaffById(id: string, businessId: string) {
 
   // Build working hours from schedules (same format as getStaff)
   const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
-  const workingHours: Record<string, { start: string; end: string } | null> = {}
+  const workingHours: Record<
+    string,
+    { start: string; end: string; break?: { start: string; end: string } | null } | null
+  > = {}
   for (const day of dayNames) workingHours[day] = null
   for (const sched of staff.staffSchedules) {
     const dayName = dayNames[sched.dayOfWeek]
     if (sched.isWorking && sched.startTime && sched.endTime) {
       const fmt = (d: Date) => `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`
-      workingHours[dayName] = { start: fmt(sched.startTime), end: fmt(sched.endTime) }
+      const brk = sched.breaks?.[0]
+      workingHours[dayName] = {
+        start: fmt(sched.startTime),
+        end: fmt(sched.endTime),
+        break: brk ? { start: fmt(brk.startTime), end: fmt(brk.endTime) } : null,
+      }
     }
   }
 
