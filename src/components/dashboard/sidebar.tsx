@@ -50,6 +50,11 @@ interface SidebarData {
   }
 }
 
+// Pages hidden during beta because they are not backed by a real, tested
+// implementation yet. Keeping them out of the nav avoids showing salons
+// features that look functional but aren't.
+const BETA_HIDDEN_HREFS = new Set<string>(["/marketing", "/memberships"])
+
 function buildNavSections(data: SidebarData | null, role?: string) {
   // For staff users, add a "My Profile" link pointing to their own staff profile
   const staffProfileItem = role === "staff" && data?.staffProfileId
@@ -97,6 +102,11 @@ function buildNavSections(data: SidebarData | null, role?: string) {
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
+        // Beta gate: these pages are not wired to a real backend yet
+        // (Marketing campaigns/automation send nothing; Memberships plans and
+        // gift cards are mock/non-functional). Hide them from navigation until
+        // finished — remove the href from BETA_HIDDEN_HREFS to re-enable.
+        if (BETA_HIDDEN_HREFS.has(item.href)) return false
         const perm = NAV_PERMISSIONS.find((p) => p.href === item.href)
         if (!perm) return true
         return hasRole(role, perm.minRole)
