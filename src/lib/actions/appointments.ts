@@ -264,6 +264,104 @@ export async function updateAppointmentStatus(
   }
 }
 
+const cancelAppointmentSchema = z.object({
+  id: z.string().uuid(),
+  // "no_show" is a cancellation variant — keep them in one structured flow.
+  status: z.enum(["cancelled", "no_show"]),
+  initiator: z.enum(["client", "business", "staff", "system"]),
+  reasonCode: z.enum([
+    "client_request",
+    "illness",
+    "scheduling_conflict",
+    "staff_unavailable",
+    "no_show",
+    "payment_issue",
+    "other",
+  ]),
+  note: z.string().max(500).optional(),
+})
+
+/**
+ * Cancel (or mark no-show) an appointment WITH a structured reason:
+ * who initiated it, a reason code, and an optional free-text note. Powers
+ * cancellation reporting and (later) no-show fees. Tenant-scoped.
+ */
+export async function cancelAppointment(input: {
+  id: string
+  status: "cancelled" | "no_show"
+  initiator: "client" | "business" | "staff" | "system"
+  reasonCode:
+    | "client_request"
+    | "illness"
+    | "scheduling_conflict"
+    | "staff_unavailable"
+    | "no_show"
+    | "payment_issue"
+    | "other"
+  note?: string
+}): Promise<ActionResult> {
+  let parsed: z.infer<typeof cancelAppointmentSchema>
+  try {
+    parsed = cancelAppointmentSchema.parse(input)
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: "Invalid input: " + e.issues[0]?.message }
+    }
+    throw e
+  }
+
+  try {
+    const { businessId, userId } = await getBusinessContext()
+    const now = new Date()
+
+    const appointment = await prisma.appointment.update({
+      where: { id: parsed.id, businessId },
+      data: {
+        status: parsed.status,
+        cancellationInitiator: parsed.initiator,
+        cancellationReasonCode: parsed.reasonCode,
+        cancellationReason: parsed.note,
+        cancelledBy: userId,
+        cancelledAt: parsed.status === "cancelled" ? now : undefined,
+        noShowAt: parsed.status === "no_show" ? now : undefined,
+      },
+      include: { client: true, services: true, business: true },
+    })
+
+    // Notify the client when a (non-no-show) cancellation happens.
+    if (parsed.status === "cancelled" && appointment.client?.email) {
+      const dateTime = new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(appointment.startTime)
+
+      sendEmail({
+        to: appointment.client.email,
+        subject: `Appointment Cancelled - ${appointment.services[0]?.name || "Your appointment"}`,
+        html: appointmentCancelledEmail({
+          clientName: `${appointment.client.firstName} ${appointment.client.lastName}`,
+          serviceName: appointment.services[0]?.name || "Service",
+          dateTime,
+          businessName: appointment.business.name,
+          bookingRef: appointment.bookingReference,
+        }),
+      }).catch(console.error)
+    }
+
+    revalidatePath("/calendar")
+    revalidatePath("/dashboard")
+    return { success: true, data: undefined }
+  } catch (e) {
+    console.error("cancelAppointment error:", e)
+    return { success: false, error: (e as Error).message }
+  }
+}
+
 export async function rescheduleAppointment(
   id: string,
   newStart: string,

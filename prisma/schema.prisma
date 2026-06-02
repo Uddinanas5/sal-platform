@@ -95,6 +95,23 @@ enum AppointmentSource {
 
 }
 
+enum CancellationInitiator {
+  client
+  business
+  staff
+  system
+}
+
+enum CancellationReasonCode {
+  client_request
+  illness
+  scheduling_conflict
+  staff_unavailable
+  no_show
+  payment_issue
+  other
+}
+
 enum ServiceStatus {
   scheduled
   in_progress
@@ -712,7 +729,9 @@ model Appointment {
   depositAmount      Decimal           @default(0) @map("deposit_amount") @db.Decimal(10, 2)
   notes              String?           @db.Text
   internalNotes      String?           @map("internal_notes") @db.Text
-  cancellationReason String?           @map("cancellation_reason") @db.Text
+  cancellationReason     String?                 @map("cancellation_reason") @db.Text
+  cancellationInitiator  CancellationInitiator?  @map("cancellation_initiator")
+  cancellationReasonCode CancellationReasonCode? @map("cancellation_reason_code")
   cancelledBy        String?           @map("cancelled_by") @db.Uuid
   cancelledAt        DateTime?         @map("cancelled_at") @db.Timestamptz
   noShowAt           DateTime?         @map("no_show_at") @db.Timestamptz
