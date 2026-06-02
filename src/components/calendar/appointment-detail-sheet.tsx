@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/select"
 import { cn, getInitials, formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
+import { rescheduleAppointment } from "@/lib/actions/appointments"
 import type { Appointment, Staff, Service, Client } from "@/data/mock-data"
 
 interface AppointmentDetailSheetProps {
@@ -118,6 +119,7 @@ export function AppointmentDetailSheet({
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined)
   const [rescheduleTime, setRescheduleTime] = useState<string | undefined>(undefined)
   const [rescheduleStaff, setRescheduleStaff] = useState<string>("")
+  const [isRescheduling, setIsRescheduling] = useState(false)
 
   if (!appointment) return null
 
@@ -143,7 +145,8 @@ export function AppointmentDetailSheet({
     setRescheduleOpen(true)
   }
 
-  const handleRescheduleConfirm = () => {
+  const handleRescheduleConfirm = async () => {
+    if (!appointment) return
     if (!rescheduleDate || !rescheduleTime) {
       toast.error("Please select a date and time")
       return
@@ -151,15 +154,29 @@ export function AppointmentDetailSheet({
     const [h, m] = rescheduleTime.split(":").map(Number)
     const newDate = setMinutes(setHours(rescheduleDate, h), m)
     const newStaffMember = staffList.find((s) => s.id === rescheduleStaff)
+    const staffChanged = rescheduleStaff && rescheduleStaff !== appointment.staffId
 
-    if (onStatusChange) {
-      onStatusChange(appointment.id, "confirmed")
+    setIsRescheduling(true)
+    // Call the real server action so the appointment actually moves (and is
+    // re-checked for conflicts / working hours), instead of just toasting.
+    const result = await rescheduleAppointment(
+      appointment.id,
+      newDate.toISOString(),
+      staffChanged ? rescheduleStaff : undefined
+    )
+    setIsRescheduling(false)
+
+    if (!result.success) {
+      toast.error(result.error || "Failed to reschedule appointment")
+      return
     }
+
     toast.success("Appointment rescheduled", {
-      description: `Moved to ${format(newDate, "MMM d, yyyy")} at ${format(newDate, "h:mm a")}${newStaffMember && newStaffMember.id !== appointment.staffId ? ` with ${newStaffMember.name}` : ""}`,
+      description: `Moved to ${format(newDate, "MMM d, yyyy")} at ${format(newDate, "h:mm a")}${newStaffMember && staffChanged ? ` with ${newStaffMember.name}` : ""}`,
     })
     setRescheduleOpen(false)
     onOpenChange(false)
+    router.refresh()
   }
 
   return (
@@ -494,14 +511,16 @@ export function AppointmentDetailSheet({
                 variant="outline"
                 className="flex-1"
                 onClick={() => setRescheduleOpen(false)}
+                disabled={isRescheduling}
               >
                 Cancel
               </Button>
               <Button
                 className="flex-1 bg-sal-500 hover:bg-sal-600 text-white"
                 onClick={handleRescheduleConfirm}
+                disabled={isRescheduling}
               >
-                Confirm Reschedule
+                {isRescheduling ? "Rescheduling…" : "Confirm Reschedule"}
               </Button>
             </div>
           </div>
