@@ -47,10 +47,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { cn, getInitials, formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
-import { rescheduleAppointment } from "@/lib/actions/appointments"
+import { rescheduleAppointment, cancelAppointment } from "@/lib/actions/appointments"
 import type { Appointment, Staff, Service, Client } from "@/data/mock-data"
+
+type CancelReasonCode =
+  | "client_request"
+  | "illness"
+  | "scheduling_conflict"
+  | "staff_unavailable"
+  | "no_show"
+  | "payment_issue"
+  | "other"
+
+const CANCEL_REASONS: { value: CancelReasonCode; label: string }[] = [
+  { value: "client_request", label: "Client requested" },
+  { value: "illness", label: "Illness" },
+  { value: "scheduling_conflict", label: "Scheduling conflict" },
+  { value: "staff_unavailable", label: "Staff unavailable" },
+  { value: "no_show", label: "No-show" },
+  { value: "payment_issue", label: "Payment issue" },
+  { value: "other", label: "Other" },
+]
 
 interface AppointmentDetailSheetProps {
   open: boolean
@@ -120,6 +140,12 @@ export function AppointmentDetailSheet({
   const [rescheduleTime, setRescheduleTime] = useState<string | undefined>(undefined)
   const [rescheduleStaff, setRescheduleStaff] = useState<string>("")
   const [isRescheduling, setIsRescheduling] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelMode, setCancelMode] = useState<"cancelled" | "no_show">("cancelled")
+  const [cancelInitiator, setCancelInitiator] = useState<"client" | "business">("business")
+  const [cancelReason, setCancelReason] = useState<CancelReasonCode>("client_request")
+  const [cancelNote, setCancelNote] = useState("")
+  const [isCancelling, setIsCancelling] = useState(false)
 
   if (!appointment) return null
 
@@ -136,6 +162,39 @@ export function AppointmentDetailSheet({
       description: `${appointment.clientName}'s appointment has been ${action.toLowerCase()}.`,
     })
     onOpenChange(false)
+  }
+
+  const openCancel = (mode: "cancelled" | "no_show") => {
+    setCancelMode(mode)
+    // Sensible defaults: a no-show is client-side; a manual cancel is usually
+    // initiated by the business. The user can change both.
+    setCancelInitiator(mode === "no_show" ? "client" : "business")
+    setCancelReason(mode === "no_show" ? "no_show" : "client_request")
+    setCancelNote("")
+    setCancelOpen(true)
+  }
+
+  const handleCancelConfirm = async () => {
+    if (!appointment) return
+    setIsCancelling(true)
+    const result = await cancelAppointment({
+      id: appointment.id,
+      status: cancelMode,
+      initiator: cancelInitiator,
+      reasonCode: cancelReason,
+      note: cancelNote.trim() || undefined,
+    })
+    setIsCancelling(false)
+    if (!result.success) {
+      toast.error(result.error || "Failed to cancel appointment")
+      return
+    }
+    toast.success(
+      cancelMode === "no_show" ? "Marked as no-show" : "Appointment cancelled"
+    )
+    setCancelOpen(false)
+    onOpenChange(false)
+    router.refresh()
   }
 
   const openReschedule = () => {
@@ -439,9 +498,7 @@ export function AppointmentDetailSheet({
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-2 h-10 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                  onClick={() =>
-                    handleStatusAction("marked as No Show", "no-show")
-                  }
+                  onClick={() => openCancel("no_show")}
                 >
                   <UserX className="h-4 w-4" />
                   Mark No-Show
@@ -450,9 +507,7 @@ export function AppointmentDetailSheet({
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-2 h-10 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  onClick={() =>
-                    handleStatusAction("Cancelled", "cancelled")
-                  }
+                  onClick={() => openCancel("cancelled")}
                 >
                   <XCircle className="h-4 w-4" />
                   Cancel Appointment
@@ -521,6 +576,87 @@ export function AppointmentDetailSheet({
                 disabled={isRescheduling}
               >
                 {isRescheduling ? "Rescheduling…" : "Confirm Reschedule"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancellation reason dialog */}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {cancelMode === "no_show" ? "Mark as No-Show" : "Cancel Appointment"}
+            </DialogTitle>
+            <DialogDescription>
+              Record why so it shows up in cancellation reports later.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Initiated by</label>
+              <Select
+                value={cancelInitiator}
+                onValueChange={(v) => setCancelInitiator(v as "client" | "business")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="business">Business / staff</SelectItem>
+                  <SelectItem value="client">Client</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Reason</label>
+              <Select
+                value={cancelReason}
+                onValueChange={(v) => setCancelReason(v as CancelReasonCode)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CANCEL_REASONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Note (optional)</label>
+              <Textarea
+                value={cancelNote}
+                onChange={(e) => setCancelNote(e.target.value)}
+                placeholder="Any extra detail…"
+                maxLength={500}
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setCancelOpen(false)}
+                disabled={isCancelling}
+              >
+                Back
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={handleCancelConfirm}
+                disabled={isCancelling}
+              >
+                {isCancelling
+                  ? "Saving…"
+                  : cancelMode === "no_show"
+                    ? "Mark No-Show"
+                    : "Confirm Cancel"}
               </Button>
             </div>
           </div>
