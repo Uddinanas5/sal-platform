@@ -14,6 +14,19 @@ const adapter = new PrismaPg({ connectionString: sslUrl })
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
+  // SAFETY GUARD: this seed DELETES every table before inserting demo data.
+  // Refuse to run against a non-local database unless explicitly overridden,
+  // so it can never be pointed at production (or any live salon data) by
+  // accident. To seed a remote DB on purpose, set ALLOW_DESTRUCTIVE_SEED=true.
+  if (!isLocal && process.env.ALLOW_DESTRUCTIVE_SEED !== "true") {
+    console.error(
+      "\n❌ Refusing to seed: DATABASE_URL is not localhost.\n" +
+        "   This seed wipes ALL tables. If you really intend to seed a remote\n" +
+        "   database, set ALLOW_DESTRUCTIVE_SEED=true explicitly and re-run.\n"
+    )
+    process.exit(1)
+  }
+
   console.log("🌱 Seeding database...")
 
   // Clean existing data (in reverse dependency order)
@@ -65,7 +78,8 @@ async function main() {
   // ============================================================================
   // 1. Create Admin User
   // ============================================================================
-  const passwordHash = await bcrypt.hash("password", 10)
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "password"
+  const passwordHash = await bcrypt.hash(adminPassword, 10)
 
   const adminUser = await prisma.user.create({
     data: {
@@ -78,7 +92,11 @@ async function main() {
       emailVerified: true,
     },
   })
-  console.log("  Created admin user: admin@sal.app / password")
+  console.log(
+    process.env.SEED_ADMIN_PASSWORD
+      ? "  Created admin user: admin@sal.app (password from SEED_ADMIN_PASSWORD)"
+      : "  Created admin user: admin@sal.app / password (local dev default)"
+  )
 
   // ============================================================================
   // 2. Create Business & Location

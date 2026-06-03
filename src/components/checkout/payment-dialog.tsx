@@ -257,60 +257,32 @@ export function PaymentDialog({
                         Cash
                       </span>
                     </button>
+                    {/* Card payments are not yet live (online charging via SAL
+                        Payments is not enabled for beta). Disabled + labeled so
+                        nothing records a "paid" sale that wasn't really charged. */}
                     <button
-                      className={cn(
-                        "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:border-sal-300",
-                        paymentMethod === "card"
-                          ? "border-sal-500 bg-sal-50"
-                          : "border-border"
-                      )}
-                      onClick={() => onSetPaymentMethod("card")}
+                      type="button"
+                      disabled
+                      title="Card payments are coming soon"
+                      className="flex flex-col items-center gap-2 rounded-lg border-2 border-border p-4 opacity-40 cursor-not-allowed"
                     >
-                      <CreditCard
-                        className={cn(
-                          "h-6 w-6",
-                          paymentMethod === "card"
-                            ? "text-sal-600"
-                            : "text-muted-foreground"
-                        )}
-                      />
-                      <span
-                        className={cn(
-                          "text-xs font-medium",
-                          paymentMethod === "card"
-                            ? "text-sal-700"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        Card
+                      <CreditCard className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Card (soon)
                       </span>
                     </button>
+                    {/* Gift cards have no backend yet (no balance lookup or
+                        deduction), so redemption is disabled to prevent free
+                        checkouts. Labeled "(soon)". */}
                     <button
-                      className={cn(
-                        "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:border-sal-300",
-                        paymentMethod === "gift_card"
-                          ? "border-sal-500 bg-sal-50"
-                          : "border-border"
-                      )}
-                      onClick={() => onSetPaymentMethod("gift_card")}
+                      type="button"
+                      disabled
+                      title="Gift cards are coming soon"
+                      className="flex flex-col items-center gap-2 rounded-lg border-2 border-border p-4 opacity-40 cursor-not-allowed"
                     >
-                      <Gift
-                        className={cn(
-                          "h-6 w-6",
-                          paymentMethod === "gift_card"
-                            ? "text-sal-600"
-                            : "text-muted-foreground"
-                        )}
-                      />
-                      <span
-                        className={cn(
-                          "text-xs font-medium",
-                          paymentMethod === "gift_card"
-                            ? "text-sal-700"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        Gift Card
+                      <Gift className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Gift card (soon)
                       </span>
                     </button>
                   </div>
