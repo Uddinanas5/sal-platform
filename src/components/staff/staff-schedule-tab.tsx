@@ -50,13 +50,15 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
     DAYS.forEach(({ key }) => {
       const hours = staff.workingHours[key]
       const isOff = hours === null
+      const brk = hours?.break
       initial[key] = {
         start: hours?.start ?? "09:00",
         end: hours?.end ?? "17:00",
         isOff,
-        breakStart: "12:00",
-        breakEnd: "13:00",
-        hasBreak: !isOff,
+        breakStart: brk?.start ?? "12:00",
+        breakEnd: brk?.end ?? "13:00",
+        // Only show a break if one is actually saved (don't fake one on every working day)
+        hasBreak: !!brk,
       }
     })
     return initial
@@ -111,6 +113,10 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
       startTime: schedule[key].start,
       endTime: schedule[key].end,
       isWorking: !schedule[key].isOff,
+      breaks:
+        schedule[key].hasBreak && !schedule[key].isOff
+          ? [{ startTime: schedule[key].breakStart, endTime: schedule[key].breakEnd }]
+          : [],
     }))
 
     startTransition(async () => {

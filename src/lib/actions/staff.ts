@@ -7,6 +7,12 @@ import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
+const breakSchema = z.object({
+  startTime: z.string(),
+  endTime: z.string(),
+  isPaid: z.boolean().optional(),
+})
+
 const updateStaffScheduleSchema = z.object({
   staffId: z.string().uuid(),
   schedule: z.array(z.object({
@@ -14,8 +20,11 @@ const updateStaffScheduleSchema = z.object({
     startTime: z.string(),
     endTime: z.string(),
     isWorking: z.boolean(),
+    breaks: z.array(breakSchema).optional(),
   })),
 })
+
+type ScheduleDay = z.infer<typeof updateStaffScheduleSchema>["schedule"][number]
 
 const requestTimeOffSchema = z.object({
   staffId: z.string().uuid(),
@@ -40,7 +49,7 @@ const deleteStaffSchema = z.object({
 
 export async function updateStaffSchedule(
   staffId: string,
-  schedule: { dayOfWeek: number; startTime: string; endTime: string; isWorking: boolean }[]
+  schedule: ScheduleDay[]
 ): Promise<ActionResult> {
   try {
     const parsed = updateStaffScheduleSchema.parse({ staffId, schedule })
@@ -72,6 +81,12 @@ export async function updateStaffSchedule(
     for (const day of schedule) {
       // Skip days the business is closed — staff can't work on closed days
       if (day.isWorking && !closedDays.has(day.dayOfWeek)) {
+        // Persist breaks alongside the schedule so the availability engine
+        // (which already blocks break times) actually keeps clients from
+        // booking over them. Skip zero/negative-length breaks.
+        const validBreaks = (day.breaks ?? []).filter(
+          (b) => b.startTime && b.endTime && b.startTime < b.endTime
+        )
         await prisma.staffSchedule.create({
           data: {
             staffId,
@@ -80,6 +95,15 @@ export async function updateStaffSchedule(
             startTime: new Date(`2000-01-01T${day.startTime}:00`),
             endTime: new Date(`2000-01-01T${day.endTime}:00`),
             isWorking: true,
+            breaks: validBreaks.length
+              ? {
+                  create: validBreaks.map((b) => ({
+                    startTime: new Date(`2000-01-01T${b.startTime}:00`),
+                    endTime: new Date(`2000-01-01T${b.endTime}:00`),
+                    isPaid: b.isPaid ?? false,
+                  })),
+                }
+              : undefined,
           },
         })
       }
