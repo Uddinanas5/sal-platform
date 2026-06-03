@@ -47,7 +47,7 @@ beforeEach(() => {
 
 describe("POST /api/v1/services — tenant isolation", () => {
   it("ignores a businessId in the request body and writes under ctx.businessId", async () => {
-    const res = await POST(req(validBody({ businessId: FOREIGN_BIZ })))
+    const res = await POST(req(validBody({ businessId: FOREIGN_BIZ })), undefined as never)
     expect(res.status).toBe(201)
     expect(prismaMock.service.create).toHaveBeenCalledTimes(1)
     const createArg = prismaMock.service.create.mock.calls[0][0]
@@ -58,7 +58,7 @@ describe("POST /api/v1/services — tenant isolation", () => {
   it("scopes the category lookup to the caller's business and 400s a foreign category", async () => {
     // Category not found under THIS business → rejected.
     prismaMock.serviceCategory.findFirst.mockResolvedValue(null)
-    const res = await POST(req(validBody()))
+    const res = await POST(req(validBody()), undefined as never)
     expect(res.status).toBe(400)
     const body = await res.json()
     expect(body.error.message).toMatch(/category not found/i)
@@ -71,8 +71,8 @@ describe("POST /api/v1/services — tenant isolation", () => {
 
   it("401s when unauthenticated and 403s for non-admins", async () => {
     withV1AuthMock.mockResolvedValue(null)
-    expect((await POST(req(validBody()))).status).toBe(401)
+    expect((await POST(req(validBody()), undefined as never)).status).toBe(401)
     withV1AuthMock.mockResolvedValue({ businessId: BIZ, role: "staff" })
-    expect((await POST(req(validBody()))).status).toBe(403)
+    expect((await POST(req(validBody()), undefined as never)).status).toBe(403)
   })
 })
