@@ -8,6 +8,11 @@ import { revalidatePath } from "next/cache"
 import { z, ZodError } from "zod"
 import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import { generateBookingReference } from "@/lib/booking-reference"
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from "@/lib/scheduling/working-hours"
 
 const addToPublicWaitlistSchema = z.object({
   businessId: z.string().uuid(),
@@ -84,6 +89,16 @@ export async function createPublicBooking(data: {
     })
     if (!staff) return { success: false, error: "Staff not found" }
 
+    // 2c. Verify the staff member actually performs this service (don't trust
+    // the client — a crafted request could pair any staff with any service).
+    const performsService = await prisma.staffService.findFirst({
+      where: { staffId: data.staffId, serviceId: data.serviceId, isActive: true },
+      select: { id: true },
+    })
+    if (!performsService) {
+      return { success: false, error: "This staff member doesn't offer the selected service" }
+    }
+
     // 3. Find or create client
     let client = await prisma.client.findFirst({
       where: {
@@ -117,6 +132,11 @@ export async function createPublicBooking(data: {
     // 5-7. Transaction: conflict check + create must be atomic
     const appointment = await prisma.$transaction(async (tx) => {
       await lockStaffSchedule(tx, business.id, data.staffId)
+      // Re-validate the slot server-side (defense in depth): the public client
+      // shows availability from /api/availability, but we never trust the
+      // client — enforce the staff member's working hours + approved time off
+      // here too, inside the lock.
+      await assertSlotAllowed(tx, data.staffId, location.id, startTime, endTime)
       // Double-booking prevention
       const conflicting = await tx.appointmentService.findFirst({
         where: {
@@ -213,6 +233,12 @@ export async function createPublicBooking(data: {
     const msg = (e as Error).message
     if (msg === "CONFLICT") {
       return { success: false, error: "This time slot is already booked for the selected staff member" }
+    }
+    if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+      return { success: false, error: "That time is outside the staff member's working hours." }
+    }
+    if (msg === ERR_ON_APPROVED_TIME_OFF) {
+      return { success: false, error: "That time is no longer available." }
     }
     console.error("createPublicBooking error:", e)
     return { success: false, error: "Failed to create booking. Please try again." }
