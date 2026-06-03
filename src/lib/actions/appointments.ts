@@ -445,6 +445,7 @@ export async function resizeAppointment(
 
     await prisma.$transaction(async (tx) => {
       if (staffId) {
+        await lockStaffSchedule(tx, businessId, staffId)
         await assertSlotAllowed(tx, staffId, appointment.locationId, startTime, newEndTime)
         const conflicting = await tx.appointmentService.findFirst({
           where: {

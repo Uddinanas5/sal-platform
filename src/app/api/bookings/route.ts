@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getBusinessContext } from '@/lib/auth-utils'
+import { lockStaffSchedule } from '@/lib/db/advisory-lock'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
 import { withSafeErrors } from '@/lib/api/safe-handler'
 import { parseYmd } from '@/lib/date-utils'
@@ -298,8 +299,35 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
     const appointmentEnd = new Date(Math.max(...serviceDetails.map(s => s.endTime.getTime())))
     const totalDuration = Math.round((appointmentEnd.getTime() - appointmentStart.getTime()) / 60000)
 
-    // Create appointment with services in a transaction
+    // Create appointment with services in a transaction.
     const appointment = await prisma.$transaction(async (tx) => {
+      // The isSlotAvailable() checks above ran before this transaction, so two
+      // concurrent bookings could both pass them. Lock every involved staff
+      // member (sorted, to avoid deadlocks) and re-check conflicts inside the
+      // transaction — this is the authoritative double-booking guard.
+      const uniqueStaffIds = Array.from(
+        new Set(serviceDetails.map((s) => s.staffId)),
+      ).sort()
+      for (const sid of uniqueStaffIds) {
+        await lockStaffSchedule(tx, businessId, sid)
+      }
+      for (const svc of serviceDetails) {
+        const conflicting = await tx.appointmentService.findFirst({
+          where: {
+            staffId: svc.staffId,
+            appointment: {
+              businessId,
+              status: { notIn: ['cancelled', 'no_show'] },
+            },
+            startTime: { lt: svc.endTime },
+            endTime: { gt: svc.startTime },
+          },
+        })
+        if (conflicting) {
+          throw new Error(`Time slot ${svc.startTime.toISOString()} was just taken`)
+        }
+      }
+
       const apt = await tx.appointment.create({
         data: {
           businessId,

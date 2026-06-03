@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { addWeeks, addMonths } from "date-fns"
 import { getBusinessContext } from "@/lib/auth-utils"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import {
   assertClientOwned,
   assertClientsOwned,
@@ -84,56 +85,78 @@ export async function createRecurringAppointment(data: {
       if (dates.length > 52) break // Safety limit: max 1 year of weekly
     }
 
-    const ids: string[] = []
-    let parentId: string | null = null
+    // Create the whole series atomically: either every occurrence is booked or
+    // none are (no partial/orphaned series). Lock the staff schedule once and
+    // conflict-check each occurrence so a recurring series can't double-book.
+    const ids: string[] = await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, businessId, parsed.staffId)
 
-    for (let i = 0; i < dates.length; i++) {
-      const startTime = dates[i]
-      const endTime = new Date(startTime)
-      endTime.setMinutes(endTime.getMinutes() + service.durationMinutes)
+      const createdIds: string[] = []
+      let parentId: string | null = null
 
-      const bookingRef = generateBookingReference()
+      for (let i = 0; i < dates.length; i++) {
+        const startTime = dates[i]
+        const endTime = new Date(startTime)
+        endTime.setMinutes(endTime.getMinutes() + service.durationMinutes)
 
-      const appointment: { id: string } = await prisma.appointment.create({
-        data: {
-          businessId,
-          locationId: location.id,
-          clientId: parsed.clientId,
-          bookingReference: bookingRef,
-          status: "confirmed",
-          source: "pos",
-          startTime,
-          endTime,
-          totalDuration: service.durationMinutes,
-          subtotal: price,
-          taxAmount: tax,
-          totalAmount: price + tax,
-          notes: parsed.notes,
-          recurrenceRule: parsed.recurrenceRule,
-          recurrenceEndDate: endDate,
-          seriesId,
-          parentAppointmentId: parentId,
-        },
-      })
+        const conflicting = await tx.appointmentService.findFirst({
+          where: {
+            staffId: parsed.staffId,
+            appointment: {
+              businessId,
+              status: { notIn: ["cancelled", "no_show"] },
+            },
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
+        })
+        if (conflicting) throw new Error("CONFLICT")
 
-      if (i === 0) parentId = appointment.id
+        const bookingRef = generateBookingReference()
 
-      await prisma.appointmentService.create({
-        data: {
-          appointmentId: appointment.id,
-          serviceId: parsed.serviceId,
-          staffId: parsed.staffId,
-          name: service.name,
-          durationMinutes: service.durationMinutes,
-          price,
-          finalPrice: price,
-          startTime,
-          endTime,
-        },
-      })
+        const appointment: { id: string } = await tx.appointment.create({
+          data: {
+            businessId,
+            locationId: location.id,
+            clientId: parsed.clientId,
+            bookingReference: bookingRef,
+            status: "confirmed",
+            source: "pos",
+            startTime,
+            endTime,
+            totalDuration: service.durationMinutes,
+            subtotal: price,
+            taxAmount: tax,
+            totalAmount: price + tax,
+            notes: parsed.notes,
+            recurrenceRule: parsed.recurrenceRule,
+            recurrenceEndDate: endDate,
+            seriesId,
+            parentAppointmentId: parentId,
+          },
+        })
 
-      ids.push(appointment.id)
-    }
+        if (i === 0) parentId = appointment.id
+
+        await tx.appointmentService.create({
+          data: {
+            appointmentId: appointment.id,
+            serviceId: parsed.serviceId,
+            staffId: parsed.staffId,
+            name: service.name,
+            durationMinutes: service.durationMinutes,
+            price,
+            finalPrice: price,
+            startTime,
+            endTime,
+          },
+        })
+
+        createdIds.push(appointment.id)
+      }
+
+      return createdIds
+    })
 
     revalidatePath("/calendar")
     revalidatePath("/dashboard")
@@ -143,6 +166,13 @@ export async function createRecurringAppointment(data: {
       return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     }
     const msg = (e as Error).message
+    if (msg === "CONFLICT") {
+      return {
+        success: false,
+        error:
+          "One or more dates in this recurring series conflict with existing appointments. No appointments were created — adjust the time and try again.",
+      }
+    }
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
     }
@@ -232,51 +262,69 @@ export async function createGroupBooking(data: {
     const tax = Math.round(price * taxRate * 100) / 100
     const bookingRef = generateBookingReference()
 
-    // Create the group appointment (primary client is first in list)
-    const appointment = await prisma.appointment.create({
-      data: {
-        businessId,
-        locationId: location.id,
-        clientId: parsed.clientIds[0],
-        bookingReference: bookingRef,
-        status: "confirmed",
-        source: "pos",
-        startTime,
-        endTime,
-        totalDuration: service.durationMinutes,
-        subtotal: price * parsed.clientIds.length,
-        taxAmount: tax * parsed.clientIds.length,
-        totalAmount: (price + tax) * parsed.clientIds.length,
-        notes: parsed.notes,
-        isGroupBooking: true,
-        maxParticipants: parsed.maxParticipants,
-      },
-    })
+    // Create the group appointment + service + all participants atomically,
+    // with a staff lock + conflict check so the group slot can't double-book
+    // the staff and can't leave a partial booking on failure.
+    const appointment = await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, businessId, parsed.staffId)
 
-    // Create appointment service
-    await prisma.appointmentService.create({
-      data: {
-        appointmentId: appointment.id,
-        serviceId: parsed.serviceId,
-        staffId: parsed.staffId,
-        name: service.name,
-        durationMinutes: service.durationMinutes,
-        price,
-        finalPrice: price,
-        startTime,
-        endTime,
-      },
-    })
-
-    // Add all participants
-    for (const clientId of parsed.clientIds) {
-      await prisma.groupParticipant.create({
-        data: {
-          appointmentId: appointment.id,
-          clientId,
+      const conflicting = await tx.appointmentService.findFirst({
+        where: {
+          staffId: parsed.staffId,
+          appointment: {
+            businessId,
+            status: { notIn: ["cancelled", "no_show"] },
+          },
+          startTime: { lt: endTime },
+          endTime: { gt: startTime },
         },
       })
-    }
+      if (conflicting) throw new Error("CONFLICT")
+
+      // primary client is first in list
+      const appt = await tx.appointment.create({
+        data: {
+          businessId,
+          locationId: location.id,
+          clientId: parsed.clientIds[0],
+          bookingReference: bookingRef,
+          status: "confirmed",
+          source: "pos",
+          startTime,
+          endTime,
+          totalDuration: service.durationMinutes,
+          subtotal: price * parsed.clientIds.length,
+          taxAmount: tax * parsed.clientIds.length,
+          totalAmount: (price + tax) * parsed.clientIds.length,
+          notes: parsed.notes,
+          isGroupBooking: true,
+          maxParticipants: parsed.maxParticipants,
+        },
+      })
+
+      await tx.appointmentService.create({
+        data: {
+          appointmentId: appt.id,
+          serviceId: parsed.serviceId,
+          staffId: parsed.staffId,
+          name: service.name,
+          durationMinutes: service.durationMinutes,
+          price,
+          finalPrice: price,
+          startTime,
+          endTime,
+        },
+      })
+
+      await tx.groupParticipant.createMany({
+        data: parsed.clientIds.map((clientId) => ({
+          appointmentId: appt.id,
+          clientId,
+        })),
+      })
+
+      return appt
+    })
 
     revalidatePath("/calendar")
     revalidatePath("/dashboard")
@@ -286,6 +334,12 @@ export async function createGroupBooking(data: {
       return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     }
     const msg = (e as Error).message
+    if (msg === "CONFLICT") {
+      return {
+        success: false,
+        error: "This time slot is already booked for the selected staff member.",
+      }
+    }
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
     }
