@@ -1,25 +1,32 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 import { createDashboardLink } from "@/lib/stripe"
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { accountId } = body
+    // Resolve the Stripe account from the caller's OWN business server-side.
+    // Never accept an accountId from the request body — doing so let any
+    // authenticated user mint a Stripe Express login link into another salon's
+    // payment account (cross-tenant financial IDOR).
+    const business = await prisma.business.findFirst({
+      where: { ownerId: session.user.id, deletedAt: null },
+      select: { stripeAccountId: true },
+    })
 
-    if (!accountId) {
+    if (!business?.stripeAccountId) {
       return NextResponse.json(
-        { error: "Missing account ID" },
+        { error: "No connected payment account for this business" },
         { status: 400 }
       )
     }
 
-    const url = await createDashboardLink(accountId)
+    const url = await createDashboardLink(business.stripeAccountId)
 
     if (!url) {
       return NextResponse.json(
