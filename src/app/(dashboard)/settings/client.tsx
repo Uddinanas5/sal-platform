@@ -196,7 +196,6 @@ interface SettingsClientProps {
 }
 
 export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings, notificationSettings, businessSlug, onlinePresenceSettings, paymentSettings }: SettingsClientProps) {
-  const isOwner = role === "owner"
   const isAdminOrOwner = role === "owner" || role === "admin"
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     if (typeof window === "undefined") return "light"
@@ -267,7 +266,8 @@ export default function SettingsClient({ resources, services, initialBusiness, i
           <TabsList className="flex w-full max-w-5xl overflow-x-auto">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="resources">Resources</TabsTrigger>
-            {isOwner && <TabsTrigger value="billing">Billing</TabsTrigger>}
+            {/* Billing tab hidden until real SAL subscription billing ships —
+                the current content is a hardcoded $49 plan + fake card. */}
             <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="booking">Booking</TabsTrigger>
@@ -672,9 +672,20 @@ export default function SettingsClient({ resources, services, initialBusiness, i
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Once you delete your account, there is no going back. Please be certain.
+                      Once you delete your account, there is no going back. During
+                      beta, account deletion and data export are handled by our
+                      team — email{" "}
+                      <a
+                        href="mailto:support@meetsal.ai"
+                        className="underline font-medium"
+                      >
+                        support@meetsal.ai
+                      </a>{" "}
+                      and we&apos;ll process your request within one business day.
                     </p>
-                    <Button variant="destructive">Delete Account</Button>
+                    <Button variant="destructive" disabled>
+                      Delete Account
+                    </Button>
                   </CardContent>
                 </Card>
               </motion.div>

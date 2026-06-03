@@ -45,7 +45,6 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { cn, formatCurrency } from "@/lib/utils"
 import type { Service, Staff } from "@/data/mock-data"
 import { ServiceDetailSheet } from "@/components/services/service-detail-sheet"
-import { ServiceBundles } from "@/components/services/service-bundles"
 import { CategoryOverview } from "@/components/services/category-overview"
 import { ServiceForm } from "@/components/services/service-form"
 import type { ServiceFormData } from "@/components/services/service-form"
@@ -401,9 +400,6 @@ export function ServicesClient(props: ServicesClientProps) {
 
         {/* Categories Overview */}
         <CategoryOverview services={props.initialServices} />
-
-        {/* Service Bundles */}
-        <ServiceBundles />
       </div>
 
       {/* Service Detail Sheet */}
