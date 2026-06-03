@@ -81,6 +81,14 @@ export async function POST(request: NextRequest) {
           const currencyMatches = paymentIntent.currency.toUpperCase() === succeededPayment.currency.toUpperCase()
 
           if (receivedAmount < expectedAmount || !currencyMatches) {
+            // Loud: a charge that Stripe reports succeeded but with the wrong
+            // amount/currency is marked failed here — without a log this would
+            // be invisible. Surfaces in Vercel logs / Sentry for manual review.
+            console.error(
+              `[stripe.webhook] payment_intent.succeeded amount/currency MISMATCH — marking payment FAILED. ` +
+                `payment=${succeededPayment.id} pi=${paymentIntent.id} ` +
+                `expected=${expectedAmount} ${succeededPayment.currency} received=${receivedAmount} ${paymentIntent.currency}. Manual review needed.`
+            )
             await prisma.payment.update({
               where: { id: succeededPayment.id },
               data: {
@@ -117,6 +125,12 @@ export async function POST(request: NextRequest) {
               })
             }
           })
+        } else {
+          // Stripe says a payment succeeded but we have no matching Payment row.
+          // Could be a replayed/foreign event or a dropped write — log for review.
+          console.error(
+            `[stripe.webhook] payment_intent.succeeded for unknown payment processorId=${paymentIntent.id} — no matching Payment row.`
+          )
         }
 
         break
