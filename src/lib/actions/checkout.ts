@@ -30,7 +30,12 @@ const processPaymentSchema = z.object({
   discount: z.number().nonnegative().default(0),
   tax: z.number().nonnegative().default(0),
   tip: z.number().nonnegative().default(0),
-  method: z.enum(["cash", "card", "online", "gift_card", "other"]),
+  // Beta records cash/other manual payments and Stripe-driven "online" only.
+  // "card" and "gift_card" are rejected server-side: their UI is disabled and
+  // there is no real charge/redemption behind them, so accepting them would
+  // record a "paid" sale that was never collected (defense in depth, not just
+  // the client-side disable).
+  method: z.enum(["cash", "online", "other"]),
 })
 
 export async function processPayment(data: {
@@ -40,6 +45,8 @@ export async function processPayment(data: {
   discount: number
   tax: number
   tip: number
+  // Type stays broad so existing callers compile; the zod schema above REJECTS
+  // "card"/"gift_card" at runtime (no real charge behind them in beta).
   method: "cash" | "card" | "online" | "gift_card" | "other"
 }): Promise<ActionResult<{ receiptId: string; paymentReference: string; subtotal: number; amount: number; total: number }>> {
   const parsed = processPaymentSchema.safeParse(data)
@@ -93,11 +100,23 @@ export async function processPayment(data: {
     if (input.appointmentId) {
       const appt = await prisma.appointment.findFirst({
         where: { id: input.appointmentId, businessId },
-        select: { clientId: true },
+        select: { clientId: true, status: true },
       })
       if (!appt) return { success: false, error: "Appointment not found" }
       if (input.clientId && appt.clientId && appt.clientId !== input.clientId) {
         return { success: false, error: "Appointment does not belong to this client" }
+      }
+      // Idempotency: don't let the same appointment be checked out twice (which
+      // would double-count revenue, visits and loyalty).
+      if (appt.status === "completed") {
+        return { success: false, error: "This appointment has already been checked out." }
+      }
+      const alreadyPaid = await prisma.payment.findFirst({
+        where: { appointmentId: input.appointmentId, businessId, type: "payment", status: "completed" },
+        select: { id: true },
+      })
+      if (alreadyPaid) {
+        return { success: false, error: "This appointment has already been paid." }
       }
       if (!resolvedClientId && appt.clientId) {
         resolvedClientId = appt.clientId

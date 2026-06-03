@@ -49,6 +49,7 @@ export async function assertSlotAllowed(
           },
         ],
       },
+      include: { breaks: true },
     }),
     tx.staffTimeOff.findFirst({
       where: {
@@ -67,6 +68,17 @@ export async function assertSlotAllowed(
   const workEnd = combineDateWithTime(start, schedule.endTime)
   if (start < workStart || end > workEnd) {
     throw new Error(ERR_OUTSIDE_WORKING_HOURS)
+  }
+
+  // Block staff breaks (e.g. lunch). The availability slot generator already
+  // hides break times from the UI; the write path MUST enforce the same so a
+  // crafted startTime can't land a client on top of a break.
+  for (const brk of schedule.breaks ?? []) {
+    const breakStart = combineDateWithTime(start, brk.startTime)
+    const breakEnd = combineDateWithTime(start, brk.endTime)
+    if (start < breakEnd && end > breakStart) {
+      throw new Error(ERR_OUTSIDE_WORKING_HOURS)
+    }
   }
 
   if (timeOff) {
