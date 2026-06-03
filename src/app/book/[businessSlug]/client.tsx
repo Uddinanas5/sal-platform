@@ -16,6 +16,7 @@ import {
   Sparkles,
   Star,
   PartyPopper,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -67,6 +68,18 @@ interface ClientDetails {
 
 type BookingStep = 1 | 2 | 3 | 4 | 5
 
+// A bookable time slot as returned by GET /api/availability. `start`/`end` are
+// authoritative ISO instants (already timezone-correct); `startTime`/`endTime`
+// are display strings; `availableStaff` lists the staff who can take this slot.
+interface AvailabilitySlot {
+  start: string
+  end: string
+  startTime: string
+  endTime: string
+  availableStaff: string[]
+  staffCount: number
+}
+
 // ---------------------------------------------------------------------------
 // Constants & helpers
 // ---------------------------------------------------------------------------
@@ -78,13 +91,6 @@ const STEPS = [
   { label: "Details", icon: Star },
   { label: "Confirm", icon: Check },
 ] as const
-
-function formatTimeLabel(hour: number, minute: number): string {
-  const h = hour % 12 || 12
-  const ampm = hour < 12 ? "AM" : "PM"
-  const m = minute.toString().padStart(2, "0")
-  return `${h}:${m} ${ampm}`
-}
 
 function getTimezoneAbbr(timezone: string): string {
   return (
@@ -116,51 +122,6 @@ const MONTH_NAMES = [
 ]
 
 const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
-
-function generateTimeSlots(
-  openHour = 9,
-  openMinute = 0,
-  closeHour = 17,
-  closeMinute = 0
-): { hour: number; minute: number; label: string }[] {
-  const slots: { hour: number; minute: number; label: string }[] = []
-  let h = openHour
-  let m = openMinute
-  // Round up to nearest 30-minute mark
-  if (m > 0 && m <= 30) m = 30
-  else if (m > 30) { m = 0; h++ }
-
-  while (h < closeHour || (h === closeHour && m < closeMinute)) {
-    slots.push({ hour: h, minute: m, label: formatTimeLabel(h, m) })
-    m += 30
-    if (m >= 60) { m = 0; h++ }
-  }
-  return slots
-}
-
-/** Extract hours/minutes from a time ISO string (e.g. "1970-01-01T09:00:00.000Z") */
-function parseTimeFromISO(iso: string): { hour: number; minute: number } {
-  const d = new Date(iso)
-  return { hour: d.getUTCHours(), minute: d.getUTCMinutes() }
-}
-
-function getTimeSlotsForDay(
-  dayOfWeek: number,
-  businessHours: BusinessHourData[]
-): { hour: number; minute: number; label: string }[] {
-  const dayHours = businessHours.find((bh) => bh.dayOfWeek === dayOfWeek)
-  if (!dayHours || dayHours.isClosed || !dayHours.openTime || !dayHours.closeTime) {
-    // Fallback: default 9 AM - 5 PM if no business hours data at all
-    if (businessHours.length === 0) {
-      return generateTimeSlots(9, 0, 17, 0)
-    }
-    // Business has hours configured but this day is closed
-    return []
-  }
-  const open = parseTimeFromISO(dayHours.openTime)
-  const close = parseTimeFromISO(dayHours.closeTime)
-  return generateTimeSlots(open.hour, open.minute, close.hour, close.minute)
-}
 
 function isDayClosed(dayOfWeek: number, businessHours: BusinessHourData[]): boolean {
   // If no business hours configured at all, no days are closed
@@ -571,6 +532,8 @@ function DateTimeStep({
   onSelectDate,
   onSelectTime,
   businessHours,
+  availableSlots,
+  slotsLoading,
   maxAdvanceBooking,
   timezone,
   // Waitlist props
@@ -584,10 +547,12 @@ function DateTimeStep({
   onTryAnotherDate,
 }: {
   selectedDate: Date | null
-  selectedTime: { hour: number; minute: number } | null
+  selectedTime: AvailabilitySlot | null
   onSelectDate: (d: Date) => void
-  onSelectTime: (t: { hour: number; minute: number }) => void
+  onSelectTime: (t: AvailabilitySlot) => void
   businessHours: BusinessHourData[]
+  availableSlots: AvailabilitySlot[]
+  slotsLoading: boolean
   maxAdvanceBooking?: string
   timezone: string
   serviceId: string | null
@@ -773,8 +738,6 @@ function DateTimeStep({
 
       {/* Time slots */}
       {selectedDate && (() => {
-        const dayOfWeek = selectedDate.getDay()
-        const timeSlots = getTimeSlotsForDay(dayOfWeek, businessHours)
         const tzAbbr = getTimezoneAbbr(timezone)
         return (
           <motion.div
@@ -790,7 +753,12 @@ function DateTimeStep({
                 day: "numeric",
               })}
             </h3>
-            {timeSlots.length === 0 ? (
+            {slotsLoading ? (
+              <div className="py-10 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading available times…
+              </div>
+            ) : availableSlots.length === 0 ? (
               <div className="py-2">
                 {waitlistSubmitted ? (
                   // Success state after joining waitlist
@@ -992,13 +960,12 @@ function DateTimeStep({
             ) : (
               <>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {timeSlots.map((slot) => {
-                    const isSelected =
-                      selectedTime?.hour === slot.hour && selectedTime?.minute === slot.minute
+                  {availableSlots.map((slot) => {
+                    const isSelected = selectedTime?.start === slot.start
                     return (
                       <button
-                        key={slot.label}
-                        onClick={() => onSelectTime({ hour: slot.hour, minute: slot.minute })}
+                        key={slot.start}
+                        onClick={() => onSelectTime(slot)}
                         className={`
                           py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-200 border
                           ${
@@ -1008,7 +975,7 @@ function DateTimeStep({
                           }
                         `}
                       >
-                        {slot.label}
+                        {slot.startTime}
                       </button>
                     )
                   })}
@@ -1156,7 +1123,7 @@ function ConfirmationStep({
   service: Service
   staffMember: Staff | "any"
   date: Date
-  time: { hour: number; minute: number }
+  time: AvailabilitySlot
   details: ClientDetails
   isSubmitting: boolean
   onConfirm: () => void
@@ -1168,7 +1135,7 @@ function ConfirmationStep({
     month: "long",
     day: "numeric",
   })
-  const timeStr = formatTimeLabel(time.hour, time.minute)
+  const timeStr = time.startTime
   const tzAbbr = getTimezoneAbbr(timezone)
   const staffName = staffMember === "any" ? "Any available" : staffMember.name
 
@@ -1298,7 +1265,7 @@ function SuccessState({
   service: Service
   staffMember: Staff | "any"
   date: Date
-  time: { hour: number; minute: number }
+  time: AvailabilitySlot
   onBookAnother: () => void
   timezone: string
 }) {
@@ -1314,7 +1281,7 @@ function SuccessState({
     month: "long",
     day: "numeric",
   })
-  const timeStr = formatTimeLabel(time.hour, time.minute)
+  const timeStr = time.startTime
   const tzAbbr = getTimezoneAbbr(timezone)
   const staffName = staffMember === "any" ? "Any available" : staffMember.name
 
@@ -1396,8 +1363,6 @@ function SuccessState({
 // ---------------------------------------------------------------------------
 
 export function BookingPageClient({ businessSlug, businessId, businessName, locationId, services, staff, businessHours, maxAdvanceBooking, timezone }: BookingPageClientProps) {
-  // locationId is used for future availability API calls from the client
-  void locationId
   // Suppress unused variable warning - businessSlug is kept for future URL-based features
   void businessSlug
   const [step, setStep] = useState<BookingStep>(1)
@@ -1407,7 +1372,48 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [selectedStaff, setSelectedStaff] = useState<Staff | "any" | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [selectedTime, setSelectedTime] = useState<{ hour: number; minute: number } | null>(null)
+  const [selectedTime, setSelectedTime] = useState<AvailabilitySlot | null>(null)
+
+  // Real availability for the chosen service + date (+ staff), from /api/availability.
+  // This replaces the old client-side business-hours-only slot generation, so the
+  // times shown actually respect staff schedules, breaks, time off, existing
+  // bookings and the lead-time window.
+  const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([])
+  const [slotsLoading, setSlotsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!selectedService || !selectedDate) {
+      setAvailableSlots([])
+      setSlotsLoading(false)
+      return
+    }
+    let active = true
+    setSlotsLoading(true)
+    setAvailableSlots([])
+    const pad = (n: number) => String(n).padStart(2, "0")
+    const dateStr = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())}`
+    const params = new URLSearchParams({ serviceId: selectedService.id, date: dateStr, locationId })
+    if (selectedStaff && selectedStaff !== "any") params.set("staffId", selectedStaff.id)
+    fetch(`/api/availability?${params.toString()}`)
+      .then(async (res) => {
+        if (!active) return
+        if (!res.ok) {
+          setAvailableSlots([])
+          return
+        }
+        const data = await res.json().catch(() => ({}))
+        setAvailableSlots(Array.isArray(data?.slots) ? (data.slots as AvailabilitySlot[]) : [])
+      })
+      .catch(() => {
+        if (active) setAvailableSlots([])
+      })
+      .finally(() => {
+        if (active) setSlotsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedService, selectedDate, selectedStaff, locationId])
   const [clientDetails, setClientDetails] = useState<ClientDetails>({
     firstName: "",
     lastName: "",
@@ -1482,44 +1488,19 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
 
     setIsSubmitting(true)
     try {
-      // Build the start time in the business timezone.
-      // We construct a wall-clock string for the selected date/time and interpret
-      // it as if it were in the business timezone, yielding the correct UTC instant.
-      const pad = (n: number) => String(n).padStart(2, "0")
-      const localDateStr = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())}T${pad(selectedTime.hour)}:${pad(selectedTime.minute)}:00`
-      // Parse as UTC first, then shift by the timezone offset so the wall-clock
-      // time is correct in the business timezone.
-      const naiveUtc = new Date(localDateStr + "Z")
-      // Determine what the business timezone renders naiveUtc as, compute offset.
-      const parts = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      }).formatToParts(naiveUtc)
-      const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0")
-      const tzYear = get("year")
-      const tzMonth = get("month") - 1
-      const tzDay = get("day")
-      const tzHour = get("hour") % 24
-      const tzMin = get("minute")
-      const tzSec = get("second")
-      const tzDate = new Date(Date.UTC(tzYear, tzMonth, tzDay, tzHour, tzMin, tzSec))
-      const offsetMs = naiveUtc.getTime() - tzDate.getTime()
-      const startTime = new Date(naiveUtc.getTime() + offsetMs)
+      // The slot's `start` is the authoritative, timezone-correct ISO instant
+      // computed server-side by /api/availability — no client-side tz math needed.
+      const startTimeIso = selectedTime.start
 
-      // When "any" is selected, pick the first staff member who provides the selected service
+      // Staff: an explicit pick, otherwise the first staff /api/availability says
+      // is actually free for THIS slot (not just "performs the service").
       const staffId =
-        selectedStaff === "any" || !selectedStaff
-          ? staff.find((s) => s.services.includes(selectedService.id))?.id
-          : selectedStaff.id
+        selectedStaff && selectedStaff !== "any"
+          ? selectedStaff.id
+          : selectedTime.availableStaff[0]
 
       if (!staffId) {
-        toast.error("No staff available for this service")
+        toast.error("That time is no longer available — please pick another.")
         setIsSubmitting(false)
         return
       }
@@ -1528,7 +1509,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
         businessId,
         serviceId: selectedService.id,
         staffId,
-        startTime: startTime.toISOString(),
+        startTime: startTimeIso,
         clientFirstName: clientDetails.firstName,
         clientLastName: clientDetails.lastName,
         clientEmail: clientDetails.email,
@@ -1547,7 +1528,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
     } finally {
       setIsSubmitting(false)
     }
-  }, [selectedService, selectedDate, selectedTime, selectedStaff, staff, businessId, clientDetails, timezone])
+  }, [selectedService, selectedDate, selectedTime, selectedStaff, businessId, clientDetails])
 
   const handleSelectDate = useCallback((d: Date) => {
     setSelectedDate(d)
@@ -1699,6 +1680,8 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
                   onSelectDate={handleSelectDate}
                   onSelectTime={setSelectedTime}
                   businessHours={businessHours}
+                  availableSlots={availableSlots}
+                  slotsLoading={slotsLoading}
                   maxAdvanceBooking={maxAdvanceBooking}
                   timezone={timezone}
                   serviceId={selectedService?.id ?? null}
