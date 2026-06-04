@@ -95,29 +95,43 @@ runtime verification, so they were not shipped as "done" in the sandbox.
 
 ## Adversarial-pass leftovers (confirmed real, follow-up needed)
 
-A multi-agent adversarial pass found 16 real issues. The contained ones were
-fixed (PR #34 + the booking re-validation on #31): staff-break write-path bypass,
-MCP endpoint gated off for beta, server rejects fake card/gift-card methods,
-checkout already-paid idempotency, and `createPublicBooking` full re-validation.
-These remain (need a migration, shared store, or the developer-API launch):
+Two adversarial passes (attack → fix → re-run) drove confirmed findings from
+**16 → 9 → only the infra/migration/LOW residuals below**. Fixed across PR #34 +
+#31: staff-break write-path bypass, MCP endpoint gated off, server rejects fake
+card/gift-card methods, checkout already-paid idempotency (dashboard **and**
+/api/v1/checkout), `createPublicBooking` full re-validation, configured lead-time
++ max-advance enforcement, time-off UTC-date off-by-one (authoritative write
+path), cross-tenant group-participant `clientId`, v1 time-off admin gate, and the
+seed host-anchoring. These remain (need a migration, shared store, the
+developer-API launch, or are LOW):
 
 1. **Stripe webhook idempotency** — no event dedup; a replayed/out-of-order event
    can re-apply side effects or flip a completed payment to failed. Add a
    `StripeEvent` table (unique on Stripe event id), skip already-processed
-   events, and make `payment_intent.payment_failed` not overwrite a `completed`
-   payment. Needs a migration.
+   events, and make `payment_intent.succeeded/failed` not regress a terminal
+   payment/appointment status. Needs a migration. (MEDIUM)
 2. **Rate limiting** — the in-memory limiter is per-instance (ineffective on
    serverless) and the booking limiter is keyed only on the attacker-supplied
    email. Move to a shared store (e.g. Upstash Redis) and add an IP/business
-   fallback key. Needs infra.
+   fallback key. Needs infra. (MEDIUM)
 3. **MCP tool tenant-hardening** — when you intentionally launch the developer
    API (`MCP_ENABLED=true`), the MCP tools must first be hardened: route
    `process-checkout` through the same server-side price recompute the dashboard
    uses, and scope every foreign id (clientId/staffId/categoryId/serviceIds) to
    `ctx.businessId`. Until then the endpoint is gated off, so this is not a beta
    blocker.
-4. **Seed `isLocal` check** — uses a naive substring match; tighten to parse the
-   host and compare exactly. Low.
+4. **Availability read-path timezone** — `availability.ts` builds the day window
+   in the server's local TZ (a no-op on Vercel's UTC host, but it should use the
+   business timezone). The authoritative write-path guard (`assertSlotAllowed`)
+   is already UTC-correct, so this is a slot-display/UX issue, not an exploit.
+   Fold into the broader business-TZ correctness work. (LOW)
+5. **Group-participant race** — `addGroupParticipant` does a check-then-insert
+   without a lock, so a burst could exceed `maxParticipants`. Add an advisory
+   lock or a DB constraint. (LOW)
+6. **Checkout idempotency TOCTOU** — the already-paid guard runs just before the
+   transaction; a tight double-submit could still slip through. Add a DB unique
+   constraint on (appointmentId, completed payment) or move the check inside the
+   tx. (LOW)
 
 ## Testing limits (this sandbox)
 
