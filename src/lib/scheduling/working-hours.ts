@@ -29,8 +29,11 @@ export async function assertSlotAllowed(
   end: Date,
 ): Promise<void> {
   const dayOfWeek = start.getDay()
-  const startOfDay = new Date(start)
-  startOfDay.setHours(0, 0, 0, 0)
+  // Every comparison below is against @db.Date columns (schedule effective dates,
+  // approved time-off start/end), which Postgres stores at UTC midnight. Build a
+  // UTC-midnight day so a booking on the LAST day of an approved day-off isn't
+  // let through by an off-by-one on non-UTC hosts.
+  const startOfDay = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()))
 
   const [schedule, timeOff] = await Promise.all([
     tx.staffSchedule.findFirst({

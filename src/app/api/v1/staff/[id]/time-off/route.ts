@@ -1,5 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { hasRole } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -13,6 +14,9 @@ const timeOffSchema = z.object({
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
+  // Creating approved/pending time off affects availability — admin only, like
+  // the other staff write tools (a staff-role token shouldn't inject time off).
+  if (!hasRole(ctx.role, "admin")) return ERRORS.FORBIDDEN()
   const { id } = await params
 
   let body: unknown
