@@ -16,13 +16,24 @@ import {
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
-const createAppointmentSchema = z.object({
-  clientId: z.string().uuid(),
-  serviceId: z.string().uuid(),
-  staffId: z.string().uuid(),
-  startTime: z.string().min(1),
-  notes: z.string().optional(),
-})
+// Multi-service create: accept EITHER a single `serviceId` (back-compat with
+// every existing caller / API) OR a `serviceIds` array (cut + beard + line-up
+// as one appointment). At least one must be present; we normalize to an array
+// internally. IDs are validated as UUIDs; everything else (price, duration,
+// staff ownership, tenancy) is re-derived from the DB — never trusted here.
+const createAppointmentSchema = z
+  .object({
+    clientId: z.string().uuid(),
+    serviceId: z.string().uuid().optional(),
+    serviceIds: z.array(z.string().uuid()).min(1).max(20).optional(),
+    staffId: z.string().uuid(),
+    startTime: z.string().min(1),
+    notes: z.string().optional(),
+  })
+  .refine((d) => Boolean(d.serviceId) || (d.serviceIds && d.serviceIds.length > 0), {
+    message: "At least one service is required",
+    path: ["serviceIds"],
+  })
 
 const updateAppointmentStatusSchema = z.object({
   id: z.string().uuid(),
@@ -42,7 +53,10 @@ const resizeAppointmentSchema = z.object({
 
 export async function createAppointment(data: {
   clientId: string
-  serviceId: string
+  /** Single-service back-compat. Use `serviceIds` for multi-service bookings. */
+  serviceId?: string
+  /** Multi-service booking: cut + beard trim + line-up as ONE appointment. */
+  serviceIds?: string[]
   staffId: string
   startTime: string
   notes?: string
@@ -56,35 +70,88 @@ export async function createAppointment(data: {
     throw e
   }
 
+  // Normalize the two input shapes into one ordered list of requested service
+  // IDs. `serviceIds` (multi) wins if provided; otherwise fall back to the
+  // single `serviceId`. The schema guarantees at least one is present.
+  const requestedServiceIds = (
+    data.serviceIds && data.serviceIds.length > 0 ? data.serviceIds : [data.serviceId!]
+  ).filter((id): id is string => Boolean(id))
+
   try {
     const { businessId } = await getBusinessContext()
 
     await assertClientOwned(data.clientId, businessId)
     await assertStaffOwned(data.staffId, businessId)
 
-    const service = await prisma.service.findFirst({ where: { id: data.serviceId, businessId } })
-    if (!service) return { success: false, error: "Service not found" }
-
-    const startTime = new Date(data.startTime)
-    const endTime = new Date(startTime)
-    endTime.setMinutes(endTime.getMinutes() + service.durationMinutes)
+    // Load ONLY this tenant's services. Then re-order to match the requested
+    // sequence so the services chain back-to-back in the order the user picked
+    // them. Any requested id the tenant doesn't own fails fast — we never
+    // silently drop a service the caller paid for. (A repeated id resolves to
+    // the same DB row twice, which legitimately books that service twice.)
+    const dbServices = await prisma.service.findMany({
+      where: { id: { in: requestedServiceIds }, businessId },
+    })
+    const serviceById = new Map(dbServices.map((s) => [s.id, s]))
+    const orderedServices = requestedServiceIds.map((id) => serviceById.get(id))
+    if (orderedServices.some((s) => !s)) {
+      return { success: false, error: "Service not found" }
+    }
+    const services = orderedServices as NonNullable<(typeof orderedServices)[number]>[]
 
     const business = await prisma.business.findUnique({ where: { id: businessId } })
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!business || !location) return { success: false, error: "Business not configured" }
 
-    const price = Number(service.price)
-    const taxRate = service.isTaxable && service.taxRate ? Number(service.taxRate) / 100 : 0
-    const tax = Math.round(price * taxRate * 100) / 100
+    const startTime = new Date(data.startTime)
+
+    // Recompute EVERYTHING from the DB rows — duration, per-service price, tax.
+    // The combined duration is the sum of each service's duration; the
+    // appointment end is start + combined duration. Each service occupies a
+    // back-to-back slot inside that range, in the requested order.
+    let cursor = new Date(startTime)
+    let subtotal = 0
+    let taxAmount = 0
+    const serviceRows = services.map((service) => {
+      const segStart = new Date(cursor)
+      const segEnd = new Date(segStart)
+      segEnd.setMinutes(segEnd.getMinutes() + service.durationMinutes)
+      cursor = segEnd
+
+      const price = Number(service.price)
+      const rate = service.isTaxable && service.taxRate ? Number(service.taxRate) / 100 : 0
+      subtotal += price
+      taxAmount += Math.round(price * rate * 100) / 100
+
+      return {
+        serviceId: service.id,
+        staffId: data.staffId,
+        name: service.name,
+        durationMinutes: service.durationMinutes,
+        price,
+        finalPrice: price,
+        startTime: segStart,
+        endTime: segEnd,
+      }
+    })
+
+    const totalDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0)
+    const endTime = new Date(startTime)
+    endTime.setMinutes(endTime.getMinutes() + totalDuration)
+    subtotal = Math.round(subtotal * 100) / 100
+    taxAmount = Math.round(taxAmount * 100) / 100
+    const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100
 
     // Transaction: conflict check + create must be atomic to prevent race conditions
     const appointment = await prisma.$transaction(async (tx) => {
       await lockStaffSchedule(tx, businessId, data.staffId)
       // Enforce the SAME working-hours / break / approved-time-off guard the
-      // public booking path uses (GAP-001). Without this, internal/POS staff
-      // could book a client onto a barber's lunch, day off, or after close.
+      // public booking path uses (GAP-001), applied over the COMBINED time
+      // range so the whole multi-service block fits inside working hours and
+      // misses every break. Without this, internal/POS staff could book a
+      // client onto a barber's lunch, day off, or after close.
       await assertSlotAllowed(tx, data.staffId, location.id, startTime, endTime)
-      // Double-booking prevention: check for overlapping appointments for the same staff member
+      // Double-booking prevention: check for overlapping appointments for the
+      // same staff member across the WHOLE combined range.
       const conflicting = await tx.appointmentService.findFirst({
         where: {
           staffId: data.staffId,
@@ -111,27 +178,21 @@ export async function createAppointment(data: {
           source: "pos",
           startTime,
           endTime,
-          totalDuration: service.durationMinutes,
-          subtotal: price,
-          taxAmount: tax,
-          totalAmount: price + tax,
+          totalDuration,
+          subtotal,
+          taxAmount,
+          totalAmount,
           notes: data.notes,
         },
       })
 
-      await tx.appointmentService.create({
-        data: {
-          appointmentId: appt.id,
-          serviceId: data.serviceId,
-          staffId: data.staffId,
-          name: service.name,
-          durationMinutes: service.durationMinutes,
-          price,
-          finalPrice: price,
-          startTime,
-          endTime,
-        },
-      })
+      // One AppointmentService row per service (1-to-many is already in the
+      // schema — no migration). Created in the requested order.
+      for (const row of serviceRows) {
+        await tx.appointmentService.create({
+          data: { appointmentId: appt.id, ...row },
+        })
+      }
 
       return appt
     })
@@ -147,6 +208,14 @@ export async function createAppointment(data: {
       include: { user: true },
     })
 
+    // Email summarizes the booking: lead service name plus a "+N more" suffix
+    // when multiple services were combined.
+    const leadService = services[0]
+    const serviceSummary =
+      services.length > 1
+        ? `${leadService.name} +${services.length - 1} more`
+        : leadService.name
+
     if (client?.email) {
       const dateTime = new Intl.DateTimeFormat("en-US", {
         weekday: "long",
@@ -160,10 +229,10 @@ export async function createAppointment(data: {
 
       sendEmail({
         to: client.email,
-        subject: `Booking Confirmed - ${service.name}`,
+        subject: `Booking Confirmed - ${serviceSummary}`,
         html: bookingConfirmationEmail({
           clientName: `${client.firstName} ${client.lastName}`,
-          serviceName: service.name,
+          serviceName: serviceSummary,
           staffName: staff ? `${staff.user.firstName} ${staff.user.lastName}` : "Our team",
           dateTime,
           businessName: business.name,

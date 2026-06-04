@@ -92,7 +92,9 @@ export function NewAppointmentDialog({
   const [step, setStep] = useState<Step>(1)
   const [clientSearch, setClientSearch] = useState("")
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [selectedService, setSelectedService] = useState<Service | null>(null)
+  // Multi-service: a cut + beard trim + line-up is ONE appointment. Services are
+  // kept in pick order so they chain back-to-back the way the barber adds them.
+  const [selectedServices, setSelectedServices] = useState<Service[]>([])
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     initialDate || new Date()
@@ -126,7 +128,7 @@ export function NewAppointmentDialog({
       setStep(1)
       setClientSearch("")
       setSelectedClient(null)
-      setSelectedService(null)
+      setSelectedServices([])
       setSelectedStaff(null)
       setSelectedDate(initialDate || new Date())
       setSelectedTime(
@@ -176,13 +178,37 @@ export function NewAppointmentDialog({
     return services.filter((s) => s.isActive && s.category === activeCategory)
   }, [services, activeCategory])
 
-  // Staff qualified for selected service
+  // Combined totals across all selected services (live in the UI; the server
+  // still recomputes authoritatively from the DB on submit).
+  const combinedDuration = useMemo(
+    () => selectedServices.reduce((sum, s) => sum + s.duration, 0),
+    [selectedServices]
+  )
+  const combinedPrice = useMemo(
+    () => selectedServices.reduce((sum, s) => sum + s.price, 0),
+    [selectedServices]
+  )
+
+  // Staff must be qualified for EVERY selected service (one staff performs the
+  // whole combo in this dialog). With nothing selected, show all active staff.
   const qualifiedStaff = useMemo(() => {
-    if (!selectedService) return staff.filter((s) => s.isActive)
+    if (selectedServices.length === 0) return staff.filter((s) => s.isActive)
     return staff.filter(
-      (s) => s.isActive && s.services.includes(selectedService.id)
+      (s) =>
+        s.isActive && selectedServices.every((svc) => s.services.includes(svc.id))
     )
-  }, [staff, selectedService])
+  }, [staff, selectedServices])
+
+  function toggleService(service: Service) {
+    setSelectedServices((prev) => {
+      const exists = prev.some((s) => s.id === service.id)
+      if (exists) return prev.filter((s) => s.id !== service.id)
+      return [...prev, service]
+    })
+    // A new service set can invalidate the previously chosen staff (they may not
+    // be qualified for the added service). Clear it so step 3 re-validates.
+    setSelectedStaff(null)
+  }
 
   // Staff availability for selected date
   const staffAvailability = useMemo(() => {
@@ -212,7 +238,13 @@ export function NewAppointmentDialog({
   }
 
   async function handleSave() {
-    if (!selectedClient || !selectedService || !selectedStaff || !selectedDate || !selectedTime) {
+    if (
+      !selectedClient ||
+      selectedServices.length === 0 ||
+      !selectedStaff ||
+      !selectedDate ||
+      !selectedTime
+    ) {
       toast.error("Please complete all required fields")
       return
     }
@@ -230,18 +262,23 @@ export function NewAppointmentDialog({
 
     setIsSaving(true)
 
-    const baseDescription = `${selectedService.name} with ${selectedStaff.name} on ${format(
+    const serviceSummary =
+      selectedServices.length > 1
+        ? `${selectedServices[0].name} +${selectedServices.length - 1} more`
+        : selectedServices[0].name
+    const baseDescription = `${serviceSummary} with ${selectedStaff.name} on ${format(
       startTime,
       "MMM d 'at' h:mm a"
     )}`
 
     // Branch: when "Repeat" is on, create the whole series via the recurring
-    // backend (single create otherwise). The backend books every occurrence
-    // atomically and enforces the same working-hours guard as a single create.
+    // backend (single create otherwise). Recurring still books ONE service per
+    // occurrence (the recurring backend is single-service); we pass the lead
+    // service so the series is unambiguous rather than silently dropping add-ons.
     if (isRecurring) {
       const result = await createRecurringAppointment({
         clientId: selectedClient.id,
-        serviceId: selectedService.id,
+        serviceId: selectedServices[0].id,
         staffId: selectedStaff.id,
         startTime: startTime.toISOString(),
         notes: notes.trim() || undefined,
@@ -264,9 +301,11 @@ export function NewAppointmentDialog({
       return
     }
 
+    // Multi-service: send the full ordered list. The server recomputes duration
+    // and price from the DB and writes one AppointmentService row per service.
     const result = await createAppointment({
       clientId: selectedClient.id,
-      serviceId: selectedService.id,
+      serviceIds: selectedServices.map((s) => s.id),
       staffId: selectedStaff.id,
       startTime: startTime.toISOString(),
       notes: notes.trim() || undefined,
@@ -288,7 +327,7 @@ export function NewAppointmentDialog({
       case 1:
         return selectedClient !== null
       case 2:
-        return selectedService !== null
+        return selectedServices.length > 0
       case 3:
         return selectedStaff !== null
       case 4:
@@ -416,47 +455,90 @@ export function NewAppointmentDialog({
                   </Button>
                 ))}
               </div>
-              <ScrollArea className="flex-1 max-h-[320px]">
+              <p className="text-xs text-muted-foreground">
+                Pick one or more services — they&apos;ll run back-to-back as one
+                appointment.
+              </p>
+              <ScrollArea className="flex-1 max-h-[280px]">
                 <div className="space-y-1">
-                  {filteredServices.map((service) => (
-                    <button
-                      key={service.id}
-                      onClick={() => setSelectedService(service)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sal-500",
-                        selectedService?.id === service.id
-                          ? "bg-sal-50 ring-1 ring-sal-300"
-                          : "hover:bg-cream-100"
-                      )}
-                    >
-                      <div
-                        className="w-2 h-8 rounded-full shrink-0"
-                        style={{ backgroundColor: service.color }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {service.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {service.description}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold text-foreground">
-                          {formatCurrency(service.price)}
-                        </p>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground/70 justify-end">
-                          <Clock className="h-3 w-3" />
-                          {formatDuration(service.duration)}
+                  {filteredServices.map((service) => {
+                    const isSelected = selectedServices.some((s) => s.id === service.id)
+                    const order = selectedServices.findIndex((s) => s.id === service.id)
+                    return (
+                      <button
+                        key={service.id}
+                        onClick={() => toggleService(service)}
+                        aria-pressed={isSelected}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sal-500",
+                          isSelected
+                            ? "bg-sal-50 ring-1 ring-sal-300"
+                            : "hover:bg-cream-100"
+                        )}
+                      >
+                        <div
+                          className="w-2 h-8 rounded-full shrink-0"
+                          style={{ backgroundColor: service.color }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">
+                            {service.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {service.description}
+                          </p>
                         </div>
-                      </div>
-                      {selectedService?.id === service.id && (
-                        <Check className="h-4 w-4 text-sal-500 shrink-0" />
-                      )}
-                    </button>
-                  ))}
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-semibold text-foreground">
+                            {formatCurrency(service.price)}
+                          </p>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground/70 justify-end">
+                            <Clock className="h-3 w-3" />
+                            {formatDuration(service.duration)}
+                          </div>
+                        </div>
+                        {/* Square checkbox-style indicator with pick-order number */}
+                        <div
+                          className={cn(
+                            "flex items-center justify-center h-5 w-5 rounded-md border shrink-0 text-[10px] font-semibold",
+                            isSelected
+                              ? "bg-sal-500 border-sal-500 text-white"
+                              : "border-cream-300 text-transparent"
+                          )}
+                        >
+                          {isSelected ? order + 1 : ""}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               </ScrollArea>
+
+              {/* Live combined total bar — sums every selected service. */}
+              {selectedServices.length > 0 && (
+                <div className="rounded-lg bg-sal-50 dark:bg-sal-500/10 ring-1 ring-sal-200 dark:ring-sal-500/20 px-3 py-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">
+                      {selectedServices.length} service
+                      {selectedServices.length === 1 ? "" : "s"} selected
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {formatDuration(combinedDuration)}
+                      </span>
+                      <span className="text-sm font-bold text-sal-600">
+                        {formatCurrency(combinedPrice)}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedServices.length > 1 && (
+                    <p className="mt-1 text-[11px] text-muted-foreground truncate">
+                      {selectedServices.map((s) => s.name).join(" → ")}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -464,8 +546,12 @@ export function NewAppointmentDialog({
           {step === 3 && (
             <div className="flex flex-col gap-3 h-full">
               <p className="text-xs text-muted-foreground">
-                {selectedService
-                  ? `Showing staff qualified for ${selectedService.name}`
+                {selectedServices.length > 0
+                  ? `Showing staff qualified for ${
+                      selectedServices.length === 1
+                        ? selectedServices[0].name
+                        : `all ${selectedServices.length} selected services`
+                    }`
                   : "Select a staff member"}
                 {selectedDate && (
                   <span className="ml-1 text-muted-foreground/70">
@@ -621,11 +707,33 @@ export function NewAppointmentDialog({
                     </span>
                   </div>
                   <Separator />
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Service</span>
-                    <span className="text-sm font-medium text-foreground">
-                      {selectedService?.name}
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-muted-foreground pt-0.5">
+                      {selectedServices.length > 1 ? "Services" : "Service"}
                     </span>
+                    <div className="flex-1 text-right space-y-1">
+                      {selectedServices.map((svc, i) => (
+                        <div
+                          key={svc.id}
+                          className="flex items-center justify-end gap-2"
+                        >
+                          {selectedServices.length > 1 && (
+                            <span className="text-[10px] text-muted-foreground/70">
+                              {i + 1}.
+                            </span>
+                          )}
+                          <span className="text-sm font-medium text-foreground">
+                            {svc.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground/70 w-16">
+                            {formatDuration(svc.duration)}
+                          </span>
+                          <span className="text-xs text-muted-foreground w-14">
+                            {formatCurrency(svc.price)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
@@ -656,19 +764,23 @@ export function NewAppointmentDialog({
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Duration</span>
+                    <span className="text-xs text-muted-foreground">
+                      {selectedServices.length > 1 ? "Total Duration" : "Duration"}
+                    </span>
                     <span className="text-sm font-medium text-foreground">
-                      {selectedService
-                        ? formatDuration(selectedService.duration)
+                      {selectedServices.length > 0
+                        ? formatDuration(combinedDuration)
                         : ""}
                     </span>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Price</span>
+                    <span className="text-xs text-muted-foreground">
+                      {selectedServices.length > 1 ? "Total Price" : "Price"}
+                    </span>
                     <span className="text-sm font-bold text-sal-600">
-                      {selectedService
-                        ? formatCurrency(selectedService.price)
+                      {selectedServices.length > 0
+                        ? formatCurrency(combinedPrice)
                         : ""}
                     </span>
                   </div>

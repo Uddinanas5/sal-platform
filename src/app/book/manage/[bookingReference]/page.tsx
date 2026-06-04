@@ -64,15 +64,16 @@ export default async function ManageBookingPage({
         services: {
           include: {
             service: {
-              select: { name: true, durationMinutes: true, price: true },
+              select: { id: true, name: true, durationMinutes: true, price: true },
             },
             staff: {
-              select: { user: { select: { firstName: true, lastName: true } } },
+              select: { id: true, user: { select: { firstName: true, lastName: true } } },
             },
           },
         },
         location: {
           select: {
+            id: true,
             name: true,
             addressLine1: true,
             city: true,
@@ -90,6 +91,11 @@ export default async function ManageBookingPage({
 
   if (!appointment) notFound()
 
+  // Lead service drives the reschedule availability fetch — /api/availability is
+  // keyed on a single serviceId (+ optional staffId). The reschedule action
+  // shifts every service row by the same delta, so picking one slot is enough.
+  const leadService = appointment.services[0]
+
   const bookingData = {
     id: appointment.id,
     bookingReference: appointment.bookingReference,
@@ -98,6 +104,10 @@ export default async function ManageBookingPage({
     endTime: appointment.endTime.toISOString(),
     totalAmount: Number(appointment.totalAmount),
     notes: appointment.notes,
+    // Reschedule picker inputs (server-derived; never trusted from the client).
+    locationId: appointment.location?.id ?? "",
+    serviceId: leadService?.service.id ?? "",
+    staffId: leadService?.staff?.id ?? null,
     businessName: appointment.business.name,
     businessSlug: appointment.business.slug,
     businessPhone: appointment.business.phone,

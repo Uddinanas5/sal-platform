@@ -63,6 +63,18 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     service: {
+      // createAppointment now loads services with findMany for multi-service
+      // support; return the requested haircut so the ordered lookup resolves.
+      findMany: vi.fn(async () => [
+        {
+          id: SERVICE,
+          name: "Haircut",
+          durationMinutes: 45,
+          price: 40,
+          isTaxable: false,
+          taxRate: null,
+        },
+      ]),
       findFirst: vi.fn(async () => ({
         id: SERVICE,
         name: "Haircut",
