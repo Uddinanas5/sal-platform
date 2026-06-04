@@ -1,6 +1,12 @@
 import { withV1Auth } from "@/lib/api/auth"
-import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { apiError, apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from "@/lib/scheduling/working-hours"
 import { addWeeks, addMonths } from "date-fns"
 import { z } from "zod"
 
@@ -73,6 +79,10 @@ export async function POST(req: Request) {
   // `appointment.businessId` so a foreign staff's calendar can't be probed.
   try {
     const created = await prisma.$transaction(async (tx) => {
+      // Serialize concurrent writes for this staff before the per-occurrence
+      // checks so the whole series can't race a parallel booking (mirrors the
+      // recurring server action: lock once, then assert/conflict per date).
+      await lockStaffSchedule(tx, ctx.businessId, staffId)
       const ids: string[] = []
       let parentId: string | null = null
 
@@ -80,6 +90,12 @@ export async function POST(req: Request) {
         const occurrenceStart = dates[i]
         const occurrenceEnd = new Date(occurrenceStart)
         occurrenceEnd.setMinutes(occurrenceEnd.getMinutes() + service.durationMinutes)
+
+        // Enforce working-hours / break / approved-time-off for EVERY occurrence
+        // (BOOKING-RESIDUAL). One out-of-hours date fails the whole series —
+        // consistent with the all-or-nothing transaction semantics. Ordering
+        // mirrors the actions: lock -> assertSlotAllowed -> conflict check.
+        await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd)
 
         const conflicting = await tx.appointmentService.findFirst({
           where: {
@@ -152,6 +168,12 @@ export async function POST(req: Request) {
     if (msg.startsWith("CONFLICT:")) {
       const when = msg.slice("CONFLICT:".length)
       return ERRORS.BAD_REQUEST(`Time slot conflict at ${when} — series not created`)
+    }
+    if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+      return apiError("OUTSIDE_WORKING_HOURS", "An occurrence falls outside the staff member's working hours — series not created", 400)
+    }
+    if (msg === ERR_ON_APPROVED_TIME_OFF) {
+      return apiError("ON_APPROVED_TIME_OFF", "An occurrence overlaps approved staff time off — series not created", 400)
     }
     console.error("POST /api/v1/appointments/recurring error:", e)
     return ERRORS.SERVER_ERROR()

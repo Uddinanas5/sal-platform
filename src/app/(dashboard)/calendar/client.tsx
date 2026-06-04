@@ -250,6 +250,10 @@ export function CalendarClient(props: CalendarClientProps) {
   }, [deepLinkAppointmentId, appointments])
   // Status change handler — optimistic UI + server action
   const handleStatusChange = useCallback(async (appointmentId: string, newStatus: string) => {
+    // Snapshot for rollback if the server rejects the change (mirrors the
+    // reschedule/resize handlers) so a failed update doesn't leave a wrong badge.
+    const prevAppointments = appointments
+    const prevSelected = selectedAppointment
     // Optimistic update: apply immediately for responsive UI
     setAppointments((prev) =>
       prev.map((a) =>
@@ -265,11 +269,13 @@ export function CalendarClient(props: CalendarClientProps) {
 
     const result = await updateAppointmentStatus(appointmentId, newStatus)
     if (!result.success) {
+      setAppointments(prevAppointments)
+      setSelectedAppointment(prevSelected)
       toast.error(result.error || "Failed to update appointment status")
     } else {
       router.refresh()
     }
-  }, [router])
+  }, [appointments, selectedAppointment, router])
 
   // Empty slot click handler - opens new appointment dialog
   const handleEmptySlotClick = useCallback(

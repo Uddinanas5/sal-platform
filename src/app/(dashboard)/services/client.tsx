@@ -144,13 +144,15 @@ function ServiceCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem onClick={() => toast.info(`Editing ${service.name}`)}>
+                <DropdownMenuItem disabled>
                   <Pencil className="w-4 h-4 mr-2" />
                   Edit
+                  <span className="ml-auto text-xs text-muted-foreground">Coming soon</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => toast.success(`"${service.name}" duplicated`)}>
+                <DropdownMenuItem disabled>
                   <Copy className="w-4 h-4 mr-2" />
                   Duplicate
+                  <span className="ml-auto text-xs text-muted-foreground">Coming soon</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleToggle}>
                   <ToggleLeft className="w-4 h-4 mr-2" />

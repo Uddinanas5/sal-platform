@@ -20,9 +20,6 @@ import { DiscountSection } from "./discount-section"
 import { CheckoutSummary } from "./checkout-summary"
 import { PaymentDialog } from "./payment-dialog"
 import { cn, formatCurrency, TAX_RATE } from "@/lib/utils"
-import { toast } from "sonner"
-
-type SplitPaymentMethod = "cash" | "card" | "gift_card"
 
 interface CartItem {
   id: string
@@ -93,11 +90,6 @@ export function CartPanel({
   const [customTip, setCustomTip] = useState("")
   const [showCustomTip, setShowCustomTip] = useState(false)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
-  const [splitMode, setSplitMode] = useState(false)
-  const [splitMethod1, setSplitMethod1] = useState<SplitPaymentMethod>("cash")
-  const [splitMethod2, setSplitMethod2] = useState<SplitPaymentMethod>("card")
-  const [splitAmount1, setSplitAmount1] = useState("")
-  const [splitAmount2, setSplitAmount2] = useState("")
 
   // Calculations
   const subtotal = useMemo(
@@ -118,15 +110,6 @@ export function CartPanel({
   const total = afterDiscount + tax + tip
 
   const isEmpty = items.length === 0
-
-  const splitAmount1Num = parseFloat(splitAmount1) || 0
-  const splitAmount2Num = parseFloat(splitAmount2) || 0
-  const splitSumsMatch =
-    Math.abs(splitAmount1Num + splitAmount2Num - total) < 0.01
-  const splitValid = splitMode && splitSumsMatch && splitAmount1Num > 0 && splitAmount2Num > 0
-
-  const methodLabel = (m: SplitPaymentMethod) =>
-    m === "cash" ? "Cash" : m === "card" ? "Card" : "Gift Card"
 
   return (
     <>
@@ -332,13 +315,10 @@ export function CartPanel({
               <div className="space-y-2">
                 <div className="grid grid-cols-4 gap-2">
                   <button
-                    onClick={() => {
-                      setSplitMode(false)
-                      onSetPaymentMethod("cash")
-                    }}
+                    onClick={() => onSetPaymentMethod("cash")}
                     className={cn(
                       "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all",
-                      !splitMode && paymentMethod === "cash"
+                      paymentMethod === "cash"
                         ? "border-sal-500 bg-sal-50"
                         : "border-border hover:border-sal-300"
                     )}
@@ -346,7 +326,7 @@ export function CartPanel({
                     <Banknote
                       className={cn(
                         "h-5 w-5",
-                        !splitMode && paymentMethod === "cash"
+                        paymentMethod === "cash"
                           ? "text-sal-600"
                           : "text-muted-foreground"
                       )}
@@ -354,7 +334,7 @@ export function CartPanel({
                     <span
                       className={cn(
                         "text-[10px] font-medium",
-                        !splitMode && paymentMethod === "cash"
+                        paymentMethod === "cash"
                           ? "text-sal-700"
                           : "text-muted-foreground"
                       )}
@@ -362,275 +342,57 @@ export function CartPanel({
                       Cash
                     </span>
                   </button>
+                  {/* Card, Gift Card and Split are NOT live in beta (cash only).
+                      There is no real charge/redemption/multi-tender behind them,
+                      and processPayment rejects "card"/"gift_card" server-side, so
+                      these are disabled + labeled instead of throwing a generic
+                      "Invalid input" toast on click. Cash stays fully functional. */}
                   <button
-                    onClick={() => {
-                      setSplitMode(false)
-                      onSetPaymentMethod("card")
-                    }}
-                    className={cn(
-                      "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all",
-                      !splitMode && paymentMethod === "card"
-                        ? "border-sal-500 bg-sal-50"
-                        : "border-border hover:border-sal-300"
-                    )}
+                    type="button"
+                    disabled
+                    title="Coming soon — cash only during beta"
+                    className="flex flex-col items-center gap-1 rounded-lg border-2 border-border p-2.5 opacity-40 cursor-not-allowed"
                   >
-                    <CreditCard
-                      className={cn(
-                        "h-5 w-5",
-                        !splitMode && paymentMethod === "card"
-                          ? "text-sal-600"
-                          : "text-muted-foreground"
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "text-[10px] font-medium",
-                        !splitMode && paymentMethod === "card"
-                          ? "text-sal-700"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      Card
+                    <CreditCard className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-[10px] font-medium text-muted-foreground">
+                      Card (soon)
                     </span>
                   </button>
                   <button
-                    onClick={() => {
-                      setSplitMode(false)
-                      onSetPaymentMethod("gift_card")
-                    }}
-                    className={cn(
-                      "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all",
-                      !splitMode && paymentMethod === "gift_card"
-                        ? "border-sal-500 bg-sal-50"
-                        : "border-border hover:border-sal-300"
-                    )}
+                    type="button"
+                    disabled
+                    title="Coming soon — cash only during beta"
+                    className="flex flex-col items-center gap-1 rounded-lg border-2 border-border p-2.5 opacity-40 cursor-not-allowed"
                   >
-                    <Gift
-                      className={cn(
-                        "h-5 w-5",
-                        !splitMode && paymentMethod === "gift_card"
-                          ? "text-sal-600"
-                          : "text-muted-foreground"
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "text-[10px] font-medium",
-                        !splitMode && paymentMethod === "gift_card"
-                          ? "text-sal-700"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      Gift Card
+                    <Gift className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-[10px] font-medium text-muted-foreground">
+                      Gift Card (soon)
                     </span>
                   </button>
                   <button
-                    onClick={() => {
-                      setSplitMode(true)
-                      const half = Math.round((total / 2) * 100) / 100
-                      const remainder = Math.round((total - half) * 100) / 100
-                      setSplitAmount1(half.toFixed(2))
-                      setSplitAmount2(remainder.toFixed(2))
-                      setSplitMethod1("cash")
-                      setSplitMethod2("card")
-                    }}
-                    className={cn(
-                      "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all",
-                      splitMode
-                        ? "border-sal-500 bg-sal-50"
-                        : "border-border hover:border-sal-300"
-                    )}
+                    type="button"
+                    disabled
+                    title="Coming soon — cash only during beta"
+                    className="flex flex-col items-center gap-1 rounded-lg border-2 border-border p-2.5 opacity-40 cursor-not-allowed"
                   >
-                    <ArrowLeftRight
-                      className={cn(
-                        "h-5 w-5",
-                        splitMode
-                          ? "text-sal-600"
-                          : "text-muted-foreground"
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "text-[10px] font-medium",
-                        splitMode
-                          ? "text-sal-700"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      Split
+                    <ArrowLeftRight className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-[10px] font-medium text-muted-foreground">
+                      Split (soon)
                     </span>
                   </button>
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Card, Gift Card and Split are coming soon — cash only during beta.
+                </p>
 
-                {/* Split payment section */}
-                <AnimatePresence>
-                  {splitMode && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
-                        {/* Payment 1 */}
-                        <div className="space-y-1.5">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            Payment 1
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => setSplitMethod1("cash")}
-                                className={cn(
-                                  "rounded border px-2 py-1 text-[10px] font-medium transition-all",
-                                  splitMethod1 === "cash"
-                                    ? "border-sal-500 bg-sal-50 text-sal-700"
-                                    : "border-border text-muted-foreground hover:border-sal-300"
-                                )}
-                              >
-                                Cash
-                              </button>
-                              <button
-                                onClick={() => setSplitMethod1("card")}
-                                className={cn(
-                                  "rounded border px-2 py-1 text-[10px] font-medium transition-all",
-                                  splitMethod1 === "card"
-                                    ? "border-sal-500 bg-sal-50 text-sal-700"
-                                    : "border-border text-muted-foreground hover:border-sal-300"
-                                )}
-                              >
-                                Card
-                              </button>
-                              <button
-                                onClick={() => setSplitMethod1("gift_card")}
-                                className={cn(
-                                  "rounded border px-2 py-1 text-[10px] font-medium transition-all",
-                                  splitMethod1 === "gift_card"
-                                    ? "border-sal-500 bg-sal-50 text-sal-700"
-                                    : "border-border text-muted-foreground hover:border-sal-300"
-                                )}
-                              >
-                                Gift Card
-                              </button>
-                            </div>
-                            <Input
-                              type="number"
-                              value={splitAmount1}
-                              onChange={(e) => {
-                                setSplitAmount1(e.target.value)
-                                const val = parseFloat(e.target.value)
-                                if (!isNaN(val) && val >= 0 && val <= total) {
-                                  const remaining = Math.round((total - val) * 100) / 100
-                                  setSplitAmount2(remaining.toFixed(2))
-                                }
-                              }}
-                              className="h-8 w-28 text-sm font-medium"
-                              min="0"
-                              step="0.01"
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Payment 2 */}
-                        <div className="space-y-1.5">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            Payment 2
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => setSplitMethod2("cash")}
-                                className={cn(
-                                  "rounded border px-2 py-1 text-[10px] font-medium transition-all",
-                                  splitMethod2 === "cash"
-                                    ? "border-sal-500 bg-sal-50 text-sal-700"
-                                    : "border-border text-muted-foreground hover:border-sal-300"
-                                )}
-                              >
-                                Cash
-                              </button>
-                              <button
-                                onClick={() => setSplitMethod2("card")}
-                                className={cn(
-                                  "rounded border px-2 py-1 text-[10px] font-medium transition-all",
-                                  splitMethod2 === "card"
-                                    ? "border-sal-500 bg-sal-50 text-sal-700"
-                                    : "border-border text-muted-foreground hover:border-sal-300"
-                                )}
-                              >
-                                Card
-                              </button>
-                              <button
-                                onClick={() => setSplitMethod2("gift_card")}
-                                className={cn(
-                                  "rounded border px-2 py-1 text-[10px] font-medium transition-all",
-                                  splitMethod2 === "gift_card"
-                                    ? "border-sal-500 bg-sal-50 text-sal-700"
-                                    : "border-border text-muted-foreground hover:border-sal-300"
-                                )}
-                              >
-                                Gift Card
-                              </button>
-                            </div>
-                            <Input
-                              type="number"
-                              value={splitAmount2}
-                              onChange={(e) => {
-                                setSplitAmount2(e.target.value)
-                                const val = parseFloat(e.target.value)
-                                if (!isNaN(val) && val >= 0 && val <= total) {
-                                  const remaining = Math.round((total - val) * 100) / 100
-                                  setSplitAmount1(remaining.toFixed(2))
-                                }
-                              }}
-                              className="h-8 w-28 text-sm font-medium"
-                              min="0"
-                              step="0.01"
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Validation message */}
-                        {!splitSumsMatch && splitAmount1 !== "" && splitAmount2 !== "" && (
-                          <p className="text-[10px] font-medium text-destructive">
-                            Amounts must sum to {formatCurrency(total)} (currently{" "}
-                            {formatCurrency(splitAmount1Num + splitAmount2Num)})
-                          </p>
-                        )}
-                        {splitSumsMatch && splitAmount1Num > 0 && splitAmount2Num > 0 && (
-                          <p className="text-[10px] font-medium text-sal-600">
-                            Split payment: {methodLabel(splitMethod1)} ({formatCurrency(splitAmount1Num)}) +{" "}
-                            {methodLabel(splitMethod2)} ({formatCurrency(splitAmount2Num)})
-                          </p>
-                        )}
-
-                        <button
-                          onClick={() => setSplitMode(false)}
-                          className="text-[10px] text-muted-foreground underline hover:text-foreground"
-                        >
-                          Cancel Split
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Split-tender UI removed for beta: only cash is collectable,
+                    so there is nothing to split a payment across. The disabled
+                    "Split (soon)" button above is the visible placeholder. */}
 
                 <Button
                   className="w-full h-12 text-base font-semibold"
-                  disabled={splitMode ? !splitValid : !paymentMethod}
-                  onClick={() => {
-                    if (splitMode && splitValid) {
-                      toast.info(
-                        `Split payment: ${methodLabel(splitMethod1)} (${formatCurrency(splitAmount1Num)}) + ${methodLabel(splitMethod2)} (${formatCurrency(splitAmount2Num)})`
-                      )
-                      onSetPaymentMethod(splitMethod1)
-                      setPaymentDialogOpen(true)
-                    } else {
-                      setPaymentDialogOpen(true)
-                    }
-                  }}
+                  disabled={paymentMethod !== "cash"}
+                  onClick={() => setPaymentDialogOpen(true)}
                 >
                   Charge {formatCurrency(total)}
                 </Button>

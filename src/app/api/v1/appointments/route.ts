@@ -1,7 +1,12 @@
 import { withV1Auth } from "@/lib/api/auth"
-import { apiSuccess, apiPaginated, ERRORS } from "@/lib/api/response"
+import { apiError, apiSuccess, apiPaginated, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from "@/lib/scheduling/working-hours"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail } from "@/lib/email-templates"
 import { parseYmd } from "@/lib/date-utils"
@@ -145,6 +150,12 @@ export async function POST(req: Request) {
       // Serialize concurrent writes for this staff member so the conflict
       // check + create below cannot race a parallel booking (BOOKING-CONCURRENCY-001).
       await lockStaffSchedule(tx, ctx.businessId, staffId)
+      // Enforce the SAME working-hours / break / approved-time-off guard the
+      // server actions use (BOOKING-RESIDUAL). Without this, a crafted startTime
+      // via the API can book a client onto a barber's lunch, day off, after
+      // close, or approved time-off. Ordering mirrors the actions: lock ->
+      // assertSlotAllowed -> conflict check.
+      await assertSlotAllowed(tx, staffId, location.id, startTime, endTime)
       const conflicting = await tx.appointmentService.findFirst({
         where: {
           staffId,
@@ -231,8 +242,15 @@ export async function POST(req: Request) {
 
     return apiSuccess(appointment, 201)
   } catch (e) {
-    if ((e as Error).message === "CONFLICT") {
+    const msg = (e as Error).message
+    if (msg === "CONFLICT") {
       return ERRORS.BAD_REQUEST("This time slot is already booked for the selected staff member")
+    }
+    if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+      return apiError("OUTSIDE_WORKING_HOURS", "Outside the staff member's working hours", 400)
+    }
+    if (msg === ERR_ON_APPROVED_TIME_OFF) {
+      return apiError("ON_APPROVED_TIME_OFF", "Staff member has approved time off during this slot", 400)
     }
     console.error("POST /api/v1/appointments error:", e)
     return ERRORS.SERVER_ERROR()
