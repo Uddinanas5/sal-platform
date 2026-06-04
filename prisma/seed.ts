@@ -5,7 +5,17 @@ import bcrypt from "bcryptjs"
 import crypto from "crypto"
 
 const connectionString = process.env.DATABASE_URL!
-const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1')
+// Match the DB HOST exactly — a naive substring test would mis-classify a remote
+// host like "localhost.db.example.com" (or a password containing "localhost") as
+// local, disabling SSL and weakening the destructive-seed guard.
+const dbHost = (() => {
+  try {
+    return new URL(connectionString).hostname
+  } catch {
+    return ""
+  }
+})()
+const isLocal = dbHost === "localhost" || dbHost === "127.0.0.1" || dbHost === "::1"
 const sslmode = isLocal ? 'disable' : 'require'
 const sslUrl = connectionString.includes('?')
   ? `${connectionString}&sslmode=${sslmode}&uselibpqcompat=true`

@@ -81,11 +81,23 @@ export async function POST(req: Request) {
   if (data.appointmentId) {
     const appt = await prisma.appointment.findFirst({
       where: { id: data.appointmentId, businessId: ctx.businessId },
-      select: { clientId: true },
+      select: { clientId: true, status: true },
     })
     if (!appt) return ERRORS.NOT_FOUND("Appointment")
     if (data.clientId && appt.clientId && appt.clientId !== data.clientId) {
       return ERRORS.BAD_REQUEST("Appointment does not belong to this client")
+    }
+    // Idempotency (mirrors the dashboard action): don't let the same appointment
+    // be checked out twice — that would double-count revenue, visits and loyalty.
+    if (appt.status === "completed") {
+      return ERRORS.BAD_REQUEST("This appointment has already been checked out.")
+    }
+    const alreadyPaid = await prisma.payment.findFirst({
+      where: { appointmentId: data.appointmentId, businessId: ctx.businessId, type: "payment", status: "completed" },
+      select: { id: true },
+    })
+    if (alreadyPaid) {
+      return ERRORS.BAD_REQUEST("This appointment has already been paid.")
     }
     if (!resolvedClientId && appt.clientId) {
       resolvedClientId = appt.clientId
