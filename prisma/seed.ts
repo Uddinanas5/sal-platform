@@ -10,7 +10,9 @@ const sslmode = isLocal ? 'disable' : 'require'
 const sslUrl = connectionString.includes('?')
   ? `${connectionString}&sslmode=${sslmode}&uselibpqcompat=true`
   : `${connectionString}?sslmode=${sslmode}&uselibpqcompat=true`
-const adapter = new PrismaPg({ connectionString: sslUrl })
+// Prisma 7 qualifies queries with public unless the adapter gets a schema — honor ?schema= from DATABASE_URL
+const envSchema = /[?&]schema=([^&]+)/.exec(process.env.DATABASE_URL ?? "")?.[1]
+const adapter = new PrismaPg({ connectionString: sslUrl }, envSchema ? { schema: envSchema } : undefined)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {

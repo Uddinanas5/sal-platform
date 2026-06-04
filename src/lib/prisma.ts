@@ -8,7 +8,9 @@ function createPrismaClient() {
   const connectionString = url.includes('?')
     ? `${url}&sslmode=require&uselibpqcompat=true`
     : `${url}?sslmode=require&uselibpqcompat=true`
-  const adapter = new PrismaPg({ connectionString })
+  // Prisma 7 qualifies queries with public unless the adapter gets a schema — honor ?schema= from DATABASE_URL
+  const envSchema = /[?&]schema=([^&]+)/.exec(process.env.DATABASE_URL ?? "")?.[1]
+  const adapter = new PrismaPg({ connectionString }, envSchema ? { schema: envSchema } : undefined)
   return new PrismaClient({ adapter })
 }
 
