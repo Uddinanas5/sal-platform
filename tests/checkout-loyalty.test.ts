@@ -48,6 +48,7 @@ function fakeTx(o: TxOptions = {}) {
   ]
 
   const tx = {
+    $executeRaw: vi.fn(),
     service: { findMany: vi.fn(async () => [{ id: SVC, price: finalPrice }]) },
     product: { findMany: vi.fn(async () => []) },
     appointment: {

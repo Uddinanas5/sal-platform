@@ -6,6 +6,7 @@ import {
   type ResolvedPayrollPeriod,
 } from "./resolve-payroll-period"
 import { POINTS_TO_DOLLARS, pointsEarnedFor } from "@/lib/loyalty"
+import { lockClient } from "@/lib/db/advisory-lock"
 
 export class RecordCheckoutError extends Error {
   constructor(public code: "BAD_REQUEST" | "NOT_FOUND" | "INVARIANT_FAILED", message: string) {
@@ -196,6 +197,10 @@ export async function recordCheckout(
   // snapshot its loyalty balance so redemption can be validated server-side.
   let clientLoyaltyPoints = 0
   if (resolvedClientId) {
+    // Serialize concurrent checkouts for the SAME client so the loyalty
+    // read → validate → decrement below is atomic (no over-redemption race
+    // that could drive loyaltyPoints negative). Released on commit/rollback.
+    await lockClient(tx, businessId, resolvedClientId)
     const client = await tx.client.findFirst({
       where: { id: resolvedClientId, businessId },
       select: { id: true, loyaltyPoints: true },

@@ -50,6 +50,7 @@ function fakeTx(o: TxOptions = {}) {
       : [{ staffId: STAFF, serviceId: SVC, commissionRate: o.staffServiceOverride }]
 
   const tx = {
+    $executeRaw: vi.fn(),
     service: { findMany: vi.fn(async () => [{ id: SVC, price: finalPrice }]) },
     product: { findMany: vi.fn(async () => []) },
     appointment: {

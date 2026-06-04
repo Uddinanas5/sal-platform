@@ -29,6 +29,7 @@ type TxOverrides = {
 
 function fakeTx(o: TxOverrides = {}) {
   const tx = {
+    $executeRaw: vi.fn(),
     service: { findMany: vi.fn(async () => o.services ?? [{ id: SVC, price: 60 }]) },
     product: { findMany: vi.fn(async () => o.products ?? []) },
     appointment: { findFirst: vi.fn(), update: vi.fn() },

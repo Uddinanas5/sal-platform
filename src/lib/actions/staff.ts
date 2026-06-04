@@ -344,9 +344,12 @@ export async function createTimeBlock(data: {
       return { success: false, error: "You can only block your own calendar" }
     }
 
-    // Single-day block: startDate === endDate. Time-only columns are stored on
+    // Single-day block: startDate === endDate. Parse the date as UTC midnight
+    // (date-only `new Date("YYYY-MM-DD")`) to match createTimeOffRequest and the
+    // availability engine's startOfDay comparison — NOT local midnight, which
+    // skews the date window on a non-UTC host. Time-only columns are stored on
     // the canonical 2000-01-01 date, matching how breaks/schedules write @db.Time.
-    const blockDate = new Date(`${parsed.date}T00:00:00`)
+    const blockDate = new Date(parsed.date.slice(0, 10))
 
     await prisma.staffTimeOff.create({
       data: {
