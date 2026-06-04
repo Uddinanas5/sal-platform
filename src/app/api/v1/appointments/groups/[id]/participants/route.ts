@@ -31,6 +31,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return ERRORS.BAD_REQUEST("Group is full")
   }
 
+  // Scope the clientId to the caller's business — otherwise a tenant could
+  // attach another business's client (a cross-tenant reference-injection write).
+  const client = await prisma.client.findFirst({
+    where: { id: parsed.data.clientId, businessId: ctx.businessId },
+    select: { id: true },
+  })
+  if (!client) return ERRORS.BAD_REQUEST("Client not found")
+
   const participant = await prisma.groupParticipant.create({
     data: { appointmentId: id, clientId: parsed.data.clientId },
   })
