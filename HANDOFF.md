@@ -93,6 +93,32 @@ runtime verification, so they were not shipped as "done" in the sandbox.
    `assertSlotAllowed`; a "Block time" calendar UI. Build-verifiable but a sizeable
    feature; deferred to keep this pass's PRs reviewable + verifiable.
 
+## Adversarial-pass leftovers (confirmed real, follow-up needed)
+
+A multi-agent adversarial pass found 16 real issues. The contained ones were
+fixed (PR #34 + the booking re-validation on #31): staff-break write-path bypass,
+MCP endpoint gated off for beta, server rejects fake card/gift-card methods,
+checkout already-paid idempotency, and `createPublicBooking` full re-validation.
+These remain (need a migration, shared store, or the developer-API launch):
+
+1. **Stripe webhook idempotency** — no event dedup; a replayed/out-of-order event
+   can re-apply side effects or flip a completed payment to failed. Add a
+   `StripeEvent` table (unique on Stripe event id), skip already-processed
+   events, and make `payment_intent.payment_failed` not overwrite a `completed`
+   payment. Needs a migration.
+2. **Rate limiting** — the in-memory limiter is per-instance (ineffective on
+   serverless) and the booking limiter is keyed only on the attacker-supplied
+   email. Move to a shared store (e.g. Upstash Redis) and add an IP/business
+   fallback key. Needs infra.
+3. **MCP tool tenant-hardening** — when you intentionally launch the developer
+   API (`MCP_ENABLED=true`), the MCP tools must first be hardened: route
+   `process-checkout` through the same server-side price recompute the dashboard
+   uses, and scope every foreign id (clientId/staffId/categoryId/serviceIds) to
+   `ctx.businessId`. Until then the endpoint is gated off, so this is not a beta
+   blocker.
+4. **Seed `isLocal` check** — uses a naive substring match; tighten to parse the
+   host and compare exactly. Low.
+
 ## Testing limits (this sandbox)
 
 No live Postgres here, so: all tests are mock-Prisma + pure-logic (they assert
