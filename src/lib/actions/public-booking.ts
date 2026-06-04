@@ -9,6 +9,17 @@ import { z, ZodError } from "zod"
 import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import { generateBookingReference } from "@/lib/booking-reference"
 import { isSlotAvailable } from "@/lib/availability"
+import { getPublicBookingSettings } from "@/lib/actions/booking-settings"
+
+// Mirrors the maps in the /api/availability route — kept in sync by hand (the
+// values rarely change). The write path must honour the same lead-time and
+// advance-window ceilings the read path advertises.
+const LEAD_TIME_MINUTES: Record<string, number> = {
+  none: 0, "1h": 60, "2h": 120, "4h": 240, "12h": 720, "24h": 1440, "48h": 2880,
+}
+const MAX_ADVANCE_DAYS: Record<string, number> = {
+  "1w": 7, "2w": 14, "1m": 30, "2m": 60, "3m": 90,
+}
 import {
   assertSlotAllowed,
   ERR_OUTSIDE_WORKING_HOURS,
@@ -108,8 +119,19 @@ export async function createPublicBooking(data: {
     // canAcceptBookings). Done before client creation so invalid requests don't
     // leave orphaned client rows.
     const requestedStart = new Date(data.startTime)
-    if (requestedStart.getTime() <= Date.now()) {
-      return { success: false, error: "That time has already passed. Please pick another." }
+    const bookingSettings = await getPublicBookingSettings(business.id)
+    // Min lead time (covers past dates too: a 0-lead "none" still rejects < now).
+    const leadMinutes = LEAD_TIME_MINUTES[bookingSettings.minLeadTime] ?? 30
+    if (requestedStart.getTime() < Date.now() + leadMinutes * 60_000) {
+      return { success: false, error: "That time is too soon to book. Please choose a later slot." }
+    }
+    // Max advance window.
+    const maxDays = MAX_ADVANCE_DAYS[bookingSettings.maxAdvanceBooking] ?? 30
+    const maxDate = new Date()
+    maxDate.setHours(0, 0, 0, 0)
+    maxDate.setDate(maxDate.getDate() + maxDays)
+    if (requestedStart > maxDate) {
+      return { success: false, error: `Bookings can only be made up to ${maxDays} days in advance.` }
     }
     if (!service.isActive || !service.isOnlineBooking) {
       return { success: false, error: "This service isn't available for online booking." }
