@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Commands
 
@@ -83,7 +83,7 @@ All v1 endpoints use `withV1Auth()` from `src/lib/api/auth.ts` which accepts Bea
 
 ### MCP Server
 
-The MCP (Model Context Protocol) server at `/api/mcp` exposes 57 tools and 14 resources for AI assistants (Claude Desktop, Cursor, Windsurf, etc.). Uses `@modelcontextprotocol/sdk` with Streamable HTTP transport in stateless mode. Auth reuses the same `withV1Auth()` system. Each request creates a fresh `McpServer` instance with the authenticated context captured in tool closures. See `docs/MCP_SERVER.md` for full documentation.
+The MCP (Model Context Protocol) server at `/api/mcp` exposes 57 tools and 14 resources for AI assistants (Codex Desktop, Cursor, Windsurf, etc.). Uses `@modelcontextprotocol/sdk` with Streamable HTTP transport in stateless mode. Auth reuses the same `withV1Auth()` system. Each request creates a fresh `McpServer` instance with the authenticated context captured in tool closures. See `docs/MCP_SERVER.md` for full documentation.
 
 ### Auth
 
