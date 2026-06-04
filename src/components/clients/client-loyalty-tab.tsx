@@ -18,7 +18,6 @@ import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils"
 import { type Client } from "@/data/mock-data"
-import { toast } from "sonner"
 
 interface ClientLoyaltyTabProps {
   client: Client
@@ -84,13 +83,10 @@ export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
   const progress = getTierProgress(points)
   const history: PointsHistoryEntry[] = []
 
-  const handleRedeem = (reward: Reward) => {
-    if (points >= reward.pointsCost) {
-      toast.success(`Redeemed "${reward.name}" for ${reward.pointsCost} points`)
-    } else {
-      toast.error(`Not enough points. Need ${reward.pointsCost - points} more points.`)
-    }
-  }
+  // Redemption is intentionally disabled: spending points would require deducting
+  // from the client's balance and recording a redemption transaction, which has no
+  // backing model/action yet. Showing a success toast without actually debiting
+  // points would lie, so the rewards catalog is read-only and labeled "Coming soon".
 
   return (
     <div className="space-y-6">
@@ -281,18 +277,25 @@ export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
               <CardTitle className="text-lg font-heading flex items-center gap-2">
                 <Gift className="w-4 h-4" />
                 Available Rewards
+                <Badge variant="secondary" className="text-xs ml-1">
+                  Coming soon
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <p className="text-xs text-muted-foreground/70 mb-3">
+                Point redemption is coming soon. This is a preview of the rewards
+                clients will be able to redeem.
+              </p>
               <div className="space-y-3">
                 {rewards.map((reward) => {
-                  const canRedeem = points >= reward.pointsCost
+                  const hasEnough = points >= reward.pointsCost
                   return (
                     <div
                       key={reward.id}
                       className={`p-3 rounded-lg border transition-colors ${
-                        canRedeem
-                          ? "border-sal-200 bg-sal-50/50 hover:bg-sal-50"
+                        hasEnough
+                          ? "border-sal-200 bg-sal-50/50"
                           : "border-cream-200 bg-cream-50 opacity-60"
                       }`}
                     >
@@ -301,15 +304,15 @@ export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">{reward.description}</p>
                       <div className="flex items-center justify-between">
-                        <Badge variant={canRedeem ? "default" : "secondary"} className="text-xs">
+                        <Badge variant={hasEnough ? "default" : "secondary"} className="text-xs">
                           {reward.pointsCost} pts
                         </Badge>
                         <Button
                           size="sm"
-                          variant={canRedeem ? "default" : "outline"}
+                          variant="outline"
                           className="h-7 text-xs"
-                          disabled={!canRedeem}
-                          onClick={() => handleRedeem(reward)}
+                          disabled
+                          title="Point redemption is coming soon"
                         >
                           Redeem
                         </Button>

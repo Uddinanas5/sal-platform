@@ -34,6 +34,10 @@ const requestTimeOffSchema = z.object({
   notes: z.string().optional(),
 })
 
+const timeOffDecisionSchema = z.object({
+  timeOffId: z.string().uuid(),
+})
+
 const createStaffSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -143,17 +147,145 @@ export async function requestTimeOff(data: {
         startDate: new Date(parsed.startDate),
         endDate: new Date(parsed.endDate),
         type: parsed.type,
+        // New requests are always pending; the availability engine only blocks
+        // APPROVED rows, so a fresh request never silently blocks the calendar.
         status: "pending",
         notes: parsed.notes,
       },
     })
 
     revalidatePath(`/staff/${parsed.staffId}`)
+    // Approval can later block slots, but revalidate now so the new pending row
+    // shows up immediately in the time-off tab.
+    revalidatePath("/calendar")
     return { success: true, data: undefined }
   } catch (e) {
     if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     console.error("requestTimeOff error:", e)
     return { success: false, error: (e as Error).message }
+  }
+}
+
+export type TimeOffRow = {
+  id: string
+  staffId: string
+  startDate: string
+  endDate: string
+  type: "vacation" | "sick" | "personal" | "other"
+  status: "pending" | "approved" | "rejected"
+  notes: string | null
+  approvedAt: string | null
+}
+
+/**
+ * List the REAL StaffTimeOff rows for a staff member, scoped to the caller's
+ * business (multi-tenant isolation). Dates are serialized to ISO strings so the
+ * result is safe to hand to a client component.
+ */
+export async function getStaffTimeOff(staffId: string): Promise<ActionResult<TimeOffRow[]>> {
+  try {
+    const parsed = z.object({ staffId: z.string().uuid() }).parse({ staffId })
+    const { businessId, userId, role } = await getBusinessContext()
+
+    // Verify the staff belongs to this business before reading their rows.
+    const staff = await prisma.staff.findFirst({
+      where: { id: parsed.staffId, primaryLocation: { businessId } },
+      select: { id: true, userId: true },
+    })
+    if (!staff) return { success: false, error: "Staff not found" }
+
+    // Staff-role users may only read their own time off.
+    if (role === "staff" && staff.userId !== userId) {
+      return { success: false, error: "You can only view your own time off" }
+    }
+
+    const rows = await prisma.staffTimeOff.findMany({
+      where: { staffId: parsed.staffId },
+      orderBy: { startDate: "desc" },
+    })
+
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        staffId: r.staffId,
+        startDate: r.startDate.toISOString(),
+        endDate: r.endDate.toISOString(),
+        type: r.type as TimeOffRow["type"],
+        status: r.status as TimeOffRow["status"],
+        notes: r.notes,
+        approvedAt: r.approvedAt ? r.approvedAt.toISOString() : null,
+      })),
+    }
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    console.error("getStaffTimeOff error:", e)
+    return { success: false, error: (e as Error).message }
+  }
+}
+
+/**
+ * Approve a pending time-off request over the REAL row. Once status is
+ * "approved" the existing availability engine (availability.ts) blocks those
+ * slots — this is the missing link that made pending requests never block the
+ * calendar. Admin/owner only; the row must belong to the caller's business.
+ */
+export async function approveTimeOff(timeOffId: string): Promise<ActionResult> {
+  return decideTimeOff(timeOffId, "approved")
+}
+
+/**
+ * Reject a pending time-off request over the REAL row. Rejected rows are never
+ * honored by the availability engine, so the calendar stays open.
+ */
+export async function rejectTimeOff(timeOffId: string): Promise<ActionResult> {
+  return decideTimeOff(timeOffId, "rejected")
+}
+
+async function decideTimeOff(
+  timeOffId: string,
+  decision: "approved" | "rejected"
+): Promise<ActionResult> {
+  try {
+    const parsed = timeOffDecisionSchema.parse({ timeOffId })
+
+    // Only admins/owners can approve or deny — a staff member can't approve
+    // their own time off into the calendar.
+    const { businessId, userId } = await requireMinRole("admin")
+
+    // Load the row WITH its staff so we can confirm tenant ownership from the
+    // DB — never trust the client's claim about which business this belongs to.
+    const timeOff = await prisma.staffTimeOff.findFirst({
+      where: {
+        id: parsed.timeOffId,
+        staff: { primaryLocation: { businessId } },
+      },
+      select: { id: true, staffId: true, status: true },
+    })
+    if (!timeOff) return { success: false, error: "Time-off request not found" }
+
+    await prisma.staffTimeOff.update({
+      where: { id: timeOff.id },
+      data: {
+        status: decision,
+        approvedBy: userId,
+        approvedAt: new Date(),
+      },
+    })
+
+    revalidatePath(`/staff/${timeOff.staffId}`)
+    // Approving blocks slots; rejecting reopens them — either way the calendar
+    // must reflect the new availability.
+    revalidatePath("/calendar")
+    return { success: true, data: undefined }
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    const msg = (e as Error).message
+    if (msg.startsWith("Insufficient permissions") || msg === "Not authenticated" || msg === "No business context") {
+      return { success: false, error: msg }
+    }
+    console.error("decideTimeOff error:", e)
+    return { success: false, error: msg }
   }
 }
 

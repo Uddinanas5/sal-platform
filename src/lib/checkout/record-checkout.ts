@@ -1,6 +1,10 @@
 import { randomBytes } from "node:crypto"
 import type { Prisma } from "@/generated/prisma"
-import { resolvePayrollPeriod } from "./resolve-payroll-period"
+import {
+  NoPayrollPeriodError,
+  resolvePayrollPeriod,
+  type ResolvedPayrollPeriod,
+} from "./resolve-payroll-period"
 
 export class RecordCheckoutError extends Error {
   constructor(public code: "BAD_REQUEST" | "NOT_FOUND" | "INVARIANT_FAILED", message: string) {
@@ -32,6 +36,69 @@ function generatePaymentReference(): string {
   const yyyymmdd = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`
   const suffix = randomBytes(4).toString("hex").toUpperCase()
   return `PAY-${yyyymmdd}-${suffix}`
+}
+
+// Business-local calendar date (YYYY-MM-DD) for an instant. Mirrors the helper
+// in resolve-payroll-period.ts (which is private there); kept tiny + dependency
+// free so a missing payroll period can be bootstrapped without a date library.
+function localDateString(instant: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(instant)
+  const get = (type: string) => parts.find((p) => p.type === type)?.value
+  return `${get("year")}-${get("month")}-${get("day")}`
+}
+
+/**
+ * Resolve the OPEN PayrollPeriod a checkout falls into, creating a default
+ * monthly period at runtime if none exists yet (no migration — uses the
+ * existing PayrollPeriod model). This is what lets the first-ever checkout of a
+ * business record commissions instead of failing on a missing period.
+ *
+ * `resolvePayrollPeriod` deliberately throws `NoPayrollPeriodError` when no
+ * period exists; we catch only that case and bootstrap a calendar-month period
+ * (business-local), then re-resolve so the closed/paid invariant still runs. A
+ * `CommissionPeriodClosedError` from a manually closed period is NOT swallowed —
+ * it bubbles up and rolls the transaction back, same as before.
+ */
+async function ensureOpenPayrollPeriod(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  checkoutAt: Date,
+): Promise<ResolvedPayrollPeriod> {
+  try {
+    return await resolvePayrollPeriod(tx, businessId, checkoutAt)
+  } catch (err) {
+    if (!(err instanceof NoPayrollPeriodError)) throw err
+
+    const business = await tx.business.findUnique({
+      where: { id: businessId },
+      select: { timezone: true },
+    })
+    const timezone = business?.timezone ?? "UTC"
+    const localDate = localDateString(checkoutAt, timezone)
+    const [year, month] = localDate.split("-").map(Number)
+    // First..last day of the business-local calendar month, stored as @db.Date.
+    const periodStart = new Date(Date.UTC(year, month - 1, 1))
+    const periodEnd = new Date(Date.UTC(year, month, 0))
+
+    await tx.payrollPeriod.create({
+      data: {
+        businessId,
+        periodStart,
+        periodEnd,
+        status: "open",
+        notes: "Auto-created at checkout (no open period existed).",
+      },
+    })
+
+    // Re-resolve so the standard closed/paid guard and date-scoping run against
+    // the row we just inserted (single source of truth for the bounds).
+    return await resolvePayrollPeriod(tx, businessId, checkoutAt)
+  }
 }
 
 /**
@@ -208,10 +275,11 @@ export async function recordCheckout(
     }
   }
 
-  // Resolve the PayrollPeriod row this checkout falls into (business-local
-  // date, not UTC). Throws `CommissionPeriodClosedError` or
-  // `NoPayrollPeriodError` — both bubble up and roll the tx back.
-  const period = await resolvePayrollPeriod(tx, businessId, new Date())
+  // Resolve the OPEN PayrollPeriod this checkout falls into (business-local
+  // date, not UTC), creating a default monthly period if none exists yet. A
+  // manually closed/paid period still throws `CommissionPeriodClosedError`,
+  // which bubbles up and rolls the tx back.
+  const period = await ensureOpenPayrollPeriod(tx, businessId, new Date())
   const periodStart = period.periodStart
   const periodEnd = period.periodEnd
 

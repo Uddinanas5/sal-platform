@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { format, setHours, setMinutes, isSameDay } from "date-fns"
 import { createAppointment } from "@/lib/actions/appointments"
+import { createRecurringAppointment } from "@/lib/actions/recurring"
 import {
   Search,
   ChevronRight,
@@ -31,9 +32,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DatePicker } from "@/components/ui/date-picker"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Switch } from "@/components/ui/switch"
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn, getInitials, formatCurrency, formatDuration } from "@/lib/utils"
 import { toast } from "sonner"
@@ -114,9 +113,8 @@ export function NewAppointmentDialog({
   const [recurrenceRule, setRecurrenceRule] = useState<"weekly" | "biweekly" | "monthly">("weekly")
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
 
-  // Group booking state
-  const [isGroupBooking, setIsGroupBooking] = useState(false)
-  const [maxParticipants, setMaxParticipants] = useState(4)
+  // Group booking is disabled in this dialog (no multi-participant picker yet —
+  // see the "Coming soon" toggle below), so no group state is tracked here.
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -141,8 +139,6 @@ export function NewAppointmentDialog({
       setIsRecurring(false)
       setRecurrenceRule("weekly")
       setRecurrenceEndDate("")
-      setIsGroupBooking(false)
-      setMaxParticipants(4)
       setShowAdvanced(false)
       setIsSaving(false)
 
@@ -226,7 +222,48 @@ export function NewAppointmentDialog({
       selectedTime.minute
     )
 
+    // Recurring requires an end date before we can generate the series.
+    if (isRecurring && !recurrenceEndDate) {
+      toast.error("Pick an end date for the recurring appointment")
+      return
+    }
+
     setIsSaving(true)
+
+    const baseDescription = `${selectedService.name} with ${selectedStaff.name} on ${format(
+      startTime,
+      "MMM d 'at' h:mm a"
+    )}`
+
+    // Branch: when "Repeat" is on, create the whole series via the recurring
+    // backend (single create otherwise). The backend books every occurrence
+    // atomically and enforces the same working-hours guard as a single create.
+    if (isRecurring) {
+      const result = await createRecurringAppointment({
+        clientId: selectedClient.id,
+        serviceId: selectedService.id,
+        staffId: selectedStaff.id,
+        startTime: startTime.toISOString(),
+        notes: notes.trim() || undefined,
+        recurrenceRule,
+        recurrenceEndDate,
+      })
+
+      if (!result.success) {
+        setIsSaving(false)
+        toast.error(result.error)
+        return
+      }
+
+      toast.success(
+        `Recurring series created (${result.data.count} appointment${result.data.count === 1 ? "" : "s"})`,
+        { description: baseDescription }
+      )
+      onOpenChange(false)
+      router.refresh()
+      return
+    }
+
     const result = await createAppointment({
       clientId: selectedClient.id,
       serviceId: selectedService.id,
@@ -241,12 +278,7 @@ export function NewAppointmentDialog({
       return
     }
 
-    const description = `${selectedService.name} with ${selectedStaff.name} on ${format(
-      startTime,
-      "MMM d 'at' h:mm a"
-    )}`
-
-    toast.success("Appointment created", { description })
+    toast.success("Appointment created", { description: baseDescription })
     onOpenChange(false)
     router.refresh()
   }
@@ -693,28 +725,22 @@ export function NewAppointmentDialog({
 
                     <Separator />
 
-                    {/* Group Booking */}
+                    {/* Group Booking — the backend (createGroupBooking) needs a
+                        list of participant clients, but this dialog only selects
+                        ONE client. Until a multi-participant picker exists, the
+                        toggle is disabled rather than silently booking a "group
+                        of one". No fake feature. */}
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between opacity-60">
                         <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-sal-500" />
-                          <span className="text-sm font-medium text-foreground">Group Booking</span>
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-foreground">
+                            Group Booking{" "}
+                            <span className="text-xs font-normal text-muted-foreground">(Coming soon)</span>
+                          </span>
                         </div>
-                        <Switch checked={isGroupBooking} onCheckedChange={setIsGroupBooking} />
+                        <Switch checked={false} disabled aria-label="Group booking (coming soon)" />
                       </div>
-                      {isGroupBooking && (
-                        <div className="ml-6 space-y-1">
-                          <label className="text-xs text-muted-foreground">Max participants</label>
-                          <Input
-                            type="number"
-                            min={2}
-                            max={20}
-                            value={maxParticipants}
-                            onChange={(e) => setMaxParticipants(Number(e.target.value))}
-                            className="h-9 w-24"
-                          />
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}

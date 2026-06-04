@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/lib/utils"
-import { toast } from "sonner"
 
 interface CampaignItem {
   id: string
@@ -145,13 +144,16 @@ export function CampaignCard({ campaign, index }: CampaignCardProps) {
           {/* Date */}
           <p className="text-xs text-muted-foreground/70 mb-3">{dateDisplay}</p>
 
-          {/* Actions */}
+          {/* Actions — campaign detail/edit/duplicate are not wired up yet, so
+              they are disabled and labeled "Coming soon" rather than firing
+              toasts that imply something happened. */}
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => toast.info("Viewing campaign details")}
+              disabled
+              title="Campaign details are coming soon"
             >
               <Eye className="w-3.5 h-3.5" />
               View
@@ -160,7 +162,8 @@ export function CampaignCard({ campaign, index }: CampaignCardProps) {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => toast.info("Editing campaign")}
+              disabled
+              title="Editing campaigns is coming soon"
             >
               <Pencil className="w-3.5 h-3.5" />
               Edit
@@ -169,7 +172,8 @@ export function CampaignCard({ campaign, index }: CampaignCardProps) {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => toast.success("Campaign duplicated")}
+              disabled
+              title="Duplicating campaigns is coming soon"
             >
               <Copy className="w-3.5 h-3.5" />
               Duplicate

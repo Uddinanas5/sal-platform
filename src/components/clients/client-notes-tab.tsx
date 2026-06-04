@@ -5,90 +5,32 @@ import { motion } from "framer-motion"
 import {
   StickyNote,
   User,
-  Clock,
   Save,
   FileIcon,
-  Download,
-  Trash2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { FileUpload } from "@/components/ui/file-upload"
-import { formatDate, formatRelativeDate } from "@/lib/utils"
 import { type Client } from "@/data/mock-data"
-import { toast } from "sonner"
 
 interface ClientNotesTabProps {
   client: Client
 }
 
-interface Note {
-  id: string
-  date: Date
-  author: string
-  content: string
-}
-
-interface UploadedFile {
-  id: string
-  name: string
-  size: string
-  type: string
-  uploadedAt: Date
-  uploadedBy: string
-}
-
+// NOTE: This timeline-style per-entry notes log and file attachment store have
+// no backing model yet (the Client model only has a single free-text `notes`
+// field, surfaced on the Overview tab, and there is no file storage). Persisting
+// entries or uploads here would require a schema migration, so the controls are
+// disabled and clearly labeled "Coming soon" rather than silently dropping data
+// on refresh. The single staff-alert note remains fully editable on the Overview tab.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ClientNotesTab(props: ClientNotesTabProps) {
-  const [notes, setNotes] = useState<Note[]>([])
   const [newNote, setNewNote] = useState("")
-  const [files, setFiles] = useState<UploadedFile[]>([])
-
-  const handleAddNote = () => {
-    if (!newNote.trim()) return
-
-    const note: Note = {
-      id: `n-${Date.now()}`,
-      date: new Date(),
-      author: "You",
-      content: newNote.trim(),
-    }
-    setNotes([note, ...notes])
-    setNewNote("")
-    toast.success("Note added successfully")
-  }
-
-  const handleDeleteNote = (noteId: string) => {
-    setNotes(notes.filter((n) => n.id !== noteId))
-    toast.success("Note deleted")
-  }
-
-  const handleFilesSelected = (selectedFiles: File[]) => {
-    const newFiles: UploadedFile[] = selectedFiles.map((f, i) => ({
-      id: `f-${Date.now()}-${i}`,
-      name: f.name,
-      size: f.size > 1024 * 1024
-        ? `${(f.size / 1024 / 1024).toFixed(1)} MB`
-        : `${(f.size / 1024).toFixed(0)} KB`,
-      type: f.type.includes("image") ? "Image" : f.type.includes("pdf") ? "PDF" : "Document",
-      uploadedAt: new Date(),
-      uploadedBy: "You",
-    }))
-    setFiles([...newFiles, ...files])
-    toast.success(`${selectedFiles.length} file(s) uploaded`)
-  }
-
-  const handleDeleteFile = (fileId: string) => {
-    setFiles(files.filter((f) => f.id !== fileId))
-    toast.success("File removed")
-  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Add Note */}
+      {/* Add Note (coming soon) */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -100,19 +42,23 @@ export function ClientNotesTab(props: ClientNotesTabProps) {
             <CardTitle className="text-lg font-heading flex items-center gap-2">
               <StickyNote className="w-4 h-4" />
               Add Note
+              <Badge variant="secondary" className="text-xs ml-1">
+                Coming soon
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea
-              placeholder="Write a note about this client..."
+              placeholder="A timestamped notes log for this client is coming soon. To leave a staff alert today, use the Notes field on the Overview tab."
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
               rows={3}
               maxLength={500}
               showCounter
+              disabled
             />
             <div className="flex justify-end">
-              <Button onClick={handleAddNote} disabled={!newNote.trim()} size="sm">
+              <Button disabled size="sm" title="A timestamped notes log is coming soon">
                 <Save className="w-4 h-4 mr-2" />
                 Save Note
               </Button>
@@ -129,48 +75,20 @@ export function ClientNotesTab(props: ClientNotesTabProps) {
       >
         <Card className="border-cream-200">
           <CardHeader>
-            <CardTitle className="text-lg font-heading">
-              Notes ({notes.length})
-            </CardTitle>
+            <CardTitle className="text-lg font-heading">Notes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {notes.map((note, i) => (
-                <div key={note.id}>
-                  {i > 0 && <Separator className="mb-4" />}
-                  <div className="group">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <User className="w-3 h-3" />
-                          <span className="font-medium">{note.author}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                          <Clock className="w-3 h-3" />
-                          <span>{formatRelativeDate(note.date)}</span>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleDeleteNote(note.id)}
-                        aria-label="Delete note"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-muted-foreground/70 hover:text-red-500" />
-                      </Button>
-                    </div>
-                    <p className="text-sm text-foreground leading-relaxed">
-                      {note.content}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              {notes.length === 0 && (
-                <p className="text-sm text-muted-foreground/70 text-center py-4">
-                  No notes yet. Add the first one above.
-                </p>
-              )}
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <div className="p-2.5 rounded-xl bg-cream-100">
+                <User className="w-5 h-5 text-muted-foreground/70" />
+              </div>
+              <p className="text-sm font-medium text-foreground">
+                Timestamped notes log coming soon
+              </p>
+              <p className="text-xs text-muted-foreground/70 max-w-xs">
+                A full activity log of per-staff notes is on the way. For now, use
+                the staff alert field on the Overview tab.
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -184,58 +102,26 @@ export function ClientNotesTab(props: ClientNotesTabProps) {
       >
         <Card className="border-cream-200">
           <CardHeader>
-            <CardTitle className="text-lg font-heading">
-              Files ({files.length})
+            <CardTitle className="text-lg font-heading flex items-center gap-2">
+              Files
+              <Badge variant="secondary" className="text-xs ml-1">
+                Coming soon
+              </Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <FileUpload
-              onFilesSelected={handleFilesSelected}
-              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-              multiple
-            />
-
-            {files.length > 0 && (
-              <div className="space-y-2">
-                {files.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-cream-50 hover:bg-cream-100 transition-colors group"
-                  >
-                    <div className="p-2 rounded-lg bg-white border border-cream-200">
-                      <FileIcon className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{file.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {file.size} &middot; {file.uploadedBy} &middot; {formatDate(file.uploadedAt)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Badge variant="secondary" className="text-xs">
-                        {file.type}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => toast.success(`Downloading ${file.name}`)}
-                      >
-                        <Download className="w-3.5 h-3.5 text-muted-foreground/70" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleDeleteFile(file.id)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-muted-foreground/70 hover:text-red-500" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+          <CardContent>
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <div className="p-2.5 rounded-xl bg-cream-100">
+                <FileIcon className="w-5 h-5 text-muted-foreground/70" />
               </div>
-            )}
+              <p className="text-sm font-medium text-foreground">
+                File attachments coming soon
+              </p>
+              <p className="text-xs text-muted-foreground/70 max-w-xs">
+                Securely attaching documents and images to a client profile is on
+                the way.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

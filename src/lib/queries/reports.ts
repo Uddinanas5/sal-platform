@@ -1,5 +1,45 @@
 import { prisma } from "@/lib/prisma"
-import { subDays, subMonths, startOfDay, startOfMonth, format } from "date-fns"
+import { subDays, subMonths, startOfDay, startOfMonth, endOfMonth, format } from "date-fns"
+
+// ============================================================================
+// DATE RANGE HELPER
+// ============================================================================
+
+/**
+ * A resolved reporting window. `from` is inclusive, `to` is exclusive — built
+ * by `resolveRange` so all period-scoped queries agree on the same boundaries.
+ */
+export interface DateRange {
+  from: Date
+  to: Date
+}
+
+/**
+ * Resolve an optional caller-supplied window into a concrete {from, to}.
+ *
+ * - Defaults to the current calendar month when nothing is supplied (preserves
+ *   the historical behaviour the UI relied on).
+ * - `to` is treated as exclusive; when a caller passes a day-precision `to` we
+ *   bump it to the end of that day so the picked end date is itself included.
+ * - Invalid / inverted ranges fall back to the default month rather than
+ *   throwing, so a malformed URL param can never leak an unbounded query.
+ */
+export function resolveRange(range?: { from?: Date | null; to?: Date | null }): DateRange {
+  const now = new Date()
+  const defaultFrom = startOfMonth(now)
+  const defaultTo = endOfMonth(now)
+
+  const from = range?.from instanceof Date && !isNaN(range.from.getTime()) ? range.from : defaultFrom
+  let to = range?.to instanceof Date && !isNaN(range.to.getTime()) ? range.to : defaultTo
+
+  // Make a day-precision `to` inclusive of that whole day.
+  if (to.getHours() === 0 && to.getMinutes() === 0 && to.getSeconds() === 0 && to.getMilliseconds() === 0) {
+    to = new Date(to.getTime() + 24 * 60 * 60 * 1000 - 1)
+  }
+
+  if (from > to) return { from: defaultFrom, to: defaultTo }
+  return { from, to }
+}
 
 // ============================================================================
 // EXISTING QUERIES
@@ -36,11 +76,22 @@ export async function getRevenueByDay(days: number, businessId?: string) {
   }))
 }
 
-export async function getStaffPerformance(businessId?: string) {
+export async function getStaffPerformance(
+  businessId?: string,
+  range?: { from?: Date | null; to?: Date | null }
+) {
   // Staff links to business through location
   const locationFilter = businessId
     ? { primaryLocation: { businessId } }
     : {}
+
+  // A window is applied only when the caller explicitly passes a range. With no
+  // range this aggregates across all time, preserving the existing behaviour for
+  // callers like the dashboard. The reports page passes the picker's range.
+  const hasWindow = !!(range && (range.from || range.to))
+  const { from, to } = hasWindow ? resolveRange(range) : { from: undefined, to: undefined }
+  const periodFilter = hasWindow ? { createdAt: { gte: from, lte: to } } : {}
+  const apptPeriodFilter = hasWindow ? { startTime: { gte: from, lte: to } } : {}
 
   // 1. Fetch staff with minimal data (no nested relations)
   const staff = await prisma.staff.findMany({
@@ -56,26 +107,39 @@ export async function getStaffPerformance(businessId?: string) {
   if (staffIds.length === 0) return []
 
   // 2. Aggregate revenue and appointment counts per staff (DB-level filtering for completed)
-  const revenueByStaff = await prisma.appointmentService.groupBy({
-    by: ["staffId"],
-    where: {
-      staffId: { in: staffIds },
-      appointment: { status: "completed" },
-    },
-    _sum: { finalPrice: true },
-    _count: true,
-  })
-
   // 3. Aggregate average ratings per staff
-  const ratingsByStaff = await prisma.review.groupBy({
-    by: ["staffId"],
-    where: {
-      staffId: { in: staffIds },
-    },
-    _avg: { overallRating: true },
-  })
+  // 4. Aggregate REAL earned commission from the Commission ledger (populated by
+  //    checkout). Scoped to this business's staff + the selected window. If the
+  //    ledger has no rows for a staff member, their commission honestly reads $0
+  //    rather than a fabricated ~35% estimate.
+  const [revenueByStaff, ratingsByStaff, commissionByStaff] = await Promise.all([
+    prisma.appointmentService.groupBy({
+      by: ["staffId"],
+      where: {
+        staffId: { in: staffIds },
+        appointment: { status: "completed", ...apptPeriodFilter },
+      },
+      _sum: { finalPrice: true },
+      _count: true,
+    }),
+    prisma.review.groupBy({
+      by: ["staffId"],
+      where: {
+        staffId: { in: staffIds },
+      },
+      _avg: { overallRating: true },
+    }),
+    prisma.commission.groupBy({
+      by: ["staffId"],
+      where: {
+        staffId: { in: staffIds },
+        ...periodFilter,
+      },
+      _sum: { commissionAmount: true },
+    }),
+  ])
 
-  // 4. Build lookup maps for O(1) access
+  // 5. Build lookup maps for O(1) access
   const revenueMap = new Map(
     revenueByStaff.map((r) => [
       r.staffId,
@@ -87,18 +151,22 @@ export async function getStaffPerformance(businessId?: string) {
       .filter((r): r is typeof r & { staffId: string } => r.staffId !== null)
       .map((r) => [r.staffId, Number(r._avg.overallRating ?? 0)])
   )
+  const commissionMap = new Map(
+    commissionByStaff.map((c) => [c.staffId, Number(c._sum.commissionAmount ?? 0)])
+  )
 
-  // 5. Combine results
+  // 6. Combine results
   return staff.map((s) => {
     const stats = revenueMap.get(s.id) ?? { revenue: 0, count: 0 }
     const avgRating = ratingMap.get(s.id) ?? 0
+    const commission = commissionMap.get(s.id) ?? 0
 
     return {
       name: `${s.user.firstName} ${s.user.lastName}`,
       appointments: stats.count,
       revenue: Math.round(stats.revenue * 100) / 100,
       rating: Math.round(avgRating * 10) / 10,
-      commission: Math.round(stats.revenue * Number(s.commissionRate) / 100),
+      commission: Math.round(commission * 100) / 100,
     }
   })
 }
@@ -143,11 +211,17 @@ function getSourceColor(source: string): string {
 // REPORT SUMMARY
 // ============================================================================
 
-export async function getReportSummary(businessId?: string) {
-  const now = new Date()
-  const thisMonthStart = startOfMonth(now)
-  const lastMonthStart = startOfMonth(subMonths(now, 1))
-  const lastMonthEnd = startOfMonth(now)
+export async function getReportSummary(
+  businessId?: string,
+  range?: { from?: Date | null; to?: Date | null }
+) {
+  // Current window = the selected range (defaults to this month). The previous
+  // comparison window is the immediately-preceding span of equal length, so
+  // growth % stays meaningful for any picked range.
+  const { from: thisMonthStart, to: rangeEnd } = resolveRange(range)
+  const windowMs = rangeEnd.getTime() - thisMonthStart.getTime()
+  const lastMonthStart = new Date(thisMonthStart.getTime() - windowMs)
+  const lastMonthEnd = thisMonthStart
   const businessFilter = businessId ? { businessId } : {}
 
   // Run independent queries in parallel
@@ -163,7 +237,7 @@ export async function getReportSummary(businessId?: string) {
       where: {
         ...businessFilter,
         status: "completed",
-        createdAt: { gte: thisMonthStart },
+        createdAt: { gte: thisMonthStart, lte: rangeEnd },
       },
       _sum: { totalAmount: true },
     }),
@@ -176,13 +250,13 @@ export async function getReportSummary(businessId?: string) {
       _sum: { totalAmount: true },
     }),
     prisma.appointment.count({
-      where: { ...businessFilter, startTime: { gte: thisMonthStart } },
+      where: { ...businessFilter, startTime: { gte: thisMonthStart, lte: rangeEnd } },
     }),
     prisma.appointment.count({
       where: { ...businessFilter, startTime: { gte: lastMonthStart, lt: lastMonthEnd } },
     }),
     prisma.client.count({
-      where: { ...businessFilter, createdAt: { gte: thisMonthStart } },
+      where: { ...businessFilter, createdAt: { gte: thisMonthStart, lte: rangeEnd } },
     }),
     prisma.client.count({
       where: { ...businessFilter, createdAt: { gte: lastMonthStart, lt: lastMonthEnd } },
@@ -195,18 +269,18 @@ export async function getReportSummary(businessId?: string) {
   const averageTicket = currentAppointments > 0 ? totalRevenue / currentAppointments : 0
   const lastAvgTicket = lastAppointments > 0 ? lastRevenue / lastAppointments : 0
 
-  // Retention rate: returning clients / total clients with visits this month
+  // Retention rate: returning clients / total clients with visits in window
   const totalClientsThisMonth = await prisma.client.count({
     where: {
       ...businessFilter,
-      appointments: { some: { startTime: { gte: thisMonthStart } } },
+      appointments: { some: { startTime: { gte: thisMonthStart, lte: rangeEnd } } },
     },
   })
   const returningClientsThisMonth = await prisma.client.count({
     where: {
       ...businessFilter,
       totalVisits: { gt: 1 },
-      appointments: { some: { startTime: { gte: thisMonthStart } } },
+      appointments: { some: { startTime: { gte: thisMonthStart, lte: rangeEnd } } },
     },
   })
   const retentionRate = totalClientsThisMonth > 0
@@ -219,7 +293,7 @@ export async function getReportSummary(businessId?: string) {
       appointment: {
         ...businessFilter,
         status: "completed",
-        startTime: { gte: thisMonthStart },
+        startTime: { gte: thisMonthStart, lte: rangeEnd },
       },
     },
     _sum: { totalPrice: true },
@@ -385,17 +459,20 @@ export async function getRevenueByPaymentMethod(businessId?: string) {
 // APPOINTMENTS TAB QUERIES
 // ============================================================================
 
-export async function getAppointmentsByHour(businessId: string) {
+export async function getAppointmentsByHour(
+  businessId: string,
+  range?: { from?: Date | null; to?: Date | null }
+) {
   const hourLabels = [
     "8AM", "9AM", "10AM", "11AM", "12PM", "1PM",
     "2PM", "3PM", "4PM", "5PM", "6PM", "7PM",
   ]
 
-  const thisMonthStart = startOfMonth(new Date())
+  const { from, to } = resolveRange(range)
   const businessFilter = { businessId }
 
   const appointments = await prisma.appointment.findMany({
-    where: { ...businessFilter, startTime: { gte: thisMonthStart } },
+    where: { ...businessFilter, startTime: { gte: from, lte: to } },
     select: { startTime: true },
   })
 
@@ -417,21 +494,24 @@ export async function getAppointmentsByHour(businessId: string) {
   }))
 }
 
-export async function getAppointmentCompletionRate(businessId?: string) {
-  const thisMonthStart = startOfMonth(new Date())
+export async function getAppointmentCompletionRate(
+  businessId?: string,
+  range?: { from?: Date | null; to?: Date | null }
+) {
+  const { from, to } = resolveRange(range)
   const businessFilter = businessId ? { businessId } : {}
 
   // Single query: group by status to get all counts at once
   const [statusCounts, rescheduledCount] = await Promise.all([
     prisma.appointment.groupBy({
       by: ["status"],
-      where: { ...businessFilter, startTime: { gte: thisMonthStart } },
+      where: { ...businessFilter, startTime: { gte: from, lte: to } },
       _count: true,
     }),
     prisma.appointment.count({
       where: {
         ...businessFilter,
-        startTime: { gte: thisMonthStart },
+        startTime: { gte: from, lte: to },
         rescheduledTo: { not: null },
       },
     }),
@@ -626,40 +706,55 @@ export async function getClientAcquisitionSources(businessId?: string) {
 // INDIVIDUAL STAFF PERFORMANCE (for staff detail page)
 // ============================================================================
 
-export async function getStaffPerformanceByName(staffName: string, businessId?: string) {
-  const nameParts = staffName.split(" ")
-  const firstName = nameParts[0]
-  const lastName = nameParts.slice(1).join(" ")
+/**
+ * Per-staff performance for the staff detail page.
+ *
+ * SECURITY: scopes by BOTH the staff row id AND the caller's businessId (via the
+ * staff's primary location). `businessId` is REQUIRED — there is no name-based,
+ * cross-business fallback, so it is impossible to return a staff member from
+ * another business (closes the cross-tenant report leak). Returns null when the
+ * id does not belong to the caller's business.
+ *
+ * `commission` reads the REAL earned-commission ledger (Commission, populated by
+ * checkout) for the window — never a hardcoded percentage estimate. An empty
+ * ledger honestly yields $0.
+ */
+export async function getStaffPerformanceById(
+  staffId: string,
+  businessId: string,
+  range?: { from?: Date | null; to?: Date | null }
+) {
+  if (!staffId || !businessId) return null
 
-  const locationFilter = businessId
-    ? { primaryLocation: { businessId } }
-    : {}
+  // The staff detail page wants lifetime numbers, so when NO range is supplied we
+  // aggregate across all time (matching the prior behaviour). A window is applied
+  // only when the caller explicitly asks for one.
+  const hasWindow = !!(range && (range.from || range.to))
+  const { from, to } = hasWindow ? resolveRange(range) : { from: undefined, to: undefined }
+  const apptWindow = hasWindow ? { startTime: { gte: from, lte: to } } : {}
+  const commissionWindow = hasWindow ? { createdAt: { gte: from, lte: to } } : {}
 
-  // Fetch staff with only the fields we need
+  // The id AND the business must both match. findFirst with both predicates can
+  // never resolve a row whose primary location belongs to another business.
   const staff = await prisma.staff.findFirst({
     where: {
-      isActive: true,
-      ...locationFilter,
-      user: {
-        firstName: { equals: firstName, mode: "insensitive" },
-        lastName: { equals: lastName, mode: "insensitive" },
-      },
+      id: staffId,
+      primaryLocation: { businessId },
     },
     select: {
       id: true,
-      commissionRate: true,
       user: { select: { firstName: true, lastName: true } },
     },
   })
 
   if (!staff) return null
 
-  // Use aggregation queries instead of loading all related records
-  const [revenueAgg, ratingAgg] = await Promise.all([
+  // Aggregations (all scoped by the verified staff.id + optional window).
+  const [revenueAgg, ratingAgg, commissionAgg] = await Promise.all([
     prisma.appointmentService.aggregate({
       where: {
         staffId: staff.id,
-        appointment: { status: "completed" },
+        appointment: { status: "completed", ...apptWindow },
       },
       _sum: { finalPrice: true },
       _count: true,
@@ -668,16 +763,21 @@ export async function getStaffPerformanceByName(staffName: string, businessId?: 
       where: { staffId: staff.id },
       _avg: { overallRating: true },
     }),
+    prisma.commission.aggregate({
+      where: { staffId: staff.id, ...commissionWindow },
+      _sum: { commissionAmount: true },
+    }),
   ])
 
   const revenue = Number(revenueAgg._sum.finalPrice ?? 0)
   const avgRating = Number(ratingAgg._avg.overallRating ?? 0)
+  const commission = Number(commissionAgg._sum.commissionAmount ?? 0)
 
   return {
     name: `${staff.user.firstName} ${staff.user.lastName}`,
     appointments: revenueAgg._count,
     revenue: Math.round(revenue * 100) / 100,
     rating: Math.round(avgRating * 10) / 10,
-    commission: Math.round(revenue * Number(staff.commissionRate) / 100),
+    commission: Math.round(commission * 100) / 100,
   }
 }

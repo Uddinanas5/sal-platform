@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn, formatCurrency } from "@/lib/utils"
-import { toast } from "sonner"
 
 const presetAmounts = [25, 50, 100, 150, 200]
 
@@ -72,31 +71,10 @@ export function IssueGiftCardDialog({
     setSelectedPreset(null)
   }
 
-  const handleSave = () => {
-    if (!amount || amount <= 0) {
-      toast.error("Please select or enter a valid amount")
-      return
-    }
-
-    if (!purchaserId) {
-      toast.error("Please select a purchaser")
-      return
-    }
-
-    toast.success("Gift card issued", {
-      description: `${formatCurrency(amount)} gift card (${generatedCode}) has been created.`,
-    })
-
-    // Reset form
-    setSelectedPreset(100)
-    setCustomAmount("")
-    setIsCustom(false)
-    setPurchaserId("")
-    setRecipientName("")
-    setRecipientEmail("")
-    setExpiryDate("")
-    onOpenChange(false)
-  }
+  // Issuing a gift card needs to create a GiftCard record (and, when paid,
+  // collect money). That flow is not wired up yet, so the action is disabled and
+  // labeled "Coming soon" rather than showing a success toast for a card that was
+  // never actually created.
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,9 +83,13 @@ export function IssueGiftCardDialog({
           <DialogTitle className="flex items-center gap-2">
             <Gift className="w-5 h-5 text-sal-500" />
             Issue Gift Card
+            <span className="ml-1 inline-flex items-center rounded-full bg-cream-100 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              Coming soon
+            </span>
           </DialogTitle>
           <DialogDescription>
-            Create a new gift card for a client.
+            Issuing gift cards is coming soon. You can preview the issuance form
+            below — nothing is created yet.
           </DialogDescription>
         </DialogHeader>
 
@@ -224,9 +206,9 @@ export function IssueGiftCardDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            Close
           </Button>
-          <Button onClick={handleSave}>
+          <Button disabled title="Issuing gift cards is coming soon">
             <Gift className="w-4 h-4 mr-2" />
             Issue Gift Card
           </Button>

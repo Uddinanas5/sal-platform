@@ -80,6 +80,10 @@ export async function createAppointment(data: {
     // Transaction: conflict check + create must be atomic to prevent race conditions
     const appointment = await prisma.$transaction(async (tx) => {
       await lockStaffSchedule(tx, businessId, data.staffId)
+      // Enforce the SAME working-hours / break / approved-time-off guard the
+      // public booking path uses (GAP-001). Without this, internal/POS staff
+      // could book a client onto a barber's lunch, day off, or after close.
+      await assertSlotAllowed(tx, data.staffId, location.id, startTime, endTime)
       // Double-booking prevention: check for overlapping appointments for the same staff member
       const conflicting = await tx.appointmentService.findFirst({
         where: {
@@ -177,6 +181,12 @@ export async function createAppointment(data: {
     const msg = (e as Error).message
     if (msg === "CONFLICT") {
       return { success: false, error: "This time slot is already booked for the selected staff member" }
+    }
+    if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+      return { success: false, error: "Outside the staff member's working hours" }
+    }
+    if (msg === ERR_ON_APPROVED_TIME_OFF) {
+      return { success: false, error: "Staff member has approved time off during this slot" }
     }
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }

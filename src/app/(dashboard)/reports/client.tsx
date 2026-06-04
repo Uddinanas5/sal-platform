@@ -1,10 +1,22 @@
 "use client"
 
 import * as React from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
+import {
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  format as formatDate,
+} from "date-fns"
 import {
   DollarSign,
   Calendar,
+  CalendarDays,
   Receipt,
   UserPlus,
   TrendingUp,
@@ -22,9 +34,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DatePicker } from "@/components/ui/date-picker"
 import { toast } from "sonner"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { DateRangePicker } from "@/components/reports/date-range-picker"
 import { RevenueTab } from "@/components/reports/revenue-tab"
 import { AppointmentsTab } from "@/components/reports/appointments-tab"
 import { StaffTab } from "@/components/reports/staff-tab"
@@ -108,6 +121,148 @@ interface ReportsClientProps {
   clientAcquisitionSources: NameValueColor[]
 }
 
+// ---------------------------------------------------------------------------
+// Date-range control wired to URL search params (?from=YYYY-MM-DD&to=YYYY-MM-DD).
+// Replaces the old dead local-state picker — selecting a preset/custom range now
+// navigates, which re-runs the server queries against that window.
+// ---------------------------------------------------------------------------
+const dayKey = (d: Date) => formatDate(d, "yyyy-MM-dd")
+
+const presets = [
+  { label: "Today", value: "today" },
+  { label: "This Week", value: "this-week" },
+  { label: "This Month", value: "this-month" },
+  { label: "Last Month", value: "last-month" },
+  { label: "Custom", value: "custom" },
+] as const
+type PresetValue = (typeof presets)[number]["value"]
+
+function presetRange(value: Exclude<PresetValue, "custom">): { from: Date; to: Date } {
+  const now = new Date()
+  switch (value) {
+    case "today":
+      return { from: startOfDay(now), to: endOfDay(now) }
+    case "this-week":
+      return { from: startOfWeek(now), to: endOfWeek(now) }
+    case "last-month": {
+      const lm = subMonths(now, 1)
+      return { from: startOfMonth(lm), to: endOfMonth(lm) }
+    }
+    case "this-month":
+    default:
+      return { from: startOfMonth(now), to: endOfMonth(now) }
+  }
+}
+
+function ReportsDateRangePicker({ className }: { className?: string }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const fromParam = searchParams.get("from")
+  const toParam = searchParams.get("to")
+
+  // Derive the active preset from the URL so it survives reload/back/forward.
+  const activePreset: PresetValue = React.useMemo(() => {
+    if (!fromParam || !toParam) return "this-month"
+    for (const p of presets) {
+      if (p.value === "custom") continue
+      const r = presetRange(p.value)
+      if (dayKey(r.from) === fromParam && dayKey(r.to) === toParam) return p.value
+    }
+    return "custom"
+  }, [fromParam, toParam])
+
+  const [showCustom, setShowCustom] = React.useState(activePreset === "custom")
+  const [customStart, setCustomStart] = React.useState<Date | undefined>(
+    fromParam ? new Date(fromParam) : undefined
+  )
+  const [customEnd, setCustomEnd] = React.useState<Date | undefined>(
+    toParam ? new Date(toParam) : undefined
+  )
+
+  const pushRange = (from: Date, to: Date) => {
+    const params = new URLSearchParams(Array.from(searchParams.entries()))
+    params.set("from", dayKey(from))
+    params.set("to", dayKey(to))
+    router.push(`?${params.toString()}`)
+  }
+
+  const handlePresetClick = (value: PresetValue) => {
+    if (value === "custom") {
+      setShowCustom(true)
+      return
+    }
+    setShowCustom(false)
+    const r = presetRange(value)
+    pushRange(r.from, r.to)
+  }
+
+  const applyCustom = (start?: Date, end?: Date) => {
+    if (start && end && start <= end) pushRange(start, end)
+  }
+
+  return (
+    <div className={cn("flex items-center gap-2", className)}>
+      <div className="flex items-center rounded-lg border border-cream-200 bg-card p-1 overflow-x-auto">
+        {presets.map((preset) => (
+          <Button
+            key={preset.value}
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm font-medium rounded-md transition-all shrink-0",
+              activePreset === preset.value
+                ? "bg-sal-500 text-white hover:bg-sal-600 hover:text-white"
+                : "text-muted-foreground hover:text-foreground hover:bg-cream-100"
+            )}
+            onClick={() => handlePresetClick(preset.value)}
+          >
+            {preset.label}
+          </Button>
+        ))}
+      </div>
+
+      {showCustom && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-2 border-cream-200">
+              <CalendarDays className="h-4 w-4" />
+              {customStart && customEnd
+                ? `${customStart.toLocaleDateString()} - ${customEnd.toLocaleDateString()}`
+                : "Select range"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-4" align="end">
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">Start Date</p>
+                <DatePicker
+                  date={customStart}
+                  onSelect={(d) => {
+                    setCustomStart(d)
+                    applyCustom(d, customEnd)
+                  }}
+                  placeholder="Start date"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">End Date</p>
+                <DatePicker
+                  date={customEnd}
+                  onSelect={(d) => {
+                    setCustomEnd(d)
+                    applyCustom(customStart, d)
+                  }}
+                  placeholder="End date"
+                />
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  )
+}
+
 export function ReportsClient(props: ReportsClientProps) {
   const {
     summary,
@@ -159,11 +314,91 @@ export function ReportsClient(props: ReportsClientProps) {
   ]
 
   function handleExportCSV() {
-    exportToCsv(
-      `sal-report-${new Date().toISOString().split("T")[0]}`,
-      ["Metric", "Value", "Growth"],
-      summaryCards.map((c) => [c.title, c.value, `${c.growth}%`])
+    // Dump the FULL dataset behind every tab — not just the 4 summary cards.
+    // One CSV, multiple labelled sections. Rows are padded to the widest row so
+    // columns line up in spreadsheet apps.
+    const rows: string[][] = []
+    const section = (title: string) => {
+      if (rows.length) rows.push([])
+      rows.push([title])
+    }
+    const header = (...cols: string[]) => rows.push(cols)
+    const row = (...cells: (string | number)[]) => rows.push(cells.map((c) => String(c)))
+
+    // Summary
+    section("SUMMARY")
+    header("Metric", "Value", "Growth %")
+    row("Total Revenue", summary.totalRevenue, summary.revenueGrowth)
+    row("Appointments", summary.totalAppointments, summary.appointmentGrowth)
+    row("Avg Ticket", summary.averageTicket, summary.ticketGrowth)
+    row("New Clients", summary.newClients, summary.clientGrowth)
+    row("Retention Rate %", summary.retentionRate, "")
+    row("Service Revenue", summary.serviceRevenue, "")
+    row("Product Revenue", summary.productRevenue, "")
+
+    // Revenue tab
+    section("REVENUE BY MONTH")
+    header("Month", "Revenue")
+    revenueByMonth.forEach((m) => row(m.month, m.revenue))
+
+    section("REVENUE BY CATEGORY")
+    header("Category", "Revenue")
+    revenueByCategory.forEach((c) => row(c.name, c.value))
+
+    section("REVENUE BY PAYMENT METHOD")
+    header("Method", "Amount")
+    revenueByPaymentMethod.forEach((p) => row(p.name, p.value))
+
+    // Appointments tab
+    section("APPOINTMENTS BY HOUR")
+    header("Hour", "Count")
+    appointmentsByHour.forEach((a) => row(a.hour, a.count))
+
+    section("APPOINTMENT COMPLETION RATE")
+    header("Status", "Percent")
+    row("Completed", appointmentCompletionRate.completed)
+    row("Cancelled", appointmentCompletionRate.cancelled)
+    row("No-show", appointmentCompletionRate.noShow)
+    row("Rescheduled", appointmentCompletionRate.rescheduled)
+
+    section("BUSIEST TIMES (count by hour 8AM-7PM)")
+    header(
+      "Day",
+      "8AM", "9AM", "10AM", "11AM", "12PM", "1PM",
+      "2PM", "3PM", "4PM", "5PM", "6PM", "7PM"
     )
+    busiestTimesHeatmap.forEach((d) => row(d.day, ...d.hours))
+
+    // Staff tab — full table incl. real ledger commission
+    section("STAFF PERFORMANCE")
+    header("Name", "Appointments", "Revenue", "Rating", "Commission")
+    staffPerformance.forEach((s) =>
+      row(s.name, s.appointments, s.revenue, s.rating, s.commission)
+    )
+
+    // Clients tab
+    section("CLIENT RETENTION")
+    header("Month", "New Clients", "Returning")
+    clientRetention.forEach((c) => row(c.month, c.newClients, c.returning))
+
+    section("TOP CLIENTS")
+    header("Name", "Visits", "Spent", "Last Visit")
+    topClients.forEach((c) => row(c.name, c.visits, c.spent, c.lastVisit))
+
+    section("CLIENT ACQUISITION SOURCES")
+    header("Source", "Percent")
+    clientAcquisitionSources.forEach((c) => row(c.name, c.value))
+
+    // Normalize width so the columns align.
+    const width = rows.reduce((max, r) => Math.max(max, r.length), 0)
+    const headers = Array.from({ length: width }, (_, i) => (i === 0 ? "SAL Report" : ""))
+    const padded = rows.map((r) => {
+      const copy = [...r]
+      while (copy.length < width) copy.push("")
+      return copy
+    })
+
+    exportToCsv(`sal-report-${new Date().toISOString().split("T")[0]}`, headers, padded)
     toast.success("Report exported as CSV")
   }
 
@@ -190,7 +425,7 @@ export function ReportsClient(props: ReportsClientProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <DateRangePicker />
+            <ReportsDateRangePicker />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">

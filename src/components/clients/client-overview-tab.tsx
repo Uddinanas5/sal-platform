@@ -28,6 +28,7 @@ import {
 } from "@/lib/utils"
 import type { Client, Appointment } from "@/data/mock-data"
 import { toast } from "sonner"
+import { updateClient } from "@/lib/actions/clients"
 
 interface ClientOverviewTabProps {
   client: Client & { appointments?: Appointment[] }
@@ -37,27 +38,65 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
   const [notes, setNotes] = useState(client.notes || "")
   const [tags, setTags] = useState<string[]>(client.tags || [])
   const [newTag, setNewTag] = useState("")
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [savingTags, setSavingTags] = useState(false)
 
   const clientAppointments = (client.appointments || [])
     .map((a) => ({ ...a, startTime: new Date(a.startTime), endTime: new Date(a.endTime) }))
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
     .slice(0, 5)
 
-  const handleSaveNotes = () => {
-    toast.success("Notes saved successfully")
+  const handleSaveNotes = async () => {
+    setSavingNotes(true)
+    try {
+      const result = await updateClient(client.id, { notes })
+      if (result.success) {
+        toast.success("Notes saved successfully")
+      } else {
+        toast.error(result.error || "Failed to save notes")
+      }
+    } catch {
+      toast.error("Failed to save notes")
+    } finally {
+      setSavingNotes(false)
+    }
+  }
+
+  // Persist the full tags array to the client's existing `tags` field.
+  const persistTags = async (nextTags: string[], previousTags: string[]) => {
+    setSavingTags(true)
+    try {
+      const result = await updateClient(client.id, { tags: nextTags })
+      if (!result.success) {
+        setTags(previousTags)
+        toast.error(result.error || "Failed to update tags")
+      }
+    } catch {
+      setTags(previousTags)
+      toast.error("Failed to update tags")
+    } finally {
+      setSavingTags(false)
+    }
   }
 
   const handleAddTag = () => {
-    if (newTag.trim() && !tags.includes(newTag.trim())) {
-      setTags([...tags, newTag.trim()])
+    const trimmed = newTag.trim()
+    if (trimmed && !tags.includes(trimmed)) {
+      const previous = tags
+      const next = [...tags, trimmed]
+      setTags(next)
       setNewTag("")
-      toast.success(`Tag "${newTag.trim()}" added`)
+      toast.success(`Tag "${trimmed}" added`)
+      void persistTags(next, previous)
     }
   }
 
   const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag))
+    const previous = tags
+    const next = tags.filter((t) => t !== tag)
+    setTags(next)
     toast.success(`Tag "${tag}" removed`)
+    void persistTags(next, previous)
   }
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -151,7 +190,8 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
                 size="sm"
                 variant="outline"
                 className="flex-1"
-                onClick={() => toast.success("Top-up feature coming soon")}
+                disabled
+                title="Wallet top-up is coming soon"
               >
                 <Plus className="w-3.5 h-3.5 mr-1.5" />
                 Top Up
@@ -159,17 +199,15 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
               <Button
                 size="sm"
                 className="flex-1"
-                disabled={!client.walletBalance}
-                onClick={() => toast.success("Redeem feature coming soon")}
+                disabled
+                title="Wallet redemption is coming soon"
               >
                 Redeem
               </Button>
             </div>
-            {(client.walletBalance || 0) > 0 && (
-              <p className="text-xs text-muted-foreground/70">
-                Can be applied at checkout
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground/70">
+              Wallet top-up &amp; redemption are coming soon.
+            </p>
           </CardContent>
         </Card>
       </motion.div>
@@ -216,7 +254,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
                 onKeyDown={handleTagKeyDown}
                 className="flex-1"
               />
-              <Button size="sm" onClick={handleAddTag} disabled={!newTag.trim()}>
+              <Button size="sm" onClick={handleAddTag} disabled={!newTag.trim() || savingTags}>
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
@@ -305,9 +343,9 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
               rows={4}
             />
             <div className="flex justify-end">
-              <Button onClick={handleSaveNotes} size="sm">
+              <Button onClick={handleSaveNotes} size="sm" disabled={savingNotes}>
                 <Save className="w-4 h-4 mr-2" />
-                Save Notes
+                {savingNotes ? "Saving..." : "Save Notes"}
               </Button>
             </div>
           </CardContent>
