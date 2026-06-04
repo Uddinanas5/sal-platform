@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache"
 import { z, ZodError } from "zod"
 import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import { generateBookingReference } from "@/lib/booking-reference"
+import { isSlotAvailable } from "@/lib/availability"
 import {
   assertSlotAllowed,
   ERR_OUTSIDE_WORKING_HOURS,
@@ -97,6 +98,30 @@ export async function createPublicBooking(data: {
     })
     if (!performsService) {
       return { success: false, error: "This staff member doesn't offer the selected service" }
+    }
+
+    // 2d. Full slot re-validation — never trust the client's startTime beyond the
+    // subset assertSlotAllowed covers. The public UI only ever offers slots that
+    // /api/availability produced; enforce the same here: not in the past, service
+    // active + bookable online, and the slot is genuinely available (min lead
+    // time, business hours, staff breaks, schedule, existing appointments,
+    // canAcceptBookings). Done before client creation so invalid requests don't
+    // leave orphaned client rows.
+    const requestedStart = new Date(data.startTime)
+    if (requestedStart.getTime() <= Date.now()) {
+      return { success: false, error: "That time has already passed. Please pick another." }
+    }
+    if (!service.isActive || !service.isOnlineBooking) {
+      return { success: false, error: "This service isn't available for online booking." }
+    }
+    const slotOk = await isSlotAvailable({
+      staffId: data.staffId,
+      serviceId: data.serviceId,
+      startTime: requestedStart,
+      locationId: location.id,
+    })
+    if (!slotOk) {
+      return { success: false, error: "That time isn't available. Please choose another slot." }
     }
 
     // 3. Find or create client
