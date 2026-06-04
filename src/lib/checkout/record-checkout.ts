@@ -5,6 +5,7 @@ import {
   resolvePayrollPeriod,
   type ResolvedPayrollPeriod,
 } from "./resolve-payroll-period"
+import { POINTS_TO_DOLLARS, pointsEarnedFor } from "@/lib/loyalty"
 
 export class RecordCheckoutError extends Error {
   constructor(public code: "BAD_REQUEST" | "NOT_FOUND" | "INVARIANT_FAILED", message: string) {
@@ -21,6 +22,10 @@ export type RecordCheckoutInput = {
   tax: number
   tip: number
   method: "cash" | "card" | "online" | "gift_card" | "other"
+  // Loyalty points the client wants to spend as a DISCOUNT (not a tender). The
+  // dollar value is computed server-side from POINTS_TO_DOLLARS and capped at
+  // the remaining subtotal; caller-supplied money is never trusted.
+  redeemPoints?: number
 }
 
 export type RecordCheckoutResult = {
@@ -29,6 +34,9 @@ export type RecordCheckoutResult = {
   subtotal: number
   amount: number
   total: number
+  // Loyalty side-effects (server-authoritative): how many points were spent as
+  // a discount, the dollar value of that discount, and how many were earned.
+  loyalty: { redeemedPoints: number; redeemedAmount: number; earnedPoints: number }
 }
 
 function generatePaymentReference(): string {
@@ -150,8 +158,6 @@ export async function recordCheckout(
   subtotal = Math.round(subtotal * 100) / 100
 
   if (data.discount > subtotal) throw new RecordCheckoutError("BAD_REQUEST", "Discount cannot exceed subtotal")
-  const amount = Math.round((subtotal - data.discount) * 100) / 100
-  const total = Math.round((amount + data.tax + data.tip) * 100) / 100
 
   let resolvedClientId: string | undefined = data.clientId
   let appointmentServices: {
@@ -186,13 +192,50 @@ export async function recordCheckout(
     appointmentServices = appt.services
   }
 
+  // Resolve the client (scoped to this business — multi-tenant isolation) and
+  // snapshot its loyalty balance so redemption can be validated server-side.
+  let clientLoyaltyPoints = 0
   if (resolvedClientId) {
     const client = await tx.client.findFirst({
       where: { id: resolvedClientId, businessId },
-      select: { id: true },
+      select: { id: true, loyaltyPoints: true },
     })
     if (!client) throw new RecordCheckoutError("NOT_FOUND", "Client not found")
+    clientLoyaltyPoints = client.loyaltyPoints
   }
+
+  // --- Loyalty REDEMPTION (a discount, NOT a tender) -----------------------
+  // Validate server-side against the snapshotted balance, convert points to
+  // dollars at the defined rate, and cap so manualDiscount + redeemDiscount can
+  // never exceed the subtotal. Caller-supplied money is ignored entirely.
+  const requestedRedeem = Math.floor(Math.max(0, data.redeemPoints ?? 0))
+  let redeemedPoints = 0
+  let redeemedAmount = 0
+  if (requestedRedeem > 0) {
+    if (!resolvedClientId) {
+      throw new RecordCheckoutError("BAD_REQUEST", "Cannot redeem loyalty points without a client")
+    }
+    if (requestedRedeem > clientLoyaltyPoints) {
+      throw new RecordCheckoutError("BAD_REQUEST", "Insufficient loyalty points")
+    }
+    const remainingAfterManualDiscount = Math.round((subtotal - data.discount) * 100) / 100
+    // Most points that could be spent given the dollars still left to discount.
+    // (subtotal*100) / (POINTS_TO_DOLLARS*100) keeps the division in integer
+    // cents so floating-point can't shave the cap by a point.
+    const maxRedeemableByDollars = Math.floor(
+      Math.round(remainingAfterManualDiscount * 100) / Math.round(POINTS_TO_DOLLARS * 100),
+    )
+    redeemedPoints = Math.min(requestedRedeem, maxRedeemableByDollars)
+    redeemedAmount = Math.round(redeemedPoints * POINTS_TO_DOLLARS * 100) / 100
+    // Floating-point guard: never let the redeem dollars push past what remains.
+    if (redeemedAmount > remainingAfterManualDiscount) {
+      redeemedAmount = remainingAfterManualDiscount
+    }
+  }
+
+  const totalDiscount = Math.round((data.discount + redeemedAmount) * 100) / 100
+  const amount = Math.round((subtotal - totalDiscount) * 100) / 100
+  const total = Math.round((amount + data.tax + data.tip) * 100) / 100
 
   // Per-line commission resolution (AC 12): StaffService override → Staff default.
   // Staff.commissionRate is non-null (default 0); zero is a legitimate value
@@ -250,16 +293,51 @@ export async function recordCheckout(
     })
   }
 
+  // --- Loyalty EARN + ledger (same tx, idempotent within this checkout) -----
+  // Earn 1 pt per $1 actually paid (post-discount, pre-tax/tip). The Client
+  // balance moves by the NET of this checkout (earned − redeemed) in a single
+  // update, and every movement is recorded in the LoyaltyTransaction ledger so
+  // the balance is always reconstructable. Skipped entirely when no client.
+  const earnedPoints = pointsEarnedFor(amount)
   if (resolvedClientId) {
+    const netPointsDelta = earnedPoints - redeemedPoints
     await tx.client.update({
       where: { id: resolvedClientId, businessId },
       data: {
         totalSpent: { increment: amount },
         totalVisits: { increment: 1 },
         lastVisitAt: new Date(),
-        loyaltyPoints: { increment: Math.floor(amount) },
+        loyaltyPoints: { increment: netPointsDelta },
       },
     })
+
+    if (redeemedPoints > 0) {
+      await tx.loyaltyTransaction.create({
+        data: {
+          businessId,
+          clientId: resolvedClientId,
+          points: -redeemedPoints,
+          type: "redeem",
+          reason: `Redeemed ${redeemedPoints} pts ($${redeemedAmount.toFixed(2)}) at checkout`,
+          paymentId: payment.id,
+          appointmentId: data.appointmentId ?? null,
+        },
+      })
+    }
+
+    if (earnedPoints > 0) {
+      await tx.loyaltyTransaction.create({
+        data: {
+          businessId,
+          clientId: resolvedClientId,
+          points: earnedPoints,
+          type: "earn",
+          reason: `Earned ${earnedPoints} pts on $${amount.toFixed(2)} purchase`,
+          paymentId: payment.id,
+          appointmentId: data.appointmentId ?? null,
+        },
+      })
+    }
   }
 
   for (const item of data.items) {
@@ -320,5 +398,6 @@ export async function recordCheckout(
     subtotal,
     amount,
     total,
+    loyalty: { redeemedPoints, redeemedAmount, earnedPoints },
   }
 }

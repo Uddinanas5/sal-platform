@@ -19,7 +19,9 @@ import { ClientSelector } from "./client-selector"
 import { DiscountSection } from "./discount-section"
 import { CheckoutSummary } from "./checkout-summary"
 import { PaymentDialog } from "./payment-dialog"
+import { LoyaltyRedeemSection } from "./loyalty-redeem-section"
 import { cn, formatCurrency, TAX_RATE } from "@/lib/utils"
+import { dollarsForPoints } from "@/lib/loyalty"
 
 interface CartItem {
   id: string
@@ -49,6 +51,7 @@ interface CartPanelProps {
   discountType: "percentage" | "fixed"
   tip: number
   paymentMethod: "cash" | "card" | "gift_card" | null
+  redeemPoints: number
   onUpdateQuantity: (id: string, quantity: number) => void
   onRemoveItem: (id: string) => void
   onSetClient: (clientId: string, clientName: string) => void
@@ -57,6 +60,7 @@ interface CartPanelProps {
   onClearDiscount: () => void
   onSetTip: (amount: number) => void
   onSetPaymentMethod: (method: "cash" | "card" | "gift_card") => void
+  onSetRedeemPoints: (points: number) => void
   onClearCart: () => void
   businessName?: string
   businessAddress?: string
@@ -74,6 +78,7 @@ export function CartPanel({
   discountType,
   tip,
   paymentMethod,
+  redeemPoints,
   onUpdateQuantity,
   onRemoveItem,
   onSetClient,
@@ -82,6 +87,7 @@ export function CartPanel({
   onClearDiscount,
   onSetTip,
   onSetPaymentMethod,
+  onSetRedeemPoints,
   onClearCart,
   businessName,
   businessAddress,
@@ -105,7 +111,16 @@ export function CartPanel({
     return discount
   }, [subtotal, discount, discountType])
 
-  const afterDiscount = Math.max(0, subtotal - discountAmount)
+  // Loyalty redemption applies as an ADDITIONAL discount (not a tender). This is
+  // a PREVIEW only — recordCheckout independently recomputes + caps the dollar
+  // value server-side, so the displayed total always matches the server result.
+  const subtotalAfterManualDiscount = Math.max(0, subtotal - discountAmount)
+  const loyaltyDiscount = useMemo(
+    () => Math.min(dollarsForPoints(redeemPoints), subtotalAfterManualDiscount),
+    [redeemPoints, subtotalAfterManualDiscount]
+  )
+
+  const afterDiscount = Math.max(0, subtotal - discountAmount - loyaltyDiscount)
   const tax = afterDiscount * TAX_RATE
   const total = afterDiscount + tax + tip
 
@@ -193,6 +208,14 @@ export function CartPanel({
                 subtotal={subtotal}
                 onSetDiscount={onSetDiscount}
                 onClearDiscount={onClearDiscount}
+              />
+
+              {/* Loyalty redemption (discount, not a tender — cash-only path) */}
+              <LoyaltyRedeemSection
+                clientId={clientId}
+                subtotal={subtotalAfterManualDiscount}
+                redeemPoints={redeemPoints}
+                onSetRedeemPoints={onSetRedeemPoints}
               />
 
               {/* Tip section */}
@@ -309,6 +332,8 @@ export function CartPanel({
                 tax={tax}
                 tip={tip}
                 total={total}
+                loyaltyDiscount={loyaltyDiscount}
+                loyaltyPoints={redeemPoints}
               />
 
               {/* Payment buttons */}
@@ -414,6 +439,8 @@ export function CartPanel({
         discount={discountAmount}
         discountType={discountType}
         discountValue={discountValue}
+        loyaltyDiscount={loyaltyDiscount}
+        redeemPoints={redeemPoints}
         tax={tax}
         tip={tip}
         total={total}

@@ -17,18 +17,20 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils"
-import { type Client } from "@/data/mock-data"
 
-interface ClientLoyaltyTabProps {
-  client: Client
+// A single real loyalty-ledger entry (read-only), fetched server-side from
+// LoyaltyTransaction. Earn rows have positive points, redeem rows negative.
+export type LoyaltyTxItem = {
+  id: string
+  points: number
+  type: "earn" | "redeem" | "adjust"
+  reason: string | null
+  createdAt: Date | string
 }
 
-interface PointsHistoryEntry {
-  id: string
-  date: Date
-  description: string
-  points: number
-  type: "earned" | "redeemed" | "bonus"
+interface ClientLoyaltyTabProps {
+  loyaltyPoints: number
+  transactions: LoyaltyTxItem[]
 }
 
 interface Reward {
@@ -76,17 +78,17 @@ function getTierProgress(points: number): number {
   return Math.min(Math.round((progress / range) * 100), 100)
 }
 
-export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
-  const points = client.loyaltyPoints || 0
+export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyTabProps) {
+  const points = loyaltyPoints || 0
   const currentTier = getCurrentTier(points)
   const nextTier = getNextTier(points)
   const progress = getTierProgress(points)
-  const history: PointsHistoryEntry[] = []
 
-  // Redemption is intentionally disabled: spending points would require deducting
-  // from the client's balance and recording a redemption transaction, which has no
-  // backing model/action yet. Showing a success toast without actually debiting
-  // points would lie, so the rewards catalog is read-only and labeled "Coming soon".
+  // Real, persisted ledger from LoyaltyTransaction (read-only here). The
+  // earn/redeem WRITE path is owned by the loyalty workstream — this tab only
+  // DISPLAYS the live balance + history. Redemption is a checkout-time discount,
+  // not something initiated from this catalog, so the rewards list stays a
+  // read-only preview.
 
   return (
     <div className="space-y-6">
@@ -216,46 +218,63 @@ export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {history.length > 0 ? (
+              {transactions.length > 0 ? (
                 <div className="space-y-3">
-                  {history.map((entry, i) => (
-                    <div key={entry.id}>
-                      {i > 0 && <Separator className="mb-3" />}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-2 rounded-lg ${
-                              entry.type === "earned"
-                                ? "bg-emerald-500/10"
-                                : entry.type === "redeemed"
-                                ? "bg-red-500/10"
-                                : "bg-amber-500/10"
+                  {transactions.map((entry, i) => {
+                    const isEarn = entry.type === "earn"
+                    const isRedeem = entry.type === "redeem"
+                    const label =
+                      entry.reason ||
+                      (isEarn
+                        ? "Points earned"
+                        : isRedeem
+                        ? "Points redeemed"
+                        : "Manual adjustment")
+                    return (
+                      <div key={entry.id}>
+                        {i > 0 && <Separator className="mb-3" />}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`p-2 rounded-lg ${
+                                isEarn
+                                  ? "bg-emerald-500/10"
+                                  : isRedeem
+                                  ? "bg-red-500/10"
+                                  : "bg-amber-500/10"
+                              }`}
+                            >
+                              {isEarn ? (
+                                <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+                              ) : isRedeem ? (
+                                <ArrowDownRight className="w-4 h-4 text-red-600" />
+                              ) : (
+                                <Gift className="w-4 h-4 text-amber-600" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{label}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDate(new Date(entry.createdAt))}
+                              </p>
+                            </div>
+                          </div>
+                          <span
+                            className={`text-sm font-semibold ${
+                              entry.points > 0
+                                ? "text-emerald-600"
+                                : entry.points < 0
+                                ? "text-red-600"
+                                : "text-muted-foreground"
                             }`}
                           >
-                            {entry.type === "earned" ? (
-                              <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-                            ) : entry.type === "redeemed" ? (
-                              <ArrowDownRight className="w-4 h-4 text-red-600" />
-                            ) : (
-                              <Gift className="w-4 h-4 text-amber-600" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">{entry.description}</p>
-                            <p className="text-xs text-muted-foreground">{formatDate(entry.date)}</p>
-                          </div>
+                            {entry.points > 0 ? "+" : ""}
+                            {entry.points}
+                          </span>
                         </div>
-                        <span
-                          className={`text-sm font-semibold ${
-                            entry.points > 0 ? "text-emerald-600" : "text-red-600"
-                          }`}
-                        >
-                          {entry.points > 0 ? "+" : ""}
-                          {entry.points}
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground/70 text-center py-4">
@@ -277,15 +296,12 @@ export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
               <CardTitle className="text-lg font-heading flex items-center gap-2">
                 <Gift className="w-4 h-4" />
                 Available Rewards
-                <Badge variant="secondary" className="text-xs ml-1">
-                  Coming soon
-                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground/70 mb-3">
-                Point redemption is coming soon. This is a preview of the rewards
-                clients will be able to redeem.
+                Redeem points as a discount during checkout. This catalog shows
+                what this client currently qualifies for.
               </p>
               <div className="space-y-3">
                 {rewards.map((reward) => {
@@ -312,9 +328,9 @@ export function ClientLoyaltyTab({ client }: ClientLoyaltyTabProps) {
                           variant="outline"
                           className="h-7 text-xs"
                           disabled
-                          title="Point redemption is coming soon"
+                          title="Redeem at checkout — points apply as a discount"
                         >
-                          Redeem
+                          At checkout
                         </Button>
                       </div>
                     </div>

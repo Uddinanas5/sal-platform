@@ -33,6 +33,10 @@ const processPaymentSchema = z.object({
   // record a "paid" sale that was never collected (defense in depth, not just
   // the client-side disable).
   method: z.enum(["cash", "online", "other"]),
+  // Loyalty points the client elects to spend as a DISCOUNT. The actual dollar
+  // value + cap is computed server-side in recordCheckout; this is only the
+  // requested point count.
+  redeemPoints: z.number().int().nonnegative().optional(),
 })
 
 export async function processPayment(data: {
@@ -45,7 +49,15 @@ export async function processPayment(data: {
   // Type stays broad so existing callers compile; the zod schema above REJECTS
   // "card"/"gift_card" at runtime (no real charge behind them in beta).
   method: "cash" | "card" | "online" | "gift_card" | "other"
-}): Promise<ActionResult<{ receiptId: string; paymentReference: string; subtotal: number; amount: number; total: number }>> {
+  redeemPoints?: number
+}): Promise<ActionResult<{
+  receiptId: string
+  paymentReference: string
+  subtotal: number
+  amount: number
+  total: number
+  loyalty: { redeemedPoints: number; redeemedAmount: number; earnedPoints: number }
+}>> {
   const parsed = processPaymentSchema.safeParse(data)
   if (!parsed.success) {
     return { success: false, error: "Invalid input: " + (parsed.error.issues[0]?.message ?? "") }
@@ -92,6 +104,7 @@ export async function processPayment(data: {
         tax: input.tax,
         tip: input.tip,
         method: input.method,
+        redeemPoints: input.redeemPoints,
       }),
     )
 
@@ -106,6 +119,7 @@ export async function processPayment(data: {
         subtotal: result.subtotal,
         amount: result.amount,
         total: result.total,
+        loyalty: result.loyalty,
       },
     }
   } catch (e) {

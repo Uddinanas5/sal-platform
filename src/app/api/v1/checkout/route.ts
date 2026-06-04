@@ -22,6 +22,8 @@ const processPaymentSchema = z.object({
   // "card"/"gift_card" rejected server-side — no real charge/redemption behind
   // them in beta (matches the dashboard action; defense in depth).
   method: z.enum(["cash", "online", "other"]),
+  // Loyalty points to spend as a DISCOUNT (server validates + caps the value).
+  redeemPoints: z.number().int().nonnegative().optional(),
 })
 
 export async function POST(req: Request) {
@@ -74,11 +76,18 @@ export async function POST(req: Request) {
         tax: data.tax,
         tip: data.tip,
         method: data.method,
+        redeemPoints: data.redeemPoints,
       }),
     )
 
     return apiSuccess(
-      { receiptId: result.payment.id, subtotal: result.subtotal, amount: result.amount, total: result.total },
+      {
+        receiptId: result.payment.id,
+        subtotal: result.subtotal,
+        amount: result.amount,
+        total: result.total,
+        loyalty: result.loyalty,
+      },
       201,
     )
   } catch (e) {

@@ -57,7 +57,9 @@ function fakeTx(o: TxOptions = {}) {
       update: vi.fn(async () => ({})),
     },
     client: {
-      findFirst: vi.fn(async () => ({ id: CLIENT })),
+      // loyaltyPoints is read for redeem validation; 0 here since these tests
+      // don't redeem (earn path still fires and writes a loyaltyTransaction).
+      findFirst: vi.fn(async () => ({ id: CLIENT, loyaltyPoints: 0 })),
       update: vi.fn(async () => ({})),
     },
     payment: {
@@ -66,6 +68,7 @@ function fakeTx(o: TxOptions = {}) {
     productInventory: { findFirst: vi.fn(async () => null), update: vi.fn() },
     staffService: { findMany: vi.fn(async () => staffServices) },
     commission: { create: vi.fn(async () => ({ id: "com_1" })) },
+    loyaltyTransaction: { create: vi.fn(async () => ({ id: "loy_1" })) },
     business: { findUnique: vi.fn(async () => ({ timezone: "UTC" })) },
     payrollPeriod: {
       // Mimic the resolver's findFirst(lte/gte) against the in-memory rows.

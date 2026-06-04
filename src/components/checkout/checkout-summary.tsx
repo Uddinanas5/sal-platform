@@ -12,6 +12,10 @@ interface CheckoutSummaryProps {
   tax: number
   tip: number
   total: number
+  // Optional loyalty-redemption discount line (separate from the manual
+  // discount so the operator can see exactly what points covered).
+  loyaltyDiscount?: number
+  loyaltyPoints?: number
 }
 
 export function CheckoutSummary({
@@ -22,6 +26,8 @@ export function CheckoutSummary({
   tax,
   tip,
   total,
+  loyaltyDiscount = 0,
+  loyaltyPoints = 0,
 }: CheckoutSummaryProps) {
   return (
     <div className="space-y-2 text-sm">
@@ -39,6 +45,13 @@ export function CheckoutSummary({
               : ""}
           </span>
           <span>-{formatCurrency(discount)}</span>
+        </div>
+      )}
+
+      {loyaltyDiscount > 0 && (
+        <div className="flex items-center justify-between text-sal-600">
+          <span>Loyalty{loyaltyPoints > 0 ? ` (${loyaltyPoints.toLocaleString()} pts)` : ""}</span>
+          <span>-{formatCurrency(loyaltyDiscount)}</span>
         </div>
       )}
 
