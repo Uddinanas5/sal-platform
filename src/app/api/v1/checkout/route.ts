@@ -22,7 +22,9 @@ const processPaymentSchema = z.object({
   discount: z.number().nonnegative().default(0),
   tax: z.number().nonnegative().default(0),
   tip: z.number().nonnegative().default(0),
-  method: z.enum(["cash", "card", "online", "gift_card", "other"]),
+  // "card"/"gift_card" rejected server-side — no real charge/redemption behind
+  // them in beta (matches the dashboard action; defense in depth).
+  method: z.enum(["cash", "online", "other"]),
 })
 
 export async function POST(req: Request) {
