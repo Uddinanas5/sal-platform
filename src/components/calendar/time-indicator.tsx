@@ -8,15 +8,18 @@ interface TimeIndicatorProps {
 }
 
 export function TimeIndicator({ zoom, startHour = 8 }: TimeIndicatorProps) {
-  const [now, setNow] = useState(new Date())
+  const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
+    setNow(new Date())
     const interval = setInterval(() => {
       setNow(new Date())
     }, 60_000) // Update every minute
 
     return () => clearInterval(interval)
   }, [])
+
+  if (!now) return null
 
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
   const startMinutes = startHour * 60

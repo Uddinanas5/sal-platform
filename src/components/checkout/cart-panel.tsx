@@ -26,7 +26,8 @@ type SplitPaymentMethod = "cash" | "card" | "gift_card"
 
 interface CartItem {
   id: string
-  type: "service" | "product"
+  catalogId: string
+  type: "service" | "product" | "custom"
   name: string
   price: number
   quantity: number

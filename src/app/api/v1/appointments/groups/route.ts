@@ -1,5 +1,8 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { generateBookingReference } from "@/lib/booking-reference"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { trackedTransaction } from "@/lib/db/transaction-side-effects"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -25,9 +28,10 @@ export async function POST(req: Request) {
   const { serviceId, staffId, startTime: startTimeStr, maxParticipants, clientIds, notes } = parsed.data
 
   if (clientIds.length > maxParticipants) return ERRORS.BAD_REQUEST("Too many participants")
+  if (new Set(clientIds).size !== clientIds.length) return ERRORS.BAD_REQUEST("Duplicate participants are not allowed")
 
   const service = await prisma.service.findFirst({
-    where: { id: serviceId, businessId: ctx.businessId },
+    where: { id: serviceId, businessId: ctx.businessId, deletedAt: null },
   })
   if (!service) return ERRORS.NOT_FOUND("Service")
 
@@ -56,12 +60,11 @@ export async function POST(req: Request) {
   const price = Number(service.price)
   const taxRate = service.isTaxable && service.taxRate ? Number(service.taxRate) / 100 : 0
   const tax = Math.round(price * taxRate * 100) / 100
-  const timestamp = Date.now().toString(36)
-  const random = Math.random().toString(36).substring(2, 6)
-  const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
 
   try {
-    const appointmentId = await prisma.$transaction(async (tx) => {
+    const appointmentId = await trackedTransaction(prisma, async (tx) => {
+      await lockStaffSchedule(tx, ctx.businessId, staffId)
+
       // Tenant-scoped conflict check on the staff slot. Without this a group
       // booking can silently double-book the stylist (and on a 12-person group
       // that's a much louder calendar collision than a single booking).
@@ -83,7 +86,7 @@ export async function POST(req: Request) {
           businessId: ctx.businessId,
           locationId: location.id,
           clientId: clientIds[0],
-          bookingReference: bookingRef,
+          bookingReference: generateBookingReference(),
           status: "confirmed",
           source: "pos",
           startTime,

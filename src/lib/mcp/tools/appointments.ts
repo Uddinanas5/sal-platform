@@ -1,6 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { prisma } from "@/lib/prisma"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { generateBookingReference } from "@/lib/booking-reference"
+import { hasRole } from "@/lib/permissions"
 import { z } from "zod"
 
 function ok(data: unknown) {
@@ -9,12 +13,6 @@ function ok(data: unknown) {
 
 function err(message: string) {
   return { content: [{ type: "text" as const, text: JSON.stringify({ error: message }) }], isError: true as const }
-}
-
-function genBookingRef(): string {
-  const ts = Date.now().toString(36)
-  const rand = Math.random().toString(36).substring(2, 6)
-  return `SAL-${ts}-${rand}`.toUpperCase()
 }
 
 export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
@@ -42,11 +40,18 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       }
 
       // Staff filter via services relation
-      if (staffId) {
+      if (ctx.role === "staff") {
+        const staffProfile = await prisma.staff.findFirst({
+          where: {
+            userId: ctx.userId,
+            primaryLocation: { businessId: ctx.businessId },
+            isActive: true,
+            deletedAt: null,
+          },
+        })
+        where.services = { some: { staffId: staffProfile?.id ?? "__none__" } }
+      } else if (staffId) {
         where.services = { some: { staffId } }
-      } else if (ctx.role === "staff") {
-        const staffProfile = await prisma.staff.findFirst({ where: { userId: ctx.userId, isActive: true } })
-        if (staffProfile) where.services = { some: { staffId: staffProfile.id } }
       }
 
       const [appointments, total] = await Promise.all([
@@ -82,11 +87,18 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       notes: z.string().optional().describe("Appointment notes"),
     },
     async ({ clientId, serviceId, staffId, startTime, notes }) => {
-      const [service, location] = await Promise.all([
-        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId } }),
+      const [service, client, staff, location] = await Promise.all([
+        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.client.findFirst({ where: { id: clientId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.staff.findFirst({
+          where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
+        }),
         prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
       ])
       if (!service) return err("Service not found")
+      if (!client) return err("Client not found")
+      if (!staff) return err("Staff not found")
+      if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       if (!location) return err("Business not configured")
 
       const start = new Date(startTime)
@@ -97,6 +109,8 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
 
       try {
         const appointment = await prisma.$transaction(async (tx) => {
+          await lockStaffSchedule(tx, ctx.businessId, staffId)
+
           const conflict = await tx.appointmentService.findFirst({
             where: {
               staffId,
@@ -112,7 +126,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
               businessId: ctx.businessId,
               locationId: location.id,
               clientId,
-              bookingReference: genBookingRef(),
+              bookingReference: generateBookingReference(),
               status: "confirmed",
               source: "pos",
               startTime: start,
@@ -159,8 +173,9 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ id, status }) => {
       const appointment = await prisma.appointment.findFirst({ where: { id, businessId: ctx.businessId } })
       if (!appointment) return err("Appointment not found")
+      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
       const updated = await prisma.appointment.update({
-        where: { id },
+        where: { id, businessId: ctx.businessId },
         data: {
           status,
           ...(status === "completed" ? { completedAt: new Date() } : {}),
@@ -187,29 +202,62 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         include: { services: true },
       })
       if (!appointment) return err("Appointment not found")
+      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
 
       const durationMinutes = appointment.services[0]?.durationMinutes ?? appointment.totalDuration
       const newStart = new Date(newStartTime)
       const newEnd = new Date(newStart.getTime() + durationMinutes * 60000)
+      const effectiveStaffId = newStaffId ?? appointment.services[0]?.staffId
 
-      const updated = await prisma.appointment.update({
-        where: { id },
-        data: { startTime: newStart, endTime: newEnd },
-      })
-
-      // Update AppointmentService times and staff if needed
-      if (appointment.services[0]) {
-        await prisma.appointmentService.update({
-          where: { id: appointment.services[0].id },
-          data: {
-            startTime: newStart,
-            endTime: newEnd,
-            ...(newStaffId ? { staffId: newStaffId } : {}),
-          },
+      if (newStaffId) {
+        const staff = await prisma.staff.findFirst({
+          where: { id: newStaffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
         })
+        if (!staff) return err("Staff not found")
+        if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       }
 
-      return ok(updated)
+      try {
+        const updated = await prisma.$transaction(async (tx) => {
+          if (effectiveStaffId) {
+            await lockStaffSchedule(tx, ctx.businessId, effectiveStaffId)
+
+            const conflict = await tx.appointmentService.findFirst({
+              where: {
+                staffId: effectiveStaffId,
+                appointmentId: { not: id },
+                appointment: { status: { notIn: ["cancelled", "no_show"] } },
+                startTime: { lt: newEnd },
+                endTime: { gt: newStart },
+              },
+            })
+            if (conflict) throw new Error("CONFLICT")
+          }
+
+          const appt = await tx.appointment.update({
+            where: { id, businessId: ctx.businessId },
+            data: { startTime: newStart, endTime: newEnd },
+          })
+
+          if (appointment.services[0]) {
+            await tx.appointmentService.update({
+              where: { id: appointment.services[0].id },
+              data: {
+                startTime: newStart,
+                endTime: newEnd,
+                ...(newStaffId ? { staffId: newStaffId } : {}),
+              },
+            })
+          }
+
+          return appt
+        })
+
+        return ok(updated)
+      } catch (e) {
+        if ((e as Error).message === "CONFLICT") return err("Time slot already booked for this staff member")
+        throw e
+      }
     }
   )
 
@@ -223,8 +271,9 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ id, reason }) => {
       const appointment = await prisma.appointment.findFirst({ where: { id, businessId: ctx.businessId } })
       if (!appointment) return err("Appointment not found")
+      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
       const updated = await prisma.appointment.update({
-        where: { id },
+        where: { id, businessId: ctx.businessId },
         data: {
           status: "cancelled",
           cancellationReason: reason,
@@ -249,11 +298,18 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       notes: z.string().optional().describe("Notes for all appointments in the series"),
     },
     async ({ clientId, serviceId, staffId, startTime, recurrenceRule, recurrenceEndDate, notes }) => {
-      const [service, location] = await Promise.all([
-        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId } }),
+      const [service, client, staff, location] = await Promise.all([
+        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.client.findFirst({ where: { id: clientId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.staff.findFirst({
+          where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
+        }),
         prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
       ])
       if (!service) return err("Service not found")
+      if (!client) return err("Client not found")
+      if (!staff) return err("Staff not found")
+      if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       if (!location) return err("Business not configured")
 
       const seriesId = crypto.randomUUID()
@@ -266,48 +322,67 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       let current = new Date(start)
       let count = 0
 
-      while (current <= endDate && count < 52) {
-        const occurrenceStart = new Date(current)
-        const occurrenceEnd = new Date(current.getTime() + service.durationMinutes * 60000)
+      try {
+        await prisma.$transaction(async (tx) => {
+          await lockStaffSchedule(tx, ctx.businessId, staffId)
 
-        const appt = await prisma.appointment.create({
-          data: {
-            businessId: ctx.businessId,
-            locationId: location.id,
-            clientId,
-            bookingReference: genBookingRef(),
-            status: "confirmed",
-            source: "pos",
-            startTime: occurrenceStart,
-            endTime: occurrenceEnd,
-            totalDuration: service.durationMinutes,
-            subtotal: price,
-            taxAmount: 0,
-            totalAmount: price,
-            notes,
-            seriesId,
-            recurrenceRule,
-            recurrenceEndDate: endDate,
-          },
+          while (current <= endDate && count < 52) {
+            const occurrenceStart = new Date(current)
+            const occurrenceEnd = new Date(current.getTime() + service.durationMinutes * 60000)
+
+            const conflict = await tx.appointmentService.findFirst({
+              where: {
+                staffId,
+                appointment: { status: { notIn: ["cancelled", "no_show"] } },
+                startTime: { lt: occurrenceEnd },
+                endTime: { gt: occurrenceStart },
+              },
+            })
+            if (conflict) throw new Error("CONFLICT")
+
+            const appt = await tx.appointment.create({
+              data: {
+                businessId: ctx.businessId,
+                locationId: location.id,
+                clientId,
+                bookingReference: generateBookingReference(),
+                status: "confirmed",
+                source: "pos",
+                startTime: occurrenceStart,
+                endTime: occurrenceEnd,
+                totalDuration: service.durationMinutes,
+                subtotal: price,
+                taxAmount: 0,
+                totalAmount: price,
+                notes,
+                seriesId,
+                recurrenceRule,
+                recurrenceEndDate: endDate,
+              },
+            })
+
+            await tx.appointmentService.create({
+              data: {
+                appointmentId: appt.id,
+                serviceId,
+                staffId,
+                name: service.name,
+                durationMinutes: service.durationMinutes,
+                price,
+                finalPrice: price,
+                startTime: occurrenceStart,
+                endTime: occurrenceEnd,
+              },
+            })
+
+            appointments.push({ id: appt.id, startTime: appt.startTime })
+            current = new Date(current.getTime() + intervalDays * 86400000)
+            count++
+          }
         })
-
-        await prisma.appointmentService.create({
-          data: {
-            appointmentId: appt.id,
-            serviceId,
-            staffId,
-            name: service.name,
-            durationMinutes: service.durationMinutes,
-            price,
-            finalPrice: price,
-            startTime: occurrenceStart,
-            endTime: occurrenceEnd,
-          },
-        })
-
-        appointments.push({ id: appt.id, startTime: appt.startTime })
-        current = new Date(current.getTime() + intervalDays * 86400000)
-        count++
+      } catch (e) {
+        if ((e as Error).message === "CONFLICT") return err("One or more recurring time slots are already booked")
+        throw e
       }
 
       return ok({ seriesId, appointmentsCreated: appointments.length, appointments })
@@ -348,56 +423,89 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       notes: z.string().optional(),
     },
     async ({ serviceId, staffId, startTime, maxParticipants, clientIds = [], notes }) => {
-      const [service, location] = await Promise.all([
-        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId } }),
+      if (new Set(clientIds).size !== clientIds.length) return err("Duplicate participants are not allowed")
+      if (clientIds.length > maxParticipants) return err("Too many participants")
+
+      const [service, staff, clientCount, location] = await Promise.all([
+        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.staff.findFirst({
+          where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
+        }),
+        clientIds.length
+          ? prisma.client.count({ where: { id: { in: clientIds }, businessId: ctx.businessId, deletedAt: null } })
+          : Promise.resolve(0),
         prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
       ])
       if (!service) return err("Service not found")
+      if (!staff) return err("Staff not found")
+      if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
+      if (clientCount !== clientIds.length) return err("Client not found")
       if (!location) return err("Business not configured")
 
       const start = new Date(startTime)
       const end = new Date(start.getTime() + service.durationMinutes * 60000)
       const price = Number(service.price)
 
-      const appointment = await prisma.appointment.create({
-        data: {
-          businessId: ctx.businessId,
-          locationId: location.id,
-          clientId: clientIds[0] ?? null,
-          bookingReference: genBookingRef(),
-          status: "confirmed",
-          source: "pos",
-          startTime: start,
-          endTime: end,
-          totalDuration: service.durationMinutes,
-          subtotal: price,
-          taxAmount: 0,
-          totalAmount: price,
-          notes,
-          isGroupBooking: true,
-          maxParticipants,
-          groupParticipants: {
-            create: clientIds.map((clientId) => ({ clientId })),
-          },
-        },
-        include: { groupParticipants: true },
-      })
+      try {
+        const appointment = await prisma.$transaction(async (tx) => {
+          await lockStaffSchedule(tx, ctx.businessId, staffId)
 
-      await prisma.appointmentService.create({
-        data: {
-          appointmentId: appointment.id,
-          serviceId,
-          staffId,
-          name: service.name,
-          durationMinutes: service.durationMinutes,
-          price,
-          finalPrice: price,
-          startTime: start,
-          endTime: end,
-        },
-      })
+          const conflict = await tx.appointmentService.findFirst({
+            where: {
+              staffId,
+              appointment: { status: { notIn: ["cancelled", "no_show"] } },
+              startTime: { lt: end },
+              endTime: { gt: start },
+            },
+          })
+          if (conflict) throw new Error("CONFLICT")
 
-      return ok(appointment)
+          const appt = await tx.appointment.create({
+            data: {
+              businessId: ctx.businessId,
+              locationId: location.id,
+              clientId: clientIds[0] ?? null,
+              bookingReference: generateBookingReference(),
+              status: "confirmed",
+              source: "pos",
+              startTime: start,
+              endTime: end,
+              totalDuration: service.durationMinutes,
+              subtotal: price,
+              taxAmount: 0,
+              totalAmount: price,
+              notes,
+              isGroupBooking: true,
+              maxParticipants,
+              groupParticipants: {
+                create: clientIds.map((clientId) => ({ clientId })),
+              },
+            },
+            include: { groupParticipants: true },
+          })
+
+          await tx.appointmentService.create({
+            data: {
+              appointmentId: appt.id,
+              serviceId,
+              staffId,
+              name: service.name,
+              durationMinutes: service.durationMinutes,
+              price,
+              finalPrice: price,
+              startTime: start,
+              endTime: end,
+            },
+          })
+
+          return appt
+        })
+
+        return ok(appointment)
+      } catch (e) {
+        if ((e as Error).message === "CONFLICT") return err("Time slot already booked for this staff member")
+        throw e
+      }
     }
   )
 
@@ -414,9 +522,15 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         include: { groupParticipants: true },
       })
       if (!appointment) return err("Group appointment not found")
+      if (!(await canAccessAppointment(ctx, appointmentId))) return err("Forbidden")
       if (appointment.maxParticipants && appointment.groupParticipants.length >= appointment.maxParticipants) {
         return err("Group appointment is full")
       }
+      const client = await prisma.client.findFirst({
+        where: { id: clientId, businessId: ctx.businessId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!client) return err("Client not found")
       const participant = await prisma.groupParticipant.create({
         data: { appointmentId, clientId },
       })
@@ -434,6 +548,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ appointmentId, clientId }) => {
       const appointment = await prisma.appointment.findFirst({ where: { id: appointmentId, businessId: ctx.businessId } })
       if (!appointment) return err("Group appointment not found")
+      if (!(await canAccessAppointment(ctx, appointmentId))) return err("Forbidden")
       await prisma.groupParticipant.deleteMany({ where: { appointmentId, clientId } })
       return ok({ removed: true })
     }

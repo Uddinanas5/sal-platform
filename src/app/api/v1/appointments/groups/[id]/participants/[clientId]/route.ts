@@ -1,6 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
-import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { canAccessAppointment } from "@/lib/api/appointment-access"
+import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 
 export async function DELETE(

@@ -19,7 +19,8 @@ import {
 
 interface CartItem {
   id: string
-  type: "service" | "product"
+  catalogId: string
+  type: "service" | "product" | "custom"
   name: string
   price: number
   quantity: number
@@ -47,6 +48,10 @@ type CartAction =
   | {
       type: "ADD_PRODUCT"
       payload: { id: string; name: string; price: number }
+    }
+  | {
+      type: "ADD_CUSTOM"
+      payload: { name: string; price: number }
     }
   | { type: "REMOVE_ITEM"; payload: { id: string } }
   | { type: "UPDATE_QUANTITY"; payload: { id: string; quantity: number } }
@@ -84,6 +89,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       // Services are always added as new line items (no stacking)
       const newItem: CartItem = {
         id: `cart-${generateId()}`,
+        catalogId: action.payload.id,
         type: "service",
         name: action.payload.name,
         price: action.payload.price,
@@ -97,7 +103,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       const existingIndex = state.items.findIndex(
         (item) =>
           item.type === "product" &&
-          item.name === action.payload.name
+          item.catalogId === action.payload.id
       )
       if (existingIndex >= 0) {
         const updated = [...state.items]
@@ -109,7 +115,21 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       }
       const newItem: CartItem = {
         id: `cart-${generateId()}`,
+        catalogId: action.payload.id,
         type: "product",
+        name: action.payload.name,
+        price: action.payload.price,
+        quantity: 1,
+      }
+      return { ...state, items: [...state.items, newItem] }
+    }
+
+    case "ADD_CUSTOM": {
+      const id = `qs-${generateId()}`
+      const newItem: CartItem = {
+        id,
+        catalogId: id,
+        type: "custom",
         name: action.payload.name,
         price: action.payload.price,
         quantity: 1,
@@ -264,8 +284,8 @@ export default function CheckoutClient({
   const handleAddQuickSale = useCallback(
     (amount: number, description: string) => {
       dispatch({
-        type: "ADD_SERVICE",
-        payload: { id: `qs-${generateId()}`, name: description, price: amount },
+        type: "ADD_CUSTOM",
+        payload: { name: description, price: amount },
       })
       toast.success(`Quick sale added: $${amount.toFixed(2)}`)
     },

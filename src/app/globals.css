@@ -55,9 +55,46 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-sora), var(--font-dm-sans), system-ui, sans-serif;
+    letter-spacing: -0.018em;
+  }
+  /* Numbers (stats, currency) align to a consistent width */
+  .tabular-nums {
+    font-feature-settings: "tnum" 1;
+  }
+  /* A calmer, brand-tinted focus ring across the app */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.55);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* The dashboard canvas — a warm cream wash lifted with two barely-there
+     emerald light sources so content sits on atmosphere, not flat paint. */
+  .app-canvas {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(120% 80% at 100% 0%, rgba(5, 150, 105, 0.06), transparent 55%),
+      radial-gradient(90% 70% at 0% 0%, rgba(110, 231, 183, 0.07), transparent 50%);
+    background-attachment: fixed;
+  }
+  .dark .app-canvas {
+    background-image:
+      radial-gradient(120% 80% at 100% 0%, rgba(5, 150, 105, 0.10), transparent 55%),
+      radial-gradient(90% 70% at 0% 0%, rgba(6, 95, 70, 0.18), transparent 50%);
+  }
+
+  /* Frosted surface for sticky bars and floating panels */
+  .surface-glass {
+    background-color: hsl(var(--card) / 0.72);
+    backdrop-filter: saturate(180%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
   }
 }
 
@@ -109,8 +146,12 @@
 }
 
 /* Warm card glow on hover */
+.card-warm {
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
 .card-warm:hover {
-  box-shadow: 0 8px 30px rgba(5, 150, 105, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 4px rgba(16, 64, 48, 0.04), 0 16px 40px -12px rgba(16, 64, 48, 0.18);
+  border-color: rgba(5, 150, 105, 0.22);
 }
 
 /* Hide scrollbar utility */

@@ -30,7 +30,8 @@ import { toast } from "sonner"
 
 interface CartItem {
   id: string
-  type: "service" | "product"
+  catalogId?: string
+  type: "service" | "product" | "custom"
   name: string
   price: number
   quantity: number
@@ -118,13 +119,17 @@ export function PaymentDialog({
     setStep("processing")
 
     try {
+      const payableItems = items
+        .filter((item): item is CartItem & { type: "service" | "product" } => item.type !== "custom")
+        .map((item) => ({
+          type: item.type,
+          id: item.catalogId ?? item.id,
+          quantity: item.quantity,
+        }))
+
       const result = await processPayment({
         clientId: clientId || undefined,
-        items: items.map((item) => ({
-          type: item.type,
-          id: item.id,
-          quantity: item.quantity,
-        })),
+        items: payableItems,
         discount,
         tax,
         tip,

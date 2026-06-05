@@ -19,6 +19,8 @@ const skipEnv = process.argv.includes("--skip-env")
 /** @type {{ name: string, cmd: string, args: string[], optional?: boolean }[]} */
 const steps = [
   { name: "Production env", cmd: "npm", args: ["run", "check:env"], optional: skipEnv },
+  { name: "Migration safety", cmd: "npm", args: ["run", "check:migrations"] },
+  { name: "Transaction guardrails", cmd: "npm", args: ["run", "check:transactions"] },
   { name: "Lint", cmd: "npm", args: ["run", "lint"] },
   { name: "Type-check", cmd: "npm", args: ["run", "typecheck"] },
   { name: "Tests", cmd: "npm", args: ["run", "test"] },

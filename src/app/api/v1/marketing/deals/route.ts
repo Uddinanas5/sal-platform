@@ -40,6 +40,19 @@ export async function POST(req: Request) {
   const parsed = createDealSchema.safeParse(body)
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
 
+  if (parsed.data.serviceIds?.length) {
+    const serviceCount = await prisma.service.count({
+      where: {
+        id: { in: parsed.data.serviceIds },
+        businessId: ctx.businessId,
+        deletedAt: null,
+      },
+    })
+    if (serviceCount !== new Set(parsed.data.serviceIds).size) {
+      return ERRORS.BAD_REQUEST("One or more services do not belong to this business")
+    }
+  }
+
   const deal = await prisma.deal.create({
     data: {
       businessId: ctx.businessId,

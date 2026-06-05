@@ -10,9 +10,15 @@ import { sendEmail } from "@/lib/email"
 import { staffInvitationEmail } from "@/lib/email-templates"
 import { hasRole } from "@/lib/permissions"
 
-const SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
 const APP_URL = process.env.NEXTAUTH_URL || "http://localhost:3000"
 const INVITE_TTL_HOURS = 72
+
+function getInvitationSecret(): Uint8Array {
+  if (!process.env.NEXTAUTH_SECRET) {
+    throw new Error("NEXTAUTH_SECRET is required for staff invitations")
+  }
+  return new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
+}
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -107,7 +113,7 @@ export async function sendInvitation(data: {
     })
       .setProtectedHeader({ alg: "HS256" })
       .setExpirationTime(`${INVITE_TTL_HOURS}h`)
-      .sign(SECRET)
+      .sign(getInvitationSecret())
 
     const acceptUrl = `${APP_URL}/accept-invitation?token=${token}`
     const inviterName = `${inviter.firstName} ${inviter.lastName}`
@@ -175,7 +181,7 @@ export async function acceptInvitation(data: {
     // Verify token
     let payload: { purpose: string; invitationId: string; email: string; businessId: string }
     try {
-      const result = await jwtVerify(parsed.token, SECRET)
+      const result = await jwtVerify(parsed.token, getInvitationSecret())
       payload = result.payload as typeof payload
     } catch {
       return { success: false, error: "Invalid or expired invitation link" }

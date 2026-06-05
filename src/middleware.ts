@@ -26,6 +26,8 @@ const publicRoutes = [
   /^\/api\/oauth\/.*/,
   /^\/api\/v1\/.*/,
   /^\/oauth\/authorize$/,
+  // Stripe calls this server-to-server with no session — authenticated by signature verification in the route
+  /^\/api\/stripe\/webhook$/,
 ]
 
 // Bearer-or-session gate used by /api/v1/* and /api/mcp. Handled outside the

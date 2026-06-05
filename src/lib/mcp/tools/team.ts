@@ -9,6 +9,15 @@ function isOwner(ctx: ApiContext): boolean { return ctx.role === "owner" }
 function ok(data: unknown) { return { content: [{ type: "text" as const, text: JSON.stringify(data) }] } }
 function err(message: string) { return { content: [{ type: "text" as const, text: JSON.stringify({ error: message }) }], isError: true as const } }
 
+const INVITE_TTL_HOURS = 72
+
+function getInviteSecret(): Uint8Array {
+  if (!process.env.NEXTAUTH_SECRET) {
+    throw new Error("NEXTAUTH_SECRET is required to create invitations")
+  }
+  return new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
+}
+
 export function registerTeamTools(server: McpServer, ctx: ApiContext) {
   server.tool("list-team", "List active team members (admin required)", {}, async () => {
     if (!isAdmin(ctx)) return err("Insufficient permissions")
@@ -76,21 +85,23 @@ export function registerTeamTools(server: McpServer, ctx: ApiContext) {
     },
     async ({ email, firstName, lastName, role }) => {
       if (!isAdmin(ctx)) return err("Insufficient permissions")
+      if (role === "admin" && !isOwner(ctx)) return err("Only the owner can invite admins")
 
-      const existing = await prisma.user.findUnique({ where: { email } })
+      const normalizedEmail = email.toLowerCase().trim()
+      const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
       if (existing) return err("A user with this email already exists")
 
       const pendingInvitation = await prisma.staffInvitation.findFirst({
-        where: { email, businessId: ctx.businessId, acceptedAt: null, revokedAt: null, expiresAt: { gte: new Date() } },
+        where: { email: normalizedEmail, businessId: ctx.businessId, acceptedAt: null, revokedAt: null, expiresAt: { gte: new Date() } },
       })
       if (pendingInvitation) return err("An invitation is already pending for this email")
 
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      const expiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 60 * 60 * 1000)
 
       const invitation = await prisma.staffInvitation.create({
         data: {
           businessId: ctx.businessId,
-          email,
+          email: normalizedEmail,
           firstName,
           lastName,
           role,
@@ -100,14 +111,18 @@ export function registerTeamTools(server: McpServer, ctx: ApiContext) {
       })
 
       // Generate token for the invitation link
-      const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET ?? "secret")
-      const token = await new SignJWT({ invitationId: invitation.id, email, businessId: ctx.businessId, role })
+      const token = await new SignJWT({
+        purpose: "staff-invite",
+        invitationId: invitation.id,
+        email: normalizedEmail,
+        businessId: ctx.businessId,
+      })
         .setProtectedHeader({ alg: "HS256" })
-        .setExpirationTime("7d")
-        .sign(secret)
+        .setExpirationTime(`${INVITE_TTL_HOURS}h`)
+        .sign(getInviteSecret())
 
       const acceptUrl = `${process.env.NEXTAUTH_URL ?? ""}/accept-invitation?token=${token}`
-      return ok({ id: invitation.id, email, firstName, lastName, role, acceptUrl })
+      return ok({ id: invitation.id, email: normalizedEmail, firstName, lastName, role, acceptUrl })
     }
   )
 

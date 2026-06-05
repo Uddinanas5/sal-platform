@@ -25,6 +25,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = updateResourceSchema.safeParse(body)
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
 
+  if (parsed.data.serviceIds?.length) {
+    const serviceCount = await prisma.service.count({
+      where: {
+        id: { in: parsed.data.serviceIds },
+        businessId: ctx.businessId,
+        deletedAt: null,
+      },
+    })
+    if (serviceCount !== new Set(parsed.data.serviceIds).size) {
+      return ERRORS.BAD_REQUEST("One or more services do not belong to this business")
+    }
+  }
+
   try {
     const resource = await prisma.resource.update({
       where: { id, businessId: ctx.businessId },
