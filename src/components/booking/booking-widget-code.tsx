@@ -11,22 +11,24 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
   const bookingUrl = typeof window !== "undefined"
     ? `${window.location.origin}/book/${businessSlug}`
     : `/book/${businessSlug}`
+  const embedScriptUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/embed.js`
+    : "/embed.js"
 
-  const embedCode = `<iframe
-  src="${bookingUrl}"
-  width="100%"
-  height="700"
-  frameborder="0"
-  style="border: none; border-radius: 12px;"
-  title="Book an Appointment"
-></iframe>`
+  const embedCode = `<script
+  src="${embedScriptUrl}"
+  data-slug="${businessSlug}"
+  data-mode="inline"
+></script>`
 
-  const buttonCode = `<a
-  href="${bookingUrl}"
-  style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#059669;color:white;border-radius:8px;font-weight:600;text-decoration:none;font-family:sans-serif;"
->
-  Book Now
-</a>`
+  const buttonCode = `<script
+  src="${embedScriptUrl}"
+  data-slug="${businessSlug}"
+  data-mode="popup"
+  data-text="Book now"
+></script>`
+
+  const linkCode = `<a href="${bookingUrl}">Book now</a>`
 
   const handleCopyEmbed = () => {
     navigator.clipboard.writeText(embedCode)
@@ -42,6 +44,13 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
     })
   }
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(linkCode)
+    toast.success("Fallback link copied", {
+      description: "Use this when a website builder blocks third-party scripts.",
+    })
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -53,7 +62,7 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
       <CardContent className="space-y-6">
         {/* Iframe embed */}
         <div className="space-y-3">
-          <p className="text-sm font-medium text-foreground">iFrame Embed Code</p>
+          <p className="text-sm font-medium text-foreground">Inline Widget Code</p>
           <div className="relative">
             <pre className="bg-foreground text-gray-100 p-4 rounded-lg text-xs overflow-x-auto leading-relaxed">
               <code>{embedCode}</code>
@@ -71,7 +80,7 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
 
         {/* Button embed */}
         <div className="space-y-3">
-          <p className="text-sm font-medium text-foreground">Button Code</p>
+          <p className="text-sm font-medium text-foreground">Popup Button Code</p>
           <div className="relative">
             <pre className="bg-foreground text-gray-100 p-4 rounded-lg text-xs overflow-x-auto leading-relaxed">
               <code>{buttonCode}</code>
@@ -80,6 +89,23 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
               variant="ghost"
               size="sm"
               onClick={handleCopyButton}
+              className="absolute top-2 right-2 text-muted-foreground/70 hover:text-white hover:bg-foreground/80"
+            >
+              <Copy className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-foreground">Fallback Link</p>
+          <div className="relative">
+            <pre className="bg-foreground text-gray-100 p-4 rounded-lg text-xs overflow-x-auto leading-relaxed">
+              <code>{linkCode}</code>
+            </pre>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopyLink}
               className="absolute top-2 right-2 text-muted-foreground/70 hover:text-white hover:bg-foreground/80"
             >
               <Copy className="w-4 h-4" />

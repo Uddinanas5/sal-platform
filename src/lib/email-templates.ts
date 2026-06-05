@@ -545,3 +545,46 @@ export function appointmentRescheduledEmail({
   `
   return baseLayout(content)
 }
+
+export function lifecycleEmail({
+  title,
+  body,
+  cta,
+}: {
+  title: string
+  body: string
+  cta?: { href: string; label: string }
+}): string {
+  const paragraphs = body
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map(
+      (paragraph) =>
+        `<p style="margin: 0 0 16px; font-size: 15px; color: #6b6560; line-height: 1.6;">${paragraph
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;")
+          .replace(/\n/g, "<br>")}</p>`
+    )
+    .join("")
+
+  const content = `
+    <h1 style="margin: 0 0 16px; font-size: 24px; font-weight: 700; color: #1a1a1a;">${title}</h1>
+    ${paragraphs}
+    ${cta ? `
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 24px auto 0;">
+        <tr>
+          <td style="background-color: ${SAL_COLOR}; border-radius: 8px;">
+            <a href="${cta.href}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">
+              ${cta.label}
+            </a>
+          </td>
+        </tr>
+      </table>
+    ` : ""}
+  `
+  return baseLayout(content)
+}

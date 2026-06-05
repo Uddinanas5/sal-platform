@@ -1,118 +1,39 @@
 "use client"
 
 import React, { useState } from "react"
+import Image from "next/image"
 import { motion } from "framer-motion"
 import { Download, Copy, Check, Link as LinkIcon, Globe } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
-function QRCodeSVG() {
-  // Stylized placeholder QR code grid pattern (21x21 standard QR)
-  const size = 21
-  const cellSize = 6
-  const padding = 10
-  const svgSize = size * cellSize + padding * 2
-  const pattern = [
-    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,1,0,0,1,0,1,0,0,1,0,0,0,0,0,1],
-    [1,0,1,1,1,0,1,0,1,1,0,0,1,0,1,0,1,1,1,0,1],
-    [1,0,1,1,1,0,1,0,0,1,1,0,0,0,1,0,1,1,1,0,1],
-    [1,0,1,1,1,0,1,0,1,0,1,1,0,0,1,0,1,1,1,0,1],
-    [1,0,0,0,0,0,1,0,0,0,0,1,1,0,1,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
-    [0,0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0],
-    [1,0,1,0,1,1,1,1,0,0,1,0,1,1,1,0,1,0,0,1,1],
-    [0,1,0,1,0,0,0,1,1,0,0,1,0,1,0,1,0,1,1,0,0],
-    [1,0,1,1,0,1,1,0,1,1,1,0,1,0,1,1,0,0,1,0,1],
-    [0,1,0,0,1,0,0,1,0,0,1,1,0,1,0,0,1,1,0,1,0],
-    [1,1,0,1,0,1,1,0,1,0,0,1,1,0,1,0,1,0,1,1,0],
-    [0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,1,0,0,1,0,1],
-    [1,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,0,1,0,1,0],
-    [1,0,0,0,0,0,1,0,1,0,0,1,0,1,0,1,1,0,1,1,1],
-    [1,0,1,1,1,0,1,0,0,1,1,0,1,1,1,0,0,1,0,0,1],
-    [1,0,1,1,1,0,1,0,1,0,1,1,0,0,1,1,0,1,1,0,0],
-    [1,0,1,1,1,0,1,0,1,1,0,0,1,0,0,0,1,0,0,1,1],
-    [1,0,0,0,0,0,1,0,0,0,1,1,0,1,1,0,1,1,0,1,0],
-    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,0,0,1,1,0,1],
-  ]
-
-  return (
-    <svg
-      width={svgSize}
-      height={svgSize}
-      viewBox={`0 0 ${svgSize} ${svgSize}`}
-      className="mx-auto"
-    >
-      {/* White background */}
-      <rect x="0" y="0" width={svgSize} height={svgSize} fill="white" rx="8" />
-
-      {/* QR code cells */}
-      {pattern.map((row, y) =>
-        row.map((cell, x) => {
-          // Leave a gap in the center for the logo
-          const centerStart = 8
-          const centerEnd = 12
-          if (x >= centerStart && x <= centerEnd && y >= centerStart && y <= centerEnd) {
-            return null
-          }
-          return cell === 1 ? (
-            <rect
-              key={`${x}-${y}`}
-              x={x * cellSize + padding}
-              y={y * cellSize + padding}
-              width={cellSize}
-              height={cellSize}
-              fill="#1a1a1a"
-              rx={1}
-            />
-          ) : null
-        })
-      )}
-
-      {/* Center logo background circle */}
-      <circle
-        cx={svgSize / 2}
-        cy={svgSize / 2}
-        r={cellSize * 3}
-        fill="white"
-        stroke="#e5e7eb"
-        strokeWidth="0.5"
-      />
-      {/* Green accent circle */}
-      <circle
-        cx={svgSize / 2}
-        cy={svgSize / 2}
-        r={cellSize * 2.3}
-        fill="#059669"
-      />
-      {/* SAL text */}
-      <text
-        x={svgSize / 2}
-        y={svgSize / 2 + 4.5}
-        textAnchor="middle"
-        fill="white"
-        fontSize="12"
-        fontWeight="800"
-        fontFamily="system-ui, sans-serif"
-        letterSpacing="1"
-      >
-        SAL
-      </text>
-    </svg>
-  )
-}
-
 export function BookingQRCode({ businessSlug }: { businessSlug: string }) {
   const bookingUrl = typeof window !== "undefined"
     ? `${window.location.origin}/book/${businessSlug}`
     : `/book/${businessSlug}`
+  const qrUrl = `/api/booking-qr?slug=${encodeURIComponent(businessSlug)}`
   const [copied, setCopied] = useState(false)
 
-  const handleDownload = () => {
-    toast.success("QR Code downloaded", {
-      description: "The QR code image has been saved to your downloads.",
-    })
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(qrUrl)
+      if (!response.ok) throw new Error("Failed to generate QR code")
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `sal-${businessSlug}-booking-qr.png`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast.success("QR code downloaded", {
+        description: "The QR code image has been saved to your downloads.",
+      })
+    } catch {
+      toast.error("Could not download QR code")
+    }
   }
 
   const handleCopyUrl = () => {
@@ -139,7 +60,14 @@ export function BookingQRCode({ businessSlug }: { businessSlug: string }) {
           transition={{ delay: 0.2 }}
           className="flex justify-center p-4 bg-white rounded-xl border border-cream-200"
         >
-          <QRCodeSVG />
+          <Image
+            src={qrUrl}
+            alt="Booking QR code"
+            width={192}
+            height={192}
+            className="h-48 w-48 rounded-lg"
+            unoptimized
+          />
         </motion.div>
 
         {/* Copyable booking URL */}
