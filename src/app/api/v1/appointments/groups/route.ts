@@ -1,5 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -62,6 +63,8 @@ export async function POST(req: Request) {
 
   try {
     const appointmentId = await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, ctx.businessId, staffId)
+
       // Tenant-scoped conflict check on the staff slot. Without this a group
       // booking can silently double-book the stylist (and on a 12-person group
       // that's a much louder calendar collision than a single booking).
