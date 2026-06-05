@@ -77,8 +77,8 @@ async function loadAppointmentNotificationCandidates(now: Date) {
       status: "confirmed",
       reminderSentAt: null,
       startTime: {
-        gte: addHours(now, 23),
-        lte: addHours(now, 25),
+        gte: addHours(now, 20),
+        lte: addHours(now, 44),
       },
       client: {
         isBlocked: false,
