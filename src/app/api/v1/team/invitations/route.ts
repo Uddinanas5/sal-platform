@@ -7,9 +7,15 @@ import { SignJWT } from "jose"
 import { sendEmail } from "@/lib/email"
 import { staffInvitationEmail } from "@/lib/email-templates"
 
-const SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
 const APP_URL = process.env.NEXTAUTH_URL || "http://localhost:3000"
 const INVITE_TTL_HOURS = 72
+
+function getInvitationSecret(): Uint8Array {
+  if (!process.env.NEXTAUTH_SECRET) {
+    throw new Error("NEXTAUTH_SECRET is required for staff invitations")
+  }
+  return new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
+}
 
 const sendInvitationSchema = z.object({
   email: z.string().email(),
@@ -86,7 +92,7 @@ export async function POST(req: Request) {
   })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime(`${INVITE_TTL_HOURS}h`)
-    .sign(SECRET)
+    .sign(getInvitationSecret())
 
   const acceptUrl = `${APP_URL}/accept-invitation?token=${token}`
   const inviterName = `${inviter.firstName} ${inviter.lastName}`

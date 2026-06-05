@@ -12,8 +12,9 @@ const createServiceSchema = z.object({
   description: z.string().optional(),
   duration: z.number().int().positive("Duration must be a positive number"),
   price: z.number().nonnegative("Price must be non-negative"),
-  categoryId: z.string().uuid(),
+  categoryId: z.string().trim().min(1, "Category is required"),
   color: z.string().optional(),
+  assignedStaff: z.array(z.string().uuid()).optional(),
 })
 
 const updateServiceSchema = z.object({
@@ -32,6 +33,7 @@ export async function createService(data: {
   price: number
   categoryId: string
   color?: string
+  assignedStaff?: string[]
 }): Promise<ActionResult<{ id: string }>> {
   try {
     createServiceSchema.parse(data)
@@ -45,17 +47,63 @@ export async function createService(data: {
   try {
     const { businessId } = await requireMinRole("admin")
 
-    const service = await prisma.service.create({
-      data: {
-        businessId,
-        categoryId: data.categoryId,
-        name: data.name,
-        description: data.description,
-        durationMinutes: data.duration,
-        price: data.price,
-        color: data.color,
-        isActive: true,
-      },
+    const service = await prisma.$transaction(async (tx) => {
+      const category = await tx.serviceCategory.upsert({
+        where: {
+          businessId_name: {
+            businessId,
+            name: data.categoryId,
+          },
+        },
+        update: {
+          isActive: true,
+          deletedAt: null,
+        },
+        create: {
+          businessId,
+          name: data.categoryId,
+          color: data.color,
+          isActive: true,
+        },
+      })
+
+      const createdService = await tx.service.create({
+        data: {
+          businessId,
+          categoryId: category.id,
+          name: data.name,
+          description: data.description,
+          durationMinutes: data.duration,
+          price: data.price,
+          color: data.color,
+          isActive: true,
+        },
+      })
+
+      const staffIds = Array.from(new Set(data.assignedStaff ?? []))
+      if (staffIds.length > 0) {
+        const staffCount = await tx.staff.count({
+          where: {
+            id: { in: staffIds },
+            primaryLocation: { businessId },
+            deletedAt: null,
+          },
+        })
+        if (staffCount !== staffIds.length) {
+          throw new Error("One or more staff members were not found")
+        }
+
+        await tx.staffService.createMany({
+          data: staffIds.map((staffId) => ({
+            staffId,
+            serviceId: createdService.id,
+            isActive: true,
+          })),
+          skipDuplicates: true,
+        })
+      }
+
+      return createdService
     })
 
     revalidatePath("/services")

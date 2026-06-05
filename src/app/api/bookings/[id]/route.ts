@@ -7,6 +7,10 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
+function getSessionBusinessId(session: unknown): string | null {
+  return ((session as { user?: { businessId?: string | null } } | null)?.user)?.businessId ?? null
+}
+
 /**
  * GET /api/bookings/[id]
  * Get a single appointment by ID
@@ -17,11 +21,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const businessId = getSessionBusinessId(session)
+    if (!businessId) {
+      return NextResponse.json({ error: 'No business context' }, { status: 403 })
+    }
 
     const { id } = await params
 
     const appointment = await prisma.appointment.findUnique({
-      where: { id },
+      where: { id, businessId },
       include: {
         client: {
           select: {
@@ -115,6 +123,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const businessId = getSessionBusinessId(session)
+    if (!businessId) {
+      return NextResponse.json({ error: 'No business context' }, { status: 403 })
+    }
 
     const { id } = await params
     const body = await request.json()
@@ -129,7 +141,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Check if appointment exists
     const existing = await prisma.appointment.findUnique({
-      where: { id },
+      where: { id, businessId },
       select: {
         id: true,
         status: true,
@@ -194,7 +206,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           // Update client stats
           if (existing.clientId) {
             await prisma.client.update({
-              where: { id: existing.clientId },
+              where: { id: existing.clientId, businessId },
               data: {
                 totalSpent: { increment: Number(existing.totalAmount) },
               },
@@ -205,7 +217,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const appointment = await prisma.appointment.update({
-      where: { id },
+      where: { id, businessId },
       data: updateData,
       include: {
         client: {
@@ -260,14 +272,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const businessId = getSessionBusinessId(session)
+    if (!businessId) {
+      return NextResponse.json({ error: 'No business context' }, { status: 403 })
+    }
 
     const { id } = await params
     const searchParams = request.nextUrl.searchParams
     const reason = searchParams.get('reason')
-    const cancelledBy = searchParams.get('cancelledBy')
 
     const existing = await prisma.appointment.findUnique({
-      where: { id },
+      where: { id, businessId },
       select: { id: true, status: true },
     })
 
@@ -287,12 +302,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     const appointment = await prisma.appointment.update({
-      where: { id },
+      where: { id, businessId },
       data: {
         status: 'cancelled',
         cancelledAt: new Date(),
         cancellationReason: reason,
-        cancelledBy,
+        cancelledBy: session.user.id,
       },
     })
 

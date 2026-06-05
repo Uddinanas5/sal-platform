@@ -12,8 +12,11 @@ export async function GET() {
     const session = await auth()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const businessId = (session?.user as any)?.businessId as string | undefined
+    if (!session?.user || !businessId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-    const businessFilter = businessId ? { businessId } : {}
+    const businessFilter = { businessId }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userRole = (session?.user as any)?.role as string | undefined

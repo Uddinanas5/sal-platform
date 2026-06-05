@@ -114,7 +114,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <MobileSidebarContext.Provider
       value={{ toggleMobileSidebar: isMobile ? toggleMobileSidebar : undefined }}
     >
-      <div className="min-h-screen bg-cream">
+      <div className="min-h-screen app-canvas">
         <Sidebar
           collapsed={isMobile ? false : sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -154,7 +154,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full bg-sal-500 text-white shadow-lg shadow-sal-500/25 flex items-center justify-center hover:bg-sal-600 transition-colors"
+              className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-full bg-gradient-to-b from-sal-500 to-sal-600 text-white shadow-glow flex items-center justify-center hover:from-sal-500 hover:to-sal-700 transition-all"
               aria-label="Scroll to top"
             >
               <ArrowUp className="w-4 h-4" />

@@ -16,6 +16,35 @@ npx tsx prisma/seed.ts # Seed the database
 
 No test framework is configured.
 
+## Testing & Database Safety (OFFICIAL RULES — see also AGENTS.md)
+
+The Supabase database has three walled-off schemas. Keep testing in the correct lane:
+
+| Schema | Who uses it | Purpose |
+| --- | --- | --- |
+| `public` | Deployed Vercel app only | Production. Real users/data only. Do not seed, reset, or stress test here. |
+| `dev` | Local laptop development (`pnpm dev`) | Manual local testing with demo data. Safe to break/reset. |
+| `agents` | VPS bots/agents | Automated signup, booking, checkout, and stress tests. Safe for fake users/bookings. |
+
+Production was cleaned after backup. A snapshot exists in `cleanup_backup_20260605`; the cleanup manifest is at `~/sal-cleanup-dryrun.md`.
+
+Before running any E2E, smoke, signup, booking, checkout, or stress test, print and verify:
+
+```text
+TEST TARGET:
+DATABASE SCHEMA:
+LIVE PRODUCTION URL? yes/no
+```
+
+Rules:
+
+- Agents must test against localhost, the VPS preview, or the `agents` schema.
+- Never run automated tests, seed scripts, smoke tests, or stress tests against the live production URL.
+- Production is only for tiny real-user smoke checks after explicit approval.
+- Use `dev`/`agents` to break things; use production only to confirm the live app works.
+- The `sal_agent` database role is for agent/local testing and has no production table access (enforced at the DB level).
+- Do not put production database credentials in local or agent `.env` files. Production credentials live only in Vercel.
+
 ## Architecture
 
 SAL Platform is a **multi-tenant salon/spa management SaaS** built with Next.js 14 App Router, TypeScript (strict mode), Prisma 7 + PostgreSQL (Supabase), and NextAuth.js 5 (JWT sessions, credentials provider).

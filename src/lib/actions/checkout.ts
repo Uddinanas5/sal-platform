@@ -4,19 +4,27 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext } from "@/lib/auth-utils"
+import { calculateCheckoutTotals } from "@/lib/checkout/pricing"
 import { sendEmail } from "@/lib/email"
 import { receiptEmail } from "@/lib/email-templates"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
+
+function generatePaymentReference() {
+  const timestamp = Date.now().toString(36)
+  const random = Math.random().toString(36).substring(2, 8)
+  return `PAY-${timestamp}-${random}`.toUpperCase()
+}
 
 const processPaymentSchema = z.object({
   clientId: z.string().uuid().optional(),
   appointmentId: z.string().uuid().optional(),
   items: z.array(
     z.object({
-      type: z.enum(["service", "product"]),
+      type: z.enum(["service", "product", "custom"]),
       id: z.string().min(1),
-      price: z.number().nonnegative(),
+      name: z.string().optional(),
+      price: z.number().nonnegative().optional(),
       quantity: z.number().int().positive(),
     })
   ),
@@ -31,7 +39,7 @@ const processPaymentSchema = z.object({
 export async function processPayment(data: {
   clientId?: string
   appointmentId?: string
-  items: { type: "service" | "product"; id: string; price: number; quantity: number }[]
+  items: { type: "service" | "product" | "custom"; id: string; name?: string; price?: number; quantity: number }[]
   subtotal: number
   discount: number
   tax: number
@@ -51,22 +59,47 @@ export async function processPayment(data: {
   try {
     const { businessId } = await getBusinessContext()
 
-    const payment = await prisma.$transaction(async (tx) => {
-      const count = await tx.payment.count({ where: { businessId } })
-      const paymentRef = `PAY-${String(count + 1).padStart(4, "0")}`
+    const [client, appointment] = await Promise.all([
+      data.clientId
+        ? prisma.client.findFirst({
+            where: { id: data.clientId, businessId, deletedAt: null },
+          })
+        : Promise.resolve(null),
+      data.appointmentId
+        ? prisma.appointment.findFirst({
+            where: { id: data.appointmentId, businessId },
+            select: { id: true, clientId: true },
+          })
+        : Promise.resolve(null),
+    ])
 
+    if (data.clientId && !client) {
+      return { success: false, error: "Client not found" }
+    }
+    if (data.appointmentId && !appointment) {
+      return { success: false, error: "Appointment not found" }
+    }
+    if (appointment?.clientId && data.clientId && appointment.clientId !== data.clientId) {
+      return { success: false, error: "Client does not match appointment" }
+    }
+
+    const payment = await prisma.$transaction(async (tx) => {
+      const totals = await calculateCheckoutTotals(tx, businessId, data.items, {
+        discount: data.discount,
+        tip: data.tip,
+      })
       const created = await tx.payment.create({
         data: {
           businessId,
           clientId: data.clientId || null,
           appointmentId: data.appointmentId || null,
-          paymentReference: paymentRef,
+          paymentReference: generatePaymentReference(),
           type: "payment",
           method: data.method,
           status: "completed",
-          amount: data.subtotal - data.discount,
-          tipAmount: data.tip,
-          totalAmount: data.total,
+          amount: totals.subtotal - totals.discount,
+          tipAmount: totals.tip,
+          totalAmount: totals.total,
           currency: "USD",
           processedAt: new Date(),
         },
@@ -115,11 +148,11 @@ export async function processPayment(data: {
       if (data.clientId) {
         await tx.client.update({
           where: { id: data.clientId, businessId },
-          data: {
-            totalSpent: { increment: data.total },
+            data: {
+            totalSpent: { increment: totals.total },
             totalVisits: { increment: 1 },
             lastVisitAt: new Date(),
-            loyaltyPoints: { increment: Math.floor(data.total) },
+            loyaltyPoints: { increment: Math.floor(totals.total) },
           },
         })
       }

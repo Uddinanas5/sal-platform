@@ -1,6 +1,8 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { prisma } from "@/lib/prisma"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import { z } from "zod"
 
 const statusSchema = z.object({
@@ -16,6 +18,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   const { id } = await params
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
 
   const appointment = await prisma.appointment.findUnique({
     where: { id, businessId: ctx.businessId },
@@ -39,6 +42,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   const { id } = await params
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
 
   let body: unknown
   try { body = await req.json() } catch { return ERRORS.BAD_REQUEST("Invalid JSON") }
@@ -60,10 +64,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const endTime = new Date(startTime)
     endTime.setMinutes(endTime.getMinutes() + appointment.totalDuration)
     const effectiveStaffId = parsed.data.newStaffId ?? appointment.services[0]?.staffId
+    if (parsed.data.newStaffId) {
+      const staff = await prisma.staff.findFirst({
+        where: {
+          id: parsed.data.newStaffId,
+          primaryLocation: { businessId: ctx.businessId },
+          isActive: true,
+          deletedAt: null,
+        },
+      })
+      if (!staff) return ERRORS.NOT_FOUND("Staff")
+    }
 
     try {
       await prisma.$transaction(async (tx) => {
         if (effectiveStaffId) {
+          await lockStaffSchedule(tx, ctx.businessId, effectiveStaffId)
+
           const conflicting = await tx.appointmentService.findFirst({
             where: {
               staffId: effectiveStaffId,
@@ -121,6 +138,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
   const { id } = await params
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
 
   try {
     await prisma.appointment.update({

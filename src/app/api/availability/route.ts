@@ -70,17 +70,42 @@ export async function GET(request: NextRequest) {
 
     // Fetch booking settings to enforce lead time
     let minLeadTimeMinutes = 30 // default fallback
-    const serviceForBusiness = await prisma.service.findUnique({
+    const serviceForBusiness = await prisma.service.findFirst({
       where: { id: serviceId },
       select: { businessId: true },
     })
-    if (serviceForBusiness?.businessId) {
-      const bookingSettings = await getPublicBookingSettings(serviceForBusiness.businessId)
-      minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
+    if (!serviceForBusiness?.businessId) {
+      return NextResponse.json({ error: 'Service not found' }, { status: 404 })
     }
+
+    const location = await prisma.location.findFirst({
+      where: { id: locationId, businessId: serviceForBusiness.businessId, isActive: true },
+      select: { id: true },
+    })
+    if (!location) {
+      return NextResponse.json({ error: 'Location not found' }, { status: 404 })
+    }
+
+    const bookingSettings = await getPublicBookingSettings(serviceForBusiness.businessId)
+    minLeadTimeMinutes = LEAD_TIME_MAP[bookingSettings.minLeadTime] ?? 30
 
     // If staffId provided, get availability for that staff member
     if (staffId) {
+      const staffForService = await prisma.staff.findFirst({
+        where: {
+          id: staffId,
+          primaryLocation: { businessId: serviceForBusiness.businessId },
+          isActive: true,
+          deletedAt: null,
+          canAcceptBookings: true,
+          staffServices: { some: { serviceId, isActive: true } },
+        },
+        select: { id: true },
+      })
+      if (!staffForService) {
+        return NextResponse.json({ error: 'Staff member not found for this service' }, { status: 404 })
+      }
+
       const availability = await getAvailability({
         staffId,
         serviceId,

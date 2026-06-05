@@ -3,6 +3,9 @@ import { apiSuccess, apiPaginated, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail } from "@/lib/email-templates"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { generateBookingReference } from "@/lib/booking-reference"
+import { hasRole } from "@/lib/permissions"
 import { z } from "zod"
 
 const createAppointmentSchema = z.object({
@@ -26,9 +29,6 @@ export async function GET(req: Request) {
   const dateFrom = url.searchParams.get("dateFrom")
   const dateTo = url.searchParams.get("dateTo")
 
-  // Staff role: only their own appointments
-  const effectiveStaffId = ctx.role === "staff" ? staffId ?? undefined : staffId ?? undefined
-
   const where: Record<string, unknown> = { businessId: ctx.businessId }
   if (clientId) where.clientId = clientId
   if (status) where.status = status
@@ -38,16 +38,22 @@ export async function GET(req: Request) {
       ...(dateTo ? { lte: new Date(dateTo) } : {}),
     }
   }
-  if (effectiveStaffId) {
-    where.services = { some: { staffId: effectiveStaffId } }
-  } else if (ctx.role === "staff") {
-    // Staff can only see their own appointments; find their staffId
+  if (ctx.role === "staff") {
     const staffProfile = await prisma.staff.findFirst({
-      where: { userId: ctx.userId, isActive: true },
+      where: {
+        userId: ctx.userId,
+        primaryLocation: { businessId: ctx.businessId },
+        isActive: true,
+        deletedAt: null,
+      },
     })
     if (staffProfile) {
       where.services = { some: { staffId: staffProfile.id } }
+    } else {
+      where.services = { some: { staffId: "__none__" } }
     }
+  } else if (staffId) {
+    where.services = { some: { staffId } }
   }
 
   const [appointments, total] = await Promise.all([
@@ -84,8 +90,29 @@ export async function POST(req: Request) {
 
   const { clientId, serviceId, staffId, startTime: startTimeStr, notes } = parsed.data
 
-  const service = await prisma.service.findUnique({ where: { id: serviceId } })
+  const [service, client, staff] = await Promise.all([
+    prisma.service.findFirst({
+      where: { id: serviceId, businessId: ctx.businessId, deletedAt: null },
+    }),
+    prisma.client.findFirst({
+      where: { id: clientId, businessId: ctx.businessId, deletedAt: null },
+    }),
+    prisma.staff.findFirst({
+      where: {
+        id: staffId,
+        primaryLocation: { businessId: ctx.businessId },
+        isActive: true,
+        deletedAt: null,
+      },
+      include: { user: true },
+    }),
+  ])
   if (!service) return ERRORS.NOT_FOUND("Service")
+  if (!client) return ERRORS.NOT_FOUND("Client")
+  if (!staff) return ERRORS.NOT_FOUND("Staff")
+  if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) {
+    return ERRORS.FORBIDDEN()
+  }
 
   const [business, location] = await Promise.all([
     prisma.business.findUnique({ where: { id: ctx.businessId } }),
@@ -103,6 +130,8 @@ export async function POST(req: Request) {
 
   try {
     const appointment = await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, ctx.businessId, staffId)
+
       const conflicting = await tx.appointmentService.findFirst({
         where: {
           staffId,
@@ -113,16 +142,12 @@ export async function POST(req: Request) {
       })
       if (conflicting) throw new Error("CONFLICT")
 
-      const timestamp = Date.now().toString(36)
-      const random = Math.random().toString(36).substring(2, 6)
-      const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
-
       const appt = await tx.appointment.create({
         data: {
           businessId: ctx.businessId,
           locationId: location.id,
           clientId,
-          bookingReference: bookingRef,
+          bookingReference: generateBookingReference(),
           status: "confirmed",
           source: "pos",
           startTime,
@@ -153,10 +178,6 @@ export async function POST(req: Request) {
     })
 
     // Send confirmation email (non-blocking)
-    const [client, staff] = await Promise.all([
-      prisma.client.findUnique({ where: { id: clientId } }),
-      prisma.staff.findUnique({ where: { id: staffId }, include: { user: true } }),
-    ])
     if (client?.email) {
       const dateTime = new Intl.DateTimeFormat("en-US", {
         weekday: "long", month: "long", day: "numeric", year: "numeric",

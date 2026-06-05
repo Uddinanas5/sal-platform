@@ -1,5 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
+import { calculateCheckoutTotals } from "@/lib/checkout/pricing"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -7,9 +8,10 @@ const processPaymentSchema = z.object({
   clientId: z.string().uuid().optional(),
   appointmentId: z.string().uuid().optional(),
   items: z.array(z.object({
-    type: z.enum(["service", "product"]),
+    type: z.enum(["service", "product", "custom"]),
     id: z.string().min(1),
-    price: z.number().nonnegative(),
+    name: z.string().optional(),
+    price: z.number().nonnegative().optional(),
     quantity: z.number().int().positive(),
   })),
   subtotal: z.number().nonnegative(),
@@ -19,6 +21,12 @@ const processPaymentSchema = z.object({
   total: z.number().nonnegative(),
   method: z.enum(["cash", "card", "gift_card", "other"]),
 })
+
+function generatePaymentReference() {
+  const timestamp = Date.now().toString(36)
+  const random = Math.random().toString(36).substring(2, 8)
+  return `PAY-${timestamp}-${random}`.toUpperCase()
+}
 
 export async function POST(req: Request) {
   const ctx = await withV1Auth(req)
@@ -33,22 +41,44 @@ export async function POST(req: Request) {
   const data = parsed.data
 
   try {
-    const payment = await prisma.$transaction(async (tx) => {
-      const count = await tx.payment.count({ where: { businessId: ctx.businessId } })
-      const paymentRef = `PAY-${String(count + 1).padStart(4, "0")}`
+    const [client, appointment] = await Promise.all([
+      data.clientId
+        ? prisma.client.findFirst({
+            where: { id: data.clientId, businessId: ctx.businessId, deletedAt: null },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+      data.appointmentId
+        ? prisma.appointment.findFirst({
+            where: { id: data.appointmentId, businessId: ctx.businessId },
+            select: { id: true, clientId: true },
+          })
+        : Promise.resolve(null),
+    ])
 
+    if (data.clientId && !client) return ERRORS.NOT_FOUND("Client")
+    if (data.appointmentId && !appointment) return ERRORS.NOT_FOUND("Appointment")
+    if (appointment?.clientId && data.clientId && appointment.clientId !== data.clientId) {
+      return ERRORS.BAD_REQUEST("Client does not match appointment")
+    }
+
+    const payment = await prisma.$transaction(async (tx) => {
+      const totals = await calculateCheckoutTotals(tx, ctx.businessId, data.items, {
+        discount: data.discount,
+        tip: data.tip,
+      })
       const created = await tx.payment.create({
         data: {
           businessId: ctx.businessId,
           clientId: data.clientId ?? null,
           appointmentId: data.appointmentId ?? null,
-          paymentReference: paymentRef,
+          paymentReference: generatePaymentReference(),
           type: "payment",
           method: data.method,
           status: "completed",
-          amount: data.subtotal - data.discount,
-          tipAmount: data.tip,
-          totalAmount: data.total,
+          amount: totals.subtotal - totals.discount,
+          tipAmount: totals.tip,
+          totalAmount: totals.total,
           currency: "USD",
           processedAt: new Date(),
         },
@@ -65,10 +95,10 @@ export async function POST(req: Request) {
         await tx.client.update({
           where: { id: data.clientId, businessId: ctx.businessId },
           data: {
-            totalSpent: { increment: data.total },
+            totalSpent: { increment: totals.total },
             totalVisits: { increment: 1 },
             lastVisitAt: new Date(),
-            loyaltyPoints: { increment: Math.floor(data.total) },
+            loyaltyPoints: { increment: Math.floor(totals.total) },
           },
         })
       }

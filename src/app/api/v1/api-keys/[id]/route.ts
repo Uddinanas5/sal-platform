@@ -13,6 +13,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (!apiKey || apiKey.businessId !== ctx.businessId) return ERRORS.NOT_FOUND("API key")
   if (apiKey.revokedAt) return ERRORS.BAD_REQUEST("API key already revoked")
 
-  await prisma.apiKey.update({ where: { id }, data: { revokedAt: new Date() } })
+  await prisma.apiKey.update({ where: { id, businessId: ctx.businessId }, data: { revokedAt: new Date() } })
   return apiSuccess({ revoked: true })
 }

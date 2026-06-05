@@ -245,8 +245,8 @@ function SidebarContent({
                       className={cn(
                         "group/nav flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 relative",
                         isActive
-                          ? "bg-sal-500 text-white shadow-lg shadow-sal-500/25"
-                          : "text-muted-foreground hover:bg-cream-200 hover:text-foreground"
+                          ? "bg-gradient-to-r from-sal-500 to-sal-600 text-white shadow-glow-sm"
+                          : "text-muted-foreground hover:bg-cream-200/70 hover:text-foreground"
                       )}
                     >
                       {/* Active indicator bar */}
@@ -316,13 +316,14 @@ function SidebarContent({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-br from-sal-50 to-sal-100 rounded-xl p-4 border border-sal-200/50"
+            className="relative overflow-hidden bg-gradient-to-br from-sal-50 to-sal-100 rounded-2xl p-4 border border-sal-200/60 shadow-inset-hi"
           >
-            <div className="flex items-center gap-2 mb-3">
+            <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-sal-300/30 blur-2xl" />
+            <div className="relative flex items-center gap-2 mb-3">
               <Bell className="w-4 h-4 text-sal-600" />
               <span className="text-sm font-semibold text-sal-900">Today&apos;s Summary</span>
             </div>
-            <div className="space-y-2">
+            <div className="relative space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-sal-700">Revenue</span>
                 <span className="text-sm font-bold text-sal-800">{formatCurrency(stats?.todayRevenue ?? 0)}</span>

@@ -70,6 +70,21 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "2xl": "calc(var(--radius) + 6px)",
+        "3xl": "calc(var(--radius) + 14px)",
+      },
+      boxShadow: {
+        // Warm, emerald-tinted elevation — surfaces read as one cohesive
+        // material instead of boxes floating on flat black shadows.
+        soft: "0 1px 2px rgba(16, 64, 48, 0.04), 0 1px 3px rgba(16, 64, 48, 0.05)",
+        card: "0 1px 2px rgba(16, 64, 48, 0.04), 0 6px 16px -6px rgba(16, 64, 48, 0.10)",
+        float:
+          "0 2px 4px rgba(16, 64, 48, 0.04), 0 16px 40px -12px rgba(16, 64, 48, 0.20)",
+        // Glow tokens fold in a top inner highlight so a single class gives
+        // colored surfaces both lift and a glassy sheen.
+        glow: "inset 0 1px 0 0 rgba(255, 255, 255, 0.18), 0 10px 30px -8px rgba(5, 150, 105, 0.45)",
+        "glow-sm": "inset 0 1px 0 0 rgba(255, 255, 255, 0.16), 0 4px 14px -4px rgba(5, 150, 105, 0.40)",
+        "inset-hi": "inset 0 1px 0 0 rgba(255, 255, 255, 0.14)",
       },
       fontFamily: {
         sans: ['var(--font-dm-sans)', 'system-ui', 'sans-serif'],
@@ -96,6 +111,13 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "float-slow": {
+          "0%, 100%": { transform: "translateY(0) scale(1)" },
+          "50%": { transform: "translateY(-12px) scale(1.03)" },
+        },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.3s ease-out",
@@ -103,6 +125,7 @@ export default {
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "float-slow": "float-slow 9s ease-in-out infinite",
       },
     },
   },

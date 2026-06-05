@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
     const staffId = searchParams.get('staffId')
     const onlineOnly = searchParams.get('onlineOnly') === 'true'
     const includeInactive = searchParams.get('includeInactive') === 'true'
+    const session = await auth()
+    const sessionBusinessId = (session?.user as { businessId?: string | null } | undefined)?.businessId
+    const canViewInactive = Boolean(sessionBusinessId && sessionBusinessId === businessId)
 
     if (!businessId) {
       return NextResponse.json(
@@ -30,6 +33,8 @@ export async function GET(request: NextRequest) {
 
     if (!includeInactive) {
       where.isActive = true
+    } else if (!canViewInactive) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     if (categoryId) {
@@ -155,6 +160,11 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const sessionBusinessId = (session.user as { businessId?: string | null }).businessId
+    const role = (session.user as { role?: string | null }).role
+    if (!sessionBusinessId || !['owner', 'admin'].includes(role ?? '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const body = await request.json()
 
@@ -180,18 +190,43 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validation
-    if (!businessId || !name || !durationMinutes || price === undefined) {
+    if (!name || !durationMinutes || price === undefined) {
       return NextResponse.json(
-        { error: 'businessId, name, durationMinutes, and price are required' },
+        { error: 'name, durationMinutes, and price are required' },
         { status: 400 }
       )
+    }
+    if (businessId && businessId !== sessionBusinessId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (categoryId) {
+      const category = await prisma.serviceCategory.findFirst({
+        where: { id: categoryId, businessId: sessionBusinessId },
+        select: { id: true },
+      })
+      if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
+    }
+
+    if (staffIds.length > 0) {
+      const staffCount = await prisma.staff.count({
+        where: {
+          id: { in: staffIds },
+          primaryLocation: { businessId: sessionBusinessId },
+          isActive: true,
+          deletedAt: null,
+        },
+      })
+      if (staffCount !== new Set(staffIds).size) {
+        return NextResponse.json({ error: 'One or more staff members were not found' }, { status: 404 })
+      }
     }
 
     const service = await prisma.$transaction(async (tx) => {
       // Create the service
       const newService = await tx.service.create({
         data: {
-          businessId,
+          businessId: sessionBusinessId,
           categoryId,
           name,
           description,

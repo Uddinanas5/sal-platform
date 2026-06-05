@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
+import { lockStaffSchedule } from '@/lib/db/advisory-lock'
 import type { Prisma } from '@/generated/prisma'
+
+function getSessionBusinessId(session: unknown): string | null {
+  return ((session as { user?: { businessId?: string | null } } | null)?.user)?.businessId ?? null
+}
 
 /**
  * GET /api/bookings
@@ -13,6 +18,10 @@ export async function GET(request: NextRequest) {
     const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const sessionBusinessId = getSessionBusinessId(session)
+    if (!sessionBusinessId) {
+      return NextResponse.json({ error: 'No business context' }, { status: 403 })
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -27,16 +36,13 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
-    if (!businessId) {
-      return NextResponse.json(
-        { error: 'businessId is required' },
-        { status: 400 }
-      )
+    if (businessId && businessId !== sessionBusinessId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Build where clause
     const where: Prisma.AppointmentWhereInput = {
-      businessId,
+      businessId: sessionBusinessId,
     }
 
     if (locationId) {
@@ -174,18 +180,25 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const sessionBusinessId = getSessionBusinessId(session)
+    if (!sessionBusinessId) {
+      return NextResponse.json({ error: 'No business context' }, { status: 403 })
+    }
 
     // Validation
-    if (!businessId || !locationId || !services || services.length === 0) {
+    if (!locationId || !services || services.length === 0) {
       return NextResponse.json(
-        { error: 'businessId, locationId, and at least one service are required' },
+        { error: 'locationId and at least one service are required' },
         { status: 400 }
       )
+    }
+    if (businessId && businessId !== sessionBusinessId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Validate that the business exists
     const business = await prisma.business.findUnique({
-      where: { id: businessId },
+      where: { id: sessionBusinessId },
       select: { id: true },
     })
 
@@ -196,11 +209,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const location = await prisma.location.findFirst({
+      where: { id: locationId, businessId: sessionBusinessId, isActive: true },
+      select: { id: true },
+    })
+    if (!location) {
+      return NextResponse.json({ error: 'Location not found' }, { status: 404 })
+    }
+
+    if (clientId) {
+      const client = await prisma.client.findFirst({
+        where: { id: clientId, businessId: sessionBusinessId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!client) {
+        return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+      }
+    }
+
     // Fetch service details and validate availability
     const serviceDetails = await Promise.all(
       services.map(async (svc: { serviceId: string; staffId: string; startTime: string }) => {
-        const service = await prisma.service.findUnique({
-          where: { id: svc.serviceId },
+        const service = await prisma.service.findFirst({
+          where: { id: svc.serviceId, businessId: sessionBusinessId, deletedAt: null },
           include: {
             staffServices: {
               where: { staffId: svc.staffId, isActive: true },
@@ -218,6 +249,19 @@ export async function POST(request: NextRequest) {
 
         // Check availability
         const startTime = new Date(svc.startTime)
+        const staff = await prisma.staff.findFirst({
+          where: {
+            id: svc.staffId,
+            primaryLocation: { businessId: sessionBusinessId },
+            isActive: true,
+            deletedAt: null,
+          },
+          select: { id: true },
+        })
+        if (!staff) {
+          throw new Error(`Staff ${svc.staffId} not found`)
+        }
+
         const available = await isSlotAvailable({
           staffId: svc.staffId,
           serviceId: svc.serviceId,
@@ -271,9 +315,28 @@ export async function POST(request: NextRequest) {
 
     // Create appointment with services in a transaction
     const appointment = await prisma.$transaction(async (tx) => {
+      const staffIds = Array.from(new Set(serviceDetails.map((svc) => svc.staffId))).sort()
+      for (const staffId of staffIds) {
+        await lockStaffSchedule(tx, sessionBusinessId, staffId)
+      }
+
+      for (const svc of serviceDetails) {
+        const conflict = await tx.appointmentService.findFirst({
+          where: {
+            staffId: svc.staffId,
+            appointment: { status: { notIn: ['cancelled', 'no_show'] } },
+            startTime: { lt: svc.endTime },
+            endTime: { gt: svc.startTime },
+          },
+        })
+        if (conflict) {
+          throw new Error(`Time slot ${svc.startTime.toISOString()} is no longer available for ${svc.name}`)
+        }
+      }
+
       const apt = await tx.appointment.create({
         data: {
-          businessId,
+          businessId: sessionBusinessId,
           locationId,
           clientId,
           bookingReference: generateBookingReference(),
@@ -317,7 +380,7 @@ export async function POST(request: NextRequest) {
       // Update client visit stats if client exists
       if (clientId) {
         await tx.client.update({
-          where: { id: clientId },
+          where: { id: clientId, businessId: sessionBusinessId },
           data: {
             totalVisits: { increment: 1 },
             lastVisitAt: appointmentStart,

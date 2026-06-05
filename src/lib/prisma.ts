@@ -10,7 +10,9 @@ function createPrismaClient() {
   const connectionString = url.includes('?')
     ? `${url}&sslmode=${sslmode}&uselibpqcompat=true`
     : `${url}?sslmode=${sslmode}&uselibpqcompat=true`
-  const adapter = new PrismaPg({ connectionString })
+  // Respect Prisma's ?schema= URL param (node-postgres ignores it natively)
+  const schema = /[?&]schema=([^&]+)/.exec(url)?.[1]
+  const adapter = new PrismaPg({ connectionString }, schema ? { schema } : undefined)
   return new PrismaClient({ adapter })
 }
 

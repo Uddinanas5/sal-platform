@@ -27,6 +27,8 @@ const publicRoutes = [
   /^\/api\/mcp$/,
   /^\/api\/v1\/.*/,
   /^\/oauth\/authorize$/,
+  // Stripe calls this server-to-server with no session — authenticated by signature verification in the route
+  /^\/api\/stripe\/webhook$/,
 ]
 
 export default auth((req) => {

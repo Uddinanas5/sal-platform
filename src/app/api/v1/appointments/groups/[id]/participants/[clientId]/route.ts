@@ -1,4 +1,5 @@
 import { withV1Auth } from "@/lib/api/auth"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 
@@ -14,6 +15,7 @@ export async function DELETE(
     where: { id, businessId: ctx.businessId },
   })
   if (!appointment) return ERRORS.NOT_FOUND("Appointment")
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
 
   try {
     await prisma.groupParticipant.delete({

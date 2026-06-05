@@ -1,4 +1,5 @@
 import { withV1Auth } from "@/lib/api/auth"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
@@ -24,10 +25,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   })
 
   if (!appointment) return ERRORS.NOT_FOUND("Appointment")
+  if (!(await canAccessAppointment(ctx, id))) return ERRORS.FORBIDDEN()
   if (!appointment.isGroupBooking) return ERRORS.BAD_REQUEST("Not a group booking")
   if (appointment.groupParticipants.length >= appointment.maxParticipants) {
     return ERRORS.BAD_REQUEST("Group is full")
   }
+  if (appointment.groupParticipants.some((p) => p.clientId === parsed.data.clientId)) {
+    return ERRORS.BAD_REQUEST("Client is already in this group")
+  }
+
+  const client = await prisma.client.findFirst({
+    where: { id: parsed.data.clientId, businessId: ctx.businessId, deletedAt: null },
+  })
+  if (!client) return ERRORS.NOT_FOUND("Client")
 
   const participant = await prisma.groupParticipant.create({
     data: { appointmentId: id, clientId: parsed.data.clientId },

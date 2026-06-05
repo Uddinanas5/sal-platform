@@ -1,6 +1,9 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { generateBookingReference } from "@/lib/booking-reference"
+import { hasRole } from "@/lib/permissions"
 import { addWeeks, addMonths } from "date-fns"
 import { z } from "zod"
 
@@ -26,8 +29,19 @@ export async function POST(req: Request) {
 
   const { clientId, serviceId, staffId, startTime: startTimeStr, notes, recurrenceRule, recurrenceEndDate } = parsed.data
 
-  const service = await prisma.service.findUnique({ where: { id: serviceId } })
+  const [service, client, staff] = await Promise.all([
+    prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
+    prisma.client.findFirst({ where: { id: clientId, businessId: ctx.businessId, deletedAt: null } }),
+    prisma.staff.findFirst({
+      where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
+    }),
+  ])
   if (!service) return ERRORS.NOT_FOUND("Service")
+  if (!client) return ERRORS.NOT_FOUND("Client")
+  if (!staff) return ERRORS.NOT_FOUND("Staff")
+  if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) {
+    return ERRORS.FORBIDDEN()
+  }
 
   const location = await prisma.location.findFirst({ where: { businessId: ctx.businessId } })
   if (!location) return ERRORS.BAD_REQUEST("Business not configured")
@@ -53,53 +67,72 @@ export async function POST(req: Request) {
   const ids: string[] = []
   let parentId: string | null = null
 
-  for (let i = 0; i < dates.length; i++) {
-    const occurrenceStart = dates[i]
-    const occurrenceEnd = new Date(occurrenceStart)
-    occurrenceEnd.setMinutes(occurrenceEnd.getMinutes() + service.durationMinutes)
-    const timestamp = Date.now().toString(36)
-    const random = Math.random().toString(36).substring(2, 6)
-    const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
+  try {
+    await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, ctx.businessId, staffId)
 
-    const appt: { id: string } = await prisma.appointment.create({
-      data: {
-        businessId: ctx.businessId,
-        locationId: location.id,
-        clientId,
-        bookingReference: bookingRef,
-        status: "confirmed",
-        source: "pos",
-        startTime: occurrenceStart,
-        endTime: occurrenceEnd,
-        totalDuration: service.durationMinutes,
-        subtotal: price,
-        taxAmount: tax,
-        totalAmount: price + tax,
-        notes,
-        recurrenceRule,
-        recurrenceEndDate: endDate,
-        seriesId,
-        parentAppointmentId: parentId,
-      },
+      for (let i = 0; i < dates.length; i++) {
+        const occurrenceStart = dates[i]
+        const occurrenceEnd = new Date(occurrenceStart)
+        occurrenceEnd.setMinutes(occurrenceEnd.getMinutes() + service.durationMinutes)
+
+        const conflicting = await tx.appointmentService.findFirst({
+          where: {
+            staffId,
+            appointment: { status: { notIn: ["cancelled", "no_show"] } },
+            startTime: { lt: occurrenceEnd },
+            endTime: { gt: occurrenceStart },
+          },
+        })
+        if (conflicting) throw new Error("CONFLICT")
+
+        const appt: { id: string } = await tx.appointment.create({
+          data: {
+            businessId: ctx.businessId,
+            locationId: location.id,
+            clientId,
+            bookingReference: generateBookingReference(),
+            status: "confirmed",
+            source: "pos",
+            startTime: occurrenceStart,
+            endTime: occurrenceEnd,
+            totalDuration: service.durationMinutes,
+            subtotal: price,
+            taxAmount: tax,
+            totalAmount: price + tax,
+            notes,
+            recurrenceRule,
+            recurrenceEndDate: endDate,
+            seriesId,
+            parentAppointmentId: parentId,
+          },
+        })
+
+        if (i === 0) parentId = appt.id
+
+        await tx.appointmentService.create({
+          data: {
+            appointmentId: appt.id,
+            serviceId,
+            staffId,
+            name: service.name,
+            durationMinutes: service.durationMinutes,
+            price,
+            finalPrice: price,
+            startTime: occurrenceStart,
+            endTime: occurrenceEnd,
+          },
+        })
+
+        ids.push(appt.id)
+      }
     })
-
-    if (i === 0) parentId = appt.id
-
-    await prisma.appointmentService.create({
-      data: {
-        appointmentId: appt.id,
-        serviceId,
-        staffId,
-        name: service.name,
-        durationMinutes: service.durationMinutes,
-        price,
-        finalPrice: price,
-        startTime: occurrenceStart,
-        endTime: occurrenceEnd,
-      },
-    })
-
-    ids.push(appt.id)
+  } catch (e) {
+    if ((e as Error).message === "CONFLICT") {
+      return ERRORS.BAD_REQUEST("One or more recurring time slots are already booked for the selected staff member")
+    }
+    console.error("POST /api/v1/appointments/recurring error:", e)
+    return ERRORS.SERVER_ERROR()
   }
 
   return apiSuccess({ ids, count: ids.length, seriesId }, 201)

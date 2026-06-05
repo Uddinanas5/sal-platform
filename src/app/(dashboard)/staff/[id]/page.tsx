@@ -18,13 +18,13 @@ export default async function StaffDetailPage({ params }: { params: { id: string
   const [staff, services, staffAppointments, businessHoursRaw, timeOffEntries] = await Promise.all([
     getStaffById(params.id, businessId),
     getServices(businessId), // active-only for staff assignment
-    getAppointments({ staffId: params.id }),
+    getAppointments({ staffId: params.id, businessId }),
     prisma.businessHours.findMany({
       where: { location: { businessId, isPrimary: true } },
       select: { dayOfWeek: true, isClosed: true },
     }),
     prisma.staffTimeOff.findMany({
-      where: { staffId: params.id },
+      where: { staffId: params.id, staff: { primaryLocation: { businessId } } },
       orderBy: { startDate: "desc" },
     }),
   ])
@@ -49,7 +49,7 @@ export default async function StaffDetailPage({ params }: { params: { id: string
   const staffName = (staff as any).name ?? `${(staff as any).user?.firstName ?? ""} ${(staff as any).user?.lastName ?? ""}`.trim()
   let staffPerformance = null
   try {
-    staffPerformance = await getStaffPerformanceByName(staffName)
+    staffPerformance = await getStaffPerformanceByName(staffName, businessId)
   } catch {
     staffPerformance = null
   }

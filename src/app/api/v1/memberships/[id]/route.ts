@@ -29,6 +29,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return ERRORS.BAD_REQUEST("Invalid action. Use ?action=cancel|pause|resume")
   }
 
-  const updated = await prisma.membership.update({ where: { id }, data: updateData })
+  const updated = await prisma.membership.update({
+    where: { id, plan: { businessId: ctx.businessId } },
+    data: updateData,
+  })
   return apiSuccess(updated)
 }

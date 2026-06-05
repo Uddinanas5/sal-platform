@@ -5,7 +5,11 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail, appointmentCancelledEmail, appointmentRescheduledEmail } from "@/lib/email-templates"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
 import { getBusinessContext } from "@/lib/auth-utils"
+import { generateBookingReference } from "@/lib/booking-reference"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
+import { hasRole } from "@/lib/permissions"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -45,10 +49,31 @@ export async function createAppointment(data: {
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    const { userId, businessId, role } = await getBusinessContext()
 
-    const service = await prisma.service.findUnique({ where: { id: data.serviceId } })
+    const [service, client, staff] = await Promise.all([
+      prisma.service.findFirst({
+        where: { id: data.serviceId, businessId, deletedAt: null },
+      }),
+      prisma.client.findFirst({
+        where: { id: data.clientId, businessId, deletedAt: null },
+      }),
+      prisma.staff.findFirst({
+        where: {
+          id: data.staffId,
+          primaryLocation: { businessId },
+          isActive: true,
+          deletedAt: null,
+        },
+        include: { user: true },
+      }),
+    ])
     if (!service) return { success: false, error: "Service not found" }
+    if (!client) return { success: false, error: "Client not found" }
+    if (!staff) return { success: false, error: "Staff not found" }
+    if (!hasRole(role, "admin") && staff.userId !== userId) {
+      return { success: false, error: "Forbidden" }
+    }
 
     const startTime = new Date(data.startTime)
     const endTime = new Date(startTime)
@@ -64,6 +89,8 @@ export async function createAppointment(data: {
 
     // Transaction: conflict check + create must be atomic to prevent race conditions
     const appointment = await prisma.$transaction(async (tx) => {
+      await lockStaffSchedule(tx, businessId, data.staffId)
+
       // Double-booking prevention: check for overlapping appointments for the same staff member
       const conflicting = await tx.appointmentService.findFirst({
         where: {
@@ -79,17 +106,12 @@ export async function createAppointment(data: {
         throw new Error("CONFLICT")
       }
 
-      // Atomic booking reference via random suffix to avoid count race condition
-      const timestamp = Date.now().toString(36)
-      const random = Math.random().toString(36).substring(2, 6)
-      const bookingRef = `SAL-${timestamp}-${random}`.toUpperCase()
-
       const appt = await tx.appointment.create({
         data: {
           businessId,
           locationId: location.id,
           clientId: data.clientId,
-          bookingReference: bookingRef,
+          bookingReference: generateBookingReference(),
           status: "confirmed",
           source: "pos",
           startTime,
@@ -124,12 +146,6 @@ export async function createAppointment(data: {
     }
 
     // Send booking confirmation email (non-blocking)
-    const client = await prisma.client.findUnique({ where: { id: data.clientId } })
-    const staff = await prisma.staff.findUnique({
-      where: { id: data.staffId },
-      include: { user: true },
-    })
-
     if (client?.email) {
       const dateTime = new Intl.DateTimeFormat("en-US", {
         weekday: "long",
@@ -187,7 +203,10 @@ export async function updateAppointmentStatus(
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    const { userId, businessId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, id))) {
+      return { success: false, error: "Forbidden" }
+    }
 
     const statusMap: Record<string, string> = {
       confirmed: "confirmed",
@@ -266,7 +285,10 @@ export async function rescheduleAppointment(
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    const { userId, businessId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, id))) {
+      return { success: false, error: "Forbidden" }
+    }
 
     const appointment = await prisma.appointment.findUnique({
       where: { id, businessId },
@@ -289,9 +311,22 @@ export async function rescheduleAppointment(
 
     // Transaction: conflict check + update must be atomic
     const effectiveStaffId = newStaffId || appointment.services[0]?.staffId
+    if (newStaffId) {
+      const staff = await prisma.staff.findFirst({
+        where: {
+          id: newStaffId,
+          primaryLocation: { businessId },
+          isActive: true,
+          deletedAt: null,
+        },
+      })
+      if (!staff) return { success: false, error: "Staff not found" }
+    }
 
     await prisma.$transaction(async (tx) => {
       if (effectiveStaffId) {
+        await lockStaffSchedule(tx, businessId, effectiveStaffId)
+
         const conflicting = await tx.appointmentService.findFirst({
           where: {
             staffId: effectiveStaffId,

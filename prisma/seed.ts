@@ -2,6 +2,7 @@ import "dotenv/config"
 import { PrismaClient } from "./generated/prisma/client/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import bcrypt from "bcryptjs"
+import crypto from "crypto"
 
 const connectionString = process.env.DATABASE_URL!
 const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1')
@@ -9,7 +10,9 @@ const sslmode = isLocal ? 'disable' : 'require'
 const sslUrl = connectionString.includes('?')
   ? `${connectionString}&sslmode=${sslmode}&uselibpqcompat=true`
   : `${connectionString}?sslmode=${sslmode}&uselibpqcompat=true`
-const adapter = new PrismaPg({ connectionString: sslUrl })
+// Respect Prisma's ?schema= URL param (node-postgres ignores it natively)
+const schema = /[?&]schema=([^&]+)/.exec(connectionString)?.[1]
+const adapter = new PrismaPg({ connectionString: sslUrl }, schema ? { schema } : undefined)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
@@ -54,6 +57,7 @@ async function main() {
   await prisma.discount.deleteMany()
   await prisma.payrollPeriod.deleteMany()
   await prisma.auditLog.deleteMany()
+  await prisma.apiKey.deleteMany()
   await prisma.location.deleteMany()
   await prisma.business.deleteMany()
   await prisma.user.deleteMany()
@@ -115,7 +119,6 @@ async function main() {
   // ============================================================================
   // 2b. Create Business Hours
   // ============================================================================
-  // Helper to convert "HH:MM" to a Date for @db.Time fields
   const toTime = (hhmm: string | null) => hhmm ? new Date(`1970-01-01T${hhmm}:00.000Z`) : null
 
   const businessHoursData = [
@@ -140,6 +143,26 @@ async function main() {
     })
   }
   console.log("  Created business hours (Mon-Sat open, Sunday closed)")
+
+  // ============================================================================
+  // 2c. Create Dev-Seeded API Key (for local testing only)
+  // ============================================================================
+  const devKeyBody = crypto.randomBytes(24).toString("hex")
+  const devApiKey = `sal_devseed_${devKeyBody}`
+  const devKeyHash = crypto.createHash("sha256").update(devApiKey).digest("hex")
+  const devKeyPrefix = devApiKey.slice(0, 12)
+
+  await prisma.apiKey.create({
+    data: {
+      businessId: business.id,
+      name: "Dev Seed Key",
+      keyHash: devKeyHash,
+      keyPrefix: devKeyPrefix,
+      role: "owner",
+      createdById: adminUser.id,
+    },
+  })
+  console.log(`  Created dev API key: ${devApiKey}`)
 
   // ============================================================================
   // 3. Create Staff Users
@@ -636,7 +659,8 @@ async function main() {
   console.log(`  Created ${transactionsData.length} payments`)
 
   console.log("\n✅ Seeding complete!")
-  console.log("   Login: admin@sal.app / password")
+  console.log("   Login:   admin@sal.app / password")
+  console.log(`   API key: ${devApiKey}`)
 }
 
 main()

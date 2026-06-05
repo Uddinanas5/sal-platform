@@ -1,6 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
+import { parseJsonBody, requireV1Context } from "@/lib/api/route-helpers"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
-import { hasRole } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -27,19 +27,21 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const ctx = await withV1Auth(req)
-  if (!ctx) return ERRORS.UNAUTHORIZED()
-  if (!hasRole(ctx.role, "admin")) return ERRORS.FORBIDDEN()
+  const auth = await requireV1Context(req, "admin")
+  if (!auth.ok) return auth.response
 
-  let body: unknown
-  try { body = await req.json() } catch { return ERRORS.BAD_REQUEST("Invalid JSON") }
+  const parsed = await parseJsonBody(req, createServiceSchema)
+  if (!parsed.ok) return parsed.response
 
-  const parsed = createServiceSchema.safeParse(body)
-  if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
+  const category = await prisma.serviceCategory.findFirst({
+    where: { id: parsed.data.categoryId, businessId: auth.ctx.businessId, isActive: true },
+    select: { id: true },
+  })
+  if (!category) return ERRORS.BAD_REQUEST("Service category does not belong to this business")
 
   const service = await prisma.service.create({
     data: {
-      businessId: ctx.businessId,
+      businessId: auth.ctx.businessId,
       categoryId: parsed.data.categoryId,
       name: parsed.data.name,
       description: parsed.data.description,

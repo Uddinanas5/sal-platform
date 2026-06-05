@@ -99,7 +99,7 @@ export function DashboardClient(props: DashboardClientProps) {
   }, [props.revenueData])
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       <Header title="Dashboard" subtitle={formattedDate} />
 
       <div className="p-6 space-y-6">
@@ -107,14 +107,30 @@ export function DashboardClient(props: DashboardClientProps) {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sal-500 via-sal-600 to-sal-800 p-6 text-white"
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sal-500 via-sal-600 to-sal-800 p-7 text-white shadow-glow ring-1 ring-white/10"
         >
+          {/* Layered mesh + grid for depth */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-60"
+            style={{
+              backgroundImage:
+                "radial-gradient(60% 120% at 85% -10%, rgba(110,231,183,0.35), transparent 60%), radial-gradient(40% 80% at 10% 110%, rgba(2,44,34,0.5), transparent 60%)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
+              backgroundSize: "32px 32px",
+            }}
+          />
           <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5" />
-              <span className="text-sm font-medium text-sal-200">AI Insight</span>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 ring-1 ring-inset ring-white/20 backdrop-blur-sm">
+              <Sparkles className="w-3.5 h-3.5 text-sal-100" />
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-sal-50">AI Insight</span>
             </div>
-            <h2 className="text-2xl font-heading font-bold mb-2">{getGreeting()}, {firstName}!</h2>
+            <h2 className="text-[1.7rem] leading-tight font-heading font-bold mb-2 tracking-tight">{getGreeting()}, {firstName}!</h2>
             <p className="text-sal-100 max-w-xl">
               You have <span className="font-semibold text-white">{props.stats.todayAppointments} appointments</span> today.
               Based on your booking trends, consider adjusting staffing for peak days.
@@ -161,9 +177,9 @@ export function DashboardClient(props: DashboardClientProps) {
             </Button>
           </div>
           {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 right-20 w-32 h-32 bg-white/5 rounded-full translate-y-1/2" />
-          <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-sal-400/20 rounded-full" />
+          <div className="pointer-events-none absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full blur-2xl -translate-y-1/3 translate-x-1/3 animate-float-slow" />
+          <div className="pointer-events-none absolute bottom-0 right-24 w-32 h-32 bg-sal-300/20 rounded-full blur-xl translate-y-1/2" />
+          <div className="pointer-events-none absolute -bottom-6 -left-6 w-28 h-28 bg-sal-400/20 rounded-full blur-lg" />
         </motion.div>
 
         {/* Stats Grid */}

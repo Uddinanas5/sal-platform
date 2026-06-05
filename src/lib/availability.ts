@@ -1,4 +1,5 @@
 import { prisma } from './prisma'
+import { generateBookingReference as generateSecureBookingReference } from '@/lib/booking-reference'
 
 interface TimeSlot {
   start: Date
@@ -41,6 +42,9 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
     prisma.service.findUnique({
       where: { id: serviceId },
       select: {
+        businessId: true,
+        isActive: true,
+        deletedAt: true,
         durationMinutes: true,
         bufferBeforeMinutes: true,
         bufferAfterMinutes: true,
@@ -104,8 +108,12 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
     prisma.staff.findUnique({
       where: { id: staffId },
       select: {
+        locationId: true,
         bookingBufferMinutes: true,
         canAcceptBookings: true,
+        primaryLocation: { select: { businessId: true } },
+        staffLocations: { where: { locationId }, select: { locationId: true } },
+        staffServices: { where: { serviceId, isActive: true }, select: { serviceId: true } },
       },
     }),
 
@@ -116,8 +124,17 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
   ])
 
   // Validation checks
-  if (!service) {
+  if (!service || !service.isActive || service.deletedAt) {
     throw new Error('Service not found')
+  }
+
+  if (
+    staff &&
+    (staff.primaryLocation.businessId !== service.businessId ||
+      (staff.locationId !== locationId && staff.staffLocations.length === 0) ||
+      staff.staffServices.length === 0)
+  ) {
+    throw new Error('Staff, service, and location do not match')
   }
 
   if (!staff || !staff.canAcceptBookings) {
@@ -349,10 +366,5 @@ export async function getMultiStaffAvailability(params: {
  * Generate a unique booking reference
  */
 export function generateBookingReference(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let result = 'SAL-'
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return result
+  return generateSecureBookingReference()
 }

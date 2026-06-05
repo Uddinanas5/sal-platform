@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
     const serviceId = searchParams.get('serviceId')
     const canAcceptBookings = searchParams.get('canAcceptBookings')
     const includeInactive = searchParams.get('includeInactive') === 'true'
+    const session = await auth()
+    const sessionBusinessId = (session?.user as { businessId?: string | null } | undefined)?.businessId
+    const canViewPrivate = Boolean(sessionBusinessId && (!businessId || sessionBusinessId === businessId))
 
     if (!businessId && !locationId) {
       return NextResponse.json(
@@ -42,6 +45,8 @@ export async function GET(request: NextRequest) {
 
     if (!includeInactive) {
       where.isActive = true
+    } else if (!canViewPrivate) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     if (canAcceptBookings !== null && canAcceptBookings !== undefined) {
@@ -127,8 +132,8 @@ export async function GET(request: NextRequest) {
       name: `${member.user.firstName} ${member.user.lastName}`,
       firstName: member.user.firstName,
       lastName: member.user.lastName,
-      email: member.user.email,
-      phone: member.user.phone,
+      email: canViewPrivate ? member.user.email : null,
+      phone: canViewPrivate ? member.user.phone : null,
       avatarUrl: member.user.avatarUrl,
       title: member.title,
       bio: member.bio,
@@ -206,6 +211,11 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const businessId = (session.user as { businessId?: string | null }).businessId
+    const role = (session.user as { role?: string | null }).role
+    if (!businessId || !['owner', 'admin'].includes(role ?? '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const body = await request.json()
 
@@ -246,6 +256,31 @@ export async function POST(request: NextRequest) {
         { error: 'User not found' },
         { status: 404 }
       )
+    }
+
+    const location = await prisma.location.findFirst({
+      where: { id: locationId, businessId, isActive: true },
+      select: { id: true },
+    })
+    if (!location) {
+      return NextResponse.json({ error: 'Location not found' }, { status: 404 })
+    }
+
+    const existingStaff = await prisma.staff.findFirst({
+      where: { userId, primaryLocation: { businessId }, deletedAt: null },
+      select: { id: true },
+    })
+    if (existingStaff) {
+      return NextResponse.json({ error: 'User is already staff in this business' }, { status: 400 })
+    }
+
+    if (serviceIds.length > 0) {
+      const serviceCount = await prisma.service.count({
+        where: { id: { in: serviceIds }, businessId, deletedAt: null },
+      })
+      if (serviceCount !== new Set(serviceIds).size) {
+        return NextResponse.json({ error: 'One or more services were not found' }, { status: 404 })
+      }
     }
 
     const staffMember = await prisma.$transaction(async (tx) => {

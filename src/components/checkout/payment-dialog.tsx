@@ -32,7 +32,8 @@ import { toast } from "sonner"
 
 interface CartItem {
   id: string
-  type: "service" | "product"
+  catalogId: string
+  type: "service" | "product" | "custom"
   name: string
   price: number
   quantity: number
@@ -126,7 +127,8 @@ export function PaymentDialog({
         clientId: clientId || undefined,
         items: items.map((item) => ({
           type: item.type,
-          id: item.id,
+          id: item.catalogId,
+          name: item.name,
           price: item.price,
           quantity: item.quantity,
         })),
