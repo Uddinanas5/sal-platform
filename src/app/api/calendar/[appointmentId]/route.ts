@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { getBusinessContext } from "@/lib/auth-utils"
 import { NextRequest, NextResponse } from "next/server"
 
 function escapeICS(text: string): string {
@@ -14,8 +15,13 @@ export async function GET(
   { params }: { params: { appointmentId: string } }
 ) {
   try {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: params.appointmentId },
+    // Tenant-scope the lookup: the ICS body exposes client PII (name, email),
+    // staff names, notes, and the location address. Without a businessId filter
+    // any logged-in user of any tenant could fetch any other tenant's
+    // appointment by id (cross-tenant IDOR). Mirrors api/v1/appointments/[id].
+    const ctx = await getBusinessContext()
+    const appointment = await prisma.appointment.findFirst({
+      where: { id: params.appointmentId, businessId: ctx.businessId },
       include: {
         client: { select: { firstName: true, lastName: true, email: true } },
         business: { select: { name: true, email: true } },

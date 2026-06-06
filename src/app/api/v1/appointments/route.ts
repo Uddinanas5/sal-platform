@@ -34,9 +34,6 @@ export async function GET(req: Request) {
   const dateFrom = url.searchParams.get("dateFrom")
   const dateTo = url.searchParams.get("dateTo")
 
-  // Staff role: only their own appointments
-  const effectiveStaffId = ctx.role === "staff" ? staffId ?? undefined : staffId ?? undefined
-
   const where: Record<string, unknown> = { businessId: ctx.businessId }
   if (clientId) where.clientId = clientId
   if (status) where.status = status
@@ -61,16 +58,20 @@ export async function GET(req: Request) {
       ...(lte ? { lte } : {}),
     }
   }
-  if (effectiveStaffId) {
-    where.services = { some: { staffId: effectiveStaffId } }
-  } else if (ctx.role === "staff") {
-    // Staff can only see their own appointments; find their staffId
+  // Staff role: ALWAYS scope to the caller's own appointments, ignoring any
+  // client-supplied `staffId` (a staff user must not read a colleague's
+  // appointments + client PII via ?staffId=<colleagueId>). Admin/owner may
+  // filter by an arbitrary staffId.
+  if (ctx.role === "staff") {
     const staffProfile = await prisma.staff.findFirst({
       where: { userId: ctx.userId, isActive: true },
+      select: { id: true },
     })
-    if (staffProfile) {
-      where.services = { some: { staffId: staffProfile.id } }
-    }
+    // No active staff profile => deny access to all (empty result) rather than
+    // falling through unfiltered and returning every tenant appointment.
+    where.services = { some: { staffId: staffProfile?.id ?? "__none__" } }
+  } else if (staffId) {
+    where.services = { some: { staffId } }
   }
 
   const [appointments, total] = await Promise.all([
