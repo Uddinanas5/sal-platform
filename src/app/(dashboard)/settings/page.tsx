@@ -39,8 +39,31 @@ export default async function SettingsPage() {
 
   const business = businessId ? await prisma.business.findUnique({
     where: { id: businessId },
-    select: { name: true, phone: true, email: true, timezone: true, currency: true, slug: true },
+    select: {
+      name: true,
+      phone: true,
+      email: true,
+      timezone: true,
+      currency: true,
+      slug: true,
+      // SAL subscription billing state (drives the Billing tab UI).
+      subscriptionStatus: true,
+      subscriptionTier: true,
+      stripeSubscriptionId: true,
+      stripeCustomerId: true,
+      billingExempt: true,
+    },
   }) : null
+
+  // Derive a single billing "view" for the client. Never-subscribed (no
+  // stripeSubscriptionId) is the safe default state every beta salon sits in.
+  const billing = {
+    status: (business?.subscriptionStatus as string | undefined) ?? "active",
+    hasSubscription: Boolean(business?.stripeSubscriptionId),
+    hasCustomer: Boolean(business?.stripeCustomerId),
+    billingExempt: Boolean(business?.billingExempt),
+    tier: (business?.subscriptionTier as string | undefined) ?? "free",
+  }
 
   const location = businessId ? await prisma.location.findFirst({
     where: { businessId, isPrimary: true },
@@ -177,6 +200,7 @@ export default async function SettingsPage() {
       onlinePresenceSettings={onlinePresenceSettings}
       paymentSettings={paymentSettings}
       notificationSettings={notificationSettings}
+      billing={billing}
     />
   )
 }

@@ -194,9 +194,22 @@ interface SettingsClientProps {
   onlinePresenceSettings: OnlinePresenceSettings
   paymentSettings: PaymentSettings
   notificationSettings: NotificationSettings
+  billing: BillingState
 }
 
-export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings, notificationSettings, businessSlug, onlinePresenceSettings, paymentSettings }: SettingsClientProps) {
+// SAL subscription billing state for the salon-as-payer. `hasSubscription` is
+// the linchpin of safe-by-default gating: a salon that never subscribed sits at
+// status "active" with hasSubscription=false and is offered the plan (never
+// gated).
+interface BillingState {
+  status: string
+  hasSubscription: boolean
+  hasCustomer: boolean
+  billingExempt: boolean
+  tier: string
+}
+
+export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings, notificationSettings, businessSlug, onlinePresenceSettings, paymentSettings, billing }: SettingsClientProps) {
   const isAdminOrOwner = role === "owner" || role === "admin"
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     if (typeof window === "undefined") return "light"
@@ -258,6 +271,49 @@ export default function SettingsClient({ resources, services, initialBusiness, i
     setIsSaving(false)
   }
 
+  const isOwner = role === "owner"
+  const [billingLoading, setBillingLoading] = useState(false)
+
+  // Start the SAL subscription checkout ($1,500 setup + $497/mo). The server
+  // route resolves the business from the session — we send no ids the browser
+  // could forge. On success we hand off to Stripe-hosted Checkout.
+  async function handleStartCheckout() {
+    setBillingLoading(true)
+    try {
+      const res = await fetch("/api/stripe/create-subscription-checkout", {
+        method: "POST",
+      })
+      const data = await res.json()
+      if (res.ok && data.url) {
+        window.location.href = data.url as string
+      } else {
+        toast.error(data.error || "Could not start checkout")
+      }
+    } catch {
+      toast.error("Could not start checkout")
+    } finally {
+      setBillingLoading(false)
+    }
+  }
+
+  // Open the Stripe Customer Portal (update card, view invoices, cancel).
+  async function handleOpenPortal() {
+    setBillingLoading(true)
+    try {
+      const res = await fetch("/api/stripe/billing-portal", { method: "POST" })
+      const data = await res.json()
+      if (res.ok && data.url) {
+        window.location.href = data.url as string
+      } else {
+        toast.error(data.error || "Could not open billing portal")
+      }
+    } catch {
+      toast.error("Could not open billing portal")
+    } finally {
+      setBillingLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-cream">
       <Header title="Settings" subtitle="Manage your business preferences" />
@@ -267,8 +323,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
           <TabsList className="flex w-full max-w-5xl overflow-x-auto gap-1 h-auto flex-wrap">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="resources">Resources</TabsTrigger>
-            {/* Billing tab hidden until real SAL subscription billing ships —
-                the current content is a hardcoded $49 plan + fake card. */}
+            <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="booking">Booking</TabsTrigger>
@@ -473,85 +528,143 @@ export default function SettingsClient({ resources, services, initialBusiness, i
             </motion.div>
           </TabsContent>
 
-          {/* Billing */}
+          {/* Billing \u2014 real SAL subscription state ($1,500 setup + $497/mo).
+              Driven entirely by props from the server (subscriptionStatus +
+              stripeSubscriptionId + billingExempt). Owner-only action buttons. */}
           <TabsContent value="billing">
             <div className="max-w-4xl space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
                         <CardTitle className="flex items-center gap-2 font-heading">
                           <CreditCard className="w-5 h-5 text-sal-500" />
-                          Current Plan
+                          SAL Subscription
                         </CardTitle>
                         <CardDescription>
-                          Your subscription details
+                          Your SAL platform plan and billing
                         </CardDescription>
                       </div>
-                      <Badge className="bg-gradient-to-r from-sal-500 to-sal-600 text-white">
-                        Pro Plan
-                      </Badge>
+                      {billing.billingExempt ? (
+                        <Badge className="bg-sal-500/10 text-sal-700 dark:text-sal-300 border-sal-500/30">
+                          Founding beta \u2014 billing waived
+                        </Badge>
+                      ) : billing.hasSubscription && billing.status === "active" ? (
+                        <Badge className="bg-gradient-to-r from-sal-500 to-sal-600 text-white">
+                          Pro \u2014 active
+                        </Badge>
+                      ) : billing.status === "past_due" ? (
+                        <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                          Past due
+                        </Badge>
+                      ) : billing.hasSubscription && billing.status === "cancelled" ? (
+                        <Badge variant="secondary">Cancelled</Badge>
+                      ) : (
+                        <Badge variant="secondary">No plan</Badge>
+                      )}
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-end gap-2 mb-4">
-                      <span className="text-4xl font-heading font-bold">$49</span>
+                  <CardContent className="space-y-6">
+                    {/* Plan price line \u2014 always the founder's Grand Slam Offer. */}
+                    <div className="flex flex-wrap items-end gap-2">
+                      <span className="text-4xl font-heading font-bold">$497</span>
                       <span className="text-muted-foreground mb-1">/month</span>
+                      <span className="text-muted-foreground mb-1">
+                        + $1,500 one-time setup
+                      </span>
                     </div>
-                    <ul className="space-y-2 text-sm text-muted-foreground mb-6">
-                      <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
-                        Unlimited appointments
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
-                        Up to 10 staff members
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
-                        AI-powered insights
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
-                        Priority support
-                      </li>
-                    </ul>
-                    <div className="flex gap-3">
-                      <Button variant="outline">Change Plan</Button>
-                      <Button variant="ghost" className="text-red-500 hover:text-red-600">
-                        Cancel Subscription
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-heading">Payment Method</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-cream-100">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded flex items-center justify-center text-white text-xs font-bold">
-                          VISA
+                    {/* (E) billingExempt \u2014 beta waiver overrides everything. */}
+                    {billing.billingExempt ? (
+                      <p className="text-sm text-muted-foreground">
+                        Your account is a founding beta \u2014 billing is waived. You have
+                        full access at no charge. Thank you for helping build SAL.
+                      </p>
+                    ) : billing.hasSubscription && billing.status === "active" ? (
+                      /* (B) active subscription. */
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Your subscription is active. Your card is billed $497 monthly;
+                          manage your payment method, view invoices, or cancel anytime
+                          from the billing portal.
+                        </p>
+                        {isOwner ? (
+                          <Button onClick={handleOpenPortal} disabled={billingLoading}>
+                            {billingLoading ? "Opening..." : "Manage billing"}
+                          </Button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Only the business owner can manage billing.
+                          </p>
+                        )}
+                      </>
+                    ) : billing.status === "past_due" ? (
+                      /* (C) past due \u2014 payment failed, full access retained. */
+                      <>
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+                          Your last payment failed. Update your card to keep your
+                          subscription active.
                         </div>
-                        <div>
-                          <p className="font-medium">{"\u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 4242"}</p>
-                          <p className="text-sm text-muted-foreground">Expires 12/26</p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">Update</Button>
-                    </div>
+                        {isOwner ? (
+                          <Button onClick={handleOpenPortal} disabled={billingLoading}>
+                            {billingLoading ? "Opening..." : "Update payment method"}
+                          </Button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Only the business owner can update billing.
+                          </p>
+                        )}
+                      </>
+                    ) : billing.hasSubscription && billing.status === "cancelled" ? (
+                      /* (D) cancelled \u2014 had a subscription, must resubscribe. */
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Your subscription has ended. Resubscribe to restore full
+                          access to SAL.
+                        </p>
+                        {isOwner ? (
+                          <Button onClick={handleStartCheckout} disabled={billingLoading}>
+                            {billingLoading ? "Starting..." : "Resubscribe"}
+                          </Button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Only the business owner can manage billing.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      /* (A) never subscribed \u2014 offer card. NOT gated; full access. */
+                      <>
+                        <ul className="space-y-2 text-sm text-muted-foreground">
+                          <li className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
+                            Complete done-for-you setup ($1,500 one-time)
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
+                            Unlimited appointments &amp; staff
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
+                            Online booking, payments, and reminders
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
+                            Priority support
+                          </li>
+                        </ul>
+                        {isOwner ? (
+                          <Button onClick={handleStartCheckout} disabled={billingLoading}>
+                            {billingLoading ? "Starting..." : "Set up billing"}
+                          </Button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Only the business owner can set up billing.
+                          </p>
+                        )}
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>

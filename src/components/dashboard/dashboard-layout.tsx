@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowUp } from "lucide-react"
+import Link from "next/link"
+import { ArrowUp, AlertTriangle } from "lucide-react"
 import { Sidebar } from "./sidebar"
 import { MobileSidebarContext } from "./mobile-sidebar-context"
 import { ShortcutGuideDialog } from "./shortcut-guide-dialog"
@@ -26,9 +27,12 @@ function useIsMobile(breakpoint = 768) {
 
 interface DashboardLayoutProps {
   children: React.ReactNode
+  // Non-blocking billing notice. "past_due" → amber banner prompting a card
+  // update via the billing portal. null → no banner (the common case).
+  billingBanner?: "past_due" | null
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, billingBanner = null }: DashboardLayoutProps) {
   const pathname = usePathname()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -128,6 +132,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="min-h-screen"
         >
+          {billingBanner === "past_due" && (
+            <div className="flex items-center justify-between gap-4 bg-amber-500/10 border-b border-amber-500/30 px-6 py-3 text-sm">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>
+                  Payment issue — your last SAL payment failed. Update your card to
+                  avoid interruption.
+                </span>
+              </div>
+              <Link
+                href="/settings?tab=billing"
+                className="shrink-0 font-medium text-amber-700 dark:text-amber-300 underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-200"
+              >
+                Update card
+              </Link>
+            </div>
+          )}
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}

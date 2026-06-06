@@ -21,6 +21,50 @@ function isUniqueViolation(err: unknown): boolean {
   )
 }
 
+// Map a Stripe subscription status onto SAL's SubscriptionStatus enum values
+// (exactly: active | trialing | past_due | cancelled | paused). We treat a
+// trial as full access (active), and every failure/incomplete state as past_due
+// so the dashboard shows the non-blocking "update your card" banner rather than
+// hard-locking the salon.
+function mapStripeStatus(
+  status: Stripe.Subscription.Status
+): "active" | "past_due" | "cancelled" {
+  switch (status) {
+    case "active":
+    case "trialing":
+      return "active"
+    case "past_due":
+    case "unpaid":
+    case "incomplete":
+    case "incomplete_expired":
+      return "past_due"
+    case "canceled":
+    case "paused":
+      return "cancelled"
+    default:
+      return "past_due"
+  }
+}
+
+// Build the Prisma `where` used to resolve the owning business from a Stripe
+// subscription event. Prefer the subscription id (most precise); fall back to
+// metadata.businessId, then the customer id. Returns null when nothing usable
+// is present so the caller can no-op on an unknown/foreign subscription.
+function subscriptionResolveWhere(
+  subscription: Stripe.Subscription,
+  customerId: string | null
+):
+  | { stripeSubscriptionId: string }
+  | { id: string }
+  | { stripeCustomerId: string }
+  | null {
+  if (subscription.id) return { stripeSubscriptionId: subscription.id }
+  const metaBusinessId = subscription.metadata?.businessId
+  if (metaBusinessId) return { id: metaBusinessId }
+  if (customerId) return { stripeCustomerId: customerId }
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!webhookSecret) {
@@ -215,6 +259,130 @@ export async function POST(request: NextRequest) {
             })
           }
         }
+
+        break
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // SAL SUBSCRIPTION BILLING (the salon paying SAL).
+      // Webhook-driven state: this route is the single source of truth for a
+      // business's subscriptionStatus. Every lookup is keyed by a Stripe id we
+      // get from the (already signature-verified) event — metadata.businessId
+      // or stripeCustomerId — never by anything the browser could forge.
+      // ───────────────────────────────────────────────────────────────────
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session
+
+        // Only our subscription checkout matters here; ignore one-time/payment
+        // mode sessions (those belong to other flows, if any).
+        if (session.mode !== "subscription") break
+
+        const businessId =
+          session.metadata?.businessId ?? session.client_reference_id ?? null
+        if (!businessId) {
+          console.error(
+            `[stripe.webhook] checkout.session.completed without businessId — session=${session.id}`
+          )
+          break
+        }
+
+        const subscriptionId =
+          typeof session.subscription === "string"
+            ? session.subscription
+            : session.subscription?.id ?? null
+        const customerId =
+          typeof session.customer === "string"
+            ? session.customer
+            : session.customer?.id ?? null
+
+        await prisma.business.updateMany({
+          where: { id: businessId },
+          data: {
+            subscriptionStatus: "active",
+            subscriptionTier: "pro",
+            ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
+            ...(customerId ? { stripeCustomerId: customerId } : {}),
+          },
+        })
+
+        break
+      }
+
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription
+
+        // Map Stripe's subscription status onto our SubscriptionStatus enum
+        // (active | trialing | past_due | cancelled | paused). We collapse
+        // trialing → active (full access during a trial) and the failure
+        // states (past_due/unpaid/incomplete*) → past_due.
+        const mapped = mapStripeStatus(subscription.status)
+
+        const customerId =
+          typeof subscription.customer === "string"
+            ? subscription.customer
+            : subscription.customer?.id ?? null
+
+        // Resolve the business by the subscription id first (most precise), then
+        // fall back to customer id / metadata — all server-trusted from Stripe.
+        const where = subscriptionResolveWhere(subscription, customerId)
+        if (!where) {
+          console.error(
+            `[stripe.webhook] customer.subscription.updated for unresolvable subscription=${subscription.id} — no-op.`
+          )
+          break
+        }
+
+        await prisma.business.updateMany({ where, data: { subscriptionStatus: mapped } })
+
+        break
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription
+
+        const customerId =
+          typeof subscription.customer === "string"
+            ? subscription.customer
+            : subscription.customer?.id ?? null
+
+        const where = subscriptionResolveWhere(subscription, customerId)
+        if (!where) {
+          console.error(
+            `[stripe.webhook] customer.subscription.deleted for unresolvable subscription=${subscription.id} — no-op.`
+          )
+          break
+        }
+
+        // Cancelled at Stripe → clear the subscription id so a future checkout
+        // can start fresh; the cancelled status + cleared id is what the hard
+        // gate keys on (status === cancelled AND a subscription was ever set).
+        await prisma.business.updateMany({
+          where,
+          data: { subscriptionStatus: "cancelled", stripeSubscriptionId: null },
+        })
+
+        break
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice
+
+        const customerId =
+          typeof invoice.customer === "string"
+            ? invoice.customer
+            : invoice.customer?.id ?? null
+
+        if (!customerId) {
+          console.error(
+            `[stripe.webhook] invoice.payment_failed without customer — invoice=${invoice.id}`
+          )
+          break
+        }
+
+        await prisma.business.updateMany({
+          where: { stripeCustomerId: customerId },
+          data: { subscriptionStatus: "past_due" },
+        })
 
         break
       }

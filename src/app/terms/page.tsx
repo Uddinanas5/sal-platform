@@ -1,3 +1,8 @@
+// HUMAN_INPUT_NEEDED: lawyer review required. Section 6 (Payment Terms) below
+// describes SAL's real pricing and refund/cancellation policy ($1,500 one-time
+// setup + $497/month). This wording is a good-faith draft and is NOT legal
+// advice — have counsel review the refund, cancellation, and price-change terms
+// before relying on them.
 import Link from "next/link"
 
 export const metadata = {
@@ -128,11 +133,24 @@ export default function TermsPage() {
               6. Payment Terms
             </h2>
             <p>
-              The Platform is currently offered free of charge. We reserve the right to introduce
-              paid plans or features in the future. If we do, we will provide at least 30 days&apos;
-              notice before any charges apply to your account. You will not be charged without
-              your explicit consent. Any paid features will be clearly labeled, and you may choose
-              to continue using the free tier at any time.
+              SAL is offered as a paid subscription: a one-time setup fee of $1,500 USD
+              plus a recurring subscription of $497 USD per month. The setup fee is
+              charged once at the start of your subscription; the monthly fee recurs each
+              billing period until you cancel.
+            </p>
+            <p className="mt-3">
+              You may cancel at any time through the billing portal. Cancellation takes
+              effect at the end of your current billing period — you retain access until
+              then. Fees already paid, including the one-time setup fee and any partial
+              month, are non-refundable and not prorated, consistent with standard SaaS
+              practice.
+            </p>
+            <p className="mt-3">
+              We will provide at least 30 days&apos; notice before any change to the
+              subscription price takes effect for your account. Selected beta salons may
+              have billing waived at SAL&apos;s discretion; if your account is marked
+              billing-exempt, no charges apply for as long as that status remains in
+              effect.
             </p>
           </section>
 

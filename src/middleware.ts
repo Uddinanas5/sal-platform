@@ -1,7 +1,17 @@
-import type { NextRequest } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import NextAuth from "next-auth"
 import { authConfig } from "@/lib/auth.config"
 import { STAFF_BLOCKED_ROUTES, STAFF_LIST_BLOCKED_ROUTES } from "@/lib/permissions"
+
+// Forward the request pathname to Server Components via a request header. Next
+// 14 does not expose the current path to a layout server component, but the
+// SAL billing gate in (dashboard)/layout.tsx needs it to allow /settings
+// through (so a cancelled salon can resubscribe instead of redirect-looping).
+function continueWithPathname(req: NextRequest): Response {
+  const requestHeaders = new Headers(req.headers)
+  requestHeaders.set("x-pathname", req.nextUrl.pathname)
+  return NextResponse.next({ request: { headers: requestHeaders } })
+}
 
 const { auth } = NextAuth(authConfig)
 
@@ -101,6 +111,10 @@ const authMiddleware = auth((req) => {
       return Response.redirect(new URL("/dashboard", req.nextUrl.origin))
     }
   }
+
+  // Authenticated request is allowed through — continue, attaching x-pathname so
+  // server components (the billing gate) can read the current path.
+  return continueWithPathname(req)
 })
 
 export default function middleware(req: NextRequest) {
