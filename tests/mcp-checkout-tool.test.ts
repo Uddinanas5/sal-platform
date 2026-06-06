@@ -170,11 +170,43 @@ describe("MCP process-checkout tool", () => {
     expect(parse(out).error).toBe("One or more services not found")
   })
 
-  it("rejects card and gift_card methods server-side (not live in beta)", () => {
+  it("rejects the card method server-side (not live in beta) but accepts gift_card", () => {
     const { schema } = loadTool()
     expect(schema.method.safeParse("cash").success).toBe(true)
     expect(schema.method.safeParse("online").success).toBe(true)
+    // "card" stays rejected — online charging via SAL Payments is off in beta.
     expect(schema.method.safeParse("card").success).toBe(false)
-    expect(schema.method.safeParse("gift_card").success).toBe(false)
+    // "gift_card" is now a live tender (redeemed server-side in recordCheckout).
+    expect(schema.method.safeParse("gift_card").success).toBe(true)
+  })
+
+  it("requires a giftCardCode when method is gift_card (rejects before any write)", async () => {
+    const { handler } = loadTool()
+
+    const out = await handler({
+      items: [{ type: "service", id: SVC, quantity: 1 }],
+      method: "gift_card",
+      // no giftCardCode
+    })
+
+    expect(out.isError).toBe(true)
+    expect(parse(out).error).toMatch(/gift card code is required/i)
+    expect(recordCheckout).not.toHaveBeenCalled()
+  })
+
+  it("forwards the giftCardCode to recordCheckout for a gift_card tender", async () => {
+    const { handler } = loadTool()
+
+    await handler({
+      clientId: CLIENT,
+      items: [{ type: "service", id: SVC, quantity: 1 }],
+      method: "gift_card",
+      giftCardCode: "GIFT-ABCD-1234",
+    })
+
+    expect(recordCheckout).toHaveBeenCalledTimes(1)
+    const [, , dataArg] = recordCheckout.mock.calls[0]
+    expect(dataArg.method).toBe("gift_card")
+    expect(dataArg.giftCardCode).toBe("GIFT-ABCD-1234")
   })
 })

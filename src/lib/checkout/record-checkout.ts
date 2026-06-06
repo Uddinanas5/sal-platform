@@ -7,6 +7,7 @@ import {
 } from "./resolve-payroll-period"
 import { POINTS_TO_DOLLARS, pointsEarnedFor } from "@/lib/loyalty"
 import { lockClient } from "@/lib/db/advisory-lock"
+import { redeemGiftCardInTx } from "@/lib/checkout/gift-card-redeem"
 import { TAX_RATE } from "@/lib/utils"
 
 // Resolve a line's effective tax rate as a fraction (e.g. 0.08875). Tax is
@@ -45,6 +46,10 @@ export type RecordCheckoutInput = {
   // dollar value is computed server-side from POINTS_TO_DOLLARS and capped at
   // the remaining subtotal; caller-supplied money is never trusted.
   redeemPoints?: number
+  // Gift-card code to tender against when method === "gift_card". The card must
+  // cover the FULL server-computed total (no partial/split redemption in beta);
+  // balance is read + decremented server-side inside the same transaction.
+  giftCardCode?: string
 }
 
 export type RecordCheckoutResult = {
@@ -279,6 +284,27 @@ export async function recordCheckout(
     ) / 100
   const total = Math.round((amount + tax + data.tip) * 100) / 100
 
+  // --- Gift card REDEMPTION (a TENDER for the full total) -------------------
+  // When the customer pays by gift card we redeem it INSIDE this transaction,
+  // after the server-authoritative total is known. The card must cover the
+  // FULL total — there is no partial/split redemption in beta (a partial
+  // tender would need a second tender we don't collect yet). redeemGiftCardInTx
+  // takes an advisory lock on (businessId, code), re-reads the balance under it,
+  // verifies it covers `total`, and decrements (deactivating + stamping
+  // redeemedAt when it zeroes out). It throws a typed GiftCardError on
+  // not-found/expired/insufficient, rolling the whole checkout back so no
+  // Payment is recorded against a card that wasn't actually charged. The masked
+  // code (last 4) is persisted in Payment.methodNote (the honest sub-tender
+  // note field added in GAP-037 — NOT cardLastFour, which is card-brand only).
+  let giftCardNote: string | null = null
+  if (data.method === "gift_card") {
+    if (!data.giftCardCode) {
+      throw new RecordCheckoutError("BAD_REQUEST", "A gift card code is required to pay by gift card")
+    }
+    const redemption = await redeemGiftCardInTx(tx, businessId, data.giftCardCode, total)
+    giftCardNote = redemption.maskedCode
+  }
+
   // Per-line commission resolution (AC 12): StaffService override → Staff default.
   // Staff.commissionRate is non-null (default 0); zero is a legitimate value
   // (e.g. salaried roles), not a "missing config" signal — so no further fallback.
@@ -319,6 +345,8 @@ export async function recordCheckout(
       paymentReference: generatePaymentReference(),
       type: "payment",
       method: data.method,
+      // Masked gift-card code (last 4) for gift_card tenders; null otherwise.
+      methodNote: giftCardNote,
       status: "completed",
       amount,
       tipAmount: data.tip,

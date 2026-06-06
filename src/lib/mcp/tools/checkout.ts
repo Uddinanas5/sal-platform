@@ -3,6 +3,7 @@ import { type ApiContext } from "@/lib/api/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { recordCheckout, RecordCheckoutError } from "@/lib/checkout/record-checkout"
+import { GiftCardError } from "@/lib/checkout/gift-card-redeem"
 import {
   CommissionPeriodClosedError,
   NoPayrollPeriodError,
@@ -10,6 +11,17 @@ import {
 
 function ok(data: unknown) { return { content: [{ type: "text" as const, text: JSON.stringify(data) }] } }
 function err(message: string) { return { content: [{ type: "text" as const, text: JSON.stringify({ error: message }) }], isError: true as const } }
+
+function giftCardErrorMessage(e: GiftCardError): string {
+  switch (e.code) {
+    case "GIFT_CARD_NOT_FOUND":
+      return "That gift card code was not found or is no longer active."
+    case "GIFT_CARD_EXPIRED":
+      return "That gift card has expired."
+    case "GIFT_CARD_INSUFFICIENT":
+      return "That gift card does not have enough balance to cover the full total. Please use cash instead."
+  }
+}
 
 export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
   server.tool(
@@ -37,13 +49,20 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
       tax: z.number().nonnegative().default(0).describe("DEPRECATED — ignored; tax is recomputed server-side from DB"),
       tip: z.number().nonnegative().default(0).describe("Tip amount"),
       total: z.number().nonnegative().optional().describe("DEPRECATED — ignored; recomputed from DB"),
-      // "card"/"gift_card" are rejected — they have no real charge/redemption
-      // behind them in beta (matches the dashboard action + /api/v1/checkout;
-      // accepting them would record a "paid" sale that was never collected).
-      method: z.enum(["cash", "online", "other"]).describe("Payment method (cash/online/other; card & gift_card are not live in beta)"),
+      // "card" is rejected — no real online charge behind it in beta (matches the
+      // dashboard action + /api/v1/checkout; accepting it would record a "paid"
+      // sale that was never collected). "gift_card" IS accepted, but requires a
+      // giftCardCode (validated in the handler) — balance is redeemed server-side.
+      method: z.enum(["cash", "online", "other", "gift_card"]).describe("Payment method (cash/online/other/gift_card; card is not live in beta)"),
+      // Gift-card code, required when method === "gift_card".
+      giftCardCode: z.string().min(1).optional().describe("Gift card code (required when method is gift_card)"),
     },
-    async ({ clientId, appointmentId, items, discount, tip, method }) => {
+    async ({ clientId, appointmentId, items, discount, tip, method, giftCardCode }) => {
       try {
+        if (method === "gift_card" && !giftCardCode) {
+          return err("A gift card code is required to pay by gift card")
+        }
+
         // Pre-transaction idempotency guard (mirrors the dashboard action +
         // /api/v1/checkout): don't let the same appointment be checked out twice,
         // which would double-count revenue, visits, loyalty AND commission.
@@ -81,6 +100,7 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
             discount,
             tip,
             method,
+            giftCardCode,
           }),
         )
 
@@ -97,6 +117,9 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
         }
         if (e instanceof NoPayrollPeriodError) {
           return err("No payroll period is configured for today.")
+        }
+        if (e instanceof GiftCardError) {
+          return err(giftCardErrorMessage(e))
         }
         if (e instanceof RecordCheckoutError) {
           return err(e.message)

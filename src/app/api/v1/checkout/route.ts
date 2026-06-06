@@ -3,28 +3,50 @@ import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { recordCheckout, RecordCheckoutError } from "@/lib/checkout/record-checkout"
+import { GiftCardError } from "@/lib/checkout/gift-card-redeem"
 import {
   CommissionPeriodClosedError,
   NoPayrollPeriodError,
 } from "@/lib/checkout/resolve-payroll-period"
 
-const processPaymentSchema = z.object({
-  clientId: z.string().uuid().optional(),
-  appointmentId: z.string().uuid().optional(),
-  items: z.array(z.object({
-    type: z.enum(["service", "product"]),
-    id: z.string().uuid(),
-    quantity: z.number().int().positive(),
-  })).min(1, "At least one item is required"),
-  discount: z.number().nonnegative().default(0),
-  tax: z.number().nonnegative().default(0),
-  tip: z.number().nonnegative().default(0),
-  // "card"/"gift_card" rejected server-side — no real charge/redemption behind
-  // them in beta (matches the dashboard action; defense in depth).
-  method: z.enum(["cash", "online", "other"]),
-  // Loyalty points to spend as a DISCOUNT (server validates + caps the value).
-  redeemPoints: z.number().int().nonnegative().optional(),
-})
+// Friendly messages for the typed gift-card failures (kept in lockstep with the
+// dashboard action's wording).
+function giftCardErrorMessage(e: GiftCardError): string {
+  switch (e.code) {
+    case "GIFT_CARD_NOT_FOUND":
+      return "That gift card code was not found or is no longer active."
+    case "GIFT_CARD_EXPIRED":
+      return "That gift card has expired."
+    case "GIFT_CARD_INSUFFICIENT":
+      return "That gift card does not have enough balance to cover the full total. Please use cash instead."
+  }
+}
+
+const processPaymentSchema = z
+  .object({
+    clientId: z.string().uuid().optional(),
+    appointmentId: z.string().uuid().optional(),
+    items: z.array(z.object({
+      type: z.enum(["service", "product"]),
+      id: z.string().uuid(),
+      quantity: z.number().int().positive(),
+    })).min(1, "At least one item is required"),
+    discount: z.number().nonnegative().default(0),
+    tax: z.number().nonnegative().default(0),
+    tip: z.number().nonnegative().default(0),
+    // "card" rejected server-side — no real online charge behind it in beta
+    // (matches the dashboard action; defense in depth). "gift_card" is accepted
+    // ONLY with a giftCardCode (enforced by the refine below).
+    method: z.enum(["cash", "online", "other", "gift_card"]),
+    // Loyalty points to spend as a DISCOUNT (server validates + caps the value).
+    redeemPoints: z.number().int().nonnegative().optional(),
+    // Gift-card code, required when method === "gift_card".
+    giftCardCode: z.string().min(1).optional(),
+  })
+  .refine((d) => d.method !== "gift_card" || !!d.giftCardCode, {
+    message: "A gift card code is required to pay by gift card",
+    path: ["giftCardCode"],
+  })
 
 export async function POST(req: Request) {
   const ctx = await withV1Auth(req)
@@ -77,6 +99,7 @@ export async function POST(req: Request) {
         tip: data.tip,
         method: data.method,
         redeemPoints: data.redeemPoints,
+        giftCardCode: data.giftCardCode,
       }),
     )
 
@@ -96,6 +119,9 @@ export async function POST(req: Request) {
     }
     if (e instanceof NoPayrollPeriodError) {
       return ERRORS.BAD_REQUEST("No payroll period is configured for today.")
+    }
+    if (e instanceof GiftCardError) {
+      return ERRORS.BAD_REQUEST(giftCardErrorMessage(e))
     }
     if (e instanceof RecordCheckoutError) {
       return ERRORS.BAD_REQUEST(e.message)
