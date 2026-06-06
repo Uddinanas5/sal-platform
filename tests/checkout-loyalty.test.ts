@@ -49,7 +49,9 @@ function fakeTx(o: TxOptions = {}) {
 
   const tx = {
     $executeRaw: vi.fn(),
-    service: { findMany: vi.fn(async () => [{ id: SVC, price: finalPrice }]) },
+    // taxRate null + isTaxable true → server uses the flat TAX_RATE fallback,
+    // matching the schema default (these tests don't assert tax-dependent totals).
+    service: { findMany: vi.fn(async () => [{ id: SVC, price: finalPrice, taxRate: null, isTaxable: true }]) },
     product: { findMany: vi.fn(async () => []) },
     appointment: {
       findFirst: vi.fn(async () => ({ clientId: CLIENT, services: appointmentServices })),

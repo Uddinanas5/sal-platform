@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getBusinessContext } from '@/lib/auth-utils'
 import { lockStaffSchedule } from '@/lib/db/advisory-lock'
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from '@/lib/scheduling/working-hours'
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
 import { withSafeErrors } from '@/lib/api/safe-handler'
 import { parseYmd } from '@/lib/date-utils'
@@ -300,7 +305,9 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
     const totalDuration = Math.round((appointmentEnd.getTime() - appointmentStart.getTime()) / 60000)
 
     // Create appointment with services in a transaction.
-    const appointment = await prisma.$transaction(async (tx) => {
+    let appointment
+    try {
+      appointment = await prisma.$transaction(async (tx) => {
       // The isSlotAvailable() checks above ran before this transaction, so two
       // concurrent bookings could both pass them. Lock every involved staff
       // member (sorted, to avoid deadlocks) and re-check conflicts inside the
@@ -312,6 +319,10 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
         await lockStaffSchedule(tx, businessId, sid)
       }
       for (const svc of serviceDetails) {
+        // Same in-transaction working-hours / break / approved-time-off guard
+        // every other booking write path uses: lock -> assertSlotAllowed ->
+        // conflict check.
+        await assertSlotAllowed(tx, svc.staffId, locationId, svc.startTime, svc.endTime)
         const conflicting = await tx.appointmentService.findFirst({
           where: {
             staffId: svc.staffId,
@@ -383,8 +394,21 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
         })
       }
 
-      return apt
-    })
+        return apt
+      })
+    } catch (e) {
+      const msg = (e as Error).message
+      if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+        return NextResponse.json({ error: "Outside the staff member's working hours" }, { status: 400 })
+      }
+      if (msg === ERR_ON_APPROVED_TIME_OFF) {
+        return NextResponse.json({ error: 'Staff member has approved time off during this slot' }, { status: 400 })
+      }
+      if (msg.includes('was just taken')) {
+        return NextResponse.json({ error: msg }, { status: 409 })
+      }
+      throw e
+    }
 
     // Fetch the complete appointment with relations
     const fullAppointment = await prisma.appointment.findUnique({

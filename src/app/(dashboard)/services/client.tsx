@@ -46,6 +46,7 @@ import { cn, formatCurrency } from "@/lib/utils"
 import type { Service, Staff } from "@/data/mock-data"
 import { ServiceDetailSheet } from "@/components/services/service-detail-sheet"
 import { CategoryOverview } from "@/components/services/category-overview"
+import { ServiceBundles } from "@/components/services/service-bundles"
 import { ServiceForm } from "@/components/services/service-form"
 import type { ServiceFormData } from "@/components/services/service-form"
 import { toast } from "sonner"
@@ -53,10 +54,21 @@ import { createService, toggleServiceActive, deleteService } from "@/lib/actions
 
 const categories = ["All", "Hair", "Wellness", "Nails", "Skincare"] as const
 
+interface BundleData {
+  id: string
+  name: string
+  description: string | null
+  serviceIds: string[]
+  originalPrice: number
+  bundlePrice: number
+  discountPercent: number
+}
+
 interface ServicesClientProps {
   initialServices: Service[]
   staff: Staff[]
   role?: string
+  bundles?: BundleData[]
 }
 
 function getCategoryCount(cat: string, services: Service[]): number {
@@ -402,6 +414,12 @@ export function ServicesClient(props: ServicesClientProps) {
 
         {/* Categories Overview */}
         <CategoryOverview services={props.initialServices} />
+
+        {/* Service Bundles */}
+        <ServiceBundles
+          bundles={props.bundles || []}
+          services={props.initialServices.map((s) => ({ id: s.id, name: s.name, price: s.price }))}
+        />
       </div>
 
       {/* Service Detail Sheet */}

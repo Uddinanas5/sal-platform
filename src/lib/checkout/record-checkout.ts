@@ -7,6 +7,19 @@ import {
 } from "./resolve-payroll-period"
 import { POINTS_TO_DOLLARS, pointsEarnedFor } from "@/lib/loyalty"
 import { lockClient } from "@/lib/db/advisory-lock"
+import { TAX_RATE } from "@/lib/utils"
+
+// Resolve a line's effective tax rate as a fraction (e.g. 0.08875). Tax is
+// server-authoritative — never trusted from the caller. A non-taxable item is
+// always 0; a taxable item uses its per-item taxRate (stored as a percentage,
+// so /100), and falls back to the platform-wide flat TAX_RATE when no per-item
+// rate is configured (taxRate is nullable and currently null for all beta data,
+// so this fallback keeps the server total in lockstep with the UI estimate).
+function taxRateFor(isTaxable: boolean, taxRate: Prisma.Decimal | null): number {
+  if (!isTaxable) return 0
+  if (taxRate == null) return TAX_RATE
+  return Number(taxRate) / 100
+}
 
 export class RecordCheckoutError extends Error {
   constructor(public code: "BAD_REQUEST" | "NOT_FOUND" | "INVARIANT_FAILED", message: string) {
@@ -20,7 +33,12 @@ export type RecordCheckoutInput = {
   appointmentId?: string
   items: { type: "service" | "product"; id: string; quantity: number }[]
   discount: number
-  tax: number
+  // Caller-supplied tax is ACCEPTED for backward compat but IGNORED — tax is
+  // recomputed server-side per line from the DB (isTaxable/taxRate), mirroring
+  // how caller prices/subtotals are ignored (GAP-034). Kept here only so the
+  // three entry points (dashboard action, /api/v1/checkout, MCP tool) compile
+  // without churn; do not read it below.
+  tax?: number
   tip: number
   method: "cash" | "card" | "online" | "gift_card" | "other"
   // Loyalty points the client wants to spend as a DISCOUNT (not a tender). The
@@ -132,29 +150,36 @@ export async function recordCheckout(
     serviceIds.length
       ? tx.service.findMany({
           where: { id: { in: serviceIds }, businessId, deletedAt: null },
-          select: { id: true, price: true },
+          select: { id: true, price: true, taxRate: true, isTaxable: true },
         })
-      : Promise.resolve([] as { id: string; price: Prisma.Decimal }[]),
+      : Promise.resolve([] as { id: string; price: Prisma.Decimal; taxRate: Prisma.Decimal | null; isTaxable: boolean }[]),
     productIds.length
       ? tx.product.findMany({
           where: { id: { in: productIds }, businessId, deletedAt: null },
-          select: { id: true, retailPrice: true },
+          select: { id: true, retailPrice: true, taxRate: true, isTaxable: true },
         })
-      : Promise.resolve([] as { id: string; retailPrice: Prisma.Decimal }[]),
+      : Promise.resolve([] as { id: string; retailPrice: Prisma.Decimal; taxRate: Prisma.Decimal | null; isTaxable: boolean }[]),
   ])
 
   if (services.length !== serviceIds.length) throw new RecordCheckoutError("NOT_FOUND", "One or more services not found")
   if (products.length !== productIds.length) throw new RecordCheckoutError("NOT_FOUND", "One or more products not found")
 
-  const priceMap = new Map<string, number>()
-  for (const s of services) priceMap.set(`service:${s.id}`, Number(s.price))
-  for (const p of products) priceMap.set(`product:${p.id}`, Number(p.retailPrice))
+  // Per-item price + tax rate, taken from the DB (never the caller).
+  const priceMap = new Map<string, { price: number; taxRate: number }>()
+  for (const s of services) priceMap.set(`service:${s.id}`, { price: Number(s.price), taxRate: taxRateFor(s.isTaxable, s.taxRate) })
+  for (const p of products) priceMap.set(`product:${p.id}`, { price: Number(p.retailPrice), taxRate: taxRateFor(p.isTaxable, p.taxRate) })
 
+  // Per-line amounts carry their own tax rate so the final tax can be applied
+  // to the DISCOUNTED base proportionally (a discount lowers every line's
+  // taxable share by the same fraction).
+  const lines: { amount: number; taxRate: number }[] = []
   let subtotal = 0
   for (const item of data.items) {
-    const price = priceMap.get(`${item.type}:${item.id}`)
-    if (price === undefined) throw new RecordCheckoutError("BAD_REQUEST", "Invalid item")
-    subtotal += price * item.quantity
+    const entry = priceMap.get(`${item.type}:${item.id}`)
+    if (entry === undefined) throw new RecordCheckoutError("BAD_REQUEST", "Invalid item")
+    const lineAmount = Math.round(entry.price * item.quantity * 100) / 100
+    lines.push({ amount: lineAmount, taxRate: entry.taxRate })
+    subtotal += lineAmount
   }
   subtotal = Math.round(subtotal * 100) / 100
 
@@ -240,7 +265,19 @@ export async function recordCheckout(
 
   const totalDiscount = Math.round((data.discount + redeemedAmount) * 100) / 100
   const amount = Math.round((subtotal - totalDiscount) * 100) / 100
-  const total = Math.round((amount + data.tax + data.tip) * 100) / 100
+
+  // Server-authoritative tax: compute per line on the DISCOUNTED base. Each
+  // line keeps the same proportional share of the post-discount amount it had
+  // of the subtotal, then is taxed at its own rate. Caller-supplied `data.tax`
+  // is ignored entirely (mirrors GAP-034 price authority).
+  const tax =
+    Math.round(
+      lines.reduce((sum, line) => {
+        const lineShare = subtotal > 0 ? line.amount / subtotal : 0
+        return sum + amount * lineShare * line.taxRate
+      }, 0) * 100,
+    ) / 100
+  const total = Math.round((amount + tax + data.tip) * 100) / 100
 
   // Per-line commission resolution (AC 12): StaffService override → Staff default.
   // Staff.commissionRate is non-null (default 0); zero is a legitimate value

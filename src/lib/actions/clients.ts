@@ -350,38 +350,8 @@ export async function deleteClient(id: string): Promise<ActionResult> {
   }
 }
 
-export async function redeemLoyaltyPoints(
-  clientId: string,
-  pointsCost: number,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _rewardName: string
-): Promise<ActionResult<{ remainingPoints: number }>> {
-  try {
-    const { businessId } = await getBusinessContext()
-
-    const client = await prisma.client.findUnique({
-      where: { id: clientId, businessId },
-      select: { loyaltyPoints: true },
-    })
-
-    if (!client) return { success: false, error: "Client not found" }
-
-    if (client.loyaltyPoints < pointsCost) {
-      return { success: false, error: `Not enough points. Have ${client.loyaltyPoints}, need ${pointsCost}.` }
-    }
-
-    const updated = await prisma.client.update({
-      where: { id: clientId, businessId },
-      data: {
-        loyaltyPoints: { decrement: pointsCost },
-      },
-    })
-
-    revalidatePath(`/clients/${clientId}`)
-    revalidatePath("/clients")
-    return { success: true, data: { remainingPoints: updated.loyaltyPoints } }
-  } catch (e) {
-    console.error("redeemLoyaltyPoints error:", e)
-    return { success: false, error: (e as Error).message }
-  }
-}
+// NOTE: loyalty redemption deliberately has NO standalone action here. The only
+// write path is checkout (src/lib/checkout/record-checkout.ts), which validates
+// the balance under a per-client advisory lock AND writes the LoyaltyTransaction
+// ledger row. A balance decrement without a ledger row would corrupt the
+// ledger ⇄ balance invariant.

@@ -110,10 +110,12 @@ describe("MCP process-checkout tool", () => {
     expect(recordCheckout).toHaveBeenCalledTimes(1)
     const [, businessIdArg, dataArg] = recordCheckout.mock.calls[0]
     expect(businessIdArg).toBe(BIZ)
-    // Only {type,id,quantity}/discount/tax/tip/method are forwarded — no price/subtotal/total.
+    // Only {type,id,quantity}/discount/tip/method are forwarded — no price/
+    // subtotal/total, and tax is dropped too (recomputed server-side from the DB).
     expect(dataArg.items).toEqual([{ type: "service", id: SVC, quantity: 1 }])
     expect(dataArg).not.toHaveProperty("subtotal")
     expect(dataArg).not.toHaveProperty("total")
+    expect(dataArg).not.toHaveProperty("tax")
     expect(dataArg.items[0]).not.toHaveProperty("price")
 
     // Response money comes from recordCheckout's result, not the caller.

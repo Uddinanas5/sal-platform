@@ -72,10 +72,13 @@ Use `dev` or `agents` for normal development checks.
 
 ## API Route Pattern
 
-New v1 routes should use:
+New v1 routes follow the established pattern used by every route under
+`src/app/api/v1/`:
 
 ```ts
-import { parseJsonBody, requireV1Context } from "@/lib/api/route-helpers"
+const ctx = await withV1Auth(req)        // Bearer API key or session cookie
+// parse req.json() in a try/catch, validate with a zod schema,
+// return responses via apiSuccess / apiError / ERRORS helpers
 ```
 
 This keeps auth, role checks, bad JSON handling, and Zod validation consistent across endpoints.

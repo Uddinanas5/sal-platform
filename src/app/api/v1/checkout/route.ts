@@ -64,16 +64,16 @@ export async function POST(req: Request) {
 
   try {
     // Single writer for ALL checkout side-effects, including the Commission
-    // ledger + payroll-period rows. Money is recomputed from DB prices inside
-    // recordCheckout; request input only carries {type,id,quantity}/discount/
-    // tax/tip/method.
+    // ledger + payroll-period rows. Money (subtotal/amount/tax/total) is
+    // recomputed from DB prices + per-item tax config inside recordCheckout;
+    // request input only carries {type,id,quantity}/discount/tip/method.
+    // Caller-supplied tax is dropped.
     const result = await prisma.$transaction((tx) =>
       recordCheckout(tx, ctx.businessId, {
         clientId: data.clientId,
         appointmentId: data.appointmentId,
         items: data.items,
         discount: data.discount,
-        tax: data.tax,
         tip: data.tip,
         method: data.method,
         redeemPoints: data.redeemPoints,

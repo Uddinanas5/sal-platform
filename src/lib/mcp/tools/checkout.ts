@@ -29,11 +29,12 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
         price: z.number().nonnegative().optional().describe("DEPRECATED — ignored; price is taken from the DB"),
       })).min(1, "At least one item is required").describe("Line items in the checkout"),
       // Money fields below (subtotal/total/tax) are advisory only; recordCheckout
-      // recomputes subtotal/amount/total from DB prices. discount/tax/tip are the
-      // only caller inputs that actually affect the recorded amounts.
+      // recomputes subtotal/amount/tax/total server-side from DB prices and
+      // per-item tax config. Only discount/tip are caller inputs that actually
+      // affect the recorded amounts.
       subtotal: z.number().nonnegative().optional().describe("DEPRECATED — ignored; recomputed from DB"),
       discount: z.number().nonnegative().default(0).describe("Discount amount"),
-      tax: z.number().nonnegative().default(0).describe("Tax amount"),
+      tax: z.number().nonnegative().default(0).describe("DEPRECATED — ignored; tax is recomputed server-side from DB"),
       tip: z.number().nonnegative().default(0).describe("Tip amount"),
       total: z.number().nonnegative().optional().describe("DEPRECATED — ignored; recomputed from DB"),
       // "card"/"gift_card" are rejected — they have no real charge/redemption
@@ -41,7 +42,7 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
       // accepting them would record a "paid" sale that was never collected).
       method: z.enum(["cash", "online", "other"]).describe("Payment method (cash/online/other; card & gift_card are not live in beta)"),
     },
-    async ({ clientId, appointmentId, items, discount, tax, tip, method }) => {
+    async ({ clientId, appointmentId, items, discount, tip, method }) => {
       try {
         // Pre-transaction idempotency guard (mirrors the dashboard action +
         // /api/v1/checkout): don't let the same appointment be checked out twice,
@@ -69,15 +70,15 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
 
         // Single writer for ALL checkout side-effects — Payment, appointment
         // flip, client totals, inventory AND the Commission ledger / payroll-
-        // period rows. Money is recomputed from DB prices inside recordCheckout;
-        // input only carries {type,id,quantity}/discount/tax/tip/method.
+        // period rows. Money (subtotal/amount/tax/total) is recomputed from DB
+        // prices + per-item tax config inside recordCheckout; input only carries
+        // {type,id,quantity}/discount/tip/method. Caller-supplied tax is dropped.
         const result = await prisma.$transaction((tx) =>
           recordCheckout(tx, ctx.businessId, {
             clientId,
             appointmentId,
             items: items.map((i) => ({ type: i.type, id: i.id, quantity: i.quantity })),
             discount,
-            tax,
             tip,
             method,
           }),
