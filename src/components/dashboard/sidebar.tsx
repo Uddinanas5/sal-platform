@@ -22,6 +22,7 @@ import {
   Star,
   CreditCard,
   Globe,
+  Wallet,
   X,
 } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
@@ -82,6 +83,7 @@ function buildNavSections(data: SidebarData | null, role?: string) {
       label: "GROWTH",
       items: [
         { href: "/reports", icon: BarChart3, label: "Reports" },
+        { href: "/reports/payday", icon: Wallet, label: "Payday" },
         { href: "/marketing", icon: Megaphone, label: "Marketing" },
         { href: "/reviews", icon: Star, label: "Reviews", badge: data?.pendingReviewsCount || undefined },
         { href: "/memberships", icon: CreditCard, label: "Memberships" },

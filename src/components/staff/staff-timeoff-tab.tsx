@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { motion } from "framer-motion"
+import { useSession } from "next-auth/react"
 import {
   Calendar,
   Plus,
@@ -9,6 +10,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -35,27 +37,27 @@ import {
 import { cn, formatDate } from "@/lib/utils"
 import { type Staff } from "@/data/mock-data"
 import { toast } from "sonner"
+import {
+  approveTimeOff,
+  getStaffTimeOff,
+  rejectTimeOff,
+  requestTimeOff,
+  type TimeOffRow,
+} from "@/lib/actions/staff"
 
 interface StaffTimeOffTabProps {
   staff: Staff
 }
 
-interface TimeOffEntry {
-  id: string
-  startDate: Date
-  endDate: Date
-  type: "vacation" | "sick" | "personal"
-  status: "approved" | "pending" | "denied"
-  notes?: string
-}
-
-const typeConfig = {
+const typeConfig: Record<TimeOffRow["type"], { label: string; color: string }> = {
   vacation: { label: "Vacation", color: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
   sick: { label: "Sick Leave", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
   personal: { label: "Personal", color: "bg-purple-500/10 text-purple-700 dark:text-purple-300" },
+  other: { label: "Other", color: "bg-gray-500/10 text-gray-700 dark:text-gray-300" },
 }
 
-const statusConfig = {
+// Status keys match the real TimeOffStatus enum (pending/approved/rejected).
+const statusConfig: Record<TimeOffRow["status"], { label: string; icon: typeof CheckCircle; color: string }> = {
   approved: {
     label: "Approved",
     icon: CheckCircle,
@@ -66,76 +68,37 @@ const statusConfig = {
     icon: AlertCircle,
     color: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
   },
-  denied: {
+  rejected: {
     label: "Denied",
     icon: XCircle,
     color: "bg-red-500/10 text-red-700 dark:text-red-300",
   },
 }
 
-const mockUpcomingTimeOff: TimeOffEntry[] = [
-  {
-    id: "to1",
-    startDate: new Date("2026-03-10"),
-    endDate: new Date("2026-03-14"),
-    type: "vacation",
-    status: "approved",
-    notes: "Spring break family trip",
-  },
-  {
-    id: "to2",
-    startDate: new Date("2026-04-02"),
-    endDate: new Date("2026-04-02"),
-    type: "personal",
-    status: "pending",
-    notes: "Dental appointment",
-  },
-  {
-    id: "to3",
-    startDate: new Date("2026-05-20"),
-    endDate: new Date("2026-05-24"),
-    type: "vacation",
-    status: "pending",
-    notes: "Summer vacation",
-  },
-]
-
-const mockPastTimeOff: TimeOffEntry[] = [
-  {
-    id: "to4",
-    startDate: new Date("2026-01-06"),
-    endDate: new Date("2026-01-08"),
-    type: "sick",
-    status: "approved",
-    notes: "Flu recovery",
-  },
-  {
-    id: "to5",
-    startDate: new Date("2025-12-23"),
-    endDate: new Date("2025-12-26"),
-    type: "vacation",
-    status: "approved",
-    notes: "Holiday break",
-  },
-  {
-    id: "to6",
-    startDate: new Date("2025-11-15"),
-    endDate: new Date("2025-11-15"),
-    type: "personal",
-    status: "approved",
-  },
-]
-
 function getDayCount(start: Date, end: Date): number {
   const diff = end.getTime() - start.getTime()
   return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1)
 }
 
-function TimeOffCard({ entry }: { entry: TimeOffEntry }) {
-  const typeInfo = typeConfig[entry.type]
-  const statusInfo = statusConfig[entry.status]
+function TimeOffCard({
+  entry,
+  canDecide,
+  onApprove,
+  onReject,
+  busy,
+}: {
+  entry: TimeOffRow
+  canDecide: boolean
+  onApprove: (id: string) => void
+  onReject: (id: string) => void
+  busy: boolean
+}) {
+  const typeInfo = typeConfig[entry.type] ?? typeConfig.other
+  const statusInfo = statusConfig[entry.status] ?? statusConfig.pending
   const StatusIcon = statusInfo.icon
-  const days = getDayCount(entry.startDate, entry.endDate)
+  const startDate = new Date(entry.startDate)
+  const endDate = new Date(entry.endDate)
+  const days = getDayCount(startDate, endDate)
 
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg border border-cream-200 bg-card">
@@ -156,9 +119,9 @@ function TimeOffCard({ entry }: { entry: TimeOffEntry }) {
           </Badge>
         </div>
         <p className="text-sm font-medium text-foreground mt-1">
-          {formatDate(entry.startDate)}
-          {entry.startDate.toDateString() !== entry.endDate.toDateString() &&
-            ` - ${formatDate(entry.endDate)}`}
+          {formatDate(startDate)}
+          {startDate.toDateString() !== endDate.toDateString() &&
+            ` - ${formatDate(endDate)}`}
         </p>
         <p className="text-xs text-muted-foreground">
           {days} day{days > 1 ? "s" : ""}
@@ -166,34 +129,130 @@ function TimeOffCard({ entry }: { entry: TimeOffEntry }) {
         {entry.notes && (
           <p className="text-xs text-muted-foreground mt-1">{entry.notes}</p>
         )}
+        {canDecide && entry.status === "pending" && (
+          <div className="flex items-center gap-2 mt-3">
+            <Button
+              size="sm"
+              disabled={busy}
+              onClick={() => onApprove(entry.id)}
+            >
+              {busy ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1.5" />}
+              Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => onReject(entry.id)}
+            >
+              <XCircle className="w-3.5 h-3.5 mr-1.5" />
+              Deny
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
+  const { data: session } = useSession()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const viewerRole = (session?.user as any)?.role as string | undefined
+  const canDecide = viewerRole === "admin" || viewerRole === "owner"
+
+  const [entries, setEntries] = useState<TimeOffRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [decidingId, setDecidingId] = useState<string | null>(null)
+
   const [requestOpen, setRequestOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [type, setType] = useState<string>("vacation")
   const [notes, setNotes] = useState("")
 
-  const totalUpcoming = mockUpcomingTimeOff.reduce(
-    (sum, e) => sum + getDayCount(e.startDate, e.endDate),
-    0
-  )
+  const load = useCallback(async () => {
+    const res = await getStaffTimeOff(staff.id)
+    if (res.success) {
+      setEntries(res.data)
+    } else {
+      toast.error(res.error || "Failed to load time off")
+    }
+    setLoading(false)
+  }, [staff.id])
 
-  const handleSubmitRequest = () => {
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  // Split into upcoming (end date today or later) and past, by real dates.
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const upcoming = entries.filter((e) => new Date(e.endDate) >= now)
+  const past = entries.filter((e) => new Date(e.endDate) < now)
+
+  const totalUpcoming = upcoming
+    .filter((e) => e.status === "approved")
+    .reduce((sum, e) => sum + getDayCount(new Date(e.startDate), new Date(e.endDate)), 0)
+  const pendingCount = entries.filter((e) => e.status === "pending").length
+  const daysUsedThisYear = entries
+    .filter((e) => e.status === "approved" && new Date(e.startDate).getFullYear() === now.getFullYear())
+    .reduce((sum, e) => sum + getDayCount(new Date(e.startDate), new Date(e.endDate)), 0)
+
+  const handleSubmitRequest = async () => {
     if (!startDate || !endDate) {
       toast.error("Please select start and end dates")
       return
     }
-    toast.success("Time off request submitted for approval")
-    setRequestOpen(false)
-    setStartDate("")
-    setEndDate("")
-    setType("vacation")
-    setNotes("")
+    if (endDate < startDate) {
+      toast.error("End date must be on or after start date")
+      return
+    }
+    setSubmitting(true)
+    const res = await requestTimeOff({
+      staffId: staff.id,
+      startDate,
+      endDate,
+      type: type as "vacation" | "sick" | "personal" | "other",
+      notes: notes || undefined,
+    })
+    setSubmitting(false)
+    if (res.success) {
+      toast.success("Time off request submitted for approval")
+      setRequestOpen(false)
+      setStartDate("")
+      setEndDate("")
+      setType("vacation")
+      setNotes("")
+      await load()
+    } else {
+      toast.error(res.error || "Failed to submit request")
+    }
+  }
+
+  const handleApprove = async (id: string) => {
+    setDecidingId(id)
+    const res = await approveTimeOff(id)
+    setDecidingId(null)
+    if (res.success) {
+      toast.success("Time off approved — those dates are now blocked on the calendar")
+      await load()
+    } else {
+      toast.error(res.error || "Failed to approve")
+    }
+  }
+
+  const handleReject = async (id: string) => {
+    setDecidingId(id)
+    const res = await rejectTimeOff(id)
+    setDecidingId(null)
+    if (res.success) {
+      toast.success("Time off request denied")
+      await load()
+    } else {
+      toast.error(res.error || "Failed to deny")
+    }
   }
 
   return (
@@ -235,7 +294,7 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
                 <div>
                   <p className="text-xs text-muted-foreground">Pending Requests</p>
                   <p className="text-xl font-bold text-foreground">
-                    {mockUpcomingTimeOff.filter((e) => e.status === "pending").length}
+                    {pendingCount}
                   </p>
                 </div>
               </div>
@@ -256,7 +315,7 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Days Used (Year)</p>
-                  <p className="text-xl font-bold text-foreground">8 days</p>
+                  <p className="text-xl font-bold text-foreground">{daysUsedThisYear} days</p>
                 </div>
               </div>
             </CardContent>
@@ -311,6 +370,7 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
                       <SelectItem value="vacation">Vacation</SelectItem>
                       <SelectItem value="sick">Sick Leave</SelectItem>
                       <SelectItem value="personal">Personal</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -328,27 +388,46 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
                 <Button
                   variant="outline"
                   onClick={() => setRequestOpen(false)}
+                  disabled={submitting}
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleSubmitRequest}>Submit Request</Button>
+                <Button onClick={handleSubmitRequest} disabled={submitting}>
+                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Submit Request
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
-        <div className="space-y-3">
-          {mockUpcomingTimeOff.map((entry, index) => (
-            <motion.div
-              key={entry.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <TimeOffCard entry={entry} />
-            </motion.div>
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-8 text-muted-foreground">
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            Loading time off...
+          </div>
+        ) : upcoming.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">No upcoming time off.</p>
+        ) : (
+          <div className="space-y-3">
+            {upcoming.map((entry, index) => (
+              <motion.div
+                key={entry.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <TimeOffCard
+                  entry={entry}
+                  canDecide={canDecide}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  busy={decidingId === entry.id}
+                />
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
       <Separator />
@@ -358,18 +437,28 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
         <h3 className="font-semibold text-foreground mb-4">
           Past Time Off History
         </h3>
-        <div className="space-y-3">
-          {mockPastTimeOff.map((entry, index) => (
-            <motion.div
-              key={entry.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <TimeOffCard entry={entry} />
-            </motion.div>
-          ))}
-        </div>
+        {loading ? null : past.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">No past time off.</p>
+        ) : (
+          <div className="space-y-3">
+            {past.map((entry, index) => (
+              <motion.div
+                key={entry.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <TimeOffCard
+                  entry={entry}
+                  canDecide={false}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  busy={false}
+                />
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

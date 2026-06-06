@@ -29,6 +29,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn, formatCurrency, formatDuration, getInitials } from "@/lib/utils"
 import type { Service, Staff } from "@/data/mock-data"
 import { ServiceForm } from "./service-form"
+import type { ServiceFormData } from "./service-form"
+import { updateService, deleteService } from "@/lib/actions/services"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 interface ServiceVariant {
@@ -125,8 +128,11 @@ export function ServiceDetailSheet({
   open,
   onOpenChange,
 }: ServiceDetailSheetProps) {
+  const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [onlineBooking, setOnlineBooking] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   if (!service) return null
 
@@ -136,14 +142,37 @@ export function ServiceDetailSheet({
   const variants = getDefaultVariants(service)
   const addOns = getDefaultAddOns(service)
 
-  const handleDelete = () => {
-    toast.success(`"${service.name}" deleted successfully`)
-    onOpenChange(false)
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    const result = await deleteService(service.id)
+    setIsDeleting(false)
+    if (result.success) {
+      toast.success(`"${service.name}" deleted`)
+      onOpenChange(false)
+      router.refresh()
+    } else {
+      toast.error(result.error)
+    }
   }
 
-  const handleSaveEdit = () => {
-    toast.success(`"${service.name}" updated successfully`)
-    setIsEditing(false)
+  const handleSaveEdit = async (data: ServiceFormData) => {
+    setIsSaving(true)
+    const result = await updateService(service.id, {
+      name: data.name,
+      description: data.description,
+      duration: data.duration,
+      price: data.price,
+      color: data.color,
+      isActive: data.isActive,
+    })
+    setIsSaving(false)
+    if (result.success) {
+      toast.success(`"${data.name}" updated`)
+      setIsEditing(false)
+      router.refresh()
+    } else {
+      toast.error(result.error)
+    }
   }
 
   return (
@@ -171,7 +200,7 @@ export function ServiceDetailSheet({
                   service={service}
                   staff={staff}
                   mode="edit"
-                  onSave={() => handleSaveEdit()}
+                  onSave={handleSaveEdit}
                   onCancel={() => setIsEditing(false)}
                 />
               </div>
@@ -381,6 +410,7 @@ export function ServiceDetailSheet({
                   <Button
                     className="flex-1"
                     onClick={() => setIsEditing(true)}
+                    disabled={isSaving || isDeleting}
                   >
                     <Edit className="w-4 h-4 mr-2" />
                     Edit Service
@@ -389,6 +419,7 @@ export function ServiceDetailSheet({
                     variant="outline"
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     onClick={handleDelete}
+                    disabled={isDeleting}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

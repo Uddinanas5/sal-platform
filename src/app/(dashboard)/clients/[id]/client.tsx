@@ -24,6 +24,7 @@ import {
   ChevronRight,
   LayoutDashboard,
   Users,
+  Scissors,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -46,19 +47,33 @@ import type { Client } from "@/data/mock-data"
 import { ClientOverviewTab } from "@/components/clients/client-overview-tab"
 import { ClientAppointmentsTab } from "@/components/clients/client-appointments-tab"
 import { ClientPurchasesTab } from "@/components/clients/client-purchases-tab"
-import { ClientNotesTab } from "@/components/clients/client-notes-tab"
-import { ClientLoyaltyTab } from "@/components/clients/client-loyalty-tab"
+import { ClientNotesTab, type VisitNoteItem } from "@/components/clients/client-notes-tab"
+import { ClientLoyaltyTab, type LoyaltyTxItem } from "@/components/clients/client-loyalty-tab"
 import { EditClientDialog } from "@/components/clients/edit-client-dialog"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { deleteClient } from "@/lib/actions/clients"
 import { toast } from "sonner"
 
+// The server query enriches the base mock `Client` shape with real, persisted
+// visit notes + the loyalty ledger. These extra fields ride along on the client
+// object passed from the server page.
+type ClientWithRealData = Client & {
+  visitNotes?: VisitNoteItem[]
+  loyaltyTransactions?: LoyaltyTxItem[]
+}
+
 interface ClientDetailClientProps {
-  client: Client
+  client: ClientWithRealData
+  currentStaffId: string | null
+  currentRole: string
 }
 
 export function ClientDetailClient(props: ClientDetailClientProps) {
-  const { client } = props
+  const { client, currentStaffId, currentRole } = props
+  const visitNotes = client.visitNotes ?? []
+  const loyaltyTransactions = client.loyaltyTransactions ?? []
+  // Most-recent cut note for the read-only header chip ("last time: #2 fade").
+  const lastCutNote = visitNotes.find((n) => n.body && n.body.trim().length > 0)
   const router = useRouter()
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -186,6 +201,16 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
                             {tag}
                           </Badge>
                         ))}
+                      </div>
+                    )}
+                    {/* Last cut note — read-only at-a-glance ("last time: #2 fade") */}
+                    {lastCutNote && (
+                      <div className="flex items-start gap-1.5 mt-2 text-xs text-muted-foreground max-w-md">
+                        <Scissors className="w-3.5 h-3.5 shrink-0 mt-0.5 text-sal-500" />
+                        <span>
+                          <span className="font-medium text-foreground">Last cut:</span>{" "}
+                          <span className="line-clamp-1">{lastCutNote.body}</span>
+                        </span>
                       </div>
                     )}
                   </div>
@@ -327,11 +352,19 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
             </TabsContent>
 
             <TabsContent value="notes">
-              <ClientNotesTab client={client} />
+              <ClientNotesTab
+                clientId={client.id}
+                notes={visitNotes}
+                currentStaffId={currentStaffId}
+                currentRole={currentRole}
+              />
             </TabsContent>
 
             <TabsContent value="loyalty">
-              <ClientLoyaltyTab client={client} />
+              <ClientLoyaltyTab
+                loyaltyPoints={client.loyaltyPoints || 0}
+                transactions={loyaltyTransactions}
+              />
             </TabsContent>
           </Tabs>
         </motion.div>

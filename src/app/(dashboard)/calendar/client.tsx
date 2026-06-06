@@ -19,7 +19,7 @@ import {
 import { updateAppointmentStatus, rescheduleAppointment, resizeAppointment } from "@/lib/actions/appointments"
 import { parseSlotId } from "@/components/calendar/staff-column"
 import { parseWeekSlotId } from "@/components/calendar/week-view"
-import { Plus, ChevronLeft, ChevronRight, ListChecks } from "lucide-react"
+import { Plus, ChevronLeft, ChevronRight, ListChecks, Ban } from "lucide-react"
 import { Header } from "@/components/dashboard/header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,7 @@ import { ThreeDayView } from "@/components/calendar/three-day-view"
 import { WeekView } from "@/components/calendar/week-view"
 import { MonthView } from "@/components/calendar/month-view"
 import { NewAppointmentDialog } from "@/components/calendar/new-appointment-dialog"
+import { BlockTimeDialog } from "@/components/calendar/block-time-dialog"
 import { AppointmentDetailSheet } from "@/components/calendar/appointment-detail-sheet"
 import { WaitlistPanel } from "@/components/calendar/waitlist-panel"
 import { AppointmentBlock, type ColorByMode } from "@/components/calendar/appointment-block"
@@ -117,6 +118,7 @@ export function CalendarClient(props: CalendarClientProps) {
   const [newApptOpen, setNewApptOpen] = useState(false)
   const [detailSheetOpen, setDetailSheetOpen] = useState(false)
   const [waitlistOpen, setWaitlistOpen] = useState(false)
+  const [blockTimeOpen, setBlockTimeOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null)
 
@@ -250,6 +252,10 @@ export function CalendarClient(props: CalendarClientProps) {
   }, [deepLinkAppointmentId, appointments])
   // Status change handler — optimistic UI + server action
   const handleStatusChange = useCallback(async (appointmentId: string, newStatus: string) => {
+    // Snapshot for rollback if the server rejects the change (mirrors the
+    // reschedule/resize handlers) so a failed update doesn't leave a wrong badge.
+    const prevAppointments = appointments
+    const prevSelected = selectedAppointment
     // Optimistic update: apply immediately for responsive UI
     setAppointments((prev) =>
       prev.map((a) =>
@@ -265,11 +271,13 @@ export function CalendarClient(props: CalendarClientProps) {
 
     const result = await updateAppointmentStatus(appointmentId, newStatus)
     if (!result.success) {
+      setAppointments(prevAppointments)
+      setSelectedAppointment(prevSelected)
       toast.error(result.error || "Failed to update appointment status")
     } else {
       router.refresh()
     }
-  }, [router])
+  }, [appointments, selectedAppointment, router])
 
   // Empty slot click handler - opens new appointment dialog
   const handleEmptySlotClick = useCallback(
@@ -473,22 +481,33 @@ export function CalendarClient(props: CalendarClientProps) {
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
           />
-          {/* Waitlist quick-access bar */}
+          {/* Waitlist + block-time quick-access bar */}
           <div className="flex items-center justify-between px-3 py-1.5 sm:px-4 sm:py-2 bg-cream-50 dark:bg-muted/30 border-t border-cream-200">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setWaitlistOpen(true)}
-              className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-            >
-              <ListChecks className="h-3.5 w-3.5" />
-              Waitlist
-              {(props.waitlistEntries?.length ?? 0) > 0 && (
-                <span className="bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center font-semibold">
-                  {props.waitlistEntries?.length}
-                </span>
-              )}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setWaitlistOpen(true)}
+                className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <ListChecks className="h-3.5 w-3.5" />
+                Waitlist
+                {(props.waitlistEntries?.length ?? 0) > 0 && (
+                  <span className="bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center font-semibold">
+                    {props.waitlistEntries?.length}
+                  </span>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setBlockTimeOpen(true)}
+                className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <Ban className="h-3.5 w-3.5" />
+                Block time
+              </Button>
+            </div>
           </div>
         </Card>
 
@@ -669,6 +688,15 @@ export function CalendarClient(props: CalendarClientProps) {
         staff={props.staff}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         clients={props.clients as any}
+      />
+
+      {/* Block Time Dialog — one-off "block 2-3pm today" availability blocks */}
+      <BlockTimeDialog
+        open={blockTimeOpen}
+        onOpenChange={setBlockTimeOpen}
+        staff={props.staff}
+        initialStaffId={selectedStaffId !== "all" ? selectedStaffId : undefined}
+        initialDate={selectedDate}
       />
 
       {/* Mobile FAB for new appointment */}

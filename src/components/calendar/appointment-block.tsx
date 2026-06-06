@@ -1,10 +1,14 @@
 "use client"
 
 import React from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { format } from "date-fns"
 import { useDraggable } from "@dnd-kit/core"
+import { LogIn, Play, Check as CheckIcon, UserX } from "lucide-react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { updateAppointmentStatus } from "@/lib/actions/appointments"
 import {
   Tooltip,
   TooltipContent,
@@ -12,6 +16,28 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { Appointment, Staff, Service } from "@/data/mock-data"
+
+// Inline status quick-actions surfaced on the appointment card's hover tooltip.
+// Each entry maps the CURRENT status to the actions that make sense next, using
+// the same dash-style status strings updateAppointmentStatus accepts (it maps
+// them to the underscore DB enum server-side). Terminal statuses
+// (completed/cancelled/no-show) expose no actions.
+type QuickAction = { label: string; status: string; icon: React.ComponentType<{ className?: string }> }
+const STATUS_QUICK_ACTIONS: Record<string, QuickAction[]> = {
+  pending: [
+    { label: "Check in", status: "checked-in", icon: LogIn },
+    { label: "No-show", status: "no-show", icon: UserX },
+  ],
+  confirmed: [
+    { label: "Check in", status: "checked-in", icon: LogIn },
+    { label: "No-show", status: "no-show", icon: UserX },
+  ],
+  "checked-in": [
+    { label: "Start", status: "in-progress", icon: Play },
+    { label: "No-show", status: "no-show", icon: UserX },
+  ],
+  "in-progress": [{ label: "Complete", status: "completed", icon: CheckIcon }],
+}
 
 export type ColorByMode = "status" | "staff" | "service"
 
@@ -92,8 +118,30 @@ export function AppointmentBlock({
   asOverlay = false,
   invalidDropTarget = false,
 }: AppointmentBlockProps) {
+  const router = useRouter()
+  const [statusPending, setStatusPending] = React.useState(false)
   const isDraggable = !asOverlay && !NON_DRAGGABLE_STATUSES.has(appointment.status)
   const canResize = isDraggable && !!onResize
+
+  const quickActions = asOverlay ? [] : STATUS_QUICK_ACTIONS[appointment.status] ?? []
+
+  const handleQuickStatus = React.useCallback(
+    async (newStatus: string, label: string) => {
+      if (statusPending) return
+      setStatusPending(true)
+      const result = await updateAppointmentStatus(appointment.id, newStatus)
+      setStatusPending(false)
+      if (!result.success) {
+        toast.error(result.error || "Failed to update status")
+        return
+      }
+      toast.success(`Marked ${label.toLowerCase()}`, {
+        description: appointment.clientName,
+      })
+      router.refresh()
+    },
+    [appointment.id, appointment.clientName, statusPending, router]
+  )
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `appt:${appointment.id}`,
     disabled: !isDraggable,
@@ -331,6 +379,33 @@ export function AppointmentBlock({
                 {statusLabel}
               </span>
             </div>
+            {quickActions.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1.5 mt-1 border-t border-border/60">
+                {quickActions.map((action) => {
+                  const Icon = action.icon
+                  return (
+                    <button
+                      key={action.status}
+                      type="button"
+                      disabled={statusPending}
+                      onPointerDown={(e) => {
+                        // Stop the drag/click from firing on the block underneath.
+                        e.stopPropagation()
+                        e.preventDefault()
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void handleQuickStatus(action.status, action.label)
+                      }}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sal-500"
+                    >
+                      <Icon className="h-3 w-3" />
+                      {action.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </TooltipContent>
       </Tooltip>

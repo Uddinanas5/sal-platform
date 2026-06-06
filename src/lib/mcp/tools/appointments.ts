@@ -1,6 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
 import { prisma } from "@/lib/prisma"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from "@/lib/scheduling/working-hours"
 import { z } from "zod"
 
 function ok(data: unknown) {
@@ -15,6 +21,15 @@ function genBookingRef(): string {
   const ts = Date.now().toString(36)
   const rand = Math.random().toString(36).substring(2, 6)
   return `SAL-${ts}-${rand}`.toUpperCase()
+}
+
+// Translate the assertSlotAllowed sentinels to a client-safe MCP error message,
+// or return null if the error is something else (re-thrown by the caller).
+function slotErrorMessage(e: unknown): string | null {
+  const msg = (e as Error).message
+  if (msg === ERR_OUTSIDE_WORKING_HOURS) return "Outside the staff member's working hours"
+  if (msg === ERR_ON_APPROVED_TIME_OFF) return "Staff member has approved time off during this slot"
+  return null
 }
 
 export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
@@ -97,6 +112,11 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
 
       try {
         const appointment = await prisma.$transaction(async (tx) => {
+          // Same working-hours / break / approved-time-off guard the server
+          // actions and v1 API use (BOOKING-RESIDUAL). Ordering mirrors them:
+          // lock -> assertSlotAllowed -> conflict check.
+          await lockStaffSchedule(tx, ctx.businessId, staffId)
+          await assertSlotAllowed(tx, staffId, location.id, start, end)
           const conflict = await tx.appointmentService.findFirst({
             where: {
               staffId,
@@ -144,6 +164,8 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         return ok(appointment)
       } catch (e) {
         if ((e as Error).message === "CONFLICT") return err("Time slot already booked for this staff member")
+        const slotErr = slotErrorMessage(e)
+        if (slotErr) return err(slotErr)
         throw e
       }
     }
@@ -266,48 +288,65 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       let current = new Date(start)
       let count = 0
 
-      while (current <= endDate && count < 52) {
-        const occurrenceStart = new Date(current)
-        const occurrenceEnd = new Date(current.getTime() + service.durationMinutes * 60000)
+      try {
+        while (current <= endDate && count < 52) {
+          const occurrenceStart = new Date(current)
+          const occurrenceEnd = new Date(current.getTime() + service.durationMinutes * 60000)
 
-        const appt = await prisma.appointment.create({
-          data: {
-            businessId: ctx.businessId,
-            locationId: location.id,
-            clientId,
-            bookingReference: genBookingRef(),
-            status: "confirmed",
-            source: "pos",
-            startTime: occurrenceStart,
-            endTime: occurrenceEnd,
-            totalDuration: service.durationMinutes,
-            subtotal: price,
-            taxAmount: 0,
-            totalAmount: price,
-            notes,
-            seriesId,
-            recurrenceRule,
-            recurrenceEndDate: endDate,
-          },
-        })
+          const appt = await prisma.$transaction(async (tx) => {
+            // Same working-hours / break / approved-time-off guard the server
+            // actions and v1 API use (BOOKING-RESIDUAL): lock -> assertSlotAllowed
+            // -> create. assertSlotAllowed needs a tx client, so each occurrence
+            // is written under its own transaction with the guard in front.
+            await lockStaffSchedule(tx, ctx.businessId, staffId)
+            await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd)
 
-        await prisma.appointmentService.create({
-          data: {
-            appointmentId: appt.id,
-            serviceId,
-            staffId,
-            name: service.name,
-            durationMinutes: service.durationMinutes,
-            price,
-            finalPrice: price,
-            startTime: occurrenceStart,
-            endTime: occurrenceEnd,
-          },
-        })
+            const created = await tx.appointment.create({
+              data: {
+                businessId: ctx.businessId,
+                locationId: location.id,
+                clientId,
+                bookingReference: genBookingRef(),
+                status: "confirmed",
+                source: "pos",
+                startTime: occurrenceStart,
+                endTime: occurrenceEnd,
+                totalDuration: service.durationMinutes,
+                subtotal: price,
+                taxAmount: 0,
+                totalAmount: price,
+                notes,
+                seriesId,
+                recurrenceRule,
+                recurrenceEndDate: endDate,
+              },
+            })
 
-        appointments.push({ id: appt.id, startTime: appt.startTime })
-        current = new Date(current.getTime() + intervalDays * 86400000)
-        count++
+            await tx.appointmentService.create({
+              data: {
+                appointmentId: created.id,
+                serviceId,
+                staffId,
+                name: service.name,
+                durationMinutes: service.durationMinutes,
+                price,
+                finalPrice: price,
+                startTime: occurrenceStart,
+                endTime: occurrenceEnd,
+              },
+            })
+
+            return created
+          })
+
+          appointments.push({ id: appt.id, startTime: appt.startTime })
+          current = new Date(current.getTime() + intervalDays * 86400000)
+          count++
+        }
+      } catch (e) {
+        const slotErr = slotErrorMessage(e)
+        if (slotErr) return err(slotErr)
+        throw e
       }
 
       return ok({ seriesId, appointmentsCreated: appointments.length, appointments })
@@ -359,45 +398,61 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       const end = new Date(start.getTime() + service.durationMinutes * 60000)
       const price = Number(service.price)
 
-      const appointment = await prisma.appointment.create({
-        data: {
-          businessId: ctx.businessId,
-          locationId: location.id,
-          clientId: clientIds[0] ?? null,
-          bookingReference: genBookingRef(),
-          status: "confirmed",
-          source: "pos",
-          startTime: start,
-          endTime: end,
-          totalDuration: service.durationMinutes,
-          subtotal: price,
-          taxAmount: 0,
-          totalAmount: price,
-          notes,
-          isGroupBooking: true,
-          maxParticipants,
-          groupParticipants: {
-            create: clientIds.map((clientId) => ({ clientId })),
-          },
-        },
-        include: { groupParticipants: true },
-      })
+      try {
+        const appointment = await prisma.$transaction(async (tx) => {
+          // Same working-hours / break / approved-time-off guard the server
+          // actions and v1 API use (BOOKING-RESIDUAL): lock -> assertSlotAllowed
+          // -> create.
+          await lockStaffSchedule(tx, ctx.businessId, staffId)
+          await assertSlotAllowed(tx, staffId, location.id, start, end)
 
-      await prisma.appointmentService.create({
-        data: {
-          appointmentId: appointment.id,
-          serviceId,
-          staffId,
-          name: service.name,
-          durationMinutes: service.durationMinutes,
-          price,
-          finalPrice: price,
-          startTime: start,
-          endTime: end,
-        },
-      })
+          const created = await tx.appointment.create({
+            data: {
+              businessId: ctx.businessId,
+              locationId: location.id,
+              clientId: clientIds[0] ?? null,
+              bookingReference: genBookingRef(),
+              status: "confirmed",
+              source: "pos",
+              startTime: start,
+              endTime: end,
+              totalDuration: service.durationMinutes,
+              subtotal: price,
+              taxAmount: 0,
+              totalAmount: price,
+              notes,
+              isGroupBooking: true,
+              maxParticipants,
+              groupParticipants: {
+                create: clientIds.map((clientId) => ({ clientId })),
+              },
+            },
+            include: { groupParticipants: true },
+          })
 
-      return ok(appointment)
+          await tx.appointmentService.create({
+            data: {
+              appointmentId: created.id,
+              serviceId,
+              staffId,
+              name: service.name,
+              durationMinutes: service.durationMinutes,
+              price,
+              finalPrice: price,
+              startTime: start,
+              endTime: end,
+            },
+          })
+
+          return created
+        })
+
+        return ok(appointment)
+      } catch (e) {
+        const slotErr = slotErrorMessage(e)
+        if (slotErr) return err(slotErr)
+        throw e
+      }
     }
   )
 

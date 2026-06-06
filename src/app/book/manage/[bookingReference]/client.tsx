@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Calendar,
   Clock,
@@ -14,6 +14,8 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,7 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn, formatCurrency } from "@/lib/utils"
-import { cancelPublicBooking } from "@/lib/actions/public-booking"
+import { cancelPublicBooking, reschedulePublicBooking } from "@/lib/actions/public-booking"
 import { toast } from "sonner"
 import Link from "next/link"
 
@@ -44,6 +46,10 @@ interface BookingData {
   endTime: string
   totalAmount: number
   notes: string | null
+  // Reschedule picker inputs (server-derived).
+  locationId: string
+  serviceId: string
+  staffId: string | null
   businessName: string
   businessSlug: string
   businessPhone: string | null
@@ -59,6 +65,18 @@ interface BookingData {
 
 interface ManageBookingClientProps {
   booking: BookingData
+}
+
+// A bookable slot as returned by GET /api/availability — same shape the public
+// booking page consumes. `start` is the authoritative ISO instant we send to
+// reschedulePublicBooking; `startTime` is the display string.
+interface AvailabilitySlot {
+  start: string
+  end: string
+  startTime: string
+  endTime: string
+  availableStaff: string[]
+  staffCount: number
 }
 
 // ---------------------------------------------------------------------------
@@ -279,13 +297,326 @@ function CancelDialog({ booking, onClose, onCancelled }: CancelDialogProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Reschedule Dialog
+// ---------------------------------------------------------------------------
+
+interface RescheduleDialogProps {
+  booking: BookingData
+  onClose: () => void
+  onRescheduled: (newStartIso: string) => void
+}
+
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogProps) {
+  const [email, setEmail] = useState("")
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null)
+  const [slots, setSlots] = useState<AvailabilitySlot[]>([])
+  const [slotsLoading, setSlotsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState("")
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const [viewYear, setViewYear] = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
+
+  // Fetch real availability for the chosen date — the SAME /api/availability
+  // endpoint the public booking page uses, scoped to this booking's lead
+  // service (+ original staff if one was assigned). No client-side slot math.
+  useEffect(() => {
+    if (!selectedDate || !booking.serviceId || !booking.locationId) {
+      setSlots([])
+      setSlotsLoading(false)
+      return
+    }
+    let active = true
+    setSlotsLoading(true)
+    setSlots([])
+    setSelectedSlot(null)
+    const pad = (n: number) => String(n).padStart(2, "0")
+    const dateStr = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())}`
+    const params = new URLSearchParams({
+      serviceId: booking.serviceId,
+      date: dateStr,
+      locationId: booking.locationId,
+    })
+    if (booking.staffId) params.set("staffId", booking.staffId)
+    fetch(`/api/availability?${params.toString()}`)
+      .then(async (res) => {
+        if (!active) return
+        if (!res.ok) {
+          setSlots([])
+          return
+        }
+        const data = await res.json().catch(() => ({}))
+        setSlots(Array.isArray(data?.slots) ? (data.slots as AvailabilitySlot[]) : [])
+      })
+      .catch(() => {
+        if (active) setSlots([])
+      })
+      .finally(() => {
+        if (active) setSlotsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedDate, booking.serviceId, booking.locationId, booking.staffId])
+
+  // Build the calendar grid for the viewed month.
+  const firstOfMonth = new Date(viewYear, viewMonth, 1)
+  const startOffset = firstOfMonth.getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const grid: (Date | null)[] = []
+  for (let i = 0; i < startOffset; i++) grid.push(null)
+  for (let d = 1; d <= daysInMonth; d++) grid.push(new Date(viewYear, viewMonth, d))
+
+  const atMinMonth =
+    viewYear < today.getFullYear() ||
+    (viewYear === today.getFullYear() && viewMonth <= today.getMonth())
+
+  function prevMonth() {
+    if (atMinMonth) return
+    const m = viewMonth - 1
+    if (m < 0) {
+      setViewMonth(11)
+      setViewYear((y) => y - 1)
+    } else {
+      setViewMonth(m)
+    }
+  }
+  function nextMonth() {
+    const m = viewMonth + 1
+    if (m > 11) {
+      setViewMonth(0)
+      setViewYear((y) => y + 1)
+    } else {
+      setViewMonth(m)
+    }
+  }
+
+  async function handleConfirm() {
+    setError("")
+    if (!email.trim()) {
+      setError("Please enter your email address.")
+      return
+    }
+    if (!selectedSlot) {
+      setError("Please choose a new time.")
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const result = await reschedulePublicBooking(
+        booking.bookingReference,
+        email.trim(),
+        selectedSlot.start,
+      )
+      if (result.success) {
+        toast.success("Your appointment has been rescheduled.")
+        onRescheduled(result.data.startTime)
+      } else {
+        setError(result.error ?? "Failed to reschedule appointment.")
+      }
+    } catch {
+      setError("An unexpected error occurred. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const monthLabel = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(firstOfMonth)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+        <div className="flex items-start gap-3 border-b p-6 pb-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+            <Calendar className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Reschedule Appointment</h2>
+            <p className="text-sm text-gray-500">Pick a new date and time.</p>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Email confirmation */}
+          <div className="mb-5">
+            <Label
+              htmlFor="reschedule-email"
+              className="mb-1.5 block text-sm font-medium text-gray-700"
+            >
+              Confirm your email address
+            </Label>
+            <Input
+              id="reschedule-email"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full"
+              disabled={isSubmitting}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Enter the email used when booking to verify your identity.
+            </p>
+          </div>
+
+          {/* Month calendar */}
+          <div className="mb-5">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Choose a date</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={prevMonth}
+                  disabled={atMinMonth}
+                  aria-label="Previous month"
+                  className="rounded-md p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="min-w-[120px] text-center text-sm font-medium text-gray-900">
+                  {monthLabel}
+                </span>
+                <button
+                  type="button"
+                  onClick={nextMonth}
+                  aria-label="Next month"
+                  className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center">
+              {WEEKDAYS.map((w) => (
+                <div key={w} className="py-1 text-xs font-medium text-gray-400">
+                  {w}
+                </div>
+              ))}
+              {grid.map((d, i) => {
+                if (!d) return <div key={`empty-${i}`} />
+                const isPast = d < today
+                const isSelected = selectedDate ? isSameDay(d, selectedDate) : false
+                return (
+                  <button
+                    key={d.toISOString()}
+                    type="button"
+                    disabled={isPast || isSubmitting}
+                    onClick={() => setSelectedDate(d)}
+                    className={cn(
+                      "aspect-square rounded-md text-sm transition-colors",
+                      isPast && "cursor-not-allowed text-gray-300",
+                      !isPast && !isSelected && "text-gray-700 hover:bg-emerald-50",
+                      isSelected && "bg-emerald-600 font-semibold text-white",
+                    )}
+                  >
+                    {d.getDate()}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Time slots */}
+          {selectedDate && (
+            <div className="mb-2">
+              <span className="mb-2 block text-sm font-medium text-gray-700">
+                Available times
+              </span>
+              {slotsLoading ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading times...
+                </div>
+              ) : slots.length === 0 ? (
+                <div className="rounded-lg bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
+                  No open times on this date. Try another day.
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {slots.map((slot) => {
+                    const isSelected = selectedSlot?.start === slot.start
+                    return (
+                      <button
+                        key={slot.start}
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => setSelectedSlot(slot)}
+                        className={cn(
+                          "rounded-lg border px-2 py-2 text-sm transition-colors",
+                          isSelected
+                            ? "border-emerald-600 bg-emerald-600 font-semibold text-white"
+                            : "border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50",
+                        )}
+                      >
+                        {slot.startTime}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 border-t p-6 pt-4">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={isSubmitting}>
+            Keep Current Time
+          </Button>
+          <Button
+            className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700"
+            onClick={handleConfirm}
+            disabled={isSubmitting || !selectedSlot}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Rescheduling...
+              </>
+            ) : (
+              "Confirm New Time"
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
 export function ManageBookingClient({ booking }: ManageBookingClientProps) {
   const [showCancelDialog, setShowCancelDialog] = useState(false)
-  const [showRescheduleInfo, setShowRescheduleInfo] = useState(false)
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(booking.status)
+  // Local copy of the appointment times so the page reflects a successful
+  // reschedule without a full reload.
+  const [startTime, setStartTime] = useState(booking.startTime)
+  const [endTime, setEndTime] = useState(booking.endTime)
 
   const statusConfig = getStatusConfig(currentStatus)
 
@@ -297,6 +628,15 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
   function handleCancelled() {
     setCurrentStatus("cancelled")
     setShowCancelDialog(false)
+  }
+
+  function handleRescheduled(newStartIso: string) {
+    // Derive the new end from the original duration so the card stays accurate.
+    const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime()
+    const newStart = new Date(newStartIso)
+    setStartTime(newStart.toISOString())
+    setEndTime(new Date(newStart.getTime() + durationMs).toISOString())
+    setShowRescheduleDialog(false)
   }
 
   const locationLine = [
@@ -456,12 +796,12 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
           <CardContent className="space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
-              <span className="text-gray-700">{formatDateOnly(booking.startTime)}</span>
+              <span className="text-gray-700">{formatDateOnly(startTime)}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Clock className="h-4 w-4 shrink-0 text-gray-400" />
               <span className="text-gray-700">
-                {formatTimeOnly(booking.startTime)} &ndash; {formatTimeOnly(booking.endTime)}
+                {formatTimeOnly(startTime)} &ndash; {formatTimeOnly(endTime)}
               </span>
             </div>
           </CardContent>
@@ -534,65 +874,17 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
         {/* Actions */}
         {isActionable && (
           <div className="space-y-3">
-            {/* Reschedule */}
-            <div>
-              {showRescheduleInfo ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                  <p className="mb-1 font-medium text-emerald-900">To reschedule your appointment</p>
-                  <p className="mb-3 text-sm text-emerald-800">
-                    Please contact {booking.businessName} directly:
-                  </p>
-                  <div className="space-y-1.5">
-                    {booking.businessPhone && (
-                      <a
-                        href={`tel:${booking.businessPhone}`}
-                        className="flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-800"
-                      >
-                        <Phone className="h-4 w-4" />
-                        {booking.businessPhone}
-                      </a>
-                    )}
-                    {booking.businessEmail && (
-                      <a
-                        href={`mailto:${booking.businessEmail}`}
-                        className="flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-800"
-                      >
-                        <Mail className="h-4 w-4" />
-                        {booking.businessEmail}
-                      </a>
-                    )}
-                    {!booking.businessPhone && !booking.businessEmail && (
-                      <p className="text-sm text-emerald-700">
-                        No contact information available. Please visit the{" "}
-                        {booking.businessSlug ? (
-                          <Link href={`/book/${booking.businessSlug}`} className="underline">
-                            booking page
-                          </Link>
-                        ) : (
-                          "booking page"
-                        )}{" "}
-                        to book a new appointment.
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setShowRescheduleInfo(false)}
-                    className="mt-3 text-xs text-emerald-600 underline"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-                  onClick={() => setShowRescheduleInfo(true)}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Reschedule Appointment
-                </Button>
-              )}
-            </div>
+            {/* Reschedule — real self-service date/time picker */}
+            {booking.serviceId && booking.locationId && (
+              <Button
+                variant="outline"
+                className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                onClick={() => setShowRescheduleDialog(true)}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                Reschedule Appointment
+              </Button>
+            )}
 
             {/* Cancel */}
             <Button
@@ -610,9 +902,18 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
       {/* Cancel Dialog Overlay */}
       {showCancelDialog && (
         <CancelDialog
-          booking={{ ...booking, status: currentStatus }}
+          booking={{ ...booking, status: currentStatus, startTime, endTime }}
           onClose={() => setShowCancelDialog(false)}
           onCancelled={handleCancelled}
+        />
+      )}
+
+      {/* Reschedule Dialog Overlay */}
+      {showRescheduleDialog && (
+        <RescheduleDialog
+          booking={{ ...booking, status: currentStatus, startTime, endTime }}
+          onClose={() => setShowRescheduleDialog(false)}
+          onRescheduled={handleRescheduled}
         />
       )}
     </div>

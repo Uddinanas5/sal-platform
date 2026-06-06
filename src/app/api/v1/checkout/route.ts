@@ -1,15 +1,12 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
-import { randomBytes } from "crypto"
 import { z } from "zod"
-
-function generatePaymentReference() {
-  const now = new Date()
-  const yyyymmdd = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`
-  const suffix = randomBytes(4).toString("hex").toUpperCase()
-  return `PAY-${yyyymmdd}-${suffix}`
-}
+import { recordCheckout, RecordCheckoutError } from "@/lib/checkout/record-checkout"
+import {
+  CommissionPeriodClosedError,
+  NoPayrollPeriodError,
+} from "@/lib/checkout/resolve-payroll-period"
 
 const processPaymentSchema = z.object({
   clientId: z.string().uuid().optional(),
@@ -25,6 +22,8 @@ const processPaymentSchema = z.object({
   // "card"/"gift_card" rejected server-side — no real charge/redemption behind
   // them in beta (matches the dashboard action; defense in depth).
   method: z.enum(["cash", "online", "other"]),
+  // Loyalty points to spend as a DISCOUNT (server validates + caps the value).
+  redeemPoints: z.number().int().nonnegative().optional(),
 })
 
 export async function POST(req: Request) {
@@ -39,45 +38,9 @@ export async function POST(req: Request) {
 
   const data = parsed.data
 
-  const serviceIds = Array.from(new Set(data.items.filter(i => i.type === "service").map(i => i.id)))
-  const productIds = Array.from(new Set(data.items.filter(i => i.type === "product").map(i => i.id)))
-
-  const [services, products] = await Promise.all([
-    serviceIds.length
-      ? prisma.service.findMany({
-          where: { id: { in: serviceIds }, businessId: ctx.businessId, deletedAt: null },
-          select: { id: true, price: true },
-        })
-      : Promise.resolve([] as { id: string; price: import("@/generated/prisma").Prisma.Decimal }[]),
-    productIds.length
-      ? prisma.product.findMany({
-          where: { id: { in: productIds }, businessId: ctx.businessId, deletedAt: null },
-          select: { id: true, retailPrice: true },
-        })
-      : Promise.resolve([] as { id: string; retailPrice: import("@/generated/prisma").Prisma.Decimal }[]),
-  ])
-
-  if (services.length !== serviceIds.length) return ERRORS.BAD_REQUEST("One or more services not found")
-  if (products.length !== productIds.length) return ERRORS.BAD_REQUEST("One or more products not found")
-
-  const priceMap = new Map<string, number>()
-  for (const s of services) priceMap.set(`service:${s.id}`, Number(s.price))
-  for (const p of products) priceMap.set(`product:${p.id}`, Number(p.retailPrice))
-
-  let subtotal = 0
-  for (const item of data.items) {
-    const price = priceMap.get(`${item.type}:${item.id}`)
-    if (price === undefined) return ERRORS.BAD_REQUEST("Invalid item")
-    subtotal += price * item.quantity
-  }
-  subtotal = Math.round(subtotal * 100) / 100
-
-  if (data.discount > subtotal) return ERRORS.BAD_REQUEST("Discount cannot exceed subtotal")
-
-  const amount = Math.round((subtotal - data.discount) * 100) / 100
-  const total = Math.round((amount + data.tax + data.tip) * 100) / 100
-
-  let resolvedClientId: string | undefined = data.clientId
+  // Pre-transaction idempotency guard (mirrors the dashboard action): don't let
+  // the same appointment be checked out twice — that would double-count revenue,
+  // visits, loyalty AND commission. recordCheckout owns all money authority.
   if (data.appointmentId) {
     const appt = await prisma.appointment.findFirst({
       where: { id: data.appointmentId, businessId: ctx.businessId },
@@ -87,8 +50,6 @@ export async function POST(req: Request) {
     if (data.clientId && appt.clientId && appt.clientId !== data.clientId) {
       return ERRORS.BAD_REQUEST("Appointment does not belong to this client")
     }
-    // Idempotency (mirrors the dashboard action): don't let the same appointment
-    // be checked out twice — that would double-count revenue, visits and loyalty.
     if (appt.status === "completed") {
       return ERRORS.BAD_REQUEST("This appointment has already been checked out.")
     }
@@ -99,56 +60,46 @@ export async function POST(req: Request) {
     if (alreadyPaid) {
       return ERRORS.BAD_REQUEST("This appointment has already been paid.")
     }
-    if (!resolvedClientId && appt.clientId) {
-      resolvedClientId = appt.clientId
-    }
   }
 
   try {
-    const payment = await prisma.$transaction(async (tx) => {
-      const paymentRef = generatePaymentReference()
+    // Single writer for ALL checkout side-effects, including the Commission
+    // ledger + payroll-period rows. Money is recomputed from DB prices inside
+    // recordCheckout; request input only carries {type,id,quantity}/discount/
+    // tax/tip/method.
+    const result = await prisma.$transaction((tx) =>
+      recordCheckout(tx, ctx.businessId, {
+        clientId: data.clientId,
+        appointmentId: data.appointmentId,
+        items: data.items,
+        discount: data.discount,
+        tax: data.tax,
+        tip: data.tip,
+        method: data.method,
+        redeemPoints: data.redeemPoints,
+      }),
+    )
 
-      const created = await tx.payment.create({
-        data: {
-          businessId: ctx.businessId,
-          clientId: resolvedClientId ?? null,
-          appointmentId: data.appointmentId ?? null,
-          paymentReference: paymentRef,
-          type: "payment",
-          method: data.method,
-          status: "completed",
-          amount,
-          tipAmount: data.tip,
-          totalAmount: total,
-          currency: "USD",
-          processedAt: new Date(),
-        },
-      })
-
-      if (data.appointmentId) {
-        await tx.appointment.update({
-          where: { id: data.appointmentId, businessId: ctx.businessId },
-          data: { status: "completed", completedAt: new Date() },
-        })
-      }
-
-      if (resolvedClientId) {
-        await tx.client.update({
-          where: { id: resolvedClientId, businessId: ctx.businessId },
-          data: {
-            totalSpent: { increment: amount },
-            totalVisits: { increment: 1 },
-            lastVisitAt: new Date(),
-            loyaltyPoints: { increment: Math.floor(amount) },
-          },
-        })
-      }
-
-      return created
-    })
-
-    return apiSuccess({ receiptId: payment.id, subtotal, amount, total }, 201)
+    return apiSuccess(
+      {
+        receiptId: result.payment.id,
+        subtotal: result.subtotal,
+        amount: result.amount,
+        total: result.total,
+        loyalty: result.loyalty,
+      },
+      201,
+    )
   } catch (e) {
+    if (e instanceof CommissionPeriodClosedError) {
+      return ERRORS.BAD_REQUEST("The current payroll period is closed.")
+    }
+    if (e instanceof NoPayrollPeriodError) {
+      return ERRORS.BAD_REQUEST("No payroll period is configured for today.")
+    }
+    if (e instanceof RecordCheckoutError) {
+      return ERRORS.BAD_REQUEST(e.message)
+    }
     console.error("POST /api/v1/checkout error:", e)
     return ERRORS.SERVER_ERROR()
   }

@@ -124,6 +124,53 @@ export function staffInvitationEmail({
   return baseLayout(content)
 }
 
+export function reviewRequestEmail({
+  clientName,
+  businessName,
+  staffName,
+  serviceName,
+  reviewUrl,
+}: {
+  clientName: string
+  businessName: string
+  staffName?: string
+  serviceName?: string
+  reviewUrl: string
+}): string {
+  const withStaff = staffName ? ` with <strong>${staffName}</strong>` : ""
+  const serviceLine = serviceName
+    ? `We hope you loved your <strong>${serviceName}</strong>${withStaff}.`
+    : `We hope you loved your recent visit${withStaff}.`
+
+  const content = `
+    <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1a1a1a;">How was your visit, ${clientName}?</h1>
+    <p style="margin: 0 0 24px; font-size: 15px; color: #6b6560; line-height: 1.6;">
+      ${serviceLine} It would mean a lot to <strong>${businessName}</strong> if you took a few seconds to share your experience.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 24px;">
+      <tr>
+        <td style="text-align: center; padding-bottom: 16px;">
+          <span style="font-size: 30px; letter-spacing: 4px; color: #f5b50a;">&#9733; &#9733; &#9733; &#9733; &#9733;</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="background-color: ${SAL_COLOR}; border-radius: 8px;">
+          <a href="${reviewUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">
+            Leave a Review
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 0; font-size: 13px; color: #9a9590; line-height: 1.5; word-break: break-all;">
+      If the button above doesn&rsquo;t work, copy and paste this URL into your browser:<br>
+      <a href="${reviewUrl}" style="color: ${SAL_COLOR_DARK};">${reviewUrl}</a>
+    </p>
+  `
+  return baseLayout(content)
+}
+
 export function bookingConfirmationEmail({
   clientName,
   serviceName,

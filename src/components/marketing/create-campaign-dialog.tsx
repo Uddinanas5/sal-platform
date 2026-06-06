@@ -106,7 +106,7 @@ export function CreateCampaignDialog({
         ? new Date(`${scheduleDate}T${scheduleTime}`)
         : undefined
 
-      await createCampaign({
+      const result = await createCampaign({
         name: campaignName.trim(),
         subject: campaignType === "email" ? subject.trim() : undefined,
         body: content.trim(),
@@ -115,14 +115,22 @@ export function CreateCampaignDialog({
         scheduledAt,
       })
 
+      if (result && "success" in result && result.success === false) {
+        toast.error(result.error || "Failed to save campaign")
+        return
+      }
+
+      // The campaign record is persisted, but actual email delivery is not wired
+      // up yet (no email provider configured). Be explicit that nothing was sent
+      // so the UI never implies messages reached clients.
       toast.success(
         scheduleOption === "now"
-          ? "Campaign created successfully!"
-          : "Campaign scheduled successfully!"
+          ? "Campaign saved as a draft. Sending is coming soon — no emails have gone out yet."
+          : "Campaign scheduled. Sending is coming soon — no emails have gone out yet."
       )
       onCreated?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create campaign")
+      toast.error(error instanceof Error ? error.message : "Failed to save campaign")
     }
     handleClose(false)
   }
@@ -306,10 +314,10 @@ export function CreateCampaignDialog({
                       : "text-muted-foreground"
                   )}
                 >
-                  Send Now
+                  Save as Draft
                 </p>
                 <p className="text-xs text-muted-foreground/70 mt-1">
-                  Send immediately
+                  Sending coming soon
                 </p>
               </button>
               <button
@@ -403,7 +411,7 @@ export function CreateCampaignDialog({
                 <span className="text-sm text-muted-foreground">Schedule</span>
                 <span className="text-sm font-medium text-foreground">
                   {scheduleOption === "now"
-                    ? "Send Immediately"
+                    ? "Save as Draft"
                     : `${scheduleDate} at ${scheduleTime}`}
                 </span>
               </div>
@@ -411,6 +419,12 @@ export function CreateCampaignDialog({
             <div className="rounded-lg border border-cream-200 p-4">
               <p className="text-xs text-muted-foreground mb-1">Message Preview</p>
               <p className="text-sm text-foreground">{content}</p>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs text-amber-800">
+                Email delivery is coming soon. This campaign will be saved so it is
+                ready to go, but no emails will be sent yet.
+              </p>
             </div>
           </div>
         )}
@@ -440,7 +454,7 @@ export function CreateCampaignDialog({
               onClick={handleSend}
               className="gap-1.5"
             >
-              {scheduleOption === "now" ? "Send Campaign" : "Schedule Campaign"}
+              {scheduleOption === "now" ? "Save Campaign" : "Schedule Campaign"}
             </Button>
           )}
         </div>

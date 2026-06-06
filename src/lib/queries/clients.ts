@@ -70,6 +70,37 @@ export async function getClientById(id: string, businessId: string) {
       allergies: true,
       loyaltyPoints: true,
       dateOfBirth: true,
+      // Visit/cut notes — newest first, soft-deleted excluded. Scoped to the
+      // SAME businessId via the parent client.findFirst (tenant isolation).
+      visitNotes: {
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          appointmentId: true,
+          authorId: true,
+          body: true,
+          photoUrls: true,
+          createdAt: true,
+          author: {
+            select: { user: { select: { firstName: true, lastName: true } } },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      },
+      // Loyalty ledger — newest first. Read-only display; the earn/redeem WRITE
+      // logic lives in the loyalty workstream. Scoped to this client/business.
+      loyaltyTransactions: {
+        select: {
+          id: true,
+          points: true,
+          type: true,
+          reason: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      },
       appointments: {
         select: {
           id: true,
@@ -114,6 +145,24 @@ export async function getClientById(id: string, businessId: string) {
     loyaltyPoints: client.loyaltyPoints,
     dateOfBirth: client.dateOfBirth || undefined,
     walletBalance: 0,
+    visitNotes: client.visitNotes.map((n) => ({
+      id: n.id,
+      appointmentId: n.appointmentId,
+      authorId: n.authorId,
+      authorName: n.author
+        ? `${n.author.user.firstName} ${n.author.user.lastName}`.trim()
+        : null,
+      body: n.body ?? "",
+      photoUrls: n.photoUrls,
+      createdAt: n.createdAt,
+    })),
+    loyaltyTransactions: client.loyaltyTransactions.map((t) => ({
+      id: t.id,
+      points: t.points,
+      type: t.type as "earn" | "redeem" | "adjust",
+      reason: t.reason ?? null,
+      createdAt: t.createdAt,
+    })),
     appointments: client.appointments.map((a) => {
       const svc = a.services[0]
       return {

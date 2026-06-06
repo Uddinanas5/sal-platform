@@ -49,6 +49,8 @@ interface PaymentDialogProps {
   discount: number
   discountType: "percentage" | "fixed"
   discountValue: number
+  loyaltyDiscount?: number
+  redeemPoints?: number
   tax: number
   tip: number
   total: number
@@ -73,6 +75,8 @@ export function PaymentDialog({
   discount,
   discountType,
   discountValue,
+  loyaltyDiscount = 0,
+  redeemPoints = 0,
   tax,
   tip,
   total,
@@ -129,10 +133,17 @@ export function PaymentDialog({
         tax,
         tip,
         method: paymentMethod,
+        // Points to redeem as a discount; the server recomputes + caps the value.
+        redeemPoints: redeemPoints > 0 ? redeemPoints : undefined,
       })
 
       if (result.success) {
         setReceiptNumber(result.data.paymentReference)
+        if (result.data.loyalty.redeemedPoints > 0) {
+          toast.success(
+            `Redeemed ${result.data.loyalty.redeemedPoints} pts (${formatCurrency(result.data.loyalty.redeemedAmount)} off)`
+          )
+        }
         setStep("success")
       } else {
         toast.error(result.error || "Payment failed")
@@ -142,7 +153,7 @@ export function PaymentDialog({
       toast.error("An unexpected error occurred")
       setStep("method")
     }
-  }, [paymentMethod, tenderedAmount, total, clientId, items, discount, tax, tip])
+  }, [paymentMethod, tenderedAmount, total, clientId, items, discount, tax, tip, redeemPoints])
 
   const handleEmailReceipt = async () => {
     if (!clientEmail) {
@@ -217,6 +228,8 @@ export function PaymentDialog({
                     discount={discount}
                     discountType={discountType}
                     discountValue={discountValue}
+                    loyaltyDiscount={loyaltyDiscount}
+                    loyaltyPoints={redeemPoints}
                     tax={tax}
                     tip={tip}
                     total={total}

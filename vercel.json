@@ -1,8 +1,9 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/appointment-notifications",
-      "schedule": "0 14 * * *"
+      "path": "/api/cron/dispatch",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

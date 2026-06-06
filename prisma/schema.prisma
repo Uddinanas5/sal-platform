@@ -345,6 +345,8 @@ model Business {
   formTemplates      FormTemplate[]
   staffInvitations   StaffInvitation[]
   apiKeys            ApiKey[]
+  visitNotes          VisitNote[]
+  loyaltyTransactions LoyaltyTransaction[]
 
   @@index([ownerId])
   @@index([slug])
@@ -450,6 +452,7 @@ model Staff {
   commissions           Commission[]
   reviews               Review[]
   preferredByClients    Client[]               @relation("PreferredStaff")
+  visitNotesAuthored    VisitNote[]            @relation("VisitNoteAuthor")
 
   @@index([userId])
   @@index([locationId])
@@ -697,6 +700,8 @@ model Client {
   notifications     Notification[] @relation("ClientNotifications")
   memberships       Membership[]
   groupParticipations GroupParticipant[]
+  visitNotes          VisitNote[]
+  loyaltyTransactions LoyaltyTransaction[]
 
   @@index([businessId])
   @@index([userId])
@@ -775,6 +780,7 @@ model Appointment {
   commissions             Commission[]
   reviews                 Review[]
   groupParticipants       GroupParticipant[]
+  visitNotes              VisitNote[]
 
   @@index([businessId])
   @@index([businessId, status])
@@ -905,6 +911,7 @@ model Payment {
   appointment   Appointment? @relation(fields: [appointmentId], references: [id])
   client        Client?      @relation(fields: [clientId], references: [id])
   processedUser User?        @relation("ProcessedBy", fields: [processedBy], references: [id])
+  loyaltyTransactions LoyaltyTransaction[]
 
   @@index([businessId])
   @@index([businessId, status])
@@ -1715,4 +1722,64 @@ model OAuthAccessToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("oauth_access_tokens")
+}
+
+// ============================================================================
+// CLIENT CARE — visit/cut notes + reference photos (wave 1 / Phase 1)
+// ============================================================================
+
+model VisitNote {
+  id            String    @id @default(uuid()) @db.Uuid
+  businessId    String    @map("business_id") @db.Uuid
+  clientId      String    @map("client_id") @db.Uuid
+  appointmentId String?   @map("appointment_id") @db.Uuid
+  authorId      String?   @map("author_id") @db.Uuid
+  body          String?   @db.Text
+  photoUrls     String[]  @default([]) @map("photo_urls")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client      Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  author      Staff?       @relation("VisitNoteAuthor", fields: [authorId], references: [id])
+
+  @@index([businessId])
+  @@index([clientId])
+  @@index([appointmentId])
+  @@map("visit_notes")
+}
+
+// ============================================================================
+// LOYALTY — points ledger so points can actually be earned AND redeemed
+// ============================================================================
+
+enum LoyaltyTransactionType {
+  earn
+  redeem
+  adjust
+}
+
+model LoyaltyTransaction {
+  id            String                 @id @default(uuid()) @db.Uuid
+  businessId    String                 @map("business_id") @db.Uuid
+  clientId      String                 @map("client_id") @db.Uuid
+  points        Int
+  type          LoyaltyTransactionType
+  reason        String?                @db.VarChar(255)
+  paymentId     String?                @map("payment_id") @db.Uuid
+  appointmentId String?                @map("appointment_id") @db.Uuid
+  createdBy     String?                @map("created_by") @db.Uuid
+  createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  payment  Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([businessId])
+  @@index([clientId])
+  @@map("loyalty_transactions")
 }

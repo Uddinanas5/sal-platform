@@ -1,7 +1,12 @@
 import { withV1Auth } from "@/lib/api/auth"
-import { apiSuccess, ERRORS } from "@/lib/api/response"
-import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { apiError, apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
+import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from "@/lib/scheduling/working-hours"
 import { z } from "zod"
 
 const createGroupSchema = z.object({
@@ -63,8 +68,12 @@ export async function POST(req: Request) {
 
   try {
     const appointmentId = await prisma.$transaction(async (tx) => {
+      // Serialize concurrent writes for this staff, then enforce the SAME
+      // working-hours / break / approved-time-off guard the server actions use
+      // (BOOKING-RESIDUAL) before the conflict check. Ordering mirrors the
+      // actions: lock -> assertSlotAllowed -> conflict check.
       await lockStaffSchedule(tx, ctx.businessId, staffId)
-
+      await assertSlotAllowed(tx, staffId, location.id, startTime, endTime)
       // Tenant-scoped conflict check on the staff slot. Without this a group
       // booking can silently double-book the stylist (and on a 12-person group
       // that's a much louder calendar collision than a single booking).
@@ -124,8 +133,15 @@ export async function POST(req: Request) {
 
     return apiSuccess({ id: appointmentId, participantCount: clientIds.length }, 201)
   } catch (e) {
-    if ((e as Error).message === "CONFLICT") {
+    const msg = (e as Error).message
+    if (msg === "CONFLICT") {
       return ERRORS.BAD_REQUEST("This time slot is already booked for the selected staff member")
+    }
+    if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+      return apiError("OUTSIDE_WORKING_HOURS", "Outside the staff member's working hours", 400)
+    }
+    if (msg === ERR_ON_APPROVED_TIME_OFF) {
+      return apiError("ON_APPROVED_TIME_OFF", "Staff member has approved time off during this slot", 400)
     }
     return ERRORS.SERVER_ERROR()
   }

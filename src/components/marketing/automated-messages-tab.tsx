@@ -2,12 +2,10 @@
 
 import React, { useState } from "react"
 import { motion } from "framer-motion"
-import { Pencil, Clock, Mail, MessageSquare } from "lucide-react"
+import { Eye, Clock, Mail, MessageSquare } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
@@ -73,15 +71,6 @@ const channelBadgeColors: Record<string, string> = {
   both: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
 }
 
-const mergeFields = [
-  "{client_name}",
-  "{service_name}",
-  "{staff_name}",
-  "{time}",
-  "{date}",
-  "{salon_name}",
-]
-
 function highlightMergeFields(text: string): React.ReactNode[] {
   const parts = text.split(/(\{[^}]+\})/g)
   return parts.map((part, i) => {
@@ -115,8 +104,11 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
   const [messages, setMessages] = useState<MessageItem[]>(initialMessages)
   const [editMessage, setEditMessage] = useState<MessageItem | null>(null)
   const [editOpen, setEditOpen] = useState(false)
-  const [editContent, setEditContent] = useState("")
-  const [editSubject, setEditSubject] = useState("")
+
+  // The activate/deactivate toggle below persists via the real
+  // `toggleAutomatedMessage` server action. Editing the template body/subject,
+  // however, has no persistence action wired up, so the dialog is presented as a
+  // read-only preview labeled "Coming soon" instead of silently discarding edits.
 
   const handleToggle = async (messageId: string, checked: boolean) => {
     const msg = messages.find((m) => m.id === messageId)
@@ -151,27 +143,7 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
 
   const handleEdit = (message: MessageItem) => {
     setEditMessage(message)
-    setEditContent(message.body)
-    setEditSubject(message.subject || "")
     setEditOpen(true)
-  }
-
-  const handleSaveEdit = () => {
-    if (!editMessage) return
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === editMessage.id
-          ? {
-              ...m,
-              body: editContent,
-              subject: editSubject || "",
-            }
-          : m
-      )
-    )
-    toast.success("Message template updated")
-    setEditOpen(false)
-    setEditMessage(null)
   }
 
   return (
@@ -233,8 +205,8 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
                       onClick={() => handleEdit(message)}
                       className="gap-1.5"
                     >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Edit
+                      <Eye className="w-3.5 h-3.5" />
+                      Preview
                     </Button>
                     <Switch
                       checked={message.isActive}
@@ -261,13 +233,16 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading">
-              Edit Automated Message
+            <DialogTitle className="font-heading flex items-center gap-2">
+              Message Template
+              <Badge variant="secondary" className="text-xs">
+                Preview
+              </Badge>
             </DialogTitle>
             <DialogDescription>
               {editMessage
-                ? triggerDescriptions[editMessage.trigger] || "Edit the message template."
-                : "Edit the message template."}
+                ? triggerDescriptions[editMessage.trigger] || "Preview the message template."
+                : "Preview the message template."}
             </DialogDescription>
           </DialogHeader>
 
@@ -278,11 +253,9 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
                 <label className="text-sm font-medium text-foreground">
                   Template Name
                 </label>
-                <Input
-                  value={editMessage.name}
-                  disabled
-                  className="bg-cream-50"
-                />
+                <div className="flex items-center h-10 px-3 rounded-lg border border-input bg-cream-50 text-sm text-muted-foreground">
+                  {editMessage.name}
+                </div>
               </div>
 
               {/* Trigger + Channel Info */}
@@ -316,59 +289,33 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
               </div>
 
               {/* Subject (email only) */}
-              {editMessage.channel === "email" && (
+              {editMessage.channel === "email" && editMessage.subject && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
                     Subject Line
                   </label>
-                  <Input
-                    value={editSubject}
-                    onChange={(e) => setEditSubject(e.target.value)}
-                    placeholder="Email subject..."
-                  />
+                  <div className="flex items-center min-h-10 px-3 py-2 rounded-lg border border-input bg-cream-50 text-sm text-muted-foreground">
+                    {editMessage.subject}
+                  </div>
                 </div>
               )}
 
-              {/* Content */}
+              {/* Content (read-only preview) */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
                   Message Content
                 </label>
-                <Textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  rows={5}
-                />
-              </div>
-
-              {/* Merge Fields */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Available Merge Fields
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {mergeFields.map((field) => (
-                    <button
-                      key={field}
-                      onClick={() =>
-                        setEditContent((prev) => prev + " " + field)
-                      }
-                      className="px-2 py-1 rounded bg-sal-100 text-sal-700 text-xs font-mono font-medium hover:bg-sal-200 transition-colors"
-                    >
-                      {field}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Preview */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Preview
-                </label>
                 <div className="rounded-lg bg-cream-100 p-3 text-sm leading-relaxed">
-                  {highlightMergeFields(editContent)}
+                  {highlightMergeFields(editMessage.body)}
                 </div>
+              </div>
+
+              {/* Coming soon notice */}
+              <div className="rounded-lg border border-cream-200 bg-cream-50 p-3">
+                <p className="text-xs text-muted-foreground">
+                  Editing automated-message templates is coming soon. For now you
+                  can activate or deactivate each message from the list.
+                </p>
               </div>
             </div>
           )}
@@ -381,9 +328,8 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
                 setEditMessage(null)
               }}
             >
-              Cancel
+              Close
             </Button>
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -29,11 +29,16 @@ type TxOverrides = {
 
 function fakeTx(o: TxOverrides = {}) {
   const tx = {
+    $executeRaw: vi.fn(),
     service: { findMany: vi.fn(async () => o.services ?? [{ id: SVC, price: 60 }]) },
     product: { findMany: vi.fn(async () => o.products ?? []) },
     appointment: { findFirst: vi.fn(), update: vi.fn() },
     client: {
-      findFirst: vi.fn(async () => (o.client === undefined ? { id: CLIENT } : o.client)),
+      // loyaltyPoints is read for redeem validation (0 = nothing to redeem); the
+      // earn path still fires and writes a loyaltyTransaction row.
+      findFirst: vi.fn(async () =>
+        o.client === undefined ? { id: CLIENT, loyaltyPoints: 0 } : o.client,
+      ),
       update: vi.fn(async () => ({})),
     },
     payment: {
@@ -45,6 +50,7 @@ function fakeTx(o: TxOverrides = {}) {
     },
     staffService: { findMany: vi.fn(async () => []) },
     commission: { create: vi.fn(async () => ({ id: "com_1" })) },
+    loyaltyTransaction: { create: vi.fn(async () => ({ id: "loy_1" })) },
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return tx as any

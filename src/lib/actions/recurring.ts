@@ -12,6 +12,11 @@ import {
   assertStaffOwned,
   generateBookingReference,
 } from "@/lib/ownership"
+import {
+  assertSlotAllowed,
+  ERR_OUTSIDE_WORKING_HOURS,
+  ERR_ON_APPROVED_TIME_OFF,
+} from "@/lib/scheduling/working-hours"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -99,6 +104,11 @@ export async function createRecurringAppointment(data: {
         const endTime = new Date(startTime)
         endTime.setMinutes(endTime.getMinutes() + service.durationMinutes)
 
+        // Enforce working-hours / break / approved-time-off for EVERY occurrence
+        // (GAP-001). One out-of-hours date fails the whole series — consistent
+        // with the all-or-nothing transaction semantics below.
+        await assertSlotAllowed(tx, parsed.staffId, location.id, startTime, endTime)
+
         const conflicting = await tx.appointmentService.findFirst({
           where: {
             staffId: parsed.staffId,
@@ -171,6 +181,20 @@ export async function createRecurringAppointment(data: {
         success: false,
         error:
           "One or more dates in this recurring series conflict with existing appointments. No appointments were created — adjust the time and try again.",
+      }
+    }
+    if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+      return {
+        success: false,
+        error:
+          "One or more dates in this recurring series fall outside the staff member's working hours. No appointments were created — adjust the time and try again.",
+      }
+    }
+    if (msg === ERR_ON_APPROVED_TIME_OFF) {
+      return {
+        success: false,
+        error:
+          "One or more dates in this recurring series land on the staff member's approved time off. No appointments were created — adjust the time and try again.",
       }
     }
     if (msg === "Not authenticated" || msg === "No business context") {
@@ -268,6 +292,10 @@ export async function createGroupBooking(data: {
     const appointment = await prisma.$transaction(async (tx) => {
       await lockStaffSchedule(tx, businessId, parsed.staffId)
 
+      // Group bookings hit the working-hours / break / approved-time-off guard
+      // too (GAP-001): a group can't be slotted onto a barber's lunch or day off.
+      await assertSlotAllowed(tx, parsed.staffId, location.id, startTime, endTime)
+
       const conflicting = await tx.appointmentService.findFirst({
         where: {
           staffId: parsed.staffId,
@@ -339,6 +367,12 @@ export async function createGroupBooking(data: {
         success: false,
         error: "This time slot is already booked for the selected staff member.",
       }
+    }
+    if (msg === ERR_OUTSIDE_WORKING_HOURS) {
+      return { success: false, error: "Outside the staff member's working hours." }
+    }
+    if (msg === ERR_ON_APPROVED_TIME_OFF) {
+      return { success: false, error: "Staff member has approved time off during this slot." }
     }
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }

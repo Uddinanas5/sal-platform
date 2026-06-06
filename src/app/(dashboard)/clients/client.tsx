@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { ImportClientsDialog } from "@/components/clients/import-clients-dialog"
 import { formatCurrency, formatDate, exportToCsv } from "@/lib/utils"
 import { createClient, deleteClient } from "@/lib/actions/clients"
 import type { Client } from "@/data/mock-data"
@@ -462,6 +463,7 @@ export function ClientsClient(props: ClientsClientProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFilter, setSelectedFilter] = useState("all")
   const [isAddClientOpen, setIsAddClientOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [newClientName, setNewClientName] = useState("")
   const [newClientEmail, setNewClientEmail] = useState("")
   const [newClientPhone, setNewClientPhone] = useState("")
@@ -653,7 +655,7 @@ export function ClientsClient(props: ClientsClientProps) {
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setIsImportOpen(true)}>
               <Upload className="w-4 h-4 mr-2" />
               Import
             </Button>
@@ -956,6 +958,8 @@ export function ClientsClient(props: ClientsClientProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ImportClientsDialog open={isImportOpen} onOpenChange={setIsImportOpen} />
 
       <ConfirmDialog
         open={deleteTarget !== null}

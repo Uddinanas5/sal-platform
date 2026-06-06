@@ -35,6 +35,9 @@ interface CartState {
   discountType: "percentage" | "fixed"
   tip: number
   paymentMethod: "cash" | "card" | "gift_card" | null
+  // Loyalty points the operator has elected to redeem as a discount. Only the
+  // count lives here; the dollar value is recomputed server-side at checkout.
+  redeemPoints: number
 }
 
 // ---------- Actions ----------
@@ -62,6 +65,7 @@ type CartAction =
       type: "SET_PAYMENT_METHOD"
       payload: { method: "cash" | "card" | "gift_card" }
     }
+  | { type: "SET_REDEEM_POINTS"; payload: { points: number } }
   | { type: "CLEAR_CART" }
 
 // ---------- Initial state ----------
@@ -74,6 +78,7 @@ const initialState: CartState = {
   discountType: "percentage",
   tip: 0,
   paymentMethod: null,
+  redeemPoints: 0,
 }
 
 // ---------- Reducer ----------
@@ -141,14 +146,17 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     }
 
     case "SET_CLIENT":
+      // Switching client invalidates any points the previous client was redeeming.
       return {
         ...state,
         clientId: action.payload.clientId,
         clientName: action.payload.clientName,
+        redeemPoints: 0,
       }
 
     case "CLEAR_CLIENT":
-      return { ...state, clientId: null, clientName: null }
+      // No client → nothing to redeem against.
+      return { ...state, clientId: null, clientName: null, redeemPoints: 0 }
 
     case "SET_DISCOUNT":
       return {
@@ -165,6 +173,9 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
     case "SET_PAYMENT_METHOD":
       return { ...state, paymentMethod: action.payload.method }
+
+    case "SET_REDEEM_POINTS":
+      return { ...state, redeemPoints: Math.max(0, Math.floor(action.payload.points)) }
 
     case "CLEAR_CART":
       return { ...initialState }
@@ -316,6 +327,10 @@ export default function CheckoutClient({
     []
   )
 
+  const handleSetRedeemPoints = useCallback((points: number) => {
+    dispatch({ type: "SET_REDEEM_POINTS", payload: { points } })
+  }, [])
+
   const handleClearCart = useCallback(() => {
     dispatch({ type: "CLEAR_CART" })
     setMobileCartOpen(false)
@@ -330,6 +345,7 @@ export default function CheckoutClient({
     discountType: state.discountType,
     tip: state.tip,
     paymentMethod: state.paymentMethod,
+    redeemPoints: state.redeemPoints,
     onUpdateQuantity: handleUpdateQuantity,
     onRemoveItem: handleRemoveItem,
     onSetClient: handleSetClient,
@@ -338,6 +354,7 @@ export default function CheckoutClient({
     onClearDiscount: handleClearDiscount,
     onSetTip: handleSetTip,
     onSetPaymentMethod: handleSetPaymentMethod,
+    onSetRedeemPoints: handleSetRedeemPoints,
     onClearCart: handleClearCart,
     businessName,
     businessAddress,

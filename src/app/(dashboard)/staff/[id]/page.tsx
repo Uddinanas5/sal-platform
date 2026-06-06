@@ -1,7 +1,7 @@
 import { getStaffById } from "@/lib/queries/staff"
 import { getServices } from "@/lib/queries/services"
 import { getAppointments } from "@/lib/queries/appointments"
-import { getStaffPerformanceByName } from "@/lib/queries/reports"
+import { getStaffPerformanceById } from "@/lib/queries/reports"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { notFound, redirect } from "next/navigation"
@@ -40,12 +40,12 @@ export default async function StaffDetailPage({ params }: { params: { id: string
     redirect("/dashboard")
   }
 
-  // Fetch performance data for this staff member
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const staffName = (staff as any).name ?? `${(staff as any).user?.firstName ?? ""} ${(staff as any).user?.lastName ?? ""}`.trim()
+  // Fetch performance data for this staff member. Scoped by the route's staff id
+  // AND the session's businessId so it can never resolve a barber from another
+  // shop (cross-tenant report leak fix).
   let staffPerformance = null
   try {
-    staffPerformance = await getStaffPerformanceByName(staffName)
+    staffPerformance = await getStaffPerformanceById(params.id, businessId)
   } catch {
     staffPerformance = null
   }
