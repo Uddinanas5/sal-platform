@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { timingSafeEqual } from "crypto"
 import { runDueReminders } from "@/lib/automation/reminders"
+import { runDueAutomatedMessages } from "@/lib/automation/automated-messages"
 
 // This route is invoked by Vercel Cron (see vercel.json "crons") on a ~15-minute
 // cadence. It is the runtime backbone for SAL's "Never Miss Again" reminders.
@@ -54,18 +55,31 @@ async function handle(req: NextRequest) {
 
   const startedAt = new Date()
   try {
-    const result = await runDueReminders(startedAt)
-    console.log("[cron/dispatch] reminders run", {
+    // Two independent engines run on the same tick:
+    //   1. runDueReminders        — appointment reminders (24h / 2h windows).
+    //   2. runDueAutomatedMessages — daily marketing automations (birthday,
+    //      win-back). Each has its own idempotency stamp, so they never collide.
+    // Both fire from the same trusted cron actor and are aggregated in one JSON
+    // response. They run sequentially; a failure in either bubbles to the shared
+    // fail-closed 500 below (the cron simply retries on its next tick).
+    const reminders = await runDueReminders(startedAt)
+    const automatedMessages = await runDueAutomatedMessages(startedAt)
+    console.log("[cron/dispatch] run", {
       at: startedAt.toISOString(),
-      ...result,
+      reminders,
+      automatedMessages,
     })
     return NextResponse.json({
       ok: true,
       at: startedAt.toISOString(),
-      ...result,
+      // Reminder fields kept at the top level for backward compatibility with
+      // any existing consumer; both engines also exposed under named keys.
+      ...reminders,
+      reminders,
+      automatedMessages,
     })
   } catch (e) {
-    console.error("[cron/dispatch] reminders run failed", e)
+    console.error("[cron/dispatch] run failed", e)
     return NextResponse.json(
       { ok: false, error: "dispatch_failed" },
       { status: 500 }

@@ -1,18 +1,23 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Megaphone, Send, BarChart3 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { CampaignCard } from "@/components/marketing/campaign-card"
 import { EmptyState } from "@/components/shared/empty-state"
-import { createCampaign } from "@/lib/actions/marketing"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { createCampaign, updateCampaign } from "@/lib/actions/marketing"
 import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 
 interface CampaignItem {
@@ -45,8 +50,20 @@ interface CampaignsTabProps {
   stats: CampaignStats
 }
 
+// A campaign can only be edited before it has gone out. Sent/sending campaigns
+// reflect what actually shipped and stay view-only (honest).
+function isEditable(status: string): boolean {
+  return status === "draft" || status === "scheduled"
+}
+
 export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
+  const router = useRouter()
   const [viewCampaign, setViewCampaign] = useState<CampaignItem | null>(null)
+  const [editCampaign, setEditCampaign] = useState<CampaignItem | null>(null)
+  const [draftName, setDraftName] = useState("")
+  const [draftSubject, setDraftSubject] = useState("")
+  const [draftBody, setDraftBody] = useState("")
+  const [saving, setSaving] = useState(false)
   const totalSent = campaigns.reduce((sum, c) => sum + c.recipientCount, 0)
 
   const handleDuplicate = async (campaign: CampaignItem) => {
@@ -59,8 +76,53 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
         audienceType: campaign.audienceType,
       })
       toast.success(`"${campaign.name}" duplicated`)
+      router.refresh()
     } catch {
       toast.error("Failed to duplicate campaign")
+    }
+  }
+
+  // Edit opens a real editor only for unsent campaigns; sent ones fall back to
+  // the read-only detail view so the action never silently no-ops.
+  const handleEdit = (campaign: CampaignItem) => {
+    if (!isEditable(campaign.status)) {
+      setViewCampaign(campaign)
+      return
+    }
+    setEditCampaign(campaign)
+    setDraftName(campaign.name)
+    setDraftSubject(campaign.subject)
+    setDraftBody(campaign.body)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editCampaign) return
+    if (draftName.trim().length === 0) {
+      toast.error("Campaign name cannot be empty")
+      return
+    }
+    if (draftBody.trim().length === 0) {
+      toast.error("Message content cannot be empty")
+      return
+    }
+    setSaving(true)
+    try {
+      const result = await updateCampaign(editCampaign.id, {
+        name: draftName.trim(),
+        subject: draftSubject.trim() || undefined,
+        body: draftBody.trim(),
+      })
+      if (result && "success" in result && result.success === false) {
+        toast.error(result.error || "Failed to save campaign")
+        return
+      }
+      toast.success(`"${draftName.trim()}" saved`)
+      setEditCampaign(null)
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save campaign")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -125,7 +187,7 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
               campaign={campaign}
               index={index}
               onView={setViewCampaign}
-              onEdit={setViewCampaign}
+              onEdit={handleEdit}
               onDuplicate={handleDuplicate}
             />
           ))}
@@ -164,6 +226,55 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
                   <p className="text-xs text-muted-foreground">Clicks</p>
                 </div>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Campaign Edit Dialog (draft / scheduled only) */}
+      {editCampaign && (
+        <Dialog open={!!editCampaign} onOpenChange={(open) => { if (!open) setEditCampaign(null) }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-heading">Edit Campaign</DialogTitle>
+              <DialogDescription>
+                Update this campaign before it is sent. Audience: {editCampaign.audienceType}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Campaign Name</label>
+                <Input
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  placeholder="e.g., Spring Sale Announcement"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Subject Line</label>
+                <Input
+                  value={draftSubject}
+                  onChange={(e) => setDraftSubject(e.target.value)}
+                  placeholder="e.g., Exclusive offer just for you!"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Message Content</label>
+                <Textarea
+                  value={draftBody}
+                  onChange={(e) => setDraftBody(e.target.value)}
+                  rows={6}
+                  placeholder="Write your email content..."
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditCampaign(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit} disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
