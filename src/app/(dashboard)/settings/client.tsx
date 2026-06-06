@@ -27,6 +27,7 @@ import { OnlinePresenceTab } from "@/components/settings/online-presence-tab"
 import { FormsSection } from "@/components/settings/forms-section"
 import { ResourcesSection } from "@/components/settings/resources-section"
 import { TeamMembersTab } from "@/components/settings/team-members-tab"
+import { DeleteAccountSection } from "./delete-account-section"
 import type { InvitationWithInviter } from "@/lib/queries/invitations"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -671,21 +672,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
                     <CardTitle className="text-red-600 font-heading">Danger Zone</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Once you delete your account, there is no going back. During
-                      beta, account deletion and data export are handled by our
-                      team — email{" "}
-                      <a
-                        href="mailto:support@meetsal.ai"
-                        className="underline font-medium"
-                      >
-                        support@meetsal.ai
-                      </a>{" "}
-                      and we&apos;ll process your request within one business day.
-                    </p>
-                    <Button variant="destructive" disabled>
-                      Delete Account
-                    </Button>
+                    <DeleteAccountSection role={role} businessName={businessName} />
                   </CardContent>
                 </Card>
               </motion.div>
