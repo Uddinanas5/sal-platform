@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format, setHours, setMinutes } from "date-fns"
 import {
@@ -19,6 +19,7 @@ import {
   ExternalLink,
   UserX,
   ThumbsUp,
+  Repeat,
 } from "lucide-react"
 import {
   Sheet,
@@ -51,7 +52,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn, getInitials, formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { rescheduleAppointment, cancelAppointment } from "@/lib/actions/appointments"
+import { getSeriesInfo, cancelRecurring } from "@/lib/actions/recurring"
 import type { Appointment, Staff, Service, Client } from "@/data/mock-data"
+
+type CancelScope = "this" | "following" | "all"
+
+const RECURRENCE_LABELS: Record<string, string> = {
+  weekly: "Repeats weekly",
+  biweekly: "Repeats every 2 weeks",
+  monthly: "Repeats monthly",
+}
 
 type CancelReasonCode =
   | "client_request"
@@ -146,8 +156,50 @@ export function AppointmentDetailSheet({
   const [cancelReason, setCancelReason] = useState<CancelReasonCode>("client_request")
   const [cancelNote, setCancelNote] = useState("")
   const [isCancelling, setIsCancelling] = useState(false)
+  // Cancellation scope only applies to a recurring series member.
+  const [cancelScope, setCancelScope] = useState<CancelScope>("this")
+
+  // Series membership for the currently-open appointment. Resolved from the
+  // server (the calendar's Appointment objects don't carry series fields), so
+  // the badge + scope picker are real, not decorative.
+  const [seriesInfo, setSeriesInfo] = useState<{
+    isSeriesMember: boolean
+    recurrenceRule: string | null
+  } | null>(null)
+
+  const appointmentId = appointment?.id
+
+  useEffect(() => {
+    if (!open || !appointmentId) {
+      setSeriesInfo(null)
+      return
+    }
+    let cancelled = false
+    setSeriesInfo(null)
+    getSeriesInfo(appointmentId).then((res) => {
+      if (cancelled) return
+      if (res.success) {
+        setSeriesInfo({
+          isSeriesMember: res.data.isSeriesMember,
+          recurrenceRule: res.data.recurrenceRule,
+        })
+      } else {
+        // On failure, treat as a one-off (no badge / no scope picker) rather
+        // than guessing — never show a series UI we can't back up.
+        setSeriesInfo({ isSeriesMember: false, recurrenceRule: null })
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, appointmentId])
 
   if (!appointment) return null
+
+  const isSeriesMember = seriesInfo?.isSeriesMember ?? false
+  const recurrenceLabel = seriesInfo?.recurrenceRule
+    ? RECURRENCE_LABELS[seriesInfo.recurrenceRule] ?? "Repeats"
+    : "Repeats"
 
   const staffMember = staffList.find((s) => s.id === appointment.staffId)
   const service = serviceList.find((s) => s.id === appointment.serviceId)
@@ -171,27 +223,56 @@ export function AppointmentDetailSheet({
     setCancelInitiator(mode === "no_show" ? "client" : "business")
     setCancelReason(mode === "no_show" ? "no_show" : "client_request")
     setCancelNote("")
+    // A no-show is inherently a single occurrence; a cancel of a series member
+    // defaults to just this one (the user can widen the scope).
+    setCancelScope("this")
     setCancelOpen(true)
   }
 
   const handleCancelConfirm = async () => {
     if (!appointment) return
     setIsCancelling(true)
-    const result = await cancelAppointment({
-      id: appointment.id,
-      status: cancelMode,
-      initiator: cancelInitiator,
-      reasonCode: cancelReason,
-      note: cancelNote.trim() || undefined,
-    })
+
+    // For a series member with a wider scope, use the scoped recurring cancel.
+    // A no-show is always a single occurrence, so it never batches the series.
+    const useSeriesScope =
+      isSeriesMember && cancelMode === "cancelled" && cancelScope !== "this"
+
+    const result = useSeriesScope
+      ? await cancelRecurring({
+          appointmentId: appointment.id,
+          scope: cancelScope,
+          status: cancelMode,
+          initiator: cancelInitiator,
+          reasonCode: cancelReason,
+          note: cancelNote.trim() || undefined,
+        })
+      : await cancelAppointment({
+          id: appointment.id,
+          status: cancelMode,
+          initiator: cancelInitiator,
+          reasonCode: cancelReason,
+          note: cancelNote.trim() || undefined,
+        })
+
     setIsCancelling(false)
     if (!result.success) {
       toast.error(result.error || "Failed to cancel appointment")
       return
     }
-    toast.success(
-      cancelMode === "no_show" ? "Marked as no-show" : "Appointment cancelled"
-    )
+
+    if (useSeriesScope && "data" in result && result.data) {
+      const n = result.data.count
+      toast.success(
+        cancelScope === "all"
+          ? `Cancelled all ${n} appointment${n === 1 ? "" : "s"} in the series`
+          : `Cancelled ${n} appointment${n === 1 ? "" : "s"} (this and following)`
+      )
+    } else {
+      toast.success(
+        cancelMode === "no_show" ? "Marked as no-show" : "Appointment cancelled"
+      )
+    }
     setCancelOpen(false)
     onOpenChange(false)
     router.refresh()
@@ -258,12 +339,23 @@ export function AppointmentDetailSheet({
               </SheetDescription>
             </div>
           </div>
-          <Badge
-            variant={statusConfig.variant}
-            className={cn("w-fit mt-2", statusConfig.className)}
-          >
-            {statusConfig.label}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Badge
+              variant={statusConfig.variant}
+              className={cn("w-fit", statusConfig.className)}
+            >
+              {statusConfig.label}
+            </Badge>
+            {isSeriesMember && (
+              <Badge
+                variant="outline"
+                className="w-fit gap-1 bg-sal-500/10 text-sal-700 dark:text-sal-300 border-sal-500/20"
+              >
+                <Repeat className="h-3 w-3" />
+                {recurrenceLabel} · series
+              </Badge>
+            )}
+          </div>
         </SheetHeader>
 
         <Separator />
@@ -594,6 +686,29 @@ export function AppointmentDetailSheet({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Scope picker — only for a recurring series member, and only when
+                cancelling (a no-show is always a single occurrence). */}
+            {isSeriesMember && cancelMode === "cancelled" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Repeat className="h-3.5 w-3.5 text-sal-500" />
+                  Apply to
+                </label>
+                <Select
+                  value={cancelScope}
+                  onValueChange={(v) => setCancelScope(v as CancelScope)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="this">This appointment</SelectItem>
+                    <SelectItem value="following">This &amp; following</SelectItem>
+                    <SelectItem value="all">All in series</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Initiated by</label>
               <Select

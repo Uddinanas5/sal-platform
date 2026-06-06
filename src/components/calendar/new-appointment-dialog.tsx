@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { format, setHours, setMinutes, isSameDay } from "date-fns"
+import { format, setHours, setMinutes, isSameDay, addWeeks, addMonths } from "date-fns"
 import { createAppointment } from "@/lib/actions/appointments"
 import { createRecurringAppointment } from "@/lib/actions/recurring"
 import {
@@ -110,9 +110,15 @@ export function NewAppointmentDialog({
   const [notes, setNotes] = useState("")
   const [activeCategory, setActiveCategory] = useState<string>("All")
 
-  // Recurring appointment state
+  // Recurring appointment state. The recurring backend takes an *until* date
+  // (recurrenceEndDate), but we let the user choose either "after N times" or
+  // "until a date" — for the count mode we derive the until-date from the count
+  // so the backend generates exactly N occurrences. Count is capped at 52 to
+  // match the backend's hard safety limit (max ~1 year of weekly).
   const [isRecurring, setIsRecurring] = useState(false)
   const [recurrenceRule, setRecurrenceRule] = useState<"weekly" | "biweekly" | "monthly">("weekly")
+  const [recurrenceEndMode, setRecurrenceEndMode] = useState<"count" | "until">("count")
+  const [recurrenceCount, setRecurrenceCount] = useState(8)
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
 
   // Group booking is disabled in this dialog (no multi-participant picker yet —
@@ -140,6 +146,8 @@ export function NewAppointmentDialog({
       setActiveCategory("All")
       setIsRecurring(false)
       setRecurrenceRule("weekly")
+      setRecurrenceEndMode("count")
+      setRecurrenceCount(8)
       setRecurrenceEndDate("")
       setShowAdvanced(false)
       setIsSaving(false)
@@ -254,10 +262,39 @@ export function NewAppointmentDialog({
       selectedTime.minute
     )
 
-    // Recurring requires an end date before we can generate the series.
-    if (isRecurring && !recurrenceEndDate) {
-      toast.error("Pick an end date for the recurring appointment")
-      return
+    // Resolve the recurring END as an until-date the backend understands.
+    // - "until" mode: use the picked date directly.
+    // - "count" mode: derive the until-date by stepping the recurrence rule
+    //   (count - 1) times from the first occurrence, so the backend generates
+    //   exactly `count` appointments. The backend independently caps at 52.
+    let resolvedEndDate = ""
+    if (isRecurring) {
+      if (recurrenceEndMode === "until") {
+        if (!recurrenceEndDate) {
+          toast.error("Pick an end date for the recurring appointment")
+          return
+        }
+        resolvedEndDate = recurrenceEndDate
+      } else {
+        if (!Number.isInteger(recurrenceCount) || recurrenceCount < 1 || recurrenceCount > 52) {
+          toast.error("Choose how many times to repeat (1–52)")
+          return
+        }
+        const stepsAfterFirst = recurrenceCount - 1
+        let last = startTime
+        switch (recurrenceRule) {
+          case "weekly":
+            last = addWeeks(startTime, stepsAfterFirst)
+            break
+          case "biweekly":
+            last = addWeeks(startTime, stepsAfterFirst * 2)
+            break
+          case "monthly":
+            last = addMonths(startTime, stepsAfterFirst)
+            break
+        }
+        resolvedEndDate = format(last, "yyyy-MM-dd")
+      }
     }
 
     setIsSaving(true)
@@ -283,17 +320,28 @@ export function NewAppointmentDialog({
         startTime: startTime.toISOString(),
         notes: notes.trim() || undefined,
         recurrenceRule,
-        recurrenceEndDate,
+        recurrenceEndDate: resolvedEndDate,
       })
 
       if (!result.success) {
         setIsSaving(false)
+        // The recurring backend is ALL-OR-NOTHING: if any occurrence conflicts
+        // (double-book / outside working hours / approved time off) the whole
+        // series is aborted and nothing is written. Surface that honestly — the
+        // action's error already says "No appointments were created".
         toast.error(result.error)
         return
       }
 
+      // No partial/skip state: a successful return means EVERY occurrence booked.
+      const freqLabel =
+        recurrenceRule === "weekly"
+          ? "weekly"
+          : recurrenceRule === "biweekly"
+            ? "every 2 weeks"
+            : "monthly"
       toast.success(
-        `Recurring series created (${result.data.count} appointment${result.data.count === 1 ? "" : "s"})`,
+        `Recurring series booked — ${result.data.count} appointment${result.data.count === 1 ? "" : "s"} (${freqLabel})`,
         { description: baseDescription }
       )
       onOpenChange(false)
@@ -811,26 +859,81 @@ export function NewAppointmentDialog({
                         <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
                       </div>
                       {isRecurring && (
-                        <div className="ml-6 space-y-2">
-                          <Select value={recurrenceRule} onValueChange={(v) => setRecurrenceRule(v as "weekly" | "biweekly" | "monthly")}>
-                            <SelectTrigger className="h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="weekly">Every week</SelectItem>
-                              <SelectItem value="biweekly">Every 2 weeks</SelectItem>
-                              <SelectItem value="monthly">Every month</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <div className="ml-6 space-y-3">
                           <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">End date</label>
-                            <Input
-                              type="date"
-                              value={recurrenceEndDate}
-                              onChange={(e) => setRecurrenceEndDate(e.target.value)}
-                              className="h-9"
-                            />
+                            <label className="text-xs text-muted-foreground">Frequency</label>
+                            <Select value={recurrenceRule} onValueChange={(v) => setRecurrenceRule(v as "weekly" | "biweekly" | "monthly")}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="weekly">Every week</SelectItem>
+                                <SelectItem value="biweekly">Every 2 weeks</SelectItem>
+                                <SelectItem value="monthly">Every month</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
+
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Ends</label>
+                            <Select
+                              value={recurrenceEndMode}
+                              onValueChange={(v) => setRecurrenceEndMode(v as "count" | "until")}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="count">After a number of times</SelectItem>
+                                <SelectItem value="until">On a date</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {recurrenceEndMode === "count" ? (
+                            <div className="space-y-1">
+                              <label className="text-xs text-muted-foreground">
+                                Number of appointments (1–52)
+                              </label>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={52}
+                                value={recurrenceCount}
+                                onChange={(e) =>
+                                  setRecurrenceCount(
+                                    Math.max(1, Math.min(52, Number(e.target.value) || 1))
+                                  )
+                                }
+                                className="h-9"
+                              />
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              <label className="text-xs text-muted-foreground">End date</label>
+                              <Input
+                                type="date"
+                                value={recurrenceEndDate}
+                                onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                                className="h-9"
+                              />
+                            </div>
+                          )}
+
+                          {/* The recurring backend books ONE service per
+                              occurrence. If the user picked a combo, say so
+                              honestly: only the first service repeats. */}
+                          {selectedServices.length > 1 && (
+                            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                              Only the first service ({selectedServices[0].name}) repeats in a
+                              series. The other {selectedServices.length - 1} won&apos;t be added to
+                              each occurrence.
+                            </p>
+                          )}
+                          <p className="text-[11px] text-muted-foreground">
+                            All occurrences are booked together — if any date conflicts, none are
+                            created.
+                          </p>
                         </div>
                       )}
                     </div>
