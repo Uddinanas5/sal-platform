@@ -130,10 +130,22 @@ export function WaitlistPanel({
   async function handleNotify(entryId: string) {
     setNotifyingId(entryId)
     try {
-      await notifyWaitlistEntry(entryId)
-      toast.success("Client notified", {
-        description: "A notification has been sent to the client.",
-      })
+      const result = await notifyWaitlistEntry(entryId)
+      if (result && "success" in result && result.success === false) {
+        toast.error(result.error || "Failed to notify client")
+        return
+      }
+      // Be honest: an email only went out when the client has a consented address.
+      const emailed = !!(result && "data" in result && result.data?.emailed)
+      if (emailed) {
+        toast.success("Client emailed", {
+          description: "We emailed the client that a slot may be available.",
+        })
+      } else {
+        toast.success("Marked as notified", {
+          description: "No email on file — reach out to the client directly.",
+        })
+      }
       router.refresh()
     } catch {
       toast.error("Failed to notify client")
@@ -381,7 +393,7 @@ export function WaitlistPanel({
                                     ) : (
                                       <Bell className="h-3 w-3" />
                                     )}
-                                    {notifyingId === entry.id ? "Sending..." : "Notify"}
+                                    {notifyingId === entry.id ? "Notifying..." : "Notify"}
                                   </Button>
                                 )}
                                 <Button

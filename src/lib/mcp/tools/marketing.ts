@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
 import { prisma } from "@/lib/prisma"
+import { sendCampaignCore } from "@/lib/marketing/send-core"
 import { z } from "zod"
 
 function isAdmin(ctx: ApiContext): boolean { return ["admin", "owner"].includes(ctx.role) }
@@ -79,17 +80,17 @@ export function registerMarketingTools(server: McpServer, ctx: ApiContext) {
 
   server.tool(
     "send-campaign",
-    "Send/launch a marketing campaign (admin required)",
+    "Send/launch a marketing campaign — actually emails the consented audience (admin required)",
     { id: z.string().uuid().describe("Campaign ID") },
     async ({ id }) => {
       if (!isAdmin(ctx)) return err("Insufficient permissions")
-      const campaign = await prisma.campaign.findFirst({ where: { id, businessId: ctx.businessId } })
-      if (!campaign) return err("Campaign not found")
-      const updated = await prisma.campaign.update({
-        where: { id },
-        data: { status: "sending", sentAt: new Date() },
-      })
-      return ok(updated)
+      // Drive the SAME real send as the dashboard: consent-first audience, safety
+      // cap, batched send, status:"sent" + recipientCount. Previously this tool
+      // only flipped status→"sending" and returned ok() — emailing nobody and
+      // bricking the campaign in "sending" forever.
+      const result = await sendCampaignCore(ctx.businessId, id)
+      if (!result.success) return err(result.error)
+      return ok({ sent: result.sent, recipientCount: result.recipientCount, campaignId: result.campaign.id })
     }
   )
 

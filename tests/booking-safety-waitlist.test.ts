@@ -37,6 +37,7 @@ const {
   lockMock,
   isSlotAvailableMock,
   withV1AuthMock,
+  getBusinessContextMock,
 } = vi.hoisted(() => {
   return {
     prismaMock: {
@@ -46,7 +47,7 @@ const {
       staff: { findFirst: vi.fn() },
       staffService: { findFirst: vi.fn() },
       client: { findFirst: vi.fn(), create: vi.fn() },
-      waitlistEntry: { create: vi.fn(), update: vi.fn() },
+      waitlistEntry: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
       appointment: { findFirst: vi.fn() },
       // $transaction default: never reached in these suites (the guards reject
       // before any write), but provide a permissive impl just in case.
@@ -65,6 +66,7 @@ const {
     lockMock: vi.fn(),
     isSlotAvailableMock: vi.fn(),
     withV1AuthMock: vi.fn(),
+    getBusinessContextMock: vi.fn(),
   }
 })
 
@@ -76,7 +78,9 @@ vi.mock("@/lib/email-templates", () => ({
   bookingConfirmationEmail: vi.fn(() => "<html>"),
   appointmentCancelledEmail: vi.fn(() => "<html>"),
   appointmentRescheduledEmail: vi.fn(() => "<html>"),
+  lifecycleEmail: vi.fn(() => "<html>"),
 }))
+vi.mock("@/lib/auth-utils", () => ({ getBusinessContext: getBusinessContextMock }))
 vi.mock("@/lib/db/advisory-lock", () => ({
   lockStaffSchedule: lockMock,
   isBookingContentionError: vi.fn(() => false),
@@ -95,6 +99,7 @@ vi.mock("@/lib/scheduling/working-hours", () => ({
 vi.mock("@/lib/api/auth", () => ({ withV1Auth: withV1AuthMock }))
 
 import { createPublicBooking, addToPublicWaitlist } from "@/lib/actions/public-booking"
+import { notifyWaitlistEntry } from "@/lib/actions/waitlist"
 import { POST as waitlistBookPost } from "@/app/api/v1/waitlist/[id]/book/route"
 
 // A future YYYY-MM-DD `n` days from today (local), and a slot instant on it.
@@ -137,6 +142,7 @@ beforeEach(() => {
   sendEmailMock.mockResolvedValue({ success: true })
   lockMock.mockResolvedValue(undefined)
   isSlotAvailableMock.mockResolvedValue(true)
+  getBusinessContextMock.mockResolvedValue({ userId: "u1", businessId: BIZ, role: "admin" })
 
   // Happy-path lookups (individual tests override the relevant one).
   prismaMock.business.findUnique.mockResolvedValue({ id: BIZ, name: "Anas Cuts", timezone: "UTC" })
@@ -394,5 +400,91 @@ describe("POST /api/v1/waitlist/[id]/book — appointment ownership", () => {
     const res = await waitlistBookPost(req(APPT), { params })
     expect(res.status).toBe(401)
     expect(prismaMock.appointment.findFirst).not.toHaveBeenCalled()
+  })
+})
+
+// ===========================================================================
+// 7. notifyWaitlistEntry — real email, consent-gated + honest "emailed" flag
+//    (was inert: only flipped status while the UI claimed a message was sent)
+// ===========================================================================
+describe("notifyWaitlistEntry — consent-gated real email", () => {
+  const WL = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+
+  beforeEach(() => {
+    prismaMock.waitlistEntry.update.mockResolvedValue({ id: WL, status: "notified" })
+  })
+
+  // The entry carries only clientId + business (no `client` relation); the
+  // action loads the client separately via prisma.client.findFirst (tenant-scoped).
+  function entryRow() {
+    return { id: WL, clientId: "client_1", business: { name: "Anas Cuts" } }
+  }
+
+  it("emails the client and reports emailed:true when email + emailConsent are present", async () => {
+    prismaMock.waitlistEntry.findFirst.mockResolvedValue(entryRow())
+    prismaMock.client.findFirst.mockResolvedValue({
+      firstName: "Jane", email: "jane@example.com", emailConsent: true,
+    })
+
+    const res = await notifyWaitlistEntry(WL)
+
+    expect(sendEmailMock).toHaveBeenCalledTimes(1)
+    expect(sendEmailMock.mock.calls[0][0].to).toBe("jane@example.com")
+    expect(res).toMatchObject({ success: true, data: { emailed: true } })
+    // Status still flagged "notified".
+    expect(prismaMock.waitlistEntry.update.mock.calls[0][0].data.status).toBe("notified")
+    // Client lookup is tenant-scoped.
+    expect(prismaMock.client.findFirst.mock.calls[0][0].where.businessId).toBe(BIZ)
+  })
+
+  it("does NOT email (emailed:false) when the client has no email on file", async () => {
+    prismaMock.waitlistEntry.findFirst.mockResolvedValue(entryRow())
+    prismaMock.client.findFirst.mockResolvedValue({
+      firstName: "Jane", email: null, emailConsent: true,
+    })
+
+    const res = await notifyWaitlistEntry(WL)
+
+    expect(sendEmailMock).not.toHaveBeenCalled()
+    expect(res).toMatchObject({ success: true, data: { emailed: false } })
+    // Still marked as notified (operator can reach out another way).
+    expect(prismaMock.waitlistEntry.update).toHaveBeenCalledTimes(1)
+  })
+
+  it("does NOT email (emailed:false) when the client has opted out of email", async () => {
+    prismaMock.waitlistEntry.findFirst.mockResolvedValue(entryRow())
+    prismaMock.client.findFirst.mockResolvedValue({
+      firstName: "Jane", email: "jane@example.com", emailConsent: false,
+    })
+
+    const res = await notifyWaitlistEntry(WL)
+
+    expect(sendEmailMock).not.toHaveBeenCalled()
+    expect(res).toMatchObject({ success: true, data: { emailed: false } })
+  })
+
+  it("reports emailed:false when the provider rejects (no false 'emailed' claim)", async () => {
+    prismaMock.waitlistEntry.findFirst.mockResolvedValue(entryRow())
+    prismaMock.client.findFirst.mockResolvedValue({
+      firstName: "Jane", email: "jane@example.com", emailConsent: true,
+    })
+    sendEmailMock.mockResolvedValue({ success: false, error: "not configured" })
+
+    const res = await notifyWaitlistEntry(WL)
+
+    expect(sendEmailMock).toHaveBeenCalledTimes(1)
+    expect(res).toMatchObject({ success: true, data: { emailed: false } })
+  })
+
+  it("returns an error (no write) for an unknown / cross-tenant entry", async () => {
+    prismaMock.waitlistEntry.findFirst.mockResolvedValue(null)
+
+    const res = await notifyWaitlistEntry(WL)
+
+    expect(res).toMatchObject({ success: false })
+    expect(prismaMock.waitlistEntry.update).not.toHaveBeenCalled()
+    expect(sendEmailMock).not.toHaveBeenCalled()
+    const where = prismaMock.waitlistEntry.findFirst.mock.calls[0][0].where
+    expect(where.businessId).toBe(BIZ)
   })
 })

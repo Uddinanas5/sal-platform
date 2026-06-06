@@ -183,4 +183,53 @@ describe("sendCampaign — delivery", () => {
     expect((res as { error: string }).error).toContain("limit")
     expect(sendEmailMock).not.toHaveBeenCalled()
   })
+
+  it("reverts a campaign to 'draft' (not stuck in 'sending') when the final stamp throws", async () => {
+    prismaMock.campaign.findFirst.mockResolvedValue(draftCampaign())
+    prismaMock.client.findMany.mockResolvedValue([client(1), client(2)])
+
+    // 1st update = mark "sending" (ok). 2nd update = final "sent" stamp → throws
+    // (e.g. dropped pooled connection). 3rd update = best-effort revert to draft.
+    prismaMock.campaign.update
+      .mockResolvedValueOnce({ id: CAMPAIGN_ID }) // sending flip
+      .mockRejectedValueOnce(new Error("connection dropped during final write")) // final stamp
+      .mockResolvedValueOnce({ id: CAMPAIGN_ID }) // revert
+
+    await expect(sendCampaign(CAMPAIGN_ID)).rejects.toThrow(/connection dropped/)
+
+    // The emails were attempted before the failing stamp.
+    expect(sendEmailMock).toHaveBeenCalledTimes(2)
+
+    // A revert update must have fired, putting the row back to "draft" (and
+    // clearing sendingStartedAt) so it is re-sendable — never stranded in "sending".
+    const revert = prismaMock.campaign.update.mock.calls.at(-1)![0]
+    expect(revert.where).toEqual({ id: CAMPAIGN_ID, businessId: BIZ })
+    expect(revert.data.status).toBe("draft")
+    expect(revert.data.sendingStartedAt).toBeNull()
+  })
+
+  it("treats a STALE 'sending' campaign as recoverable and re-sends it", async () => {
+    // Abandoned mid-send (crash/timeout) 30 min ago → no longer in flight.
+    prismaMock.campaign.findFirst.mockResolvedValue(
+      draftCampaign({ status: "sending", sendingStartedAt: new Date(Date.now() - 30 * 60 * 1000) })
+    )
+    prismaMock.client.findMany.mockResolvedValue([client(1)])
+
+    const res = await sendCampaign(CAMPAIGN_ID)
+    expect(res).toMatchObject({ success: true, sent: 1 })
+    expect(sendEmailMock).toHaveBeenCalledTimes(1)
+    const finalUpdate = prismaMock.campaign.update.mock.calls.at(-1)![0]
+    expect(finalUpdate.data.status).toBe("sent")
+  })
+
+  it("refuses a campaign that is ACTIVELY 'sending' (recent sendingStartedAt)", async () => {
+    prismaMock.campaign.findFirst.mockResolvedValue(
+      draftCampaign({ status: "sending", sendingStartedAt: new Date() })
+    )
+
+    const res = await sendCampaign(CAMPAIGN_ID)
+    expect(res).toMatchObject({ success: false })
+    expect((res as { error: string }).error).toMatch(/already being sent/i)
+    expect(sendEmailMock).not.toHaveBeenCalled()
+  })
 })

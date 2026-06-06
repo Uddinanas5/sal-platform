@@ -15,6 +15,7 @@ import { generateBookingReference } from "@/lib/booking-reference"
 import { isSlotAvailable } from "@/lib/availability"
 import { getPublicBookingSettings } from "@/lib/actions/booking-settings"
 import { parseYmd } from "@/lib/date-utils"
+import { timeStringToUtcDate } from "@/lib/scheduling/zoned-time"
 
 // Mirrors the maps in the /api/availability route — kept in sync by hand (the
 // values rarely change). The write path must honour the same lead-time and
@@ -452,10 +453,10 @@ export async function addToPublicWaitlist(data: {
         staffId: parsed.staffId ?? null,
         preferredDate,
         preferredTimeStart: parsed.preferredTimeStart
-          ? new Date(`1970-01-01T${parsed.preferredTimeStart}`)
+          ? timeStringToUtcDate(parsed.preferredTimeStart)
           : null,
         preferredTimeEnd: parsed.preferredTimeEnd
-          ? new Date(`1970-01-01T${parsed.preferredTimeEnd}`)
+          ? timeStringToUtcDate(parsed.preferredTimeEnd)
           : null,
         notes: parsed.notes ?? null,
         status: "waiting",

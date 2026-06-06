@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
 import { prisma } from "@/lib/prisma"
+import { timeStringToUtcDate } from "@/lib/scheduling/zoned-time"
 import { z } from "zod"
 
 function isAdmin(ctx: ApiContext): boolean { return ["admin", "owner"].includes(ctx.role) }
@@ -37,8 +38,8 @@ export function registerWaitlistTools(server: McpServer, ctx: ApiContext) {
           serviceId,
           staffId,
           preferredDate: preferredDate ? new Date(preferredDate) : undefined,
-          preferredTimeStart: preferredTimeStart ? new Date(`1970-01-01T${preferredTimeStart}`) : undefined,
-          preferredTimeEnd: preferredTimeEnd ? new Date(`1970-01-01T${preferredTimeEnd}`) : undefined,
+          preferredTimeStart: preferredTimeStart ? timeStringToUtcDate(preferredTimeStart) : undefined,
+          preferredTimeEnd: preferredTimeEnd ? timeStringToUtcDate(preferredTimeEnd) : undefined,
           notes,
           status: "waiting",
         },

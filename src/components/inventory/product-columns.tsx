@@ -168,6 +168,7 @@ export function getProductColumns({
                 size="icon"
                 className="h-5 w-5 opacity-0 group-hover/stock:opacity-100 transition-opacity"
                 onClick={(e) => { e.stopPropagation(); onQuickAdjust(product, -1) }}
+                disabled={stock <= 0}
                 aria-label="Decrease stock"
               >
                 <Minus className="h-3 w-3" />

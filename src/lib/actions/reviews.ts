@@ -113,8 +113,11 @@ export async function sendReviewRequest(appointmentId: string): Promise<ActionRe
     const staffUser = lead?.staff?.user
     const staffName = staffUser ? `${staffUser.firstName} ${staffUser.lastName}` : undefined
 
-    // Best-effort send. On a branch/preview Resend is a no-op (logs) — fine.
-    await sendEmail({
+    // Capture the send result — sendEmail never throws; it returns
+    // {success:false} when Resend is unconfigured or the provider rejects. If we
+    // ignored it, the UI would claim "We emailed the client" even when nothing
+    // was sent. Fail honestly so the button stops lying.
+    const emailRes = await sendEmail({
       to: appointment.client.email,
       subject: `How was your visit to ${appointment.business.name}?`,
       html: reviewRequestEmail({
@@ -125,6 +128,10 @@ export async function sendReviewRequest(appointmentId: string): Promise<ActionRe
         reviewUrl,
       }),
     })
+
+    if (!emailRes.success) {
+      return { success: false, error: "Could not send the review request right now. Please try again." }
+    }
 
     revalidatePath("/reviews")
     revalidatePath("/calendar")

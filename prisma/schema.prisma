@@ -1362,6 +1362,10 @@ model Campaign {
   audienceType  String          @default("all") @map("audience_type") @db.VarChar(50)
   audienceFilter Json           @default("{}") @map("audience_filter")
   scheduledAt   DateTime?       @map("scheduled_at") @db.Timestamptz
+  // Set when a manual send begins; cleared/superseded by sentAt on completion.
+  // A "sending" row whose sendingStartedAt is older than the recovery window
+  // (see send-core.ts) is treated as abandoned (crash/timeout) and re-sendable.
+  sendingStartedAt DateTime?    @map("sending_started_at") @db.Timestamptz
   sentAt        DateTime?       @map("sent_at") @db.Timestamptz
   recipientCount Int            @default(0) @map("recipient_count")
   openCount     Int             @default(0) @map("open_count")

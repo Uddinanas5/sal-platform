@@ -120,13 +120,14 @@ export function CreateCampaignDialog({
         return
       }
 
-      // The campaign record is persisted, but actual email delivery is not wired
-      // up yet (no email provider configured). Be explicit that nothing was sent
-      // so the UI never implies messages reached clients.
+      // Creating a campaign only SAVES it — emailing is a deliberate, separate
+      // step (click Send in the campaigns list). There is no scheduler that
+      // auto-sends scheduled campaigns, so even a "scheduled" campaign still
+      // needs a manual Send. Be explicit so the operator knows nothing went out.
       toast.success(
         scheduleOption === "now"
-          ? "Campaign saved as a draft. Sending is coming soon — no emails have gone out yet."
-          : "Campaign scheduled. Sending is coming soon — no emails have gone out yet."
+          ? "Campaign saved as a draft. Open it in the campaigns list and click Send to email your clients."
+          : "Campaign scheduled. Open it in the campaigns list and click Send when you're ready."
       )
       onCreated?.()
     } catch (error) {
@@ -317,7 +318,7 @@ export function CreateCampaignDialog({
                   Save as Draft
                 </p>
                 <p className="text-xs text-muted-foreground/70 mt-1">
-                  Sending coming soon
+                  Saved to your campaigns list
                 </p>
               </button>
               <button
@@ -420,10 +421,10 @@ export function CreateCampaignDialog({
               <p className="text-xs text-muted-foreground mb-1">Message Preview</p>
               <p className="text-sm text-foreground">{content}</p>
             </div>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs text-amber-800">
-                Email delivery is coming soon. This campaign will be saved so it is
-                ready to go, but no emails will be sent yet.
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                This campaign will be saved to your campaigns list. No emails are
+                sent yet — open it there and click Send to email your clients.
               </p>
             </div>
           </div>

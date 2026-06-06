@@ -82,19 +82,25 @@ export function InventoryClient(props: InventoryClientProps) {
   }
 
   async function handleQuickAdjust(product: Product, delta: number) {
-    const newLevel = Math.max(0, product.stockLevel + delta)
+    const newLevel = product.stockLevel + delta
 
-    // Optimistically update local state
+    // Pre-check: the server rejects a below-zero adjustment, so don't show a
+    // contradictory "decreased to 0" success and then an error. Bail honestly.
+    if (newLevel < 0) {
+      toast.error("Stock cannot go below zero")
+      return
+    }
+
+    // Optimistically update local state.
     setProducts((prev) =>
       prev.map((p) =>
         p.id === product.id ? { ...p, stockLevel: newLevel } : p
       )
     )
-    toast.success(`${product.name} stock ${delta > 0 ? "increased" : "decreased"} to ${newLevel}`)
 
     const result = await adjustStock(product.id, delta, "Quick adjustment")
     if (!result.success) {
-      // Revert on failure
+      // Revert on failure.
       setProducts((prev) =>
         prev.map((p) =>
           p.id === product.id ? { ...p, stockLevel: product.stockLevel } : p
@@ -102,6 +108,8 @@ export function InventoryClient(props: InventoryClientProps) {
       )
       toast.error(`Failed to adjust stock: ${result.error}`)
     } else {
+      // Only claim success AFTER the server confirms the write.
+      toast.success(`${product.name} stock ${delta > 0 ? "increased" : "decreased"} to ${newLevel}`)
       router.refresh()
     }
   }

@@ -2,6 +2,7 @@ import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { hasRole } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
+import { timeStringToUtcDate } from "@/lib/scheduling/zoned-time"
 import { z } from "zod"
 
 const addToWaitlistSchema = z.object({
@@ -44,10 +45,10 @@ export async function POST(req: Request) {
       staffId: parsed.data.staffId,
       preferredDate: parsed.data.preferredDate,
       preferredTimeStart: parsed.data.preferredTimeStart
-        ? new Date(`1970-01-01T${parsed.data.preferredTimeStart}`)
+        ? timeStringToUtcDate(parsed.data.preferredTimeStart)
         : undefined,
       preferredTimeEnd: parsed.data.preferredTimeEnd
-        ? new Date(`1970-01-01T${parsed.data.preferredTimeEnd}`)
+        ? timeStringToUtcDate(parsed.data.preferredTimeEnd)
         : undefined,
       notes: parsed.data.notes,
     },

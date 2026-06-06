@@ -224,6 +224,26 @@ describe("sendReviewRequest — staff-triggered, tenant-scoped", () => {
     expect(mail.html).toMatch(/\/r\//)
   })
 
+  it("returns failure (does NOT claim the client was emailed) when the provider rejects", async () => {
+    prismaMock.appointment.findFirst.mockResolvedValue({
+      id: APPT,
+      status: "completed",
+      clientId: CLIENT,
+      client: { id: CLIENT, email: "client@example.com", firstName: "Sam", emailConsent: true },
+      business: { name: "Anas Barbershop" },
+      services: [{ name: "Skin Fade", staff: { user: { firstName: "Jo", lastName: "Lee" } } }],
+    })
+    // sendEmail never throws — it returns {success:false} when Resend is
+    // unconfigured or the provider rejects. The action must surface that as a
+    // failure so the button stops claiming "We emailed the client".
+    sendEmailMock.mockResolvedValue({ success: false, error: "Email service not configured" })
+
+    const result = await sendReviewRequest(APPT)
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toMatch(/could not send|try again/i)
+    expect(sendEmailMock).toHaveBeenCalledTimes(1)
+  })
+
   it("refuses to send for a non-completed appointment", async () => {
     prismaMock.appointment.findFirst.mockResolvedValue({
       id: APPT,
