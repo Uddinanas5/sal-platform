@@ -546,15 +546,20 @@ export async function updateStaffProfile(data: {
   }
 
   try {
-    await requireMinRole("admin")
+    // requireMinRole gates the privileged op (admin/owner) AND yields the
+    // caller's businessId so the lookup/writes stay tenant-scoped — mirrors
+    // every other write in this file (deleteStaff, updateStaffSchedule, ...).
+    const { businessId } = await requireMinRole("admin")
 
-    const staff = await prisma.staff.findUnique({
-      where: { id: data.staffId },
+    // Tenant-scoped lookup: findFirst on { id, primaryLocation.businessId } so a
+    // tenant-A admin can't target tenant-B's staff UUID (cross-tenant IDOR).
+    const staff = await prisma.staff.findFirst({
+      where: { id: data.staffId, primaryLocation: { businessId } },
       select: { userId: true },
     })
     if (!staff) return { success: false, error: "Staff member not found" }
 
-    // Update user fields (name, phone)
+    // Update user fields (name, phone) on the resolved (in-tenant) user.
     if (data.firstName || data.lastName || data.phone !== undefined) {
       await prisma.user.update({
         where: { id: staff.userId },
@@ -566,10 +571,12 @@ export async function updateStaffProfile(data: {
       })
     }
 
-    // Update staff fields (commission, color)
+    // Update staff fields (commission, color). updateMany re-asserts the tenant
+    // filter at the write so the financially-material commissionRate can never
+    // be written across tenants even if the guard above were ever bypassed.
     if (data.commissionRate !== undefined || data.color) {
-      await prisma.staff.update({
-        where: { id: data.staffId },
+      await prisma.staff.updateMany({
+        where: { id: data.staffId, primaryLocation: { businessId } },
         data: {
           ...(data.commissionRate !== undefined && { commissionRate: data.commissionRate }),
           ...(data.color && { color: data.color }),

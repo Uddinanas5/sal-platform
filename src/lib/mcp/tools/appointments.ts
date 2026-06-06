@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
-import { canAccessAppointment } from "@/lib/api/appointment-access"
+import { canAccessAppointment, canAccessAppointmentSeries } from "@/lib/api/appointment-access"
 import { prisma } from "@/lib/prisma"
 import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
 import { generateBookingReference } from "@/lib/booking-reference"
@@ -447,6 +447,11 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       cancelFrom: z.string().optional().describe("Cancel from this date onwards (ISO 8601). If omitted, cancels all."),
     },
     async ({ seriesId, cancelFrom }) => {
+      // Staff authz: only admins/owners or staff actually assigned to the series
+      // may cancel it. Mirrors the sibling MCP write tools (canAccessAppointment)
+      // and the equivalent REST route (canAccessAppointmentSeries) — without this
+      // a staff-role API key could mass-cancel another barber's series.
+      if (!(await canAccessAppointmentSeries(ctx, seriesId))) return err("Forbidden")
       const fromDate = cancelFrom ? new Date(cancelFrom) : new Date(0)
       const result = await prisma.appointment.updateMany({
         where: {

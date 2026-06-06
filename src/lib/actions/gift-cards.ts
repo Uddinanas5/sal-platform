@@ -3,7 +3,8 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { getBusinessContext } from "@/lib/auth-utils"
+import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
+import { redeemGiftCardInTx, GiftCardError } from "@/lib/checkout/gift-card-redeem"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -34,7 +35,12 @@ export async function issueGiftCard(data: {
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    // Minting stored value is an admin-only op — /memberships is admin-gated at
+    // the route layer, but server actions are directly-invokable RPC endpoints,
+    // so a staff-role caller could otherwise mint a card then redeem it at
+    // checkout. requireMinRole closes that internal-fraud hole (all sibling
+    // memberships writes already enforce admin).
+    const { businessId } = await requireMinRole("admin")
 
     // Check for duplicate code
     const existing = await prisma.giftCard.findFirst({
@@ -93,40 +99,32 @@ export async function redeemGiftCard(data: {
   try {
     const { businessId } = await getBusinessContext()
 
-    const giftCard = await prisma.giftCard.findFirst({
-      where: { businessId, code: data.code, isActive: true },
-    })
-
-    if (!giftCard) {
-      return { success: false, error: "Gift card not found or inactive" }
-    }
-
-    if (giftCard.expiresAt && giftCard.expiresAt < new Date()) {
-      await prisma.giftCard.update({
-        where: { id: giftCard.id },
-        data: { isActive: false },
-      })
-      return { success: false, error: "Gift card has expired" }
-    }
-
-    const balance = Number(giftCard.currentBalance)
-    if (balance < data.amount) {
-      return { success: false, error: `Insufficient balance. Available: $${balance.toFixed(2)}` }
-    }
-
-    const newBalance = balance - data.amount
-    await prisma.giftCard.update({
-      where: { id: giftCard.id },
-      data: {
-        currentBalance: newBalance,
-        ...(newBalance === 0 ? { isActive: false, redeemedAt: new Date() } : {}),
-      },
-    })
+    // Concurrency-safe redemption: delegate to the same hardened in-tx helper
+    // the checkout money-writer uses. It takes a pg_advisory_xact_lock on
+    // (businessId, code) FIRST, then re-reads the balance under the lock and
+    // decrements — so two concurrent redemptions can't both pass the
+    // balance check and double-spend / drive the balance negative (TOCTOU).
+    const { remainingBalance } = await prisma.$transaction(
+      (tx) => redeemGiftCardInTx(tx, businessId, data.code, data.amount),
+      { timeout: 20000, maxWait: 15000 },
+    )
 
     revalidatePath("/memberships")
     revalidatePath("/checkout")
-    return { success: true, data: { remainingBalance: newBalance } }
+    return { success: true, data: { remainingBalance } }
   } catch (e) {
+    // Map the typed in-tx failures to the same friendly messages this action
+    // returned before, instead of surfacing a raw error.
+    if (e instanceof GiftCardError) {
+      if (e.code === "GIFT_CARD_NOT_FOUND") {
+        return { success: false, error: "Gift card not found or inactive" }
+      }
+      if (e.code === "GIFT_CARD_EXPIRED") {
+        return { success: false, error: "Gift card has expired" }
+      }
+      // GIFT_CARD_INSUFFICIENT — helper's message already includes the balance.
+      return { success: false, error: e.message }
+    }
     console.error("redeemGiftCard error:", e)
     return { success: false, error: (e as Error).message }
   }
