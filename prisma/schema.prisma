@@ -310,6 +310,11 @@ model Business {
   subscriptionTier   SubscriptionTier   @default(free) @map("subscription_tier")
   subscriptionStatus SubscriptionStatus @default(active) @map("subscription_status")
   trialEndsAt        DateTime?          @map("trial_ends_at") @db.Timestamptz
+  // SAL subscription billing (the salon paying SAL — distinct from Connect)
+  stripeCustomerId     String?          @unique @map("stripe_customer_id") @db.VarChar(255)
+  stripeSubscriptionId String?          @unique @map("stripe_subscription_id") @db.VarChar(255)
+  // Beta salons are exempt from billing gates
+  billingExempt        Boolean          @default(false) @map("billing_exempt")
   stripeAccountId    String?            @map("stripe_account_id") @db.VarChar(255)
   stripeAccountStatus String?           @map("stripe_account_status") @db.VarChar(50)
   stripeOnboardedAt  DateTime?          @map("stripe_onboarded_at") @db.Timestamptz
@@ -888,6 +893,8 @@ model Payment {
   paymentReference  String        @unique @map("payment_reference") @db.VarChar(50)
   type              PaymentType
   method            PaymentMethod
+  // GAP-037: free-text sub-tender note for `other` payments (e.g. "e-transfer")
+  methodNote        String?       @map("method_note") @db.VarChar(100)
   status            PaymentStatus @default(pending)
   amount            Decimal       @db.Decimal(10, 2)
   tipAmount         Decimal       @default(0) @map("tip_amount") @db.Decimal(10, 2)
@@ -1810,4 +1817,17 @@ model ServiceBundle {
 
   @@index([businessId])
   @@map("service_bundles")
+}
+
+// ============================================================================
+// STRIPE WEBHOOK IDEMPOTENCY — processed event ledger
+// ============================================================================
+
+model StripeEvent {
+  id          String   @id @db.VarChar(255) // Stripe event id (evt_...)
+  type        String   @db.VarChar(100)
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz
+
+  @@index([type])
+  @@map("stripe_events")
 }
