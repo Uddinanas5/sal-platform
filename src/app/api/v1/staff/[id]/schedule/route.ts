@@ -39,8 +39,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           staffId: id,
           locationId: staff.locationId,
           dayOfWeek: day.dayOfWeek,
-          startTime: new Date(`2000-01-01T${day.startTime}:00`),
-          endTime: new Date(`2000-01-01T${day.endTime}:00`),
+          // @db.Time — build in UTC (adapter serializes with getUTCHours) so a
+          // non-UTC host doesn't store a shifted wall-clock.
+          startTime: new Date(`2000-01-01T${day.startTime}:00Z`),
+          endTime: new Date(`2000-01-01T${day.endTime}:00Z`),
           isWorking: true,
         },
       })

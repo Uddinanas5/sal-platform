@@ -10,9 +10,12 @@ import {
 // assertSlotAllowed only reads tx.staffSchedule.findFirst + tx.staffTimeOff
 // .findFirst, so we feed a fake tx — no DB needed.
 
-// @db.Time values are Dates whose time-of-day is what matters (combineDateWithTime
-// reads getHours/getMinutes). Pin them to an arbitrary date.
-const t = (h: number, m = 0) => new Date(2000, 0, 1, h, m, 0, 0)
+// @db.Time values are Dates whose time-of-day is what matters. Prisma stores +
+// reads them as UTC wall-clock (the adapter serializes with getUTCHours), so
+// build them with Date.UTC — host-timezone independent. assertSlotAllowed below
+// is called with the default "UTC" timezone, so the slot instants (`day`) are
+// also UTC-anchored and the wall-clock comparisons line up on any host.
+const t = (h: number, m = 0) => new Date(Date.UTC(2000, 0, 1, h, m, 0, 0))
 
 function fakeTx(opts: {
   schedule?: { startTime: Date; endTime: Date } | null
@@ -25,8 +28,10 @@ function fakeTx(opts: {
   } as any
 }
 
-// A Wednesday; appointment 10:00–10:45 by default.
-const day = (h: number, m = 0) => new Date(2026, 5, 3, h, m, 0, 0)
+// A Wednesday; appointment 10:00–10:45 by default. Built as a UTC instant so
+// that under the default "UTC" timezone the salon-local wall clock equals h:m on
+// any host (TZ=UTC or TZ=America/New_York).
+const day = (h: number, m = 0) => new Date(Date.UTC(2026, 5, 3, h, m, 0, 0))
 const LOC = "loc_1"
 const STAFF = "staff_1"
 const open9to5 = { startTime: t(9), endTime: t(17) }

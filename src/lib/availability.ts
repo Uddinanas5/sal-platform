@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { generateBookingReference as generateSecureBookingReference } from "@/lib/booking-reference"
+import { combineDateWithTimeZoned, localDateString } from "@/lib/scheduling/zoned-time"
 
 interface TimeSlot {
   start: Date
@@ -11,6 +12,11 @@ interface AvailabilityParams {
   serviceId: string
   date: Date // The date to check availability for
   locationId: string
+  // IANA timezone of the salon (Business.timezone). The salon's @db.Time working
+  // hours, breaks and time-off windows are interpreted as wall-clock in THIS
+  // zone, so a 9am NY salon produces the correct UTC slot instants on any host.
+  // Defaults to UTC (the schema default) when not supplied.
+  timezone?: string
 }
 
 interface AvailabilityResult {
@@ -21,20 +27,49 @@ interface AvailabilityResult {
   serviceDuration: number
 }
 
+// A canonical midnight `@db.Time` value (00:00:00 stored at UTC midnight),
+// reused to derive salon-local day boundaries via combineDateWithTimeZoned.
+const ZERO_TIME = new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0))
+
+/** UTC-midnight Date for a civil day — matches how Postgres stores @db.Date. */
+function dayUtcMidnight(civilDate: Date): Date {
+  return new Date(Date.UTC(civilDate.getFullYear(), civilDate.getMonth(), civilDate.getDate()))
+}
+
+/** YYYY-MM-DD for a civil day (built from local getters of a local-midnight Date). */
+function localDateKey(civilDate: Date): string {
+  const y = civilDate.getFullYear()
+  const m = String(civilDate.getMonth() + 1).padStart(2, "0")
+  const d = String(civilDate.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
 /**
  * Get available time slots for a staff member on a given date
  */
 export async function getAvailability(params: AvailabilityParams & { minLeadTimeMinutes?: number }): Promise<AvailabilityResult> {
   const { staffId, serviceId, date, locationId } = params
+  const timezone = params.timezone || "UTC"
 
-  // Normalize date to start of day
-  const startOfDay = new Date(date)
-  startOfDay.setHours(0, 0, 0, 0)
+  // The requested civil day. `date` is constructed at local midnight of the
+  // requested YYYY-MM-DD (parseYmd), so its local getters yield the intended
+  // calendar day on any host. We use this civil day to anchor every @db.Time
+  // wall-clock to the salon's timezone.
+  const civilDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const dateKey = localDateKey(civilDate)
 
-  const endOfDay = new Date(date)
-  endOfDay.setHours(23, 59, 59, 999)
+  // Salon-local day boundaries, as absolute UTC instants, used to window the
+  // existing-appointments query (its startTime/endTime are absolute @db.Timestamp
+  // columns). Midnight-to-midnight in the salon timezone (not the server's).
+  const startOfDay = combineDateWithTimeZoned(civilDate, ZERO_TIME, timezone)
+  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1)
 
-  const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, etc.
+  // For @db.Date columns (schedule effective dates, time-off start/end) Postgres
+  // stores UTC midnight, so compare against this day's UTC midnight — not the
+  // salon-local instant — to avoid an off-by-one on non-UTC hosts.
+  const dayUtc = dayUtcMidnight(civilDate)
+
+  const dayOfWeek = civilDate.getDay() // 0 = Sunday, 1 = Monday, etc.
 
   // Fetch all required data in parallel
   const [service, staffSchedule, staffTimeOff, existingAppointments, staff, businessHours] = await Promise.all([
@@ -57,13 +92,13 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
         isWorking: true,
         OR: [
           { effectiveFrom: null },
-          { effectiveFrom: { lte: startOfDay } },
+          { effectiveFrom: { lte: dayUtc } },
         ],
         AND: [
           {
             OR: [
               { effectiveUntil: null },
-              { effectiveUntil: { gte: startOfDay } },
+              { effectiveUntil: { gte: dayUtc } },
             ],
           },
         ],
@@ -78,8 +113,8 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
       where: {
         staffId,
         status: 'approved',
-        startDate: { lte: startOfDay },
-        endDate: { gte: startOfDay },
+        startDate: { lte: dayUtc },
+        endDate: { gte: dayUtc },
       },
     }),
 
@@ -126,7 +161,7 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
       slots: [],
       staffId,
       serviceId,
-      date: startOfDay.toISOString().split('T')[0],
+      date: dateKey,
       serviceDuration: service.durationMinutes,
     }
   }
@@ -142,7 +177,7 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
         slots: [],
         staffId,
         serviceId,
-        date: startOfDay.toISOString().split('T')[0],
+        date: dateKey,
         serviceDuration: service.durationMinutes,
       }
     }
@@ -154,7 +189,7 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
       slots: [],
       staffId,
       serviceId,
-      date: startOfDay.toISOString().split('T')[0],
+      date: dateKey,
       serviceDuration: service.durationMinutes,
     }
   }
@@ -165,7 +200,7 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
       slots: [],
       staffId,
       serviceId,
-      date: startOfDay.toISOString().split('T')[0],
+      date: dateKey,
       serviceDuration: service.durationMinutes,
     }
   }
@@ -176,16 +211,18 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
     service.bufferAfterMinutes +
     staff.bookingBufferMinutes
 
-  // Get working hours for the day — constrained to business hours if available
-  const staffStart = combineDateWithTime(startOfDay, staffSchedule.startTime)
-  const staffEnd = combineDateWithTime(startOfDay, staffSchedule.endTime)
+  // Get working hours for the day — constrained to business hours if available.
+  // @db.Time wall-clock is interpreted in the salon timezone, anchored to the
+  // requested civil day, yielding the correct absolute instants on any host.
+  const staffStart = combineDateWithTimeZoned(civilDate, staffSchedule.startTime, timezone)
+  const staffEnd = combineDateWithTimeZoned(civilDate, staffSchedule.endTime, timezone)
 
   let workStart: Date
   let workEnd: Date
 
   if (businessHours?.openTime && businessHours?.closeTime) {
-    const bizOpen = combineDateWithTime(startOfDay, businessHours.openTime)
-    const bizClose = combineDateWithTime(startOfDay, businessHours.closeTime)
+    const bizOpen = combineDateWithTimeZoned(civilDate, businessHours.openTime, timezone)
+    const bizClose = combineDateWithTimeZoned(civilDate, businessHours.closeTime, timezone)
     // Effective window is intersection of staff schedule and business hours
     workStart = staffStart > bizOpen ? staffStart : bizOpen
     workEnd = staffEnd < bizClose ? staffEnd : bizClose
@@ -195,7 +232,7 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
         slots: [],
         staffId,
         serviceId,
-        date: startOfDay.toISOString().split('T')[0],
+        date: dateKey,
         serviceDuration: service.durationMinutes,
       }
     }
@@ -219,16 +256,16 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
   // Add breaks as blocked
   for (const brk of staffSchedule.breaks) {
     blockedRanges.push({
-      start: combineDateWithTime(startOfDay, brk.startTime),
-      end: combineDateWithTime(startOfDay, brk.endTime),
+      start: combineDateWithTimeZoned(civilDate, brk.startTime, timezone),
+      end: combineDateWithTimeZoned(civilDate, brk.endTime, timezone),
     })
   }
 
   // Add partial time off if applicable
   if (staffTimeOff?.startTime && staffTimeOff?.endTime) {
     blockedRanges.push({
-      start: combineDateWithTime(startOfDay, staffTimeOff.startTime),
-      end: combineDateWithTime(startOfDay, staffTimeOff.endTime),
+      start: combineDateWithTimeZoned(civilDate, staffTimeOff.startTime, timezone),
+      end: combineDateWithTimeZoned(civilDate, staffTimeOff.endTime, timezone),
     })
   }
 
@@ -241,18 +278,22 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
 
   let currentTime = new Date(workStart)
 
-  // Skip past times if checking today, applying configurable min lead time
+  // Skip past times if checking today, applying configurable min lead time.
+  // "Today" is the salon-local calendar day, not the server's — so near
+  // midnight on a non-UTC host the lead-time floor is still applied to the
+  // right day.
   const now = new Date()
-  if (startOfDay.toDateString() === now.toDateString()) {
+  if (localDateString(now, timezone) === dateKey) {
     const leadTimeMinutes = params.minLeadTimeMinutes ?? 30
-    const cutoffTime = new Date(now.getTime() + leadTimeMinutes * 60 * 1000)
-    // Round up cutoff to next slot interval
-    const cutoffMinutes = cutoffTime.getMinutes()
-    const roundedCutoffMinutes = Math.ceil(cutoffMinutes / slotInterval) * slotInterval
-    cutoffTime.setMinutes(roundedCutoffMinutes, 0, 0)
+    // Round the absolute cutoff up to the next slot-interval boundary measured
+    // from the work-window start, so rounding is host-timezone independent.
+    const rawCutoff = now.getTime() + leadTimeMinutes * 60 * 1000
+    const intervalMs = slotInterval * 60 * 1000
+    const fromStart = rawCutoff - workStart.getTime()
+    const cutoffMs = workStart.getTime() + Math.ceil(Math.max(0, fromStart) / intervalMs) * intervalMs
 
-    if (cutoffTime > currentTime) {
-      currentTime = cutoffTime
+    if (cutoffMs > currentTime.getTime()) {
+      currentTime = new Date(cutoffMs)
     }
   }
 
@@ -275,26 +316,17 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
       })
     }
 
-    // Move to next slot
-    currentTime.setMinutes(currentTime.getMinutes() + slotInterval)
+    // Move to next slot (absolute arithmetic — host-timezone independent)
+    currentTime = new Date(currentTime.getTime() + slotInterval * 60000)
   }
 
   return {
     slots,
     staffId,
     serviceId,
-    date: startOfDay.toISOString().split('T')[0],
+    date: dateKey,
     serviceDuration: service.durationMinutes,
   }
-}
-
-/**
- * Combine a date with a time value (from DateTime @db.Time field)
- */
-function combineDateWithTime(date: Date, time: Date): Date {
-  const result = new Date(date)
-  result.setHours(time.getHours(), time.getMinutes(), time.getSeconds(), 0)
-  return result
 }
 
 /**
@@ -305,14 +337,24 @@ export async function isSlotAvailable(params: {
   serviceId: string
   startTime: Date
   locationId: string
+  timezone?: string
 }): Promise<boolean> {
-  const { staffId, serviceId, startTime, locationId } = params
+  const { staffId, serviceId, startTime, locationId, timezone } = params
+
+  // startTime is an absolute instant; getAvailability anchors slots to the
+  // salon-local civil day, so derive that civil day from startTime in the salon
+  // timezone (a local-midnight Date getAvailability can read with local getters).
+  const tz = timezone || "UTC"
+  const localDay = localDateString(startTime, tz) // YYYY-MM-DD in salon tz
+  const [y, mo, d] = localDay.split("-").map(Number)
+  const civilDate = new Date(y, mo - 1, d)
 
   const availability = await getAvailability({
     staffId,
     serviceId,
-    date: startTime,
+    date: civilDate,
     locationId,
+    timezone: tz,
   })
 
   return availability.slots.some(slot =>
@@ -329,12 +371,13 @@ export async function getMultiStaffAvailability(params: {
   date: Date
   locationId: string
   minLeadTimeMinutes?: number
+  timezone?: string
 }): Promise<Map<string, AvailabilityResult>> {
-  const { staffIds, serviceId, date, locationId, minLeadTimeMinutes } = params
+  const { staffIds, serviceId, date, locationId, minLeadTimeMinutes, timezone } = params
 
   const results = await Promise.all(
     staffIds.map(staffId =>
-      getAvailability({ staffId, serviceId, date, locationId, minLeadTimeMinutes })
+      getAvailability({ staffId, serviceId, date, locationId, minLeadTimeMinutes, timezone })
     )
   )
 

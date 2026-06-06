@@ -161,6 +161,7 @@ export async function createPublicBooking(data: {
       serviceId: data.serviceId,
       startTime: requestedStart,
       locationId: location.id,
+      timezone: business.timezone,
     })
     if (!slotOk) {
       return { success: false, error: "That time isn't available. Please choose another slot." }
@@ -202,8 +203,8 @@ export async function createPublicBooking(data: {
       // Re-validate the slot server-side (defense in depth): the public client
       // shows availability from /api/availability, but we never trust the
       // client — enforce the staff member's working hours + approved time off
-      // here too, inside the lock.
-      await assertSlotAllowed(tx, data.staffId, location.id, startTime, endTime)
+      // here too, inside the lock. Salon timezone anchors @db.Time hours.
+      await assertSlotAllowed(tx, data.staffId, location.id, startTime, endTime, business.timezone)
       // Double-booking prevention
       const conflicting = await tx.appointmentService.findFirst({
         where: {
@@ -543,7 +544,7 @@ export async function reschedulePublicBooking(
       where: { bookingReference },
       include: {
         client: { select: { email: true, firstName: true, lastName: true } },
-        business: { select: { name: true } },
+        business: { select: { name: true, timezone: true } },
         services: {
           include: {
             service: { select: { name: true } },
@@ -653,8 +654,10 @@ export async function reschedulePublicBooking(
 
       for (const su of serviceUpdates) {
         if (!su.staffId) continue
-        // Working hours + approved time off, inside the lock.
-        await assertSlotAllowed(tx, su.staffId, locationId, su.startTime, su.endTime)
+        // Working hours + approved time off, inside the lock. Pass the salon
+        // timezone so @db.Time hours are interpreted in the salon's clock, not
+        // the server's — matching the availability read path on any host.
+        await assertSlotAllowed(tx, su.staffId, locationId, su.startTime, su.endTime, appointment.business.timezone)
         // Double-booking prevention — exclude this appointment's own rows.
         const conflicting = await tx.appointmentService.findFirst({
           where: {

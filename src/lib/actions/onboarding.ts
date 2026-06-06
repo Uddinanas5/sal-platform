@@ -139,11 +139,13 @@ export async function saveWorkingHours(data: {
       where: { locationId },
     })
 
-    // Convert "HH:MM" to a Date representing just the time
+    // Convert "HH:MM" to a Date representing just the time. The adapter
+    // serializes @db.Time with getUTCHours, so build in UTC — a local
+    // new Date(1970,0,1,h,m) would store a shifted wall-clock on a non-UTC host.
+    // Mirrors timeStringToUtcDate in src/lib/scheduling/zoned-time.ts.
     const timeStringToDate = (timeStr: string): Date => {
       const [hours, minutes] = timeStr.split(":").map(Number)
-      // Prisma Time columns accept a Date; only the time portion matters
-      return new Date(1970, 0, 1, hours, minutes, 0, 0)
+      return new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0))
     }
 
     // Build a map of provided days so we can fill in any missing ones

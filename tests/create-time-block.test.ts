@@ -83,10 +83,12 @@ describe("createTimeBlock — writes an APPROVED partial-day StaffTimeOff", () =
     expect(data.endDate).toBeInstanceOf(Date)
     expect((data.startDate as Date).getTime()).toBe((data.endDate as Date).getTime())
     // Partial-day: startTime/endTime are set so it blocks a range, not the day.
+    // @db.Time is built in UTC (the adapter serializes with getUTCHours), so the
+    // wall-clock is asserted with getUTCHours — host-timezone independent.
     expect(data.startTime).toBeInstanceOf(Date)
     expect(data.endTime).toBeInstanceOf(Date)
-    expect((data.startTime as Date).getHours()).toBe(14)
-    expect((data.endTime as Date).getHours()).toBe(15)
+    expect((data.startTime as Date).getUTCHours()).toBe(14)
+    expect((data.endTime as Date).getUTCHours()).toBe(15)
   })
 
   it("validates the staff against the caller's businessId (tenant isolation)", async () => {

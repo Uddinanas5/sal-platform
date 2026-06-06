@@ -17,7 +17,11 @@ const LOCATION = "77777777-7777-4777-8777-777777777777"
 
 // @db.Time values: Dates whose time-of-day matters (combineDateWithTime reads
 // getHours/getMinutes). Pin to an arbitrary date.
-const t = (h: number, m = 0) => new Date(2000, 0, 1, h, m, 0, 0)
+// @db.Time stored + read as UTC wall-clock by Prisma (adapter uses getUTCHours),
+// so build with Date.UTC — host-TZ independent. The booking write path calls
+// assertSlotAllowed with the default "UTC" timezone, so the slot instant below
+// is UTC-anchored to match.
+const t = (h: number, m = 0) => new Date(Date.UTC(2000, 0, 1, h, m, 0, 0))
 
 // Tunable schedule/time-off the fake tx will return for assertSlotAllowed.
 let scheduleReturn: { startTime: Date; endTime: Date; breaks: { startTime: Date; endTime: Date }[] } | null
@@ -98,8 +102,8 @@ const baseInput = {
   clientId: CLIENT,
   serviceId: SERVICE,
   staffId: STAFF,
-  // Wednesday 2026-06-03, 10:00 local — well inside a 9-5 schedule.
-  startTime: new Date(2026, 5, 3, 10, 0, 0, 0).toISOString(),
+  // Wednesday 2026-06-03, 10:00 UTC — well inside a 9-5 schedule (default tz).
+  startTime: new Date(Date.UTC(2026, 5, 3, 10, 0, 0, 0)).toISOString(),
 }
 
 beforeEach(() => {

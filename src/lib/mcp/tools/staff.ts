@@ -128,8 +128,10 @@ export function registerStaffTools(server: McpServer, ctx: ApiContext) {
             staffId,
             locationId: location.id,
             dayOfWeek: s.dayOfWeek,
-            startTime: new Date(`1970-01-01T${s.startTime}`),
-            endTime: new Date(`1970-01-01T${s.endTime}`),
+            // @db.Time — build in UTC (adapter serializes with getUTCHours) so a
+            // non-UTC host doesn't store a shifted wall-clock.
+            startTime: new Date(`1970-01-01T${s.startTime}Z`),
+            endTime: new Date(`1970-01-01T${s.endTime}Z`),
             isWorking: s.isWorking,
           })),
         })

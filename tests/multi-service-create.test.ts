@@ -21,7 +21,11 @@ const SERVICE_BEARD = "99999999-9999-4999-8999-999999999999"
 const LOCATION = "77777777-7777-4777-8777-777777777777"
 
 // @db.Time helper: a Date whose time-of-day is what matters.
-const t = (h: number, m = 0) => new Date(2000, 0, 1, h, m, 0, 0)
+// @db.Time stored + read as UTC wall-clock by Prisma (adapter uses getUTCHours),
+// so build with Date.UTC — host-TZ independent. The booking write path calls
+// assertSlotAllowed with the default "UTC" timezone, so the slot instants below
+// are UTC-anchored to match.
+const t = (h: number, m = 0) => new Date(Date.UTC(2000, 0, 1, h, m, 0, 0))
 
 let scheduleReturn: { startTime: Date; endTime: Date; breaks: { startTime: Date; endTime: Date }[] } | null
 let timeOffReturn: { startTime: Date | null; endTime: Date | null } | null
@@ -96,7 +100,7 @@ vi.mock("@/lib/prisma", () => ({
 import { createAppointment } from "@/lib/actions/appointments"
 
 // Wednesday 2026-06-03, 10:00 local — inside a 9-5 schedule.
-const START = new Date(2026, 5, 3, 10, 0, 0, 0)
+const START = new Date(Date.UTC(2026, 5, 3, 10, 0, 0, 0))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -124,14 +128,14 @@ describe("createAppointment — multi-service combo", () => {
     expect(rows[0].durationMinutes).toBe(45)
     expect(rows[0].price).toBe(40)
     expect((rows[0].startTime as Date).getTime()).toBe(START.getTime())
-    expect((rows[0].endTime as Date).getTime()).toBe(new Date(2026, 5, 3, 10, 45).getTime())
+    expect((rows[0].endTime as Date).getTime()).toBe(new Date(Date.UTC(2026, 5, 3, 10, 45)).getTime())
 
     // Row 2 = beard (20min) starting where the cut ended (10:45), ending 11:05.
     expect(rows[1].serviceId).toBe(SERVICE_BEARD)
     expect(rows[1].durationMinutes).toBe(20)
     expect(rows[1].price).toBe(25)
-    expect((rows[1].startTime as Date).getTime()).toBe(new Date(2026, 5, 3, 10, 45).getTime())
-    expect((rows[1].endTime as Date).getTime()).toBe(new Date(2026, 5, 3, 11, 5).getTime())
+    expect((rows[1].startTime as Date).getTime()).toBe(new Date(Date.UTC(2026, 5, 3, 10, 45)).getTime())
+    expect((rows[1].endTime as Date).getTime()).toBe(new Date(Date.UTC(2026, 5, 3, 11, 5)).getTime())
   })
 
   it("sizes the appointment by COMBINED duration and sums prices from the DB", async () => {
@@ -148,7 +152,7 @@ describe("createAppointment — multi-service combo", () => {
     // Combined duration 45 + 20 = 65 minutes.
     expect(appt.totalDuration).toBe(65)
     expect((appt.startTime as Date).getTime()).toBe(START.getTime())
-    expect((appt.endTime as Date).getTime()).toBe(new Date(2026, 5, 3, 11, 5).getTime())
+    expect((appt.endTime as Date).getTime()).toBe(new Date(Date.UTC(2026, 5, 3, 11, 5)).getTime())
 
     // Money summed from DB prices (not input): 40 + 25, no tax on these rows.
     expect(appt.subtotal).toBe(65)
@@ -181,7 +185,7 @@ describe("createAppointment — multi-service combo", () => {
   it("rejects the combo when it runs past close, writing nothing", async () => {
     // Start at 16:30; combined 65 min ends 17:35, past a 17:00 close.
     scheduleReturn = { startTime: t(9), endTime: t(17), breaks: [] }
-    const lateStart = new Date(2026, 5, 3, 16, 30, 0, 0)
+    const lateStart = new Date(Date.UTC(2026, 5, 3, 16, 30, 0, 0))
 
     const result = await createAppointment({
       clientId: CLIENT,

@@ -19,7 +19,11 @@ const LOCATION = "77777777-7777-4777-8777-777777777777"
 
 // @db.Time values: Dates whose time-of-day matters (combineDateWithTime reads
 // getHours/getMinutes). Pin to an arbitrary date.
-const t = (h: number, m = 0) => new Date(2000, 0, 1, h, m, 0, 0)
+// @db.Time values are stored + read as UTC wall-clock by Prisma (the adapter
+// serializes with getUTCHours), so build with Date.UTC — host-TZ independent.
+// The v1 route calls assertSlotAllowed with the default "UTC" timezone, so the
+// slot instants below are UTC-anchored to match.
+const t = (h: number, m = 0) => new Date(Date.UTC(2000, 0, 1, h, m, 0, 0))
 
 // Tunable schedule/time-off the fake tx will return for assertSlotAllowed.
 let scheduleReturn: { startTime: Date; endTime: Date; breaks: { startTime: Date; endTime: Date }[] } | null
@@ -83,7 +87,7 @@ function makeReq(startTime: string): Request {
 }
 
 // Wednesday 2026-06-03, 10:00 local — used as the base slot.
-const inHours = new Date(2026, 5, 3, 10, 0, 0, 0).toISOString()
+const inHours = new Date(Date.UTC(2026, 5, 3, 10, 0, 0, 0)).toISOString()
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -104,7 +108,7 @@ describe("POST /api/v1/appointments — v1 working-hours guard (BOOKING-RESIDUAL
 
   it("rejects a v1 create that lands after close (out of hours)", async () => {
     // 19:00 booking, schedule ends 17:00.
-    const afterClose = new Date(2026, 5, 3, 19, 0, 0, 0).toISOString()
+    const afterClose = new Date(Date.UTC(2026, 5, 3, 19, 0, 0, 0)).toISOString()
     const res = await POST(makeReq(afterClose))
     expect(res.status).toBe(400)
     const body = await res.json()

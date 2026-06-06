@@ -160,12 +160,14 @@ async function main() {
     { dayOfWeek: 6, isClosed: false, openTime: "09:00", closeTime: "17:00" }, // Saturday
   ]
 
-  // Prisma 7 @db.Time columns require a Date (time portion only) — mirror the
-  // timeStringToDate conversion used by actions/onboarding.ts.
+  // Prisma 7 @db.Time columns require a Date (time portion only). The adapter
+  // serializes with getUTCHours, so the wall-clock must be built with Date.UTC —
+  // otherwise a non-UTC host would store a shifted Time. Mirrors
+  // timeStringToUtcDate in src/lib/scheduling/zoned-time.ts.
   const timeStringToDate = (timeStr: string | null): Date | null => {
     if (!timeStr) return null
     const [hours, minutes] = timeStr.split(":").map(Number)
-    return new Date(1970, 0, 1, hours, minutes, 0, 0)
+    return new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0))
   }
 
   for (const bh of businessHoursData) {
@@ -264,8 +266,10 @@ async function main() {
             staffId: staff.id,
             locationId: location.id,
             dayOfWeek: dayMap[day],
-            startTime: new Date(`2000-01-01T${hours.start}:00`),
-            endTime: new Date(`2000-01-01T${hours.end}:00`),
+            // @db.Time — build in UTC (adapter serializes with getUTCHours) so a
+            // non-UTC host doesn't store a shifted wall-clock.
+            startTime: new Date(`2000-01-01T${hours.start}:00Z`),
+            endTime: new Date(`2000-01-01T${hours.end}:00Z`),
             isWorking: true,
           },
         })

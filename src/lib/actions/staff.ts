@@ -109,14 +109,14 @@ export async function updateStaffSchedule(
             staffId,
             locationId: staff.locationId,
             dayOfWeek: day.dayOfWeek,
-            startTime: new Date(`2000-01-01T${day.startTime}:00`),
-            endTime: new Date(`2000-01-01T${day.endTime}:00`),
+            startTime: new Date(`2000-01-01T${day.startTime}:00Z`),
+            endTime: new Date(`2000-01-01T${day.endTime}:00Z`),
             isWorking: true,
             breaks: validBreaks.length
               ? {
                   create: validBreaks.map((b) => ({
-                    startTime: new Date(`2000-01-01T${b.startTime}:00`),
-                    endTime: new Date(`2000-01-01T${b.endTime}:00`),
+                    startTime: new Date(`2000-01-01T${b.startTime}:00Z`),
+                    endTime: new Date(`2000-01-01T${b.endTime}:00Z`),
                     isPaid: b.isPaid ?? false,
                   })),
                 }
@@ -356,8 +356,8 @@ export async function createTimeBlock(data: {
         staffId: parsed.staffId,
         startDate: blockDate,
         endDate: blockDate,
-        startTime: new Date(`2000-01-01T${parsed.startTime}:00`),
-        endTime: new Date(`2000-01-01T${parsed.endTime}:00`),
+        startTime: new Date(`2000-01-01T${parsed.startTime}:00Z`),
+        endTime: new Date(`2000-01-01T${parsed.endTime}:00Z`),
         // "personal" is an existing TimeOffType; one-off blocks are personal.
         type: "personal",
         // Pre-approved so the availability engine blocks the slot immediately —

@@ -86,11 +86,15 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
     // Fetch service + booking settings to enforce lead time
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
-      select: { businessId: true, durationMinutes: true },
+      select: { businessId: true, durationMinutes: true, business: { select: { timezone: true } } },
     })
     if (!service?.businessId) {
       return publicError('SERVICE_NOT_FOUND')
     }
+
+    // The salon's IANA timezone anchors @db.Time working hours and slot labels
+    // to the salon's wall clock instead of the server's (UTC on Vercel).
+    const timezone = service.business?.timezone || 'UTC'
 
     // Verify the location exists and belongs to the same business as the service.
     // Without this, a bogus or cross-tenant locationId leaks through as an empty
@@ -169,6 +173,7 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       date,
       locationId,
       minLeadTimeMinutes,
+      timezone,
     })
 
     const byStaff = staffMembers.map(staff => {
@@ -182,8 +187,8 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
         slots: staffAvailability?.slots.map(slot => ({
           start: slot.start.toISOString(),
           end: slot.end.toISOString(),
-          startTime: formatTime(slot.start),
-          endTime: formatTime(slot.end),
+          startTime: formatTime(slot.start, timezone),
+          endTime: formatTime(slot.end, timezone),
         })) || [],
         totalSlots: staffAvailability?.slots.length || 0,
       }
@@ -208,8 +213,8 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       .map(([, data]) => ({
         start: data.start.toISOString(),
         end: data.end.toISOString(),
-        startTime: formatTime(data.start),
-        endTime: formatTime(data.end),
+        startTime: formatTime(data.start, timezone),
+        endTime: formatTime(data.end, timezone),
         availableStaff: data.staffIds,
         staffCount: data.staffIds.length,
       }))
@@ -224,12 +229,14 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
 })
 
 /**
- * Format time for display (e.g., "10:30 AM")
+ * Format time for display (e.g., "10:30 AM") in the salon's timezone, so the
+ * label matches the wall clock the client books against on any host.
  */
-function formatTime(date: Date): string {
+function formatTime(date: Date, timezone: string): string {
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    timeZone: timezone || 'UTC',
   })
 }
