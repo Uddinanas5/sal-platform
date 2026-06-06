@@ -2,27 +2,31 @@
 
 import React from "react"
 import { motion } from "framer-motion"
-import { Check, Users, Pencil, Eye } from "lucide-react"
+import { Check, Users, Pencil, Power, PowerOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, cn } from "@/lib/utils"
 import type { MembershipPlan } from "@/data/mock-memberships"
 
 interface PlanCardProps {
   plan: MembershipPlan
   index?: number
   onEdit?: (plan: MembershipPlan) => void
-  onViewMembers?: (plan: MembershipPlan) => void
+  onToggleActive?: (plan: MembershipPlan) => void
+  busy?: boolean
 }
 
-export function PlanCard({ plan, index = 0, onEdit, onViewMembers }: PlanCardProps) {
+export function PlanCard({ plan, index = 0, onEdit, onToggleActive, busy = false }: PlanCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
       whileHover={{ y: -4, boxShadow: "0 12px 40px rgba(0,0,0,0.08)" }}
-      className="bg-card rounded-2xl border border-cream-200 shadow-sm overflow-hidden card-warm"
+      className={cn(
+        "bg-card rounded-2xl border border-cream-200 shadow-sm overflow-hidden card-warm",
+        !plan.isActive && "opacity-60"
+      )}
     >
       {/* Top colored bar */}
       <div className="h-2" style={{ backgroundColor: plan.color }} />
@@ -31,22 +35,31 @@ export function PlanCard({ plan, index = 0, onEdit, onViewMembers }: PlanCardPro
         {/* Plan name & price */}
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-heading font-bold text-foreground">
-              {plan.name}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-heading font-bold text-foreground">
+                {plan.name}
+              </h3>
+              {!plan.isActive && (
+                <Badge variant="secondary" className="bg-gray-500/10 text-gray-600 dark:text-gray-300 text-[10px]">
+                  Inactive
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">{plan.description}</p>
           </div>
-          <Badge
-            variant="secondary"
-            className="text-xs"
-            style={{
-              backgroundColor: `${plan.color}15`,
-              color: plan.color,
-              borderColor: `${plan.color}30`,
-            }}
-          >
-            {plan.discount}% off
-          </Badge>
+          {plan.discount > 0 && (
+            <Badge
+              variant="secondary"
+              className="text-xs"
+              style={{
+                backgroundColor: `${plan.color}15`,
+                color: plan.color,
+                borderColor: `${plan.color}30`,
+              }}
+            >
+              {plan.discount}% off
+            </Badge>
+          )}
         </div>
 
         {/* Price */}
@@ -90,6 +103,7 @@ export function PlanCard({ plan, index = 0, onEdit, onViewMembers }: PlanCardPro
             size="sm"
             className="flex-1"
             onClick={() => onEdit?.(plan)}
+            disabled={busy}
           >
             <Pencil className="w-3.5 h-3.5 mr-1.5" />
             Edit
@@ -98,10 +112,20 @@ export function PlanCard({ plan, index = 0, onEdit, onViewMembers }: PlanCardPro
             variant="ghost"
             size="sm"
             className="flex-1"
-            onClick={() => onViewMembers?.(plan)}
+            onClick={() => onToggleActive?.(plan)}
+            disabled={busy}
           >
-            <Eye className="w-3.5 h-3.5 mr-1.5" />
-            View Members
+            {plan.isActive ? (
+              <>
+                <PowerOff className="w-3.5 h-3.5 mr-1.5" />
+                Deactivate
+              </>
+            ) : (
+              <>
+                <Power className="w-3.5 h-3.5 mr-1.5" />
+                Activate
+              </>
+            )}
           </Button>
         </div>
       </div>

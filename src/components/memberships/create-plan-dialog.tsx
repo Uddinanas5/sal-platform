@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Plus, X } from "lucide-react"
 import {
   Dialog,
@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -22,31 +21,69 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { createMembershipPlan, updateMembershipPlan } from "@/lib/actions/memberships"
 
-const colorOptions = [
-  "#CD7F32", "#C0C0C0", "#FFD700", "#E5E4E2",
-  "#059669", "#8b5cf6", "#ec4899", "#06b6d4",
-  "#f97316", "#ef4444", "#3b82f6", "#14b8a6",
-]
+type BillingCycle = "monthly" | "quarterly" | "yearly" | "one_time"
+
+export interface EditablePlan {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  billingCycle: string
+  benefits: string[]
+  discountPercent?: number | null
+}
 
 interface CreatePlanDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** When provided, the dialog operates in edit mode and updates this plan. */
+  plan?: EditablePlan | null
+  /** Called after a successful create/update so the parent can refresh data. */
+  onSaved?: () => void
 }
 
-export function CreatePlanDialog({ open, onOpenChange }: CreatePlanDialogProps) {
+const billingOptions: { value: BillingCycle; label: string }[] = [
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "yearly", label: "Yearly" },
+  { value: "one_time", label: "One-time" },
+]
+
+export function CreatePlanDialog({ open, onOpenChange, plan, onSaved }: CreatePlanDialogProps) {
+  const isEdit = Boolean(plan)
+
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
-  const [interval, setInterval] = useState<"monthly" | "yearly">("monthly")
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
   const [discount, setDiscount] = useState("")
-  const [maxServices, setMaxServices] = useState("")
-  const [unlimitedServices, setUnlimitedServices] = useState(false)
   const [features, setFeatures] = useState<string[]>([])
   const [newFeature, setNewFeature] = useState("")
-  const [selectedColor, setSelectedColor] = useState(colorOptions[0])
+  const [saving, setSaving] = useState(false)
+
+  // Hydrate from the plan being edited (or reset) whenever the dialog opens.
+  useEffect(() => {
+    if (!open) return
+    if (plan) {
+      setName(plan.name)
+      setDescription(plan.description ?? "")
+      setPrice(String(plan.price))
+      setBillingCycle((plan.billingCycle as BillingCycle) || "monthly")
+      setDiscount(plan.discountPercent != null ? String(plan.discountPercent) : "")
+      setFeatures(plan.benefits ?? [])
+    } else {
+      setName("")
+      setDescription("")
+      setPrice("")
+      setBillingCycle("monthly")
+      setDiscount("")
+      setFeatures([])
+    }
+    setNewFeature("")
+  }, [open, plan])
 
   const handleAddFeature = () => {
     if (newFeature.trim()) {
@@ -66,27 +103,42 @@ export function CreatePlanDialog({ open, onOpenChange }: CreatePlanDialogProps) 
     }
   }
 
-  const handleSave = () => {
-    if (!name.trim() || !price) {
-      toast.error("Please fill in required fields")
+  const handleSave = async () => {
+    const priceNum = Number(price)
+    if (!name.trim() || price === "" || Number.isNaN(priceNum) || priceNum < 0) {
+      toast.error("Please enter a name and a valid price")
+      return
+    }
+    const discountNum = discount === "" ? undefined : Number(discount)
+    if (discountNum !== undefined && (Number.isNaN(discountNum) || discountNum < 0 || discountNum > 100)) {
+      toast.error("Discount must be between 0 and 100")
       return
     }
 
-    toast.success("Membership plan created", {
-      description: `"${name}" plan has been created successfully.`,
-    })
+    setSaving(true)
+    const payload = {
+      name: name.trim(),
+      description: description.trim() || undefined,
+      price: priceNum,
+      billingCycle,
+      discountPercent: discountNum,
+      benefits: features,
+    }
 
-    // Reset form
-    setName("")
-    setDescription("")
-    setPrice("")
-    setInterval("monthly")
-    setDiscount("")
-    setMaxServices("")
-    setUnlimitedServices(false)
-    setFeatures([])
-    setNewFeature("")
-    setSelectedColor(colorOptions[0])
+    const result = isEdit && plan
+      ? await updateMembershipPlan(plan.id, payload)
+      : await createMembershipPlan(payload)
+    setSaving(false)
+
+    if (!result.success) {
+      toast.error(result.error)
+      return
+    }
+
+    toast.success(isEdit ? "Membership plan updated" : "Membership plan created", {
+      description: `"${name.trim()}" has been saved.`,
+    })
+    onSaved?.()
     onOpenChange(false)
   }
 
@@ -94,9 +146,11 @@ export function CreatePlanDialog({ open, onOpenChange }: CreatePlanDialogProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Membership Plan</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Membership Plan" : "Create Membership Plan"}</DialogTitle>
           <DialogDescription>
-            Set up a new membership tier for your clients.
+            {isEdit
+              ? "Update this membership tier."
+              : "Set up a new membership tier for your clients."}
           </DialogDescription>
         </DialogHeader>
 
@@ -122,7 +176,7 @@ export function CreatePlanDialog({ open, onOpenChange }: CreatePlanDialogProps) 
             />
           </div>
 
-          {/* Price & Interval */}
+          {/* Price & Billing Cycle */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Price *</Label>
@@ -142,17 +196,20 @@ export function CreatePlanDialog({ open, onOpenChange }: CreatePlanDialogProps) 
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Interval</Label>
+              <Label>Billing Cycle</Label>
               <Select
-                value={interval}
-                onValueChange={(v) => setInterval(v as "monthly" | "yearly")}
+                value={billingCycle}
+                onValueChange={(v) => setBillingCycle(v as BillingCycle)}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
+                  {billingOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -176,40 +233,9 @@ export function CreatePlanDialog({ open, onOpenChange }: CreatePlanDialogProps) 
             </div>
           </div>
 
-          {/* Max Services */}
+          {/* Benefits */}
           <div className="space-y-2">
-            <Label>Max Services per Visit</Label>
-            <div className="flex items-center gap-3">
-              <Input
-                type="number"
-                placeholder="4"
-                value={unlimitedServices ? "" : maxServices}
-                onChange={(e) => setMaxServices(e.target.value)}
-                disabled={unlimitedServices}
-                min="1"
-                className="flex-1"
-              />
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="unlimited"
-                  checked={unlimitedServices}
-                  onCheckedChange={(checked) =>
-                    setUnlimitedServices(checked as boolean)
-                  }
-                />
-                <label
-                  htmlFor="unlimited"
-                  className="text-sm text-muted-foreground cursor-pointer"
-                >
-                  Unlimited
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Features */}
-          <div className="space-y-2">
-            <Label>Features</Label>
+            <Label>Benefits</Label>
             <div className="flex items-center gap-2">
               <Input
                 placeholder="e.g., Priority booking"
@@ -237,6 +263,7 @@ export function CreatePlanDialog({ open, onOpenChange }: CreatePlanDialogProps) 
                     <button
                       onClick={() => handleRemoveFeature(index)}
                       className="text-muted-foreground/70 hover:text-red-500 transition-colors"
+                      aria-label={`Remove ${feature}`}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -245,33 +272,15 @@ export function CreatePlanDialog({ open, onOpenChange }: CreatePlanDialogProps) 
               </div>
             )}
           </div>
-
-          {/* Color Picker */}
-          <div className="space-y-2">
-            <Label>Plan Color</Label>
-            <div className="flex gap-2 flex-wrap">
-              {colorOptions.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => setSelectedColor(color)}
-                  className={cn(
-                    "w-8 h-8 rounded-lg border-2 transition-all duration-200",
-                    selectedColor === color
-                      ? "border-foreground scale-110 shadow-md"
-                      : "border-transparent hover:border-cream-300"
-                  )}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-          </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>Create Plan</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Plan"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
