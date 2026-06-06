@@ -10,6 +10,17 @@ function toCents(amount: unknown): number {
   return Math.round(Number(amount || 0) * 100)
 }
 
+// Duck-typed Prisma unique-violation check (matches src/lib/api/prisma-errors.ts):
+// reads `error.code` without importing the runtime error class, so it works for
+// both real Prisma errors and mocked errors in tests.
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: unknown }).code === "P2002"
+  )
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!webhookSecret) {
@@ -40,6 +51,27 @@ export async function POST(request: NextRequest) {
         { error: "Invalid signature" },
         { status: 400 }
       )
+    }
+
+    // Idempotency gate — Stripe retries webhooks and may deliver the same event
+    // more than once. We record the event id (PK) FIRST, before any side effect.
+    // If the row already exists the insert fails with a unique violation (P2002)
+    // and we short-circuit with 200 so Stripe stops retrying, without re-running
+    // any payment/refund/account mutation. See StripeEvent model (idempotency ledger).
+    try {
+      await prisma.stripeEvent.create({
+        data: { id: event.id, type: event.type },
+      })
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        return NextResponse.json(
+          { received: true, duplicate: true, message: "[duplicate event]" },
+          { status: 200 }
+        )
+      }
+      // Any other failure recording the event is a real error — surface it so
+      // Stripe retries rather than silently processing without an idempotency record.
+      throw err
     }
 
     // Handle the event

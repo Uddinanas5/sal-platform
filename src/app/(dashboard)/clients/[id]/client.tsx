@@ -43,7 +43,7 @@ import {
   formatRelativeDate,
   getInitials,
 } from "@/lib/utils"
-import type { Client } from "@/data/mock-data"
+import type { Client, Appointment } from "@/data/mock-data"
 import { ClientOverviewTab } from "@/components/clients/client-overview-tab"
 import { ClientAppointmentsTab } from "@/components/clients/client-appointments-tab"
 import { ClientPurchasesTab } from "@/components/clients/client-purchases-tab"
@@ -51,15 +51,17 @@ import { ClientNotesTab, type VisitNoteItem } from "@/components/clients/client-
 import { ClientLoyaltyTab, type LoyaltyTxItem } from "@/components/clients/client-loyalty-tab"
 import { EditClientDialog } from "@/components/clients/edit-client-dialog"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { ExportClientButton } from "./export-client-button"
 import { deleteClient } from "@/lib/actions/clients"
 import { toast } from "sonner"
 
 // The server query enriches the base mock `Client` shape with real, persisted
-// visit notes + the loyalty ledger. These extra fields ride along on the client
-// object passed from the server page.
+// visit notes + the loyalty ledger + appointments. These extra fields ride
+// along on the client object passed from the server page.
 type ClientWithRealData = Client & {
   visitNotes?: VisitNoteItem[]
   loyaltyTransactions?: LoyaltyTxItem[]
+  appointments?: Appointment[]
 }
 
 interface ClientDetailClientProps {
@@ -72,6 +74,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
   const { client, currentStaffId, currentRole } = props
   const visitNotes = client.visitNotes ?? []
   const loyaltyTransactions = client.loyaltyTransactions ?? []
+  const appointments = client.appointments ?? []
   // Most-recent cut note for the read-only header chip ("last time: #2 fade").
   const lastCutNote = visitNotes.find((n) => n.body && n.body.trim().length > 0)
   const router = useRouter()
@@ -246,6 +249,12 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
                     <CalendarPlus className="w-4 h-4 mr-2" />
                     Book Appointment
                   </Button>
+                  <ExportClientButton
+                    client={client}
+                    appointments={appointments}
+                    visitNotes={visitNotes}
+                    loyaltyTransactions={loyaltyTransactions}
+                  />
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
