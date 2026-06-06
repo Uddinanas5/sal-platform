@@ -25,10 +25,13 @@ function isUniqueViolation(err: unknown): boolean {
 // (exactly: active | trialing | past_due | cancelled | paused). We treat a
 // trial as full access (active), and every failure/incomplete state as past_due
 // so the dashboard shows the non-blocking "update your card" banner rather than
-// hard-locking the salon.
+// hard-locking the salon. Stripe's `paused` (pause_collection) is a TEMPORARY
+// hold — the subscription still exists and is expected to resume — so it maps to
+// our own `paused` value (non-blocking banner), NEVER to `cancelled`. Only a true
+// Stripe `canceled` is terminal and triggers the hard gate.
 function mapStripeStatus(
   status: Stripe.Subscription.Status
-): "active" | "past_due" | "cancelled" {
+): "active" | "past_due" | "cancelled" | "paused" {
   switch (status) {
     case "active":
     case "trialing":
@@ -38,8 +41,9 @@ function mapStripeStatus(
     case "incomplete":
     case "incomplete_expired":
       return "past_due"
-    case "canceled":
     case "paused":
+      return "paused"
+    case "canceled":
       return "cancelled"
     default:
       return "past_due"
@@ -47,21 +51,33 @@ function mapStripeStatus(
 }
 
 // Build the Prisma `where` used to resolve the owning business from a Stripe
-// subscription event. Prefer the subscription id (most precise); fall back to
-// metadata.businessId, then the customer id. Returns null when nothing usable
-// is present so the caller can no-op on an unknown/foreign subscription.
+// subscription event.
+//
+// Order matters because of webhook out-of-order delivery: Stripe may deliver
+// customer.subscription.updated/.deleted BEFORE checkout.session.completed (the
+// ONLY place stripeSubscriptionId is written). If we keyed on
+// stripeSubscriptionId first it would always match 0 rows in that window — a
+// silent no-op that permanently loses a cancelled/past_due event. So we prefer
+// the DURABLE identifiers that are set at customer-creation / checkout-creation
+// time and are present on every subscription event:
+//   1. metadata.businessId — set via subscription_data.metadata.businessId in
+//      create-subscription-checkout, so it rides on every subscription event.
+//   2. customerId — persisted on the business when the Customer is created.
+//   3. stripeSubscriptionId — last resort; only matches once checkout completed.
+// Returns null when nothing usable is present so the caller can no-op on an
+// unknown/foreign subscription.
 function subscriptionResolveWhere(
   subscription: Stripe.Subscription,
   customerId: string | null
 ):
-  | { stripeSubscriptionId: string }
   | { id: string }
   | { stripeCustomerId: string }
+  | { stripeSubscriptionId: string }
   | null {
-  if (subscription.id) return { stripeSubscriptionId: subscription.id }
   const metaBusinessId = subscription.metadata?.businessId
   if (metaBusinessId) return { id: metaBusinessId }
   if (customerId) return { stripeCustomerId: customerId }
+  if (subscription.id) return { stripeSubscriptionId: subscription.id }
   return null
 }
 
@@ -98,24 +114,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Idempotency gate — Stripe retries webhooks and may deliver the same event
-    // more than once. We record the event id (PK) FIRST, before any side effect.
-    // If the row already exists the insert fails with a unique violation (P2002)
-    // and we short-circuit with 200 so Stripe stops retrying, without re-running
-    // any payment/refund/account mutation. See StripeEvent model (idempotency ledger).
-    try {
-      await prisma.stripeEvent.create({
-        data: { id: event.id, type: event.type },
-      })
-    } catch (err) {
-      if (isUniqueViolation(err)) {
-        return NextResponse.json(
-          { received: true, duplicate: true, message: "[duplicate event]" },
-          { status: 200 }
-        )
-      }
-      // Any other failure recording the event is a real error — surface it so
-      // Stripe retries rather than silently processing without an idempotency record.
-      throw err
+    // more than once. We RECORD THE EVENT ONLY AFTER the handler succeeds (see
+    // the post-switch insert below), accepting at-least-once semantics: every
+    // handler here is idempotent (subscription branches set absolute target
+    // states keyed by server-trusted Stripe ids; payment/refund branches look up
+    // by processorId before mutating), so re-processing is safe.
+    //
+    // This early read-only check fast-paths a genuine duplicate (an event we
+    // ALREADY fully processed) so we don't redo work. Crucially, because the row
+    // is written post-success, a row never exists for an event whose handler
+    // threw — so a 500 retry safely re-runs the side effect instead of being
+    // short-circuited as a "duplicate" and permanently dropped.
+    const alreadyProcessed = await prisma.stripeEvent
+      .findUnique({ where: { id: event.id } })
+      .catch(() => null)
+    if (alreadyProcessed) {
+      return NextResponse.json(
+        { received: true, duplicate: true, message: "[duplicate event]" },
+        { status: 200 }
+      )
     }
 
     // Handle the event
@@ -295,7 +312,7 @@ export async function POST(request: NextRequest) {
             ? session.customer
             : session.customer?.id ?? null
 
-        await prisma.business.updateMany({
+        const completed = await prisma.business.updateMany({
           where: { id: businessId },
           data: {
             subscriptionStatus: "active",
@@ -304,6 +321,53 @@ export async function POST(request: NextRequest) {
             ...(customerId ? { stripeCustomerId: customerId } : {}),
           },
         })
+        if (completed.count === 0) {
+          // The salon PAID but we couldn't flip it to active — loud, because a
+          // charged-but-not-active salon is a revenue/access incident.
+          console.error(
+            `[stripe.webhook] checkout.session.completed matched 0 businesses — businessId=${businessId} session=${session.id} subscription=${subscriptionId}. Charged but NOT activated — manual review needed.`
+          )
+        }
+
+        break
+      }
+
+      case "customer.subscription.created": {
+        // Persist the subscription id (and customer id) from the FIRST
+        // subscription event so the row is keyed correctly even if
+        // checkout.session.completed is delayed or delivered out of order. The
+        // business is resolved by durable identifiers (metadata.businessId /
+        // customer id) since stripeSubscriptionId is not yet on file.
+        const subscription = event.data.object as Stripe.Subscription
+
+        const mapped = mapStripeStatus(subscription.status)
+
+        const customerId =
+          typeof subscription.customer === "string"
+            ? subscription.customer
+            : subscription.customer?.id ?? null
+
+        const where = subscriptionResolveWhere(subscription, customerId)
+        if (!where) {
+          console.error(
+            `[stripe.webhook] customer.subscription.created for unresolvable subscription=${subscription.id} — no-op.`
+          )
+          break
+        }
+
+        const created = await prisma.business.updateMany({
+          where,
+          data: {
+            subscriptionStatus: mapped,
+            stripeSubscriptionId: subscription.id,
+            ...(customerId ? { stripeCustomerId: customerId } : {}),
+          },
+        })
+        if (created.count === 0) {
+          console.error(
+            `[stripe.webhook] customer.subscription.created matched 0 businesses — subscription=${subscription.id} customer=${customerId} metadata.businessId=${subscription.metadata?.businessId}. Out-of-order/dropped event?`
+          )
+        }
 
         break
       }
@@ -313,8 +377,9 @@ export async function POST(request: NextRequest) {
 
         // Map Stripe's subscription status onto our SubscriptionStatus enum
         // (active | trialing | past_due | cancelled | paused). We collapse
-        // trialing → active (full access during a trial) and the failure
-        // states (past_due/unpaid/incomplete*) → past_due.
+        // trialing → active (full access during a trial), the failure states
+        // (past_due/unpaid/incomplete*) → past_due, and Stripe `paused` → our
+        // own `paused` (non-blocking — the subscription still exists).
         const mapped = mapStripeStatus(subscription.status)
 
         const customerId =
@@ -322,8 +387,10 @@ export async function POST(request: NextRequest) {
             ? subscription.customer
             : subscription.customer?.id ?? null
 
-        // Resolve the business by the subscription id first (most precise), then
-        // fall back to customer id / metadata — all server-trusted from Stripe.
+        // Resolve the business by durable identifiers (metadata.businessId /
+        // customer id) first, falling back to the subscription id last — all
+        // server-trusted from Stripe. See subscriptionResolveWhere for why the
+        // subscription id can't be the primary key during out-of-order delivery.
         const where = subscriptionResolveWhere(subscription, customerId)
         if (!where) {
           console.error(
@@ -332,7 +399,25 @@ export async function POST(request: NextRequest) {
           break
         }
 
-        await prisma.business.updateMany({ where, data: { subscriptionStatus: mapped } })
+        // Persist the subscription id alongside the status so a later checkout-
+        // completed / created event isn't required for the row to be keyed, and
+        // so the cancelled hard gate (which needs a non-null id) can fire even if
+        // this is the only event we ever see for the subscription.
+        const updated = await prisma.business.updateMany({
+          where,
+          data: {
+            subscriptionStatus: mapped,
+            stripeSubscriptionId: subscription.id,
+          },
+        })
+        // Loud: a 0-match here means an out-of-order/dropped event we could not
+        // attribute to any business (e.g. a cancellation that would otherwise be
+        // silently swallowed). Surface it for manual review.
+        if (updated.count === 0) {
+          console.error(
+            `[stripe.webhook] customer.subscription.updated matched 0 businesses — subscription=${subscription.id} customer=${customerId} metadata.businessId=${subscription.metadata?.businessId} status=${mapped}. Out-of-order/dropped event?`
+          )
+        }
 
         break
       }
@@ -353,13 +438,24 @@ export async function POST(request: NextRequest) {
           break
         }
 
-        // Cancelled at Stripe → clear the subscription id so a future checkout
-        // can start fresh; the cancelled status + cleared id is what the hard
-        // gate keys on (status === cancelled AND a subscription was ever set).
-        await prisma.business.updateMany({
+        // Cancelled at Stripe → mark cancelled but KEEP stripeSubscriptionId.
+        // The hard gate (gate.ts) only fires when status === "cancelled" AND
+        // hasSubscription (a non-null stripeSubscriptionId) — i.e. a salon that
+        // DID subscribe and then ended. Clearing the id here would set
+        // hasSubscription=false and make decideBillingGate return "allow",
+        // silently defeating the lockout (free access for a cancelled salon).
+        // A fresh checkout (checkout.session.completed) overwrites the stale id,
+        // so we don't need to null it to allow re-subscribing. This also matches
+        // the self-service path in actions/account.ts (cancelled, id intact).
+        const deleted = await prisma.business.updateMany({
           where,
-          data: { subscriptionStatus: "cancelled", stripeSubscriptionId: null },
+          data: { subscriptionStatus: "cancelled" },
         })
+        if (deleted.count === 0) {
+          console.error(
+            `[stripe.webhook] customer.subscription.deleted matched 0 businesses — subscription=${subscription.id} customer=${customerId} metadata.businessId=${subscription.metadata?.businessId}. Out-of-order/dropped event?`
+          )
+        }
 
         break
       }
@@ -379,16 +475,41 @@ export async function POST(request: NextRequest) {
           break
         }
 
-        await prisma.business.updateMany({
-          where: { stripeCustomerId: customerId },
+        // Only flip to past_due when the business currently has a LIVE
+        // subscription on file. A stray late invoice for an already-cancelled
+        // subscription (sub id retained, customer retained) must not resurrect a
+        // past_due state on a salon with no live subscription — that would show
+        // a contradictory "Past due / Update payment method" UI for a salon that
+        // has nothing to update.
+        const invoiceFailed = await prisma.business.updateMany({
+          where: { stripeCustomerId: customerId, NOT: { stripeSubscriptionId: null } },
           data: { subscriptionStatus: "past_due" },
         })
+        if (invoiceFailed.count === 0) {
+          console.error(
+            `[stripe.webhook] invoice.payment_failed matched 0 live subscriptions — customer=${customerId} invoice=${invoice.id} (no business with a non-null stripeSubscriptionId). Stray/late invoice?`
+          )
+        }
 
         break
       }
 
       default:
         // Unhandled event type — no action needed
+    }
+
+    // Record the event as processed ONLY now that the handler has succeeded.
+    // (Idempotency, at-least-once.) If the handler above threw, control jumped
+    // to the catch below and this insert never ran — so no row exists and a
+    // Stripe retry will re-run the side effect rather than being short-circuited
+    // as a duplicate. A concurrent/previous successful delivery may have already
+    // written the row (P2002) — that's fine, swallow it.
+    try {
+      await prisma.stripeEvent.create({
+        data: { id: event.id, type: event.type },
+      })
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err
     }
 
     return NextResponse.json({ received: true })

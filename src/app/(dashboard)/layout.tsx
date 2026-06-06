@@ -31,8 +31,10 @@ export default async function Layout({
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const role = (session?.user as any)?.role as string | undefined
 
-  let billingBanner: "past_due" | null = null
+  let billingBanner: "past_due" | "paused" | null = null
 
   if (businessId) {
     const business = await prisma.business
@@ -54,11 +56,32 @@ export default async function Layout({
       })
 
       if (decision.kind === "gate") {
+        // Staff CANNOT reach /settings — it's in STAFF_BLOCKED_ROUTES, so the
+        // edge middleware redirects /settings → /dashboard while this layout
+        // would redirect /dashboard → /settings: an infinite ping-pong. Staff
+        // also can't resubscribe (owner-only). So for staff we render a static
+        // terminal screen instead of redirecting — no redirect, no loop.
+        if (role === "staff") {
+          return (
+            <div className="min-h-screen flex items-center justify-center bg-cream p-6">
+              <div className="max-w-md w-full rounded-xl border bg-background p-8 text-center shadow-sm">
+                <h1 className="text-lg font-heading font-semibold text-foreground">
+                  Access paused
+                </h1>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  This salon&apos;s SAL subscription has ended. Please contact your
+                  salon owner to restore access.
+                </p>
+              </div>
+            </div>
+          )
+        }
+
         const headerList = await headers()
         const pathname = headerList.get("x-pathname") ?? ""
-        // Always allow the billing settings + API through so they can resubscribe.
-        // (This layout only wraps (dashboard) routes; /api lives outside it, but
-        // we guard defensively in case of future nesting.)
+        // Always allow the billing settings + API through so the owner/admin can
+        // resubscribe. (This layout only wraps (dashboard) routes; /api lives
+        // outside it, but we guard defensively in case of future nesting.)
         const isAllowed =
           pathname.startsWith("/settings") || pathname.startsWith("/api")
         if (!isAllowed) {

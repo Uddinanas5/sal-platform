@@ -15,7 +15,7 @@ export const MONTHLY_USD = 497
 export const SETUP_LOOKUP_KEY = "sal_setup_1500"
 export const MONTHLY_LOOKUP_KEY = "sal_monthly_497"
 
-export const SUBSCRIPTION_TIER = "pro"
+export const SUBSCRIPTION_TIER = "pro" as const
 
 export type BillingPrices = {
   setupPriceId: string
@@ -46,6 +46,68 @@ export async function ensureBillingPrices(stripe: Stripe): Promise<BillingPrices
   ])
 
   return { setupPriceId, monthlyPriceId }
+}
+
+// Server-side reconciliation of a completed Checkout Session on return from
+// Stripe. The success_url carries &session_id={CHECKOUT_SESSION_ID}; when the
+// salon lands back on /settings we retrieve the session and, if it is a PAID,
+// COMPLETE subscription session belonging to this business, persist the active
+// state immediately rather than waiting on the webhook. This closes the UI
+// window where the "Set up billing" CTA could otherwise reappear post-payment
+// (and let a salon mint a SECOND subscription). It is idempotent with the
+// webhook: both write the same absolute target state keyed by the same ids.
+//
+// `persist` is the narrow Prisma surface we touch (business.updateMany), passed
+// in so this stays free of a direct prisma import (and trivially mockable).
+export async function reconcileCheckoutSession(
+  stripe: Stripe,
+  persist: (args: {
+    where: { id: string }
+    data: {
+      subscriptionStatus: "active"
+      subscriptionTier: typeof SUBSCRIPTION_TIER
+      stripeSubscriptionId?: string
+      stripeCustomerId?: string
+    }
+  }) => Promise<unknown>,
+  opts: { sessionId: string; businessId: string }
+): Promise<boolean> {
+  let session: Stripe.Checkout.Session | null = null
+  try {
+    session = await stripe.checkout.sessions.retrieve(opts.sessionId)
+  } catch {
+    return false
+  }
+  if (!session) return false
+
+  // Only a PAID, COMPLETE subscription session for THIS business counts. The
+  // businessId match is the trust anchor — we never activate a business from a
+  // session id that doesn't carry its own businessId.
+  if (session.mode !== "subscription") return false
+  if (session.status !== "complete" || session.payment_status !== "paid") return false
+  const sessionBusinessId =
+    session.metadata?.businessId ?? session.client_reference_id ?? null
+  if (sessionBusinessId !== opts.businessId) return false
+
+  const subscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id ?? undefined
+  const customerId =
+    typeof session.customer === "string"
+      ? session.customer
+      : session.customer?.id ?? undefined
+
+  await persist({
+    where: { id: opts.businessId },
+    data: {
+      subscriptionStatus: "active",
+      subscriptionTier: SUBSCRIPTION_TIER,
+      ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
+      ...(customerId ? { stripeCustomerId: customerId } : {}),
+    },
+  })
+  return true
 }
 
 async function findOrCreatePrice(

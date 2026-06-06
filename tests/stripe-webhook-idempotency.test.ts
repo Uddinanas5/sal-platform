@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 
 // Proves the Stripe webhook idempotency gate over a mock Prisma + mock Stripe
-// (no DB, no network):
-//   - the event id is recorded (prisma.stripeEvent.create) IMMEDIATELY after
-//     signature verification, before any side effect runs
-//   - a duplicate delivery (the create throws a P2002 unique violation) short-
-//     circuits with HTTP 200 and "[duplicate event]" and runs NO side effects
-//     (no Payment / Business mutation)
-//   - a first-time event proceeds to the handler switch as normal
+// (no DB, no network). The gate is RECORD-AFTER-SUCCESS (at-least-once):
+//   - an early read-only check (prisma.stripeEvent.findUnique) short-circuits a
+//     GENUINE duplicate (an event we already fully processed) with HTTP 200 and
+//     "[duplicate event]", running NO side effects
+//   - a first-time event proceeds to the handler switch, and the idempotency row
+//     is written (prisma.stripeEvent.create) ONLY AFTER the handler succeeds
+//   - if the handler throws, the row is NEVER written → a Stripe retry re-runs
+//     the side effect instead of being wrongly short-circuited as a duplicate
 //
 // The webhook reads the raw body via request.text(), the signature via
 // next/headers, and verifies it via stripe.webhooks.constructEvent. We mock all
@@ -19,7 +20,7 @@ const { prismaMock, constructEventMock, headersGetMock } = vi.hoisted(() => {
   // assignment would run too late — ESM hoists the import above it).
   process.env.STRIPE_WEBHOOK_SECRET = "whsec_test"
   const prismaMock = {
-    stripeEvent: { create: vi.fn() },
+    stripeEvent: { create: vi.fn(), findUnique: vi.fn() },
     business: { updateMany: vi.fn() },
     payment: { findFirst: vi.fn(), update: vi.fn() },
     appointment: { update: vi.fn() },
@@ -42,15 +43,6 @@ vi.mock("next/headers", () => ({
 
 import { POST } from "@/app/api/stripe/webhook/route"
 
-// A P2002 unique-violation, shaped like a Prisma known-request error (the route
-// duck-types `err.code === "P2002"`).
-class FakeP2002 extends Error {
-  code = "P2002"
-  constructor() {
-    super("Unique constraint failed")
-  }
-}
-
 function makeRequest(body: string) {
   return { text: vi.fn(async () => body) } as unknown as Parameters<typeof POST>[0]
 }
@@ -65,32 +57,39 @@ beforeEach(() => {
   vi.clearAllMocks()
   headersGetMock.mockReturnValue("sig_test")
   constructEventMock.mockReturnValue(ACCOUNT_EVENT)
+  prismaMock.stripeEvent.findUnique.mockResolvedValue(null)
+  prismaMock.stripeEvent.create.mockResolvedValue({ id: ACCOUNT_EVENT.id })
+  prismaMock.business.updateMany.mockResolvedValue({ count: 1 })
   prismaMock.$transaction.mockImplementation(async (fn: unknown) => {
     if (typeof fn === "function") return (fn as (tx: unknown) => unknown)(prismaMock)
     return undefined
   })
 })
 
-describe("stripe webhook — idempotency gate", () => {
-  it("records the event id before any side effect runs", async () => {
-    prismaMock.stripeEvent.create.mockResolvedValueOnce({ id: ACCOUNT_EVENT.id })
-
+describe("stripe webhook — idempotency gate (record after success)", () => {
+  it("runs the handler, THEN records the event id", async () => {
     const res = await POST(makeRequest("{}"))
     expect(res.status).toBe(200)
 
-    // The idempotency row is written with the Stripe event id + type.
+    // First-time event proceeds to the handler (account.updated branch)...
+    expect(prismaMock.business.updateMany).toHaveBeenCalledTimes(1)
+    // ...and the idempotency row is written with the Stripe event id + type AFTER.
     expect(prismaMock.stripeEvent.create).toHaveBeenCalledTimes(1)
     const arg = prismaMock.stripeEvent.create.mock.calls[0][0]
     expect(arg.data.id).toBe("evt_test_1")
     expect(arg.data.type).toBe("account.updated")
 
-    // First-time event proceeds to the handler (account.updated branch).
-    expect(prismaMock.business.updateMany).toHaveBeenCalledTimes(1)
+    const order =
+      prismaMock.business.updateMany.mock.invocationCallOrder[0] <
+      prismaMock.stripeEvent.create.mock.invocationCallOrder[0]
+    expect(order).toBe(true)
   })
 
-  it("short-circuits a duplicate event with 200 and runs NO side effects", async () => {
-    // The unique-violation means we have already processed this event.
-    prismaMock.stripeEvent.create.mockRejectedValueOnce(new FakeP2002())
+  it("short-circuits a duplicate event (early findUnique hit) with 200 and NO side effects", async () => {
+    prismaMock.stripeEvent.findUnique.mockResolvedValueOnce({
+      id: ACCOUNT_EVENT.id,
+      type: ACCOUNT_EVENT.type,
+    })
 
     const res = await POST(makeRequest("{}"))
 
@@ -99,13 +98,15 @@ describe("stripe webhook — idempotency gate", () => {
     expect(json.duplicate).toBe(true)
     expect(json.message).toBe("[duplicate event]")
 
-    // CRITICAL: the handler switch never ran — no business/payment mutations.
+    // CRITICAL: the handler switch never ran — no business/payment mutations,
+    // and we do NOT re-write the idempotency row.
     expect(prismaMock.business.updateMany).not.toHaveBeenCalled()
     expect(prismaMock.payment.update).not.toHaveBeenCalled()
     expect(prismaMock.appointment.update).not.toHaveBeenCalled()
+    expect(prismaMock.stripeEvent.create).not.toHaveBeenCalled()
   })
 
-  it("rejects with 400 (and never records an event) on a bad signature", async () => {
+  it("rejects with 400 (and never touches the ledger) on a bad signature", async () => {
     constructEventMock.mockImplementationOnce(() => {
       throw new Error("bad signature")
     })
@@ -113,18 +114,34 @@ describe("stripe webhook — idempotency gate", () => {
     const res = await POST(makeRequest("{}"))
 
     expect(res.status).toBe(400)
-    // No idempotency row is written when the signature is invalid.
+    expect(prismaMock.stripeEvent.findUnique).not.toHaveBeenCalled()
     expect(prismaMock.stripeEvent.create).not.toHaveBeenCalled()
   })
 
-  it("does not short-circuit when the record write fails for a non-P2002 reason", async () => {
-    // A transient DB error must NOT be treated as a duplicate — it should bubble
-    // to the catch-all 500 so Stripe retries (without processing side effects).
-    prismaMock.stripeEvent.create.mockRejectedValueOnce(new Error("connection reset"))
+  it("does NOT record the event (and returns 500) when the handler throws — Stripe retries", async () => {
+    // A transient handler failure must leave NO idempotency row, so the retry
+    // re-runs the side effect rather than being short-circuited as a duplicate.
+    prismaMock.business.updateMany.mockRejectedValueOnce(new Error("connection reset"))
 
     const res = await POST(makeRequest("{}"))
 
     expect(res.status).toBe(500)
-    expect(prismaMock.business.updateMany).not.toHaveBeenCalled()
+    expect(prismaMock.stripeEvent.create).not.toHaveBeenCalled()
+  })
+
+  it("swallows a P2002 on the post-success record (concurrent delivery already wrote it)", async () => {
+    class FakeP2002 extends Error {
+      code = "P2002"
+      constructor() {
+        super("Unique constraint failed")
+      }
+    }
+    prismaMock.stripeEvent.create.mockRejectedValueOnce(new FakeP2002())
+
+    const res = await POST(makeRequest("{}"))
+
+    // Handler ran successfully; the duplicate ledger write is benign → still 200.
+    expect(res.status).toBe(200)
+    expect(prismaMock.business.updateMany).toHaveBeenCalledTimes(1)
   })
 })

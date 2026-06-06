@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { stripe } from "@/lib/stripe"
+import { reconcileCheckoutSession } from "@/lib/billing/plan"
 import { getResources } from "@/lib/queries/resources"
 import { getServices } from "@/lib/queries/services"
 import { getInvitations } from "@/lib/queries/invitations"
@@ -11,7 +13,11 @@ import SettingsClient from "./client"
 
 export const dynamic = "force-dynamic"
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; billing?: string; session_id?: string }>
+}) {
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
@@ -21,6 +27,27 @@ export default async function SettingsPage() {
   const role = ((session?.user as any)?.role as string | undefined) ?? "staff"
 
   const isAdminOrOwner = hasRole(role, "admin")
+
+  const params = await searchParams
+  const initialTab = params.tab
+
+  // On return from Stripe Checkout (billing=success with a session id), reconcile
+  // the payment server-side so the Billing UI reflects the active subscription
+  // immediately — don't rely solely on the webhook (which may lag a second or
+  // two and, until it lands, would keep showing "Set up billing"). Idempotent
+  // with the webhook: both persist the same active/pro state keyed by the same
+  // Stripe ids. Failures are swallowed — the webhook remains the backstop.
+  if (params.billing === "success" && params.session_id) {
+    try {
+      await reconcileCheckoutSession(
+        stripe,
+        (args) => prisma.business.updateMany(args),
+        { sessionId: params.session_id, businessId }
+      )
+    } catch {
+      // Non-fatal: the webhook is the source-of-truth backstop.
+    }
+  }
 
   let resources: Awaited<ReturnType<typeof getResources>> = []
   let services: Awaited<ReturnType<typeof getServices>> = []
@@ -201,6 +228,8 @@ export default async function SettingsPage() {
       paymentSettings={paymentSettings}
       notificationSettings={notificationSettings}
       billing={billing}
+      initialTab={initialTab}
+      billingResult={params.billing}
     />
   )
 }

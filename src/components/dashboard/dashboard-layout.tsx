@@ -28,8 +28,9 @@ function useIsMobile(breakpoint = 768) {
 interface DashboardLayoutProps {
   children: React.ReactNode
   // Non-blocking billing notice. "past_due" → amber banner prompting a card
-  // update via the billing portal. null → no banner (the common case).
-  billingBanner?: "past_due" | null
+  // update via the billing portal. "paused" → amber banner noting the temporary
+  // hold. null → no banner (the common case).
+  billingBanner?: "past_due" | "paused" | null
 }
 
 export function DashboardLayout({ children, billingBanner = null }: DashboardLayoutProps) {
@@ -132,20 +133,21 @@ export function DashboardLayout({ children, billingBanner = null }: DashboardLay
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="min-h-screen"
         >
-          {billingBanner === "past_due" && (
+          {billingBanner && (
             <div className="flex items-center justify-between gap-4 bg-amber-500/10 border-b border-amber-500/30 px-6 py-3 text-sm">
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>
-                  Payment issue — your last SAL payment failed. Update your card to
-                  avoid interruption.
+                  {billingBanner === "past_due"
+                    ? "Payment issue — your last SAL payment failed. Update your card to avoid interruption."
+                    : "Your SAL subscription is paused. It will resume automatically; manage it from billing."}
                 </span>
               </div>
               <Link
                 href="/settings?tab=billing"
                 className="shrink-0 font-medium text-amber-700 dark:text-amber-300 underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-200"
               >
-                Update card
+                {billingBanner === "past_due" ? "Update card" : "Manage billing"}
               </Link>
             </div>
           )}

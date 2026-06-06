@@ -195,7 +195,26 @@ interface SettingsClientProps {
   paymentSettings: PaymentSettings
   notificationSettings: NotificationSettings
   billing: BillingState
+  // The ?tab= query param (validated below) so a deep link / gate redirect lands
+  // on the right tab. The ?billing= return marker from Stripe Checkout.
+  initialTab?: string
+  billingResult?: string
 }
+
+// All Tabs values rendered below. "team" is admin/owner-only (guarded).
+const SETTINGS_TABS = [
+  "general",
+  "resources",
+  "billing",
+  "integrations",
+  "security",
+  "booking",
+  "payments",
+  "notifications",
+  "online-presence",
+  "forms",
+  "team",
+] as const
 
 // SAL subscription billing state for the salon-as-payer. `hasSubscription` is
 // the linchpin of safe-by-default gating: a salon that never subscribed sits at
@@ -209,8 +228,41 @@ interface BillingState {
   tier: string
 }
 
-export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings, notificationSettings, businessSlug, onlinePresenceSettings, paymentSettings, billing }: SettingsClientProps) {
+export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings, notificationSettings, businessSlug, onlinePresenceSettings, paymentSettings, billing, initialTab, billingResult }: SettingsClientProps) {
   const isAdminOrOwner = role === "owner" || role === "admin"
+
+  // Honor the ?tab= deep link / gate redirect target. Validate against the known
+  // tab set and fall back to "general"; "team" is admin/owner-only, so a non-priv
+  // deep link to it also falls back (its TabsTrigger/Content aren't rendered).
+  const resolvedInitialTab =
+    initialTab &&
+    (SETTINGS_TABS as readonly string[]).includes(initialTab) &&
+    (initialTab !== "team" || isAdminOrOwner)
+      ? initialTab
+      : "general"
+  const [activeTab, setActiveTab] = useState(resolvedInitialTab)
+
+  // Acknowledge the Stripe Checkout return (?billing=success|cancelled) with a
+  // toast on mount, then strip the marker params so a refresh doesn't re-fire it.
+  useEffect(() => {
+    if (billingResult === "success") {
+      toast.success("Subscription active", {
+        description: "Your SAL subscription is set up. Welcome aboard!",
+      })
+    } else if (billingResult === "cancelled") {
+      toast("Checkout cancelled", {
+        description: "No charge was made. You can set up billing anytime.",
+      })
+    }
+    if (billingResult) {
+      const url = new URL(window.location.href)
+      url.searchParams.delete("billing")
+      url.searchParams.delete("session_id")
+      window.history.replaceState({}, "", url.toString())
+    }
+    // Run once on mount for the initial query params.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     if (typeof window === "undefined") return "light"
     return (localStorage.getItem("sal-theme") as "light" | "dark" | "system") || "light"
@@ -319,7 +371,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
       <Header title="Settings" subtitle="Manage your business preferences" />
 
       <div className="p-6">
-        <Tabs defaultValue="general" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="flex w-full max-w-5xl overflow-x-auto gap-1 h-auto flex-wrap">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="resources">Resources</TabsTrigger>
@@ -554,9 +606,13 @@ export default function SettingsClient({ resources, services, initialBusiness, i
                         <Badge className="bg-gradient-to-r from-sal-500 to-sal-600 text-white">
                           Pro \u2014 active
                         </Badge>
-                      ) : billing.status === "past_due" ? (
+                      ) : billing.hasSubscription && billing.status === "past_due" ? (
                         <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
                           Past due
+                        </Badge>
+                      ) : billing.hasSubscription && billing.status === "paused" ? (
+                        <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                          Paused
                         </Badge>
                       ) : billing.hasSubscription && billing.status === "cancelled" ? (
                         <Badge variant="secondary">Cancelled</Badge>
@@ -599,7 +655,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
                           </p>
                         )}
                       </>
-                    ) : billing.status === "past_due" ? (
+                    ) : billing.hasSubscription && billing.status === "past_due" ? (
                       /* (C) past due \u2014 payment failed, full access retained. */
                       <>
                         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
@@ -613,6 +669,23 @@ export default function SettingsClient({ resources, services, initialBusiness, i
                         ) : (
                           <p className="text-xs text-muted-foreground">
                             Only the business owner can update billing.
+                          </p>
+                        )}
+                      </>
+                    ) : billing.hasSubscription && billing.status === "paused" ? (
+                      /* (C2) paused \u2014 temporary hold, full access retained. */
+                      <>
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+                          Your subscription is paused. It will resume automatically;
+                          manage it anytime from the billing portal.
+                        </div>
+                        {isOwner ? (
+                          <Button onClick={handleOpenPortal} disabled={billingLoading}>
+                            {billingLoading ? "Opening..." : "Manage billing"}
+                          </Button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Only the business owner can manage billing.
                           </p>
                         )}
                       </>
