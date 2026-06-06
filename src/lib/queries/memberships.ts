@@ -20,27 +20,41 @@ export async function getGiftCards(businessId?: string) {
     orderBy: { createdAt: "desc" },
   })
 
-  return giftCards.map((gc) => ({
-    id: gc.id,
-    code: gc.code,
-    initialBalance: Number(gc.initialValue),
-    currentBalance: Number(gc.currentBalance),
-    purchasedBy: gc.purchaser ? `${gc.purchaser.firstName} ${gc.purchaser.lastName}` : "",
-    recipientName: gc.recipientName || undefined,
-    recipientEmail: gc.recipientEmail || undefined,
-    purchaseDate: gc.createdAt,
-    expiryDate: gc.expiresAt || new Date(),
-    status: gc.isActive
-      ? Number(gc.currentBalance) > 0 ? "active" as const : "redeemed" as const
-      : gc.expiresAt && gc.expiresAt < new Date() ? "expired" as const : "redeemed" as const,
-  }))
+  const now = new Date()
+  return giftCards.map((gc) => {
+    const balance = Number(gc.currentBalance)
+    const isExpired = gc.expiresAt != null && gc.expiresAt < now
+    // Expiry wins over balance; a fully-drawn-down card is "redeemed";
+    // anything else with a balance left is "active".
+    const status: "active" | "redeemed" | "expired" = isExpired
+      ? "expired"
+      : balance <= 0 || !gc.isActive
+        ? "redeemed"
+        : "active"
+    return {
+      id: gc.id,
+      code: gc.code,
+      initialBalance: Number(gc.initialValue),
+      currentBalance: balance,
+      purchasedBy: gc.purchaser ? `${gc.purchaser.firstName} ${gc.purchaser.lastName}` : "",
+      recipientName: gc.recipientName || undefined,
+      recipientEmail: gc.recipientEmail || undefined,
+      purchaseDate: gc.createdAt,
+      expiryDate: gc.expiresAt || new Date(),
+      status,
+    }
+  })
 }
 
+// Management view: returns ALL plans (active + inactive) so admins can
+// reactivate deactivated ones. `activeMembers` is the count of active
+// Membership rows on each plan. (The public booking/v1 layer filters to
+// isActive itself, so widening here is safe — only this page consumes it.)
 export async function getMembershipPlans(businessId?: string) {
   const businessFilter = businessId ? { businessId } : {}
 
   const plans = await prisma.membershipPlan.findMany({
-    where: { ...businessFilter, isActive: true },
+    where: businessFilter,
     select: {
       id: true,
       name: true,
@@ -54,7 +68,7 @@ export async function getMembershipPlans(businessId?: string) {
       isActive: true,
       _count: { select: { memberships: { where: { status: "active_membership" } } } },
     },
-    orderBy: { sortOrder: "asc" },
+    orderBy: [{ isActive: "desc" }, { sortOrder: "asc" }],
   })
 
   return plans.map((p) => ({

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import {
   Users,
@@ -17,7 +18,10 @@ import { cn, formatCurrency, getStatusColor } from "@/lib/utils"
 // Plan data now comes from props, not mock data
 import { EmptyState } from "@/components/shared/empty-state"
 import { PlanCard } from "./plan-card"
-import { CreatePlanDialog } from "./create-plan-dialog"
+import { CreatePlanDialog, type EditablePlan } from "./create-plan-dialog"
+import { toggleMembershipPlan } from "@/lib/actions/memberships"
+import { toast } from "sonner"
+import type { MembershipPlan } from "@/data/mock-memberships"
 import {
   useReactTable,
   getCoreRowModel,
@@ -53,8 +57,45 @@ interface MembershipsTabProps {
 const columnHelper = createColumnHelper<Member>()
 
 export function MembershipsTab({ members = [], stats = { totalMembers: 0, activeMembers: 0, mrr: 0 }, plans = [] }: MembershipsTabProps) {
+  const router = useRouter()
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [editingPlan, setEditingPlan] = useState<EditablePlan | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+
+  const planById = useMemo(() => {
+    const map: Record<string, PlanData> = {}
+    plans.forEach((p) => {
+      map[p.id] = p
+    })
+    return map
+  }, [plans])
+
+  const handleEdit = (cardPlan: MembershipPlan) => {
+    const source = planById[cardPlan.id]
+    if (!source) return
+    setEditingPlan({
+      id: source.id,
+      name: source.name,
+      description: source.description,
+      price: source.price,
+      billingCycle: source.billingCycle,
+      benefits: source.benefits,
+      discountPercent: source.discountPercent ?? null,
+    })
+  }
+
+  const handleToggleActive = async (cardPlan: MembershipPlan) => {
+    setTogglingId(cardPlan.id)
+    const result = await toggleMembershipPlan(cardPlan.id, !cardPlan.isActive)
+    setTogglingId(null)
+    if (!result.success) {
+      toast.error(result.error)
+      return
+    }
+    toast.success(result.data.isActive ? "Plan activated" : "Plan deactivated")
+    router.refresh()
+  }
 
   const planColors = ["#059669", "#8b5cf6", "#f97316", "#ec4899", "#06b6d4", "#14b8a6"]
   const planColorMap = useMemo(() => {
@@ -236,6 +277,9 @@ export function MembershipsTab({ members = [], stats = { totalMembers: 0, active
                 color: planColors[i % planColors.length],
               }}
               index={i}
+              onEdit={handleEdit}
+              onToggleActive={handleToggleActive}
+              busy={togglingId === plan.id}
             />
           ))
         ) : (
@@ -324,6 +368,16 @@ export function MembershipsTab({ members = [], stats = { totalMembers: 0, active
       <CreatePlanDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
+        onSaved={() => router.refresh()}
+      />
+
+      <CreatePlanDialog
+        open={editingPlan !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingPlan(null)
+        }}
+        plan={editingPlan}
+        onSaved={() => router.refresh()}
       />
     </div>
   )
