@@ -132,7 +132,9 @@ export async function redeemGiftCard(data: {
   }
 }
 
-export async function validateGiftCard(code: string): Promise<ActionResult<{ balance: number; status: string }>> {
+export async function validateGiftCard(
+  code: string,
+): Promise<ActionResult<{ balance: number; status: string; expiresAt: string | null }>> {
   try {
     const { businessId } = await getBusinessContext()
 
@@ -152,7 +154,14 @@ export async function validateGiftCard(code: string): Promise<ActionResult<{ bal
       return { success: false, error: "Gift card has expired" }
     }
 
-    return { success: true, data: { balance: Number(giftCard.currentBalance), status: giftCard.isActive ? "active" : "inactive" } }
+    return {
+      success: true,
+      data: {
+        balance: Number(giftCard.currentBalance),
+        status: giftCard.isActive ? "active" : "inactive",
+        expiresAt: giftCard.expiresAt ? giftCard.expiresAt.toISOString() : null,
+      },
+    }
   } catch (e) {
     return { success: false, error: (e as Error).message }
   }

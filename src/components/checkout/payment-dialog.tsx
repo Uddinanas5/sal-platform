@@ -11,6 +11,7 @@ import {
   Printer,
   Mail,
   Receipt,
+  AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +27,7 @@ import { CheckoutSummary } from "./checkout-summary"
 import { ReceiptView } from "./receipt-view"
 import { cn, formatCurrency } from "@/lib/utils"
 import { processPayment, sendReceiptEmailAction } from "@/lib/actions/checkout"
+import { validateGiftCard } from "@/lib/actions/gift-cards"
 import { toast } from "sonner"
 
 interface CartItem {
@@ -65,6 +67,14 @@ interface PaymentDialogProps {
 
 type PaymentStep = "method" | "processing" | "success"
 
+// Result of a "Check balance" lookup against validateGiftCard. `checked` becomes
+// true only after a lookup has run, so the Process button can stay disabled
+// until the cashier has actually verified the card covers the full total.
+type GiftCardCheck =
+  | { checked: false }
+  | { checked: true; valid: false; error: string }
+  | { checked: true; valid: true; balance: number; expiresAt: string | null }
+
 export function PaymentDialog({
   open,
   onOpenChange,
@@ -91,9 +101,17 @@ export function PaymentDialog({
   const [step, setStep] = useState<PaymentStep>("method")
   const [tenderedAmount, setTenderedAmount] = useState("")
   const [giftCardCode, setGiftCardCode] = useState("")
+  const [giftCardCheck, setGiftCardCheck] = useState<GiftCardCheck>({ checked: false })
+  const [isCheckingGiftCard, setIsCheckingGiftCard] = useState(false)
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptNumber, setReceiptNumber] = useState("")
   const [isSendingEmail, setIsSendingEmail] = useState(false)
+
+  // BETA: a gift card must cover the FULL total — no partial/split redemption
+  // (post-beta feature). The Process button is gated on a verified card whose
+  // balance >= total; an insufficient card shows an honest "use cash" message.
+  const giftCardCoversTotal =
+    giftCardCheck.checked && giftCardCheck.valid && giftCardCheck.balance + 0.0049 >= total
 
   const changeDue =
     paymentMethod === "cash" && tenderedAmount
@@ -106,11 +124,39 @@ export function PaymentDialog({
       setStep(paymentMethod ? "method" : "method")
       setTenderedAmount("")
       setGiftCardCode("")
+      setGiftCardCheck({ checked: false })
+      setIsCheckingGiftCard(false)
       setShowReceipt(false)
       setReceiptNumber("")
       setIsSendingEmail(false)
     }
   }, [open, paymentMethod])
+
+  // Look up the gift card balance/expiry server-side. The result gates the
+  // Process button; we never trust the balance for the actual decrement — that
+  // is re-read + verified server-side inside recordCheckout.
+  const handleCheckGiftCard = useCallback(async () => {
+    const code = giftCardCode.trim()
+    if (code.length < 4) return
+    setIsCheckingGiftCard(true)
+    try {
+      const result = await validateGiftCard(code)
+      if (result.success) {
+        setGiftCardCheck({
+          checked: true,
+          valid: true,
+          balance: result.data.balance,
+          expiresAt: result.data.expiresAt,
+        })
+      } else {
+        setGiftCardCheck({ checked: true, valid: false, error: result.error })
+      }
+    } catch {
+      setGiftCardCheck({ checked: true, valid: false, error: "Could not check this gift card. Try again." })
+    } finally {
+      setIsCheckingGiftCard(false)
+    }
+  }, [giftCardCode])
 
   const handleProcessPayment = useCallback(async () => {
     if (!paymentMethod) return
@@ -118,6 +164,14 @@ export function PaymentDialog({
     if (paymentMethod === "cash") {
       const tendered = parseFloat(tenderedAmount)
       if (isNaN(tendered) || tendered < total) return
+    }
+
+    if (paymentMethod === "gift_card") {
+      // Must be a verified card that covers the FULL total (no partial in beta).
+      if (!giftCardCoversTotal) {
+        toast.error("This gift card can't cover the full total. Please use cash instead.")
+        return
+      }
     }
 
     setStep("processing")
@@ -140,6 +194,8 @@ export function PaymentDialog({
         method: paymentMethod,
         // Points to redeem as a discount; the server recomputes + caps the value.
         redeemPoints: redeemPoints > 0 ? redeemPoints : undefined,
+        // Gift-card tender (server re-reads + verifies the balance before charging).
+        giftCardCode: paymentMethod === "gift_card" ? giftCardCode.trim() : undefined,
       })
 
       if (result.success) {
@@ -158,7 +214,7 @@ export function PaymentDialog({
       toast.error("An unexpected error occurred")
       setStep("method")
     }
-  }, [paymentMethod, tenderedAmount, total, clientId, items, discount, tax, tip, redeemPoints])
+  }, [paymentMethod, tenderedAmount, total, clientId, items, discount, tax, tip, redeemPoints, giftCardCode, giftCardCoversTotal])
 
   const handleEmailReceipt = async () => {
     if (!clientEmail) {
@@ -289,18 +345,36 @@ export function PaymentDialog({
                         Card (soon)
                       </span>
                     </button>
-                    {/* Gift cards have no backend yet (no balance lookup or
-                        deduction), so redemption is disabled to prevent free
-                        checkouts. Labeled "(soon)". */}
+                    {/* Gift card redemption: balance is looked up + decremented
+                        server-side (recordCheckout). BETA: the card must cover
+                        the full total — no partial/split redemption. */}
                     <button
                       type="button"
-                      disabled
-                      title="Gift cards are coming soon"
-                      className="flex flex-col items-center gap-2 rounded-lg border-2 border-border p-4 opacity-40 cursor-not-allowed"
+                      className={cn(
+                        "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:border-sal-300",
+                        paymentMethod === "gift_card"
+                          ? "border-sal-500 bg-sal-50"
+                          : "border-border"
+                      )}
+                      onClick={() => onSetPaymentMethod("gift_card")}
                     >
-                      <Gift className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Gift card (soon)
+                      <Gift
+                        className={cn(
+                          "h-6 w-6",
+                          paymentMethod === "gift_card"
+                            ? "text-sal-600"
+                            : "text-muted-foreground"
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "text-xs font-medium",
+                          paymentMethod === "gift_card"
+                            ? "text-sal-700"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        Gift card
                       </span>
                     </button>
                   </div>
@@ -359,25 +433,72 @@ export function PaymentDialog({
                         <Input
                           placeholder="Enter gift card code..."
                           value={giftCardCode}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setGiftCardCode(e.target.value.toUpperCase())
-                          }
+                            // Any edit invalidates a prior check.
+                            setGiftCardCheck({ checked: false })
+                          }}
                           className="font-mono tracking-wider"
                           autoFocus
                         />
                         <Button
                           variant="outline"
-                          disabled={giftCardCode.length < 4}
-                          onClick={() => {
-                            toast.info(
-                              "Gift card validation is not yet configured"
-                            )
-                          }}
+                          disabled={giftCardCode.trim().length < 4 || isCheckingGiftCard}
+                          onClick={handleCheckGiftCard}
                         >
-                          Apply
+                          {isCheckingGiftCard ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Check balance"
+                          )}
                         </Button>
                       </div>
                     </div>
+
+                    {/* Invalid / not-found / expired */}
+                    {giftCardCheck.checked && !giftCardCheck.valid && (
+                      <div className="flex items-start gap-2 rounded-lg bg-red-500/10 p-3 text-sm dark:text-red-300">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                        <span>{giftCardCheck.error}</span>
+                      </div>
+                    )}
+
+                    {/* Valid card — show balance + expiry, and whether it covers
+                        the full total. BETA: no partial redemption. */}
+                    {giftCardCheck.checked && giftCardCheck.valid && (
+                      <div
+                        className={cn(
+                          "rounded-lg p-3 text-sm",
+                          giftCardCoversTotal
+                            ? "bg-sal-500/10 dark:text-sal-300"
+                            : "bg-amber-500/10 dark:text-amber-300"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Balance</span>
+                          <span className="font-semibold">
+                            {formatCurrency(giftCardCheck.balance)}
+                          </span>
+                        </div>
+                        {giftCardCheck.expiresAt && (
+                          <div className="mt-1 flex items-center justify-between">
+                            <span className="text-muted-foreground">Expires</span>
+                            <span>
+                              {new Date(giftCardCheck.expiresAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                        {!giftCardCoversTotal && (
+                          <p className="mt-2 flex items-start gap-2 font-medium">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                            <span>
+                              This card can&apos;t cover the full {formatCurrency(total)} total
+                              (no partial payments yet). Please use cash instead.
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -389,7 +510,8 @@ export function PaymentDialog({
                     (paymentMethod === "cash" &&
                       (!tenderedAmount ||
                         parseFloat(tenderedAmount) < total)) ||
-                    (paymentMethod === "gift_card" && giftCardCode.length < 4)
+                    // Gift card must be verified AND cover the full total (beta).
+                    (paymentMethod === "gift_card" && !giftCardCoversTotal)
                   }
                   onClick={handleProcessPayment}
                 >

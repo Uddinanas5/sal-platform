@@ -35,3 +35,22 @@ export async function lockClient(
   const key2 = hash.readInt32BE(4)
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(${key1}::int4, ${key2}::int4)`
 }
+
+/**
+ * Transaction-scoped advisory lock keyed on (businessId, giftCardCode).
+ * Serializes concurrent checkouts that redeem the SAME gift card so the
+ * balance read → verify → decrement pair cannot race and over-redeem (which
+ * would drive currentBalance negative / double-spend a card). The "giftcard:"
+ * prefix keeps this keyspace distinct from the staff/client locks.
+ * Released automatically on commit or rollback.
+ */
+export async function lockGiftCard(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  code: string,
+): Promise<void> {
+  const hash = createHash("sha256").update(`giftcard:${businessId}:${code}`).digest()
+  const key1 = hash.readInt32BE(0)
+  const key2 = hash.readInt32BE(4)
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${key1}::int4, ${key2}::int4)`
+}

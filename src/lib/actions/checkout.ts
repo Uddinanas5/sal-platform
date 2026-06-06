@@ -7,6 +7,7 @@ import { getBusinessContext } from "@/lib/auth-utils"
 import { sendEmail } from "@/lib/email"
 import { receiptEmail } from "@/lib/email-templates"
 import { recordCheckout, RecordCheckoutError } from "@/lib/checkout/record-checkout"
+import { GiftCardError } from "@/lib/checkout/gift-card-redeem"
 import {
   CommissionPeriodClosedError,
   NoPayrollPeriodError,
@@ -14,30 +15,51 @@ import {
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
-const processPaymentSchema = z.object({
-  clientId: z.string().uuid().optional(),
-  appointmentId: z.string().uuid().optional(),
-  items: z.array(
-    z.object({
-      type: z.enum(["service", "product"]),
-      id: z.string().uuid(),
-      quantity: z.number().int().positive(),
-    })
-  ).min(1, "At least one item is required"),
-  discount: z.number().nonnegative().default(0),
-  tax: z.number().nonnegative().default(0),
-  tip: z.number().nonnegative().default(0),
-  // Beta records cash/other manual payments and Stripe-driven "online" only.
-  // "card" and "gift_card" are rejected server-side: their UI is disabled and
-  // there is no real charge/redemption behind them, so accepting them would
-  // record a "paid" sale that was never collected (defense in depth, not just
-  // the client-side disable).
-  method: z.enum(["cash", "online", "other"]),
-  // Loyalty points the client elects to spend as a DISCOUNT. The actual dollar
-  // value + cap is computed server-side in recordCheckout; this is only the
-  // requested point count.
-  redeemPoints: z.number().int().nonnegative().optional(),
-})
+// Friendly, user-facing messages for the typed gift-card failures recordCheckout
+// can throw. Shared by every entry point so the wording stays consistent.
+function giftCardErrorMessage(e: GiftCardError): string {
+  switch (e.code) {
+    case "GIFT_CARD_NOT_FOUND":
+      return "That gift card code was not found or is no longer active."
+    case "GIFT_CARD_EXPIRED":
+      return "That gift card has expired."
+    case "GIFT_CARD_INSUFFICIENT":
+      return "That gift card does not have enough balance to cover the full total. Please use cash instead."
+  }
+}
+
+const processPaymentSchema = z
+  .object({
+    clientId: z.string().uuid().optional(),
+    appointmentId: z.string().uuid().optional(),
+    items: z.array(
+      z.object({
+        type: z.enum(["service", "product"]),
+        id: z.string().uuid(),
+        quantity: z.number().int().positive(),
+      })
+    ).min(1, "At least one item is required"),
+    discount: z.number().nonnegative().default(0),
+    tax: z.number().nonnegative().default(0),
+    tip: z.number().nonnegative().default(0),
+    // Beta records cash/other manual payments, Stripe-driven "online", and
+    // gift-card redemption. "card" stays rejected server-side: online card
+    // charging via SAL Payments is not enabled until Stripe activation, so
+    // accepting it would record a "paid" sale that was never collected (defense
+    // in depth, not just the client-side disable).
+    method: z.enum(["cash", "online", "other", "gift_card"]),
+    // Loyalty points the client elects to spend as a DISCOUNT. The actual dollar
+    // value + cap is computed server-side in recordCheckout; this is only the
+    // requested point count.
+    redeemPoints: z.number().int().nonnegative().optional(),
+    // Gift-card code, REQUIRED when method === "gift_card" (enforced in the
+    // refine below). Balance is read + decremented server-side in recordCheckout.
+    giftCardCode: z.string().min(1).optional(),
+  })
+  .refine((d) => d.method !== "gift_card" || !!d.giftCardCode, {
+    message: "A gift card code is required to pay by gift card",
+    path: ["giftCardCode"],
+  })
 
 export async function processPayment(data: {
   clientId?: string
@@ -47,9 +69,11 @@ export async function processPayment(data: {
   tax: number
   tip: number
   // Type stays broad so existing callers compile; the zod schema above REJECTS
-  // "card"/"gift_card" at runtime (no real charge behind them in beta).
+  // "card" at runtime (no real charge behind it in beta). "gift_card" is now
+  // accepted, but ONLY with a giftCardCode (enforced by the schema refine).
   method: "cash" | "card" | "online" | "gift_card" | "other"
   redeemPoints?: number
+  giftCardCode?: string
 }): Promise<ActionResult<{
   receiptId: string
   paymentReference: string
@@ -105,6 +129,7 @@ export async function processPayment(data: {
         tip: input.tip,
         method: input.method,
         redeemPoints: input.redeemPoints,
+        giftCardCode: input.giftCardCode,
       }),
     )
 
@@ -133,6 +158,9 @@ export async function processPayment(data: {
     }
     if (e instanceof NoPayrollPeriodError) {
       return { success: false, error: "No payroll period is configured for today." }
+    }
+    if (e instanceof GiftCardError) {
+      return { success: false, error: giftCardErrorMessage(e) }
     }
     if (e instanceof RecordCheckoutError) {
       return { success: false, error: e.message }
