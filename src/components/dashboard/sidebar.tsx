@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
-  LayoutDashboard,
+  Gauge,
   Calendar,
   Users,
   Scissors,
@@ -53,8 +53,10 @@ interface SidebarData {
 
 // Pages hidden during beta because they are not backed by a real, tested
 // implementation yet. Keeping them out of the nav avoids showing salons
-// features that look functional but aren't.
-const BETA_HIDDEN_HREFS = new Set<string>(["/marketing", "/memberships"])
+// features that look functional but aren't. Marketing (real campaign send +
+// automated-message engine) and Memberships (DB-backed plans + gift cards)
+// shipped in the Phase-2 build, so the set is currently empty.
+const BETA_HIDDEN_HREFS = new Set<string>([])
 
 function buildNavSections(data: SidebarData | null, role?: string) {
   // For staff users, add a "My Profile" link pointing to their own staff profile
@@ -66,7 +68,7 @@ function buildNavSections(data: SidebarData | null, role?: string) {
     {
       label: "MAIN",
       items: [
-        { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+        { href: "/dashboard", icon: Gauge, label: "Dashboard" },
         { href: "/calendar", icon: Calendar, label: "Calendar", badge: data?.todayAppointments || undefined },
         { href: "/clients", icon: Users, label: "Clients", badge: data?.clientsCount || undefined },
       ],
@@ -104,10 +106,8 @@ function buildNavSections(data: SidebarData | null, role?: string) {
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
-        // Beta gate: these pages are not wired to a real backend yet
-        // (Marketing campaigns/automation send nothing; Memberships plans and
-        // gift cards are mock/non-functional). Hide them from navigation until
-        // finished — remove the href from BETA_HIDDEN_HREFS to re-enable.
+        // Beta gate: any href in BETA_HIDDEN_HREFS is hidden from navigation
+        // until its backend is real and tested.
         if (BETA_HIDDEN_HREFS.has(item.href)) return false
         const perm = NAV_PERMISSIONS.find((p) => p.href === item.href)
         if (!perm) return true
@@ -169,10 +169,10 @@ function SidebarContent({
       initial={false}
       animate={{ width: isMobile ? 280 : collapsed ? 80 : 280 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
-      className="fixed left-0 top-0 z-40 h-screen bg-cream-50 border-r border-cream-300/60 flex flex-col"
+      className="fixed left-0 top-0 z-40 h-screen bg-white border-r border-cream-200/90 flex flex-col"
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-cream-200">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-cream-200/90">
         <Link
           href="/dashboard"
           className="flex items-center gap-3"
@@ -180,7 +180,7 @@ function SidebarContent({
         >
           <motion.div
             animate={{ rotate: collapsed ? 0 : 0 }}
-            className="w-10 h-10 flex-shrink-0"
+            className="w-9 h-9 flex-shrink-0"
           >
             <svg viewBox="0 0 100 100" className="w-full h-full">
               <defs>
@@ -206,7 +206,7 @@ function SidebarContent({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-2xl font-heading font-bold bg-gradient-to-r from-sal-500 to-sal-700 bg-clip-text text-transparent"
+              className="text-2xl font-heading font-bold text-sal-700"
             >
               SAL
             </motion.span>
@@ -255,23 +255,23 @@ function SidebarContent({
                       whileHover={{ x: isActive ? 0 : 2 }}
                       whileTap={{ scale: 0.98 }}
                       className={cn(
-                        "group/nav flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 relative",
+                        "group/nav flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 relative border",
                         isActive
-                          ? "bg-gradient-to-r from-sal-500 to-sal-600 text-white shadow-glow-sm"
-                          : "text-muted-foreground hover:bg-cream-200/70 hover:text-foreground"
+                          ? "bg-sal-50 text-sal-800 border-sal-200"
+                          : "text-muted-foreground border-transparent hover:bg-cream-100 hover:text-foreground hover:border-cream-200"
                       )}
                     >
                       {/* Active indicator bar */}
                       {isActive && (
                         <motion.div
                           layoutId="sidebar-active-indicator"
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-white rounded-full -ml-1.5"
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-sal-600 rounded-full -ml-1.5"
                           transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         />
                       )}
                       <item.icon className={cn(
                         "w-5 h-5 flex-shrink-0 transition-colors duration-200",
-                        isActive ? "text-white" : "group-hover/nav:text-sal-600"
+                        isActive ? "text-sal-700" : "group-hover/nav:text-sal-600"
                       )} />
                       {(isMobile || !collapsed) && (
                         <>
@@ -287,7 +287,7 @@ function SidebarContent({
                               className={cn(
                                 "text-[10px] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1",
                                 isActive
-                                  ? "bg-white/25 text-white"
+                                  ? "bg-sal-600 text-white"
                                   : "bg-sal-100 text-sal-700"
                               )}
                             >
@@ -328,7 +328,7 @@ function SidebarContent({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden bg-gradient-to-br from-sal-50 to-sal-100 rounded-2xl p-4 border border-sal-200/60 shadow-inset-hi"
+            className="relative overflow-hidden rounded-lg border border-sal-200/70 bg-sal-50 p-4"
           >
             <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-sal-300/30 blur-2xl" />
             <div className="relative flex items-center gap-2 mb-3">
@@ -368,7 +368,7 @@ function SidebarContent({
       {/* User Profile */}
       <div className="p-3">
         <div className={cn(
-          "flex items-center gap-3 p-2 rounded-xl hover:bg-cream-200 cursor-pointer transition-colors",
+          "flex items-center gap-3 p-2 rounded-lg hover:bg-cream-100 cursor-pointer transition-colors",
           !isMobile && collapsed && "justify-center"
         )}>
           <Avatar className="w-9 h-9">

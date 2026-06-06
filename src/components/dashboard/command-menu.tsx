@@ -6,7 +6,7 @@ import {
   Users,
   Scissors,
   UserCircle,
-  LayoutDashboard,
+  Gauge,
   Calendar,
   Settings,
   BarChart3,
@@ -58,7 +58,7 @@ interface SearchData {
 }
 
 const pages = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/dashboard", icon: Gauge },
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Services", href: "/services", icon: Scissors },

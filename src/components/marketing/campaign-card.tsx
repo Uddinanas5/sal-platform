@@ -2,7 +2,7 @@
 
 import React from "react"
 import { motion } from "framer-motion"
-import { Copy, Eye, Pencil, Users } from "lucide-react"
+import { Copy, Eye, Loader2, Pencil, Send, Users } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,6 +33,9 @@ interface CampaignCardProps {
   onView?: (campaign: CampaignItem) => void
   onEdit?: (campaign: CampaignItem) => void
   onDuplicate?: (campaign: CampaignItem) => void
+  /** Real send via the sendCampaign action — only offered for unsent email campaigns. */
+  onSend?: (campaign: CampaignItem) => void
+  sending?: boolean
 }
 
 const typeBadgeColors: Record<string, string> = {
@@ -60,7 +63,7 @@ const statusBadgeColors: Record<string, string> = {
   paused: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
 }
 
-export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate }: CampaignCardProps) {
+export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate, onSend, sending }: CampaignCardProps) {
   const openRate = campaign.recipientCount > 0
     ? Math.round((campaign.openCount / campaign.recipientCount) * 1000) / 10
     : 0
@@ -177,6 +180,23 @@ export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate }: C
               <Copy className="w-3.5 h-3.5" />
               Duplicate
             </Button>
+            {onSend &&
+              campaign.channel === "email" &&
+              (campaign.status === "draft" || campaign.status === "scheduled") && (
+                <Button
+                  size="sm"
+                  className="gap-1.5 ml-auto"
+                  disabled={sending}
+                  onClick={() => onSend(campaign)}
+                >
+                  {sending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5" />
+                  )}
+                  {sending ? "Sending…" : "Send"}
+                </Button>
+              )}
           </div>
         </CardContent>
       </Card>

@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { createCampaign, updateCampaign } from "@/lib/actions/marketing"
+import { createCampaign, sendCampaign, updateCampaign } from "@/lib/actions/marketing"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -64,7 +64,40 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
   const [draftSubject, setDraftSubject] = useState("")
   const [draftBody, setDraftBody] = useState("")
   const [saving, setSaving] = useState(false)
+  const [sendingId, setSendingId] = useState<string | null>(null)
   const totalSent = campaigns.reduce((sum, c) => sum + c.recipientCount, 0)
+
+  // Real send via the sendCampaign action (consent-first audience, batched).
+  // Confirm first — this emails real clients and cannot be unsent.
+  const handleSend = async (campaign: CampaignItem) => {
+    if (sendingId) return
+    const confirmed = window.confirm(
+      `Send "${campaign.name}" to all eligible clients now? This emails real clients and cannot be undone.`
+    )
+    if (!confirmed) return
+    setSendingId(campaign.id)
+    try {
+      const result = await sendCampaign(campaign.id)
+      if (result && "success" in result && result.success === false) {
+        toast.error(result.error || "Failed to send campaign")
+        return
+      }
+      const count =
+        result && "data" in result && result.data && typeof result.data === "object" && "recipientCount" in result.data
+          ? (result.data as { recipientCount: number }).recipientCount
+          : undefined
+      toast.success(
+        count !== undefined
+          ? `"${campaign.name}" sent to ${count} client${count === 1 ? "" : "s"}`
+          : `"${campaign.name}" sent`
+      )
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send campaign")
+    } finally {
+      setSendingId(null)
+    }
+  }
 
   const handleDuplicate = async (campaign: CampaignItem) => {
     try {
@@ -189,6 +222,8 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
               onView={setViewCampaign}
               onEdit={handleEdit}
               onDuplicate={handleDuplicate}
+              onSend={handleSend}
+              sending={sendingId === campaign.id}
             />
           ))}
         </div>

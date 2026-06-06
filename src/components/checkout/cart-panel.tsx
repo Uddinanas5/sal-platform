@@ -368,15 +368,15 @@ export function CartPanel({
                       Cash
                     </span>
                   </button>
-                  {/* Card, Gift Card and Split are NOT live in beta (cash only).
-                      There is no real charge/redemption/multi-tender behind them,
-                      and processPayment rejects "card"/"gift_card" server-side, so
-                      these are disabled + labeled instead of throwing a generic
-                      "Invalid input" toast on click. Cash stays fully functional. */}
+                  {/* Card and Split are NOT live in beta. There is no real
+                      charge/multi-tender behind them and processPayment rejects
+                      "card" server-side, so they stay disabled + labeled. Cash
+                      and Gift Card are fully functional (gift cards redeem
+                      server-side with balance validation in record-checkout). */}
                   <button
                     type="button"
                     disabled
-                    title="Coming soon — cash only during beta"
+                    title="Coming soon — available once card payments are activated"
                     className="flex flex-col items-center gap-1 rounded-lg border-2 border-border p-2.5 opacity-40 cursor-not-allowed"
                   >
                     <CreditCard className="h-5 w-5 text-muted-foreground" />
@@ -386,13 +386,27 @@ export function CartPanel({
                   </button>
                   <button
                     type="button"
-                    disabled
-                    title="Coming soon — cash only during beta"
-                    className="flex flex-col items-center gap-1 rounded-lg border-2 border-border p-2.5 opacity-40 cursor-not-allowed"
+                    onClick={() => onSetPaymentMethod("gift_card")}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all",
+                      paymentMethod === "gift_card"
+                        ? "border-sal-500 bg-sal-50"
+                        : "border-border hover:border-sal-300"
+                    )}
                   >
-                    <Gift className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-[10px] font-medium text-muted-foreground">
-                      Gift Card (soon)
+                    <Gift
+                      className={cn(
+                        "h-5 w-5",
+                        paymentMethod === "gift_card" ? "text-sal-600" : "text-muted-foreground"
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "text-[10px] font-medium",
+                        paymentMethod === "gift_card" ? "text-sal-700" : "text-muted-foreground"
+                      )}
+                    >
+                      Gift Card
                     </span>
                   </button>
                   <button
@@ -408,7 +422,7 @@ export function CartPanel({
                   </button>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  Card, Gift Card and Split are coming soon — cash only during beta.
+                  Card and Split are coming soon — cash and gift cards work today.
                 </p>
 
                 {/* Split-tender UI removed for beta: only cash is collectable,
@@ -417,7 +431,7 @@ export function CartPanel({
 
                 <Button
                   className="w-full h-12 text-base font-semibold"
-                  disabled={paymentMethod !== "cash"}
+                  disabled={paymentMethod !== "cash" && paymentMethod !== "gift_card"}
                   onClick={() => setPaymentDialogOpen(true)}
                 >
                   Charge {formatCurrency(total)}

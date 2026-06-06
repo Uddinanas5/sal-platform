@@ -52,6 +52,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn, getInitials, formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { rescheduleAppointment, cancelAppointment } from "@/lib/actions/appointments"
+import { RequestReviewButton } from "@/components/reviews/request-review-button"
 import { getSeriesInfo, cancelRecurring } from "@/lib/actions/recurring"
 import type { Appointment, Staff, Service, Client } from "@/data/mock-data"
 
@@ -573,6 +574,13 @@ export function AppointmentDetailSheet({
               Checkout
             </Button>
           )}
+
+          {/* Self-gates to completed visits; emails the client a /r/<token> review link */}
+          <RequestReviewButton
+            appointmentId={appointment.id}
+            status={appointment.status}
+            className="w-full justify-start gap-2 h-10"
+          />
 
           {appointment.status !== "cancelled" &&
             appointment.status !== "completed" &&
