@@ -2,10 +2,12 @@
 
 import React, { useState } from "react"
 import { motion } from "framer-motion"
-import { Eye, Clock, Mail, MessageSquare } from "lucide-react"
+import { Eye, Pencil, Clock, Mail, MessageSquare } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
@@ -15,7 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { toggleAutomatedMessage } from "@/lib/actions/marketing"
+import { toggleAutomatedMessage, updateAutomatedMessage } from "@/lib/actions/marketing"
 
 interface MessageItem {
   id: string
@@ -104,11 +106,14 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
   const [messages, setMessages] = useState<MessageItem[]>(initialMessages)
   const [editMessage, setEditMessage] = useState<MessageItem | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [draftSubject, setDraftSubject] = useState("")
+  const [draftBody, setDraftBody] = useState("")
+  const [saving, setSaving] = useState(false)
 
-  // The activate/deactivate toggle below persists via the real
-  // `toggleAutomatedMessage` server action. Editing the template body/subject,
-  // however, has no persistence action wired up, so the dialog is presented as a
-  // read-only preview labeled "Coming soon" instead of silently discarding edits.
+  // The activate/deactivate toggle persists via `toggleAutomatedMessage`. The
+  // edit dialog persists subject/body via `updateAutomatedMessage` for email
+  // messages. SMS rows are toggle-rejected (beta) and open read-only.
+  const editable = editMessage?.channel === "email"
 
   const handleToggle = async (messageId: string, checked: boolean) => {
     const msg = messages.find((m) => m.id === messageId)
@@ -143,7 +148,46 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
 
   const handleEdit = (message: MessageItem) => {
     setEditMessage(message)
+    setDraftSubject(message.subject)
+    setDraftBody(message.body)
     setEditOpen(true)
+  }
+
+  const handleSave = async () => {
+    if (!editMessage) return
+    if (editMessage.channel !== "email") {
+      toast.error("SMS automation is disabled for beta")
+      return
+    }
+    if (draftBody.trim().length === 0) {
+      toast.error("Message content cannot be empty")
+      return
+    }
+    setSaving(true)
+    try {
+      const result = await updateAutomatedMessage(editMessage.id, {
+        subject: draftSubject.trim() || undefined,
+        body: draftBody.trim(),
+      })
+      if (result?.success === false) {
+        toast.error(result.error || "Failed to save template")
+        return
+      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === editMessage.id
+            ? { ...m, subject: draftSubject.trim(), body: draftBody.trim() }
+            : m
+        )
+      )
+      toast.success(`"${editMessage.name}" template saved`)
+      setEditOpen(false)
+      setEditMessage(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save template")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -205,8 +249,17 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
                       onClick={() => handleEdit(message)}
                       className="gap-1.5"
                     >
-                      <Eye className="w-3.5 h-3.5" />
-                      Preview
+                      {message.channel === "email" ? (
+                        <>
+                          <Pencil className="w-3.5 h-3.5" />
+                          Edit
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3.5 h-3.5" />
+                          Preview
+                        </>
+                      )}
                     </Button>
                     <Switch
                       checked={message.isActive}
@@ -234,14 +287,17 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-heading flex items-center gap-2">
-              Message Template
-              <Badge variant="secondary" className="text-xs">
-                Preview
-              </Badge>
+              {editable ? "Edit Template" : "Message Template"}
+              {!editable && (
+                <Badge variant="secondary" className="text-xs">
+                  Preview
+                </Badge>
+              )}
             </DialogTitle>
             <DialogDescription>
               {editMessage
-                ? triggerDescriptions[editMessage.trigger] || "Preview the message template."
+                ? triggerDescriptions[editMessage.trigger] ||
+                  (editable ? "Edit the subject and message content." : "Preview the message template.")
                 : "Preview the message template."}
             </DialogDescription>
           </DialogHeader>
@@ -288,35 +344,73 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
                 </div>
               </div>
 
-              {/* Subject (email only) */}
-              {editMessage.channel === "email" && editMessage.subject && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Subject Line
-                  </label>
-                  <div className="flex items-center min-h-10 px-3 py-2 rounded-lg border border-input bg-cream-50 text-sm text-muted-foreground">
-                    {editMessage.subject}
+              {editable ? (
+                <>
+                  {/* Subject (editable, email only) */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                      Subject Line
+                    </label>
+                    <Input
+                      value={draftSubject}
+                      onChange={(e) => setDraftSubject(e.target.value)}
+                      placeholder="e.g., Happy Birthday from {businessName}!"
+                    />
                   </div>
-                </div>
+
+                  {/* Content (editable) */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                      Message Content
+                    </label>
+                    <Textarea
+                      value={draftBody}
+                      onChange={(e) => setDraftBody(e.target.value)}
+                      rows={6}
+                      placeholder="Write your message..."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Merge fields like{" "}
+                      <span className="px-1 py-0.5 rounded bg-sal-100 text-sal-700 text-xs font-mono">{"{firstName}"}</span>{" "}
+                      and{" "}
+                      <span className="px-1 py-0.5 rounded bg-sal-100 text-sal-700 text-xs font-mono">{"{businessName}"}</span>{" "}
+                      are replaced for each client.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Subject (read-only preview) */}
+                  {editMessage.subject && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">
+                        Subject Line
+                      </label>
+                      <div className="flex items-center min-h-10 px-3 py-2 rounded-lg border border-input bg-cream-50 text-sm text-muted-foreground">
+                        {editMessage.subject}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Content (read-only preview) */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                      Message Content
+                    </label>
+                    <div className="rounded-lg bg-cream-100 p-3 text-sm leading-relaxed">
+                      {highlightMergeFields(editMessage.body)}
+                    </div>
+                  </div>
+
+                  {/* SMS-disabled notice */}
+                  <div className="rounded-lg border border-cream-200 bg-cream-50 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      SMS automation is disabled for beta, so this template is
+                      read-only. Email templates can be edited.
+                    </p>
+                  </div>
+                </>
               )}
-
-              {/* Content (read-only preview) */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Message Content
-                </label>
-                <div className="rounded-lg bg-cream-100 p-3 text-sm leading-relaxed">
-                  {highlightMergeFields(editMessage.body)}
-                </div>
-              </div>
-
-              {/* Coming soon notice */}
-              <div className="rounded-lg border border-cream-200 bg-cream-50 p-3">
-                <p className="text-xs text-muted-foreground">
-                  Editing automated-message templates is coming soon. For now you
-                  can activate or deactivate each message from the list.
-                </p>
-              </div>
             </div>
           )}
 
@@ -328,8 +422,13 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
                 setEditMessage(null)
               }}
             >
-              Close
+              {editable ? "Cancel" : "Close"}
             </Button>
+            {editable && (
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : "Save Template"}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

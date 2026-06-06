@@ -593,6 +593,59 @@ export function appointmentRescheduledEmail({
   return baseLayout(content)
 }
 
+// ----------------------------------------------------------------------------
+// Marketing email wrapper (campaigns + automated messages).
+//
+// Campaign/automated-message bodies are free text authored by the salon in the
+// editor. We wrap them in the shared SAL layout and escape the author's text so
+// a stray "<" can't break the markup or inject HTML. The optional `businessName`
+// renders a small "Sent by <business>" attribution line so the recipient knows
+// who the message is from (these go to consenting marketing contacts, not
+// transactional recipients). Append-only: this does not alter existing helpers.
+// ----------------------------------------------------------------------------
+export function marketingEmail({
+  subject,
+  body,
+  businessName,
+}: {
+  subject?: string
+  body: string
+  businessName?: string
+}): string {
+  const paragraphs = body
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map(
+      (paragraph) =>
+        `<p style="margin: 0 0 16px; font-size: 15px; color: #6b6560; line-height: 1.6;">${paragraph
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;")
+          .replace(/\n/g, "<br>")}</p>`
+    )
+    .join("")
+
+  const heading = subject?.trim()
+    ? `<h1 style="margin: 0 0 16px; font-size: 24px; font-weight: 700; color: #1a1a1a;">${subject
+        .trim()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")}</h1>`
+    : ""
+
+  const attribution = businessName
+    ? `<p style="margin: 24px 0 0; font-size: 13px; color: #9a9590; line-height: 1.5;">Sent by <strong>${businessName
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")}</strong>.</p>`
+    : ""
+
+  return baseLayout(`${heading}${paragraphs}${attribution}`)
+}
+
 export function lifecycleEmail({
   title,
   body,

@@ -235,6 +235,19 @@ describe("cron/dispatch route — fails closed on CRON_SECRET", () => {
     vi.doMock("@/lib/automation/reminders", () => ({
       runDueReminders: runDueRemindersSpy,
     }))
+    // The route now also runs the automated-message engine on the same tick;
+    // stub it so this auth-focused test doesn't reach the real (DB-backed) impl.
+    vi.doMock("@/lib/automation/automated-messages", () => ({
+      runDueAutomatedMessages: vi.fn(async () => ({
+        messagesEvaluated: 0,
+        skippedCoveredElsewhere: 0,
+        skippedNonEmail: 0,
+        candidatesScanned: 0,
+        emailsSent: 0,
+        skippedAlreadySent: 0,
+        skippedNoEmailOrConsent: 0,
+      })),
+    }))
     return import("@/app/api/cron/dispatch/route")
   }
 
