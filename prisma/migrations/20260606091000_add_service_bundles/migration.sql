@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS "service_bundles_business_id_idx" ON "service_bundles
 
 -- AddForeignKey (guarded: ADD CONSTRAINT has no IF NOT EXISTS)
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'service_bundles_business_id_fkey') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'service_bundles_business_id_fkey' AND connamespace = (SELECT oid FROM pg_namespace WHERE nspname = current_schema())) THEN
     ALTER TABLE "service_bundles" ADD CONSTRAINT "service_bundles_business_id_fkey" FOREIGN KEY ("business_id") REFERENCES "businesses"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
   END IF;
 END $$;
