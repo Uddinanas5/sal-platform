@@ -411,7 +411,10 @@ export interface AppointmentService {
 
 export interface AppointmentProduct {
   id: string;
-  appointmentId: string;
+  // Nullable: walk-in / POS product sales are recorded without an appointment
+  // (see record-checkout.ts), linked to the Payment via paymentId instead.
+  appointmentId?: string | null;
+  paymentId?: string | null;
   productId: string;
   staffId?: string;
   name: string;

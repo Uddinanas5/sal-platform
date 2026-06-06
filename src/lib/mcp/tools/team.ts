@@ -48,18 +48,22 @@ export function registerTeamTools(server: McpServer, ctx: ApiContext) {
 
   server.tool(
     "update-team-member-role",
-    "Update a team member's role (owner only). Roles: staff, admin, owner",
+    "Update a team member's role (owner only). Roles: staff, admin",
     {
       targetUserId: z.string().uuid().describe("User ID of the team member"),
-      newRole: z.enum(["staff", "admin", "owner"]).describe("New role to assign"),
+      // Mirror the REST team route: owner is NOT assignable via the API surface.
+      newRole: z.enum(["staff", "admin"]).describe("New role to assign"),
     },
     async ({ targetUserId, newRole }) => {
       if (!isOwner(ctx)) return err("Insufficient permissions: owner only")
       if (targetUserId === ctx.userId) return err("Cannot change your own role")
       const targetStaff = await prisma.staff.findFirst({
         where: { userId: targetUserId, primaryLocation: { businessId: ctx.businessId }, isActive: true },
+        include: { user: { select: { role: true } } },
       })
       if (!targetStaff) return err("Team member not found")
+      // Same guard as the REST route: cannot change another owner's role.
+      if (targetStaff.user.role === "owner") return err("Cannot change another owner's role")
       await prisma.user.update({ where: { id: targetUserId }, data: { role: newRole } })
       return ok({ userId: targetUserId, newRole })
     }

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Plus, Tag, Copy } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -76,6 +77,7 @@ interface DealsTabProps {
 }
 
 export function DealsTab({ deals: initialDeals }: DealsTabProps) {
+  const router = useRouter()
   const [deals, setDeals] = useState<DealItem[]>(initialDeals)
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -103,7 +105,11 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
   const handleCreateDeal = async () => {
     if (!newName.trim() || !newDescription.trim()) return
     try {
-      await createDeal({
+      // createDeal returns { success:false, error } on a validation failure and
+      // the raw Prisma deal (no `success` key) on success — so a {success:false}
+      // result means NOTHING was persisted. Never claim success for a no-op, and
+      // never fabricate a phantom local deal that disappears on the next refresh.
+      const result = await createDeal({
         name: newName.trim(),
         description: newDescription.trim(),
         discountType: newType === "fixed" ? "fixed" as "percentage" | "fixed" | "free_service" : newType,
@@ -113,30 +119,17 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
         validUntil: newEndDate ? new Date(newEndDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         usageLimit: newUsageLimit ? parseInt(newUsageLimit) : undefined,
       })
-      toast.success("Deal created successfully")
-    } catch {
-      // Optimistic: add locally if server action fails
-      const newDeal: DealItem = {
-        id: `d-${Date.now()}`,
-        name: newName.trim(),
-        description: newDescription.trim(),
-        discountType: newType,
-        discountValue: parseFloat(newValue) || 0,
-        code: newCode.trim(),
-        status: "active",
-        appliesTo: "all",
-        serviceIds: [],
-        usageLimit: newUsageLimit ? parseInt(newUsageLimit) : null,
-        usageCount: 0,
-        validFrom: newStartDate ? new Date(newStartDate) : new Date(),
-        validUntil: newEndDate ? new Date(newEndDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(),
+      if (result && "success" in result && result.success === false) {
+        toast.error((result as { error?: string }).error || "Failed to create deal")
+        return
       }
-      setDeals((prev) => [newDeal, ...prev])
       toast.success("Deal created successfully")
+      resetForm()
+      setCreateOpen(false)
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create deal")
     }
-    resetForm()
-    setCreateOpen(false)
   }
 
   const handleToggle = async (dealId: string, checked: boolean) => {
