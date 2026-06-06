@@ -24,36 +24,41 @@ import { AppointmentStatus } from "@/generated/prisma"
 // this is comfortably more than any single salon will accrue between runs.
 export const REMINDER_BATCH_CAP = 200
 
-// We fire two reminders per appointment lifecycle: a day-ahead nudge (~24h out)
-// and a same-day nudge (~2h out). Because the cron runs every ~15 min we widen
-// each target into a window so an appointment can't slip between ticks.
+// The reminder window depends on the cron CADENCE (REMINDER_CADENCE env):
 //
-// 24h window: appointments starting between 23h45m and 24h15m from now.
-//  2h window: appointments starting between  1h45m and  2h15m from now.
-// The windows are disjoint, and the reminderSentAt stamp guarantees a given
-// appointment is reminded at most once regardless of which window catches it.
+// • "daily" (DEFAULT — Vercel Hobby allows only a once-per-day cron): a single
+//   day-ahead window covering every live appointment starting within the next
+//   ~26h that hasn't been reminded yet. The reminderSentAt stamp guarantees each
+//   appointment is reminded exactly once (~a day before), so a once-daily run
+//   reliably delivers the day-before nudge without a tight ±15m window it would
+//   otherwise miss between daily ticks. (Same-day <26h bookings made after a run
+//   are caught by the next day's run if still >0h out.)
+//
+// • "frequent" (Vercel Pro — set REMINDER_CADENCE=frequent and the */15 cron):
+//   the original two tight windows — a 24h±15m day-ahead nudge AND a 2h±15m
+//   same-day nudge — for minute-grained delivery.
 const HOUR_MS = 60 * 60 * 1000
 const MIN_MS = 60 * 1000
 
 export type ReminderWindow = {
-  label: "24h" | "2h"
+  label: "24h" | "2h" | "day-ahead"
   start: Date
   end: Date
 }
 
 export function buildReminderWindows(now: Date = new Date()): ReminderWindow[] {
   const t = now.getTime()
+  if (process.env.REMINDER_CADENCE === "frequent") {
+    return [
+      { label: "24h", start: new Date(t + 24 * HOUR_MS - 15 * MIN_MS), end: new Date(t + 24 * HOUR_MS + 15 * MIN_MS) },
+      { label: "2h", start: new Date(t + 2 * HOUR_MS - 15 * MIN_MS), end: new Date(t + 2 * HOUR_MS + 15 * MIN_MS) },
+    ]
+  }
+  // Daily default: one wide day-ahead window. Lower bound is +15m so we never
+  // remind an appointment already in progress / seconds away; upper bound +26h
+  // covers the full next day plus slack so nothing falls between daily ticks.
   return [
-    {
-      label: "24h",
-      start: new Date(t + 24 * HOUR_MS - 15 * MIN_MS),
-      end: new Date(t + 24 * HOUR_MS + 15 * MIN_MS),
-    },
-    {
-      label: "2h",
-      start: new Date(t + 2 * HOUR_MS - 15 * MIN_MS),
-      end: new Date(t + 2 * HOUR_MS + 15 * MIN_MS),
-    },
+    { label: "day-ahead", start: new Date(t + 15 * MIN_MS), end: new Date(t + 26 * HOUR_MS) },
   ]
 }
 

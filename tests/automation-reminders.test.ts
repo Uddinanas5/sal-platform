@@ -65,15 +65,25 @@ beforeEach(() => {
 })
 
 describe("buildReminderWindows", () => {
-  it("produces a 24h and a 2h window straddling the target times", () => {
+  afterEach(() => { delete process.env.REMINDER_CADENCE })
+
+  it("default (daily cron): one wide day-ahead window [+15m, +26h]", () => {
+    const now = new Date("2026-06-04T12:00:00.000Z")
+    const w = buildReminderWindows(now)
+    expect(w).toHaveLength(1)
+    expect(w[0].label).toBe("day-ahead")
+    expect(w[0].start.toISOString()).toBe("2026-06-04T12:15:00.000Z") // +15m
+    expect(w[0].end.toISOString()).toBe("2026-06-05T14:00:00.000Z")   // +26h
+  })
+
+  it("frequent cadence (Vercel Pro): tight 24h and 2h windows straddling the targets", () => {
+    process.env.REMINDER_CADENCE = "frequent"
     const now = new Date("2026-06-04T12:00:00.000Z")
     const [w24, w2] = buildReminderWindows(now)
     expect(w24.label).toBe("24h")
     expect(w2.label).toBe("2h")
-    // 24h window centered on now+24h (+/- 15 min).
     expect(w24.start.toISOString()).toBe("2026-06-05T11:45:00.000Z")
     expect(w24.end.toISOString()).toBe("2026-06-05T12:15:00.000Z")
-    // 2h window centered on now+2h (+/- 15 min).
     expect(w2.start.toISOString()).toBe("2026-06-04T13:45:00.000Z")
     expect(w2.end.toISOString()).toBe("2026-06-04T14:15:00.000Z")
   })
@@ -91,11 +101,10 @@ describe("findDueReminders — query selectivity", () => {
     expect(arg.where.reminderSentAt).toBeNull()
     // (2) Only live/remindable statuses — never cancelled/no_show/completed.
     expect(arg.where.status).toEqual({ in: ["pending", "confirmed"] })
-    // (3) Time windows ORed together, each a startTime range.
-    expect(arg.where.OR).toEqual([
-      { startTime: { gte: windows[0].start, lte: windows[0].end } },
-      { startTime: { gte: windows[1].start, lte: windows[1].end } },
-    ])
+    // (3) One OR clause per window (default daily cadence = a single day-ahead window).
+    expect(arg.where.OR).toEqual(
+      windows.map((w) => ({ startTime: { gte: w.start, lte: w.end } }))
+    )
     // Bounded per run.
     expect(arg.take).toBe(REMINDER_BATCH_CAP)
     // Selects businessId so each row is tenant-self-describing.
