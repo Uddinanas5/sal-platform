@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/lib/utils"
+// Toast removed — actions now use callbacks
 
 interface CampaignItem {
   id: string
@@ -29,6 +30,9 @@ interface CampaignItem {
 interface CampaignCardProps {
   campaign: CampaignItem
   index: number
+  onView?: (campaign: CampaignItem) => void
+  onEdit?: (campaign: CampaignItem) => void
+  onDuplicate?: (campaign: CampaignItem) => void
 }
 
 const typeBadgeColors: Record<string, string> = {
@@ -56,7 +60,7 @@ const statusBadgeColors: Record<string, string> = {
   paused: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
 }
 
-export function CampaignCard({ campaign, index }: CampaignCardProps) {
+export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate }: CampaignCardProps) {
   const openRate = campaign.recipientCount > 0
     ? Math.round((campaign.openCount / campaign.recipientCount) * 1000) / 10
     : 0
@@ -144,16 +148,13 @@ export function CampaignCard({ campaign, index }: CampaignCardProps) {
           {/* Date */}
           <p className="text-xs text-muted-foreground/70 mb-3">{dateDisplay}</p>
 
-          {/* Actions — campaign detail/edit/duplicate are not wired up yet, so
-              they are disabled and labeled "Coming soon" rather than firing
-              toasts that imply something happened. */}
+          {/* Actions */}
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               className="gap-1.5"
-              disabled
-              title="Campaign details are coming soon"
+              onClick={() => onView?.(campaign)}
             >
               <Eye className="w-3.5 h-3.5" />
               View
@@ -162,8 +163,7 @@ export function CampaignCard({ campaign, index }: CampaignCardProps) {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              disabled
-              title="Editing campaigns is coming soon"
+              onClick={() => onEdit?.(campaign)}
             >
               <Pencil className="w-3.5 h-3.5" />
               Edit
@@ -172,8 +172,7 @@ export function CampaignCard({ campaign, index }: CampaignCardProps) {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              disabled
-              title="Duplicating campaigns is coming soon"
+              onClick={() => onDuplicate?.(campaign)}
             >
               <Copy className="w-3.5 h-3.5" />
               Duplicate

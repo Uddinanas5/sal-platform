@@ -61,6 +61,12 @@ export async function POST(req: Request) {
   const parsed = createProductSchema.safeParse(body)
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
 
+  const category = await prisma.productCategory.findFirst({
+    where: { id: parsed.data.categoryId, businessId: ctx.businessId, isActive: true },
+    select: { id: true },
+  })
+  if (!category) return ERRORS.BAD_REQUEST("Product category does not belong to this business")
+
   const location = await prisma.location.findFirst({ where: { businessId: ctx.businessId } })
   if (!location) return ERRORS.BAD_REQUEST("Business not configured")
 

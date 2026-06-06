@@ -14,9 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn, formatCurrency, getStatusColor } from "@/lib/utils"
-import {
-  mockMembershipPlans,
-} from "@/data/mock-memberships"
+// Plan data now comes from props, not mock data
 import { EmptyState } from "@/components/shared/empty-state"
 import { PlanCard } from "./plan-card"
 import { CreatePlanDialog } from "./create-plan-dialog"
@@ -30,6 +28,18 @@ import {
 } from "@tanstack/react-table"
 import type { Member } from "@/data/mock-memberships"
 
+interface PlanData {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  billingCycle: string
+  benefits: string[]
+  activeMembers: number
+  isActive: boolean
+  discountPercent?: number | null
+}
+
 interface MembershipsTabProps {
   members?: Member[]
   stats?: {
@@ -37,21 +47,24 @@ interface MembershipsTabProps {
     activeMembers: number
     mrr: number
   }
+  plans?: PlanData[]
 }
 
 const columnHelper = createColumnHelper<Member>()
 
-export function MembershipsTab({ members = [], stats = { totalMembers: 0, activeMembers: 0, mrr: 0 } }: MembershipsTabProps) {
+export function MembershipsTab({ members = [], stats = { totalMembers: 0, activeMembers: 0, mrr: 0 }, plans = [] }: MembershipsTabProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 
+  const planColors = ["#059669", "#8b5cf6", "#f97316", "#ec4899", "#06b6d4", "#14b8a6"]
   const planColorMap = useMemo(() => {
     const map: Record<string, string> = {}
-    mockMembershipPlans.forEach((p) => {
-      map[p.name] = p.color
+    plans.forEach((p, i) => {
+      map[p.name] = planColors[i % planColors.length]
     })
     return map
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plans])
 
   const columns = useMemo(
     () => [
@@ -205,9 +218,32 @@ export function MembershipsTab({ members = [], stats = { totalMembers: 0, active
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {mockMembershipPlans.map((plan, i) => (
-          <PlanCard key={plan.id} plan={plan} index={i} />
-        ))}
+        {plans.length > 0 ? (
+          plans.map((plan, i) => (
+            <PlanCard
+              key={plan.id}
+              plan={{
+                id: plan.id,
+                name: plan.name,
+                description: plan.description || "",
+                price: plan.price,
+                interval: plan.billingCycle === "yearly" ? "yearly" : "monthly",
+                features: plan.benefits.length > 0 ? plan.benefits : [`${plan.billingCycle} membership`],
+                discount: plan.discountPercent ?? 0,
+                maxServices: null,
+                isActive: plan.isActive,
+                memberCount: plan.activeMembers,
+                color: planColors[i % planColors.length],
+              }}
+              index={i}
+            />
+          ))
+        ) : (
+          <div className="col-span-full text-center py-8 text-muted-foreground">
+            <p>No membership plans yet.</p>
+            <p className="text-sm mt-1">Create your first plan to start offering memberships.</p>
+          </div>
+        )}
       </div>
 
       {/* Members DataTable */}

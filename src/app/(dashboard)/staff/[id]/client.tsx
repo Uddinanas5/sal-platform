@@ -28,7 +28,7 @@ import { StaffScheduleTab } from "@/components/staff/staff-schedule-tab"
 import { StaffCommissionTab } from "@/components/staff/staff-commission-tab"
 import { StaffTimeOffTab } from "@/components/staff/staff-timeoff-tab"
 import { StaffServicesTab } from "@/components/staff/staff-services-tab"
-import { toast } from "sonner"
+import { EditStaffDialog } from "@/components/staff/edit-staff-dialog"
 
 const roleConfig = {
   admin: {
@@ -72,6 +72,7 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
   const { staff, services, appointments, staffPerformance, assignedServiceIds, closedDays = [] } = props
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("performance")
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
 
   const roleInfo = roleConfig[staff.role as keyof typeof roleConfig] ?? roleConfig.staff
   const RoleIcon = roleInfo.icon
@@ -150,13 +151,13 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
                       </Badge>
                     </div>
 
-                    <div className="flex items-center gap-4 mt-2">
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Mail className="w-4 h-4" />
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground whitespace-nowrap">
+                        <Mail className="w-4 h-4 flex-shrink-0" />
                         <span>{staff.email}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Phone className="w-4 h-4" />
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground whitespace-nowrap">
+                        <Phone className="w-4 h-4 flex-shrink-0" />
                         <span>{staff.phone}</span>
                       </div>
                     </div>
@@ -178,9 +179,7 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        toast.info("Edit form coming soon")
-                      }
+                      onClick={() => setEditDialogOpen(true)}
                     >
                       <Edit className="w-4 h-4 mr-1" />
                       Edit
@@ -274,6 +273,19 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      <EditStaffDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        staff={{
+          id: staff.id,
+          firstName: staff.name.split(" ")[0] || "",
+          lastName: staff.name.split(" ").slice(1).join(" ") || "",
+          phone: staff.phone,
+          commissionRate: staff.commission ?? 0,
+          color: staff.color,
+        }}
+      />
     </div>
   )
 }

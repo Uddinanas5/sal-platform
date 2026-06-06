@@ -29,6 +29,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     where: { id, primaryLocation: { businessId: ctx.businessId } },
   })
   if (!staff) return ERRORS.NOT_FOUND("Staff member")
+  if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) {
+    return ERRORS.FORBIDDEN()
+  }
 
   const timeOff = await prisma.staffTimeOff.create({
     data: {

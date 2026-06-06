@@ -2,13 +2,13 @@
 
 import React from "react"
 import { motion } from "framer-motion"
-import { Minus, Plus, X, Scissors, ShoppingBag } from "lucide-react"
+import { Minus, Plus, X, Scissors, ShoppingBag, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn, formatCurrency } from "@/lib/utils"
 
 interface CartItemRowProps {
   id: string
-  type: "service" | "product"
+  type: "service" | "product" | "custom"
   name: string
   price: number
   quantity: number
@@ -41,13 +41,17 @@ export function CartItemRow({
           "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
           type === "service"
             ? "bg-sal-50 text-sal-600"
-            : "bg-amber-500/10 text-amber-600"
+            : type === "product"
+              ? "bg-amber-500/10 text-amber-600"
+              : "bg-sky-500/10 text-sky-600"
         )}
       >
         {type === "service" ? (
           <Scissors className="h-4 w-4" />
-        ) : (
+        ) : type === "product" ? (
           <ShoppingBag className="h-4 w-4" />
+        ) : (
+          <Tag className="h-4 w-4" />
         )}
       </div>
 

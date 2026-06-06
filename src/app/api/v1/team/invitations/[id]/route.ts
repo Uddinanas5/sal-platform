@@ -14,6 +14,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (invitation.acceptedAt) return ERRORS.BAD_REQUEST("Invitation already accepted")
   if (invitation.revokedAt) return ERRORS.BAD_REQUEST("Invitation already revoked")
 
-  await prisma.staffInvitation.update({ where: { id }, data: { revokedAt: new Date() } })
+  await prisma.staffInvitation.update({ where: { id, businessId: ctx.businessId }, data: { revokedAt: new Date() } })
   return apiSuccess({ revoked: true })
 }

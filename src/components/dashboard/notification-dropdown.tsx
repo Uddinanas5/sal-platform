@@ -198,7 +198,11 @@ export function NotificationDropdown() {
           <Button
             variant="ghost"
             className="w-full text-sm text-sal-600 hover:text-sal-700 hover:bg-sal-50"
-            onClick={() => toast.info("Notifications page coming soon")}
+            onClick={() => {
+              // Mark all as read and close
+              setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+              toast.success("All notifications marked as read")
+            }}
           >
             View All Notifications
           </Button>

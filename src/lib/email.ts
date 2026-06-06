@@ -1,4 +1,5 @@
 import { Resend } from "resend"
+import { assertOutsideTransaction } from "@/lib/db/transaction-side-effects"
 
 const apiKey = process.env.RESEND_API_KEY
 if (!apiKey) {
@@ -23,6 +24,8 @@ export async function sendEmail({
   html: string
   replyTo?: string
 }) {
+  assertOutsideTransaction("sendEmail")
+
   if (!resend) {
     console.warn("Email skipped (Resend not configured):", subject)
     return { success: false, error: "Email service not configured" }

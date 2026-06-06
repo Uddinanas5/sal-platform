@@ -520,3 +520,69 @@ export async function deleteStaff(id: string): Promise<ActionResult> {
     return { success: false, error: (e as Error).message }
   }
 }
+
+const updateStaffProfileSchema = z.object({
+  staffId: z.string().uuid(),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  phone: z.string().optional(),
+  commissionRate: z.number().min(0).max(100).optional(),
+  color: z.string().optional(),
+})
+
+export async function updateStaffProfile(data: {
+  staffId: string
+  firstName?: string
+  lastName?: string
+  phone?: string
+  commissionRate?: number
+  color?: string
+}): Promise<ActionResult> {
+  try {
+    updateStaffProfileSchema.parse(data)
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
+
+  try {
+    await requireMinRole("admin")
+
+    const staff = await prisma.staff.findUnique({
+      where: { id: data.staffId },
+      select: { userId: true },
+    })
+    if (!staff) return { success: false, error: "Staff member not found" }
+
+    // Update user fields (name, phone)
+    if (data.firstName || data.lastName || data.phone !== undefined) {
+      await prisma.user.update({
+        where: { id: staff.userId },
+        data: {
+          ...(data.firstName && { firstName: data.firstName }),
+          ...(data.lastName && { lastName: data.lastName }),
+          ...(data.phone !== undefined && { phone: data.phone }),
+        },
+      })
+    }
+
+    // Update staff fields (commission, color)
+    if (data.commissionRate !== undefined || data.color) {
+      await prisma.staff.update({
+        where: { id: data.staffId },
+        data: {
+          ...(data.commissionRate !== undefined && { commissionRate: data.commissionRate }),
+          ...(data.color && { color: data.color }),
+        },
+      })
+    }
+
+    revalidatePath("/staff")
+    revalidatePath(`/staff/${data.staffId}`)
+    revalidatePath("/calendar")
+    return { success: true, data: undefined }
+  } catch (e) {
+    console.error("updateStaffProfile error:", e)
+    return { success: false, error: (e as Error).message }
+  }
+}

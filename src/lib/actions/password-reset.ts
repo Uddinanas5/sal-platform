@@ -9,9 +9,12 @@ import { sendEmail } from "@/lib/email"
 import { passwordResetEmail } from "@/lib/email-templates"
 import type { Prisma } from "@/generated/prisma"
 
-const SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET
-)
+function getPasswordResetSecret() {
+  if (!process.env.NEXTAUTH_SECRET) {
+    throw new Error("NEXTAUTH_SECRET is required for password reset")
+  }
+  return new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
+}
 
 const APP_URL = process.env.NEXTAUTH_URL || "http://localhost:3000"
 
@@ -59,7 +62,7 @@ export async function requestPasswordReset(email: string): Promise<ActionResult>
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
       .setExpirationTime("1h")
-      .sign(SECRET)
+      .sign(getPasswordResetSecret())
 
     const resetUrl = `${APP_URL}/reset-password?token=${token}`
 
@@ -92,7 +95,7 @@ export async function resetPassword(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let payload: any
     try {
-      const result = await jwtVerify(parsed.token, SECRET)
+      const result = await jwtVerify(parsed.token, getPasswordResetSecret())
       payload = result.payload
     } catch {
       return { success: false, error: "Invalid or expired reset link. Please request a new one." }

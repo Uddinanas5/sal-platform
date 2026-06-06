@@ -18,7 +18,7 @@ import {
 import { NotificationDropdown } from "@/components/dashboard/notification-dropdown"
 import { CommandMenu } from "@/components/dashboard/command-menu"
 import { useMobileSidebar } from "@/components/dashboard/mobile-sidebar-context"
-import { toast } from "sonner"
+// Toast removed — all stubs wired to real actions
 
 interface HeaderProps {
   title: string
@@ -31,7 +31,7 @@ export function Header({ title, subtitle }: HeaderProps) {
   const { toggleMobileSidebar } = useMobileSidebar()
 
   return (
-    <header className="h-16 bg-card/80 backdrop-blur-sm border-b border-cream-200 px-6 flex items-center justify-between sticky top-0 z-30">
+    <header className="h-16 surface-glass border-b border-cream-200/70 px-6 flex items-center justify-between sticky top-0 z-30">
       {/* Left - Hamburger (mobile) + Title */}
       <div className="flex items-center gap-3">
         {toggleMobileSidebar && (
@@ -92,7 +92,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
           <Input
             placeholder="Search clients, services..."
-            className="w-64 pl-9 bg-cream-100 border-cream-200 focus:bg-white"
+            className="w-64 pl-9 rounded-full bg-cream-100/70 border-cream-200 transition-all focus:bg-white focus:w-72 focus:border-sal-200"
             readOnly
             onClick={() => {
               document.dispatchEvent(
@@ -126,7 +126,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 px-2">
               <Avatar className="w-8 h-8">
-                <AvatarImage src="/avatars/user.jpg" />
+                <AvatarImage src={session?.user?.image || undefined} />
                 <AvatarFallback className="bg-sal-100 text-sal-700 text-sm">
                   {session?.user?.name
                     ? session.user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
@@ -150,7 +150,7 @@ export function Header({ title, subtitle }: HeaderProps) {
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast.info("Help center coming soon")}>
+            <DropdownMenuItem onClick={() => window.open("mailto:hello@salplatform.com?subject=Support Request", "_blank")}>
               <HelpCircle className="mr-2 h-4 w-4" />
               Help & Support
             </DropdownMenuItem>

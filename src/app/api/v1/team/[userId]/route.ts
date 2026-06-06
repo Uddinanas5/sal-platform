@@ -25,7 +25,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ userI
   }
 
   await prisma.staff.update({
-    where: { id: staffProfile.id },
+    where: { id: staffProfile.id, primaryLocation: { businessId: ctx.businessId } },
     data: { isActive: false, deletedAt: new Date() },
   })
 

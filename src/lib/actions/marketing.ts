@@ -52,6 +52,12 @@ const createAutomatedMessageSchema = z.object({
   delayHours: z.number().int().nonnegative().optional(),
 })
 
+const updateAutomatedMessageSchema = z.object({
+  id: z.string().uuid(),
+  subject: z.string().optional(),
+  body: z.string().min(1),
+})
+
 const toggleAutomatedMessageSchema = z.object({
   id: z.string().uuid(),
   isActive: z.boolean(),
@@ -232,6 +238,24 @@ export async function deleteDeal(id: string) {
   }
 }
 
+export async function toggleDeal(id: string, isActive: boolean) {
+  try {
+    const parsed = idSchema.parse({ id })
+
+    const { businessId } = await requireMinRole("admin")
+
+    await prisma.deal.update({
+      where: { id: parsed.id, businessId },
+      data: { status: isActive ? "active_deal" : "paused_deal" },
+    })
+    revalidatePath("/marketing")
+    return { success: true }
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
+}
+
 export async function createAutomatedMessage(data: {
   name: string
   trigger: string
@@ -258,6 +282,33 @@ export async function createAutomatedMessage(data: {
     })
     revalidatePath("/marketing")
     return msg
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    throw e
+  }
+}
+
+export async function updateAutomatedMessage(
+  id: string,
+  data: {
+    subject?: string
+    body: string
+  }
+) {
+  try {
+    const parsed = updateAutomatedMessageSchema.parse({ id, ...data })
+
+    const { businessId } = await requireMinRole("admin")
+
+    const msg = await prisma.automatedMessage.update({
+      where: { id: parsed.id, businessId },
+      data: {
+        subject: parsed.subject,
+        body: parsed.body,
+      },
+    })
+    revalidatePath("/marketing")
+    return { success: true, data: msg }
   } catch (e) {
     if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     throw e

@@ -25,7 +25,8 @@ import { dollarsForPoints } from "@/lib/loyalty"
 
 interface CartItem {
   id: string
-  type: "service" | "product"
+  catalogId: string
+  type: "service" | "product" | "custom"
   name: string
   price: number
   quantity: number

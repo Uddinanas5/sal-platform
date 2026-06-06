@@ -121,15 +121,21 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={(e) => e.preventDefault()}>
-              <DropdownMenuItem onClick={() => toast.info(`Viewing profile for ${staff.name}`)}>
+              <DropdownMenuItem onClick={() => window.location.href = `/staff/${staff.id}`}>
                 <User className="w-4 h-4 mr-2" />
                 View Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info(`Editing schedule for ${staff.name}`)}>
+              <DropdownMenuItem onClick={() => window.location.href = `/staff/${staff.id}`}>
                 <CalendarDays className="w-4 h-4 mr-2" />
                 Edit Schedule
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.success(`Message sent to ${staff.name}`)}>
+              <DropdownMenuItem onClick={() => {
+                if (staff.email) {
+                  window.open(`mailto:${staff.email}`, "_blank")
+                } else {
+                  toast.error("No email address on file")
+                }
+              }}>
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Send Message
               </DropdownMenuItem>

@@ -1,6 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
-import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { canAccessAppointment } from "@/lib/api/appointment-access"
+import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -30,14 +30,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (appointment.groupParticipants.length >= appointment.maxParticipants) {
     return ERRORS.BAD_REQUEST("Group is full")
   }
+  if (appointment.groupParticipants.some((p) => p.clientId === parsed.data.clientId)) {
+    return ERRORS.BAD_REQUEST("Client is already in this group")
+  }
 
-  // Scope the clientId to the caller's business — otherwise a tenant could
-  // attach another business's client (a cross-tenant reference-injection write).
   const client = await prisma.client.findFirst({
-    where: { id: parsed.data.clientId, businessId: ctx.businessId },
-    select: { id: true },
+    where: { id: parsed.data.clientId, businessId: ctx.businessId, deletedAt: null },
   })
-  if (!client) return ERRORS.BAD_REQUEST("Client not found")
+  if (!client) return ERRORS.NOT_FOUND("Client")
 
   const participant = await prisma.groupParticipant.create({
     data: { appointmentId: id, clientId: parsed.data.clientId },

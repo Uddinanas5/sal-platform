@@ -26,7 +26,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state"
 import { formatDate } from "@/lib/utils"
 import { toast } from "sonner"
-import { createDeal } from "@/lib/actions/marketing"
+import { createDeal, toggleDeal } from "@/lib/actions/marketing"
 
 interface DealItem {
   id: string
@@ -139,11 +139,21 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
     setCreateOpen(false)
   }
 
-  const handleToggle = (dealId: string, checked: boolean) => {
+  const handleToggle = async (dealId: string, checked: boolean) => {
+    // Optimistic update
     setDeals((prev) =>
       prev.map((d) => (d.id === dealId ? { ...d, status: checked ? "active" : "inactive" } : d))
     )
-    toast.success(checked ? "Deal activated" : "Deal deactivated")
+    const result = await toggleDeal(dealId, checked)
+    if (result.success) {
+      toast.success(checked ? "Deal activated" : "Deal deactivated")
+    } else {
+      // Revert on failure
+      setDeals((prev) =>
+        prev.map((d) => (d.id === dealId ? { ...d, status: checked ? "inactive" : "active" } : d))
+      )
+      toast.error(result.error || "Failed to toggle deal")
+    }
   }
 
   const handleCopyCode = (code: string) => {

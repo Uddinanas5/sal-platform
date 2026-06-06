@@ -179,3 +179,4 @@ export async function getMembershipStats(businessId?: string) {
     outstandingGiftCardBalance: Math.round(outstandingBalance * 100) / 100,
   }
 }
+

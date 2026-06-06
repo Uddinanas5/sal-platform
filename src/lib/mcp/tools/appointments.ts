@@ -1,7 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { prisma } from "@/lib/prisma"
 import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { generateBookingReference } from "@/lib/booking-reference"
+import { hasRole } from "@/lib/permissions"
 import {
   assertSlotAllowed,
   ERR_OUTSIDE_WORKING_HOURS,
@@ -15,12 +18,6 @@ function ok(data: unknown) {
 
 function err(message: string) {
   return { content: [{ type: "text" as const, text: JSON.stringify({ error: message }) }], isError: true as const }
-}
-
-function genBookingRef(): string {
-  const ts = Date.now().toString(36)
-  const rand = Math.random().toString(36).substring(2, 6)
-  return `SAL-${ts}-${rand}`.toUpperCase()
 }
 
 // Translate the assertSlotAllowed sentinels to a client-safe MCP error message,
@@ -57,11 +54,18 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       }
 
       // Staff filter via services relation
-      if (staffId) {
+      if (ctx.role === "staff") {
+        const staffProfile = await prisma.staff.findFirst({
+          where: {
+            userId: ctx.userId,
+            primaryLocation: { businessId: ctx.businessId },
+            isActive: true,
+            deletedAt: null,
+          },
+        })
+        where.services = { some: { staffId: staffProfile?.id ?? "__none__" } }
+      } else if (staffId) {
         where.services = { some: { staffId } }
-      } else if (ctx.role === "staff") {
-        const staffProfile = await prisma.staff.findFirst({ where: { userId: ctx.userId, isActive: true } })
-        if (staffProfile) where.services = { some: { staffId: staffProfile.id } }
       }
 
       const [appointments, total] = await Promise.all([
@@ -97,11 +101,18 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       notes: z.string().optional().describe("Appointment notes"),
     },
     async ({ clientId, serviceId, staffId, startTime, notes }) => {
-      const [service, location] = await Promise.all([
-        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId } }),
+      const [service, client, staff, location] = await Promise.all([
+        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.client.findFirst({ where: { id: clientId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.staff.findFirst({
+          where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
+        }),
         prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
       ])
       if (!service) return err("Service not found")
+      if (!client) return err("Client not found")
+      if (!staff) return err("Staff not found")
+      if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       if (!location) return err("Business not configured")
 
       const start = new Date(startTime)
@@ -117,6 +128,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           // lock -> assertSlotAllowed -> conflict check.
           await lockStaffSchedule(tx, ctx.businessId, staffId)
           await assertSlotAllowed(tx, staffId, location.id, start, end)
+
           const conflict = await tx.appointmentService.findFirst({
             where: {
               staffId,
@@ -132,7 +144,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
               businessId: ctx.businessId,
               locationId: location.id,
               clientId,
-              bookingReference: genBookingRef(),
+              bookingReference: generateBookingReference(),
               status: "confirmed",
               source: "pos",
               startTime: start,
@@ -181,8 +193,9 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ id, status }) => {
       const appointment = await prisma.appointment.findFirst({ where: { id, businessId: ctx.businessId } })
       if (!appointment) return err("Appointment not found")
+      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
       const updated = await prisma.appointment.update({
-        where: { id },
+        where: { id, businessId: ctx.businessId },
         data: {
           status,
           ...(status === "completed" ? { completedAt: new Date() } : {}),
@@ -209,29 +222,68 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         include: { services: true },
       })
       if (!appointment) return err("Appointment not found")
+      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
 
       const durationMinutes = appointment.services[0]?.durationMinutes ?? appointment.totalDuration
       const newStart = new Date(newStartTime)
       const newEnd = new Date(newStart.getTime() + durationMinutes * 60000)
+      const effectiveStaffId = newStaffId ?? appointment.services[0]?.staffId
 
-      const updated = await prisma.appointment.update({
-        where: { id },
-        data: { startTime: newStart, endTime: newEnd },
-      })
-
-      // Update AppointmentService times and staff if needed
-      if (appointment.services[0]) {
-        await prisma.appointmentService.update({
-          where: { id: appointment.services[0].id },
-          data: {
-            startTime: newStart,
-            endTime: newEnd,
-            ...(newStaffId ? { staffId: newStaffId } : {}),
-          },
+      if (newStaffId) {
+        const staff = await prisma.staff.findFirst({
+          where: { id: newStaffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
         })
+        if (!staff) return err("Staff not found")
+        if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       }
 
-      return ok(updated)
+      try {
+        const updated = await prisma.$transaction(async (tx) => {
+          if (effectiveStaffId) {
+            // Same working-hours / break / approved-time-off guard the server
+            // actions and v1 API use (BOOKING-RESIDUAL). Ordering mirrors them:
+            // lock -> assertSlotAllowed -> conflict check.
+            await lockStaffSchedule(tx, ctx.businessId, effectiveStaffId)
+            await assertSlotAllowed(tx, effectiveStaffId, appointment.locationId, newStart, newEnd)
+
+            const conflict = await tx.appointmentService.findFirst({
+              where: {
+                staffId: effectiveStaffId,
+                appointmentId: { not: id },
+                appointment: { status: { notIn: ["cancelled", "no_show"] } },
+                startTime: { lt: newEnd },
+                endTime: { gt: newStart },
+              },
+            })
+            if (conflict) throw new Error("CONFLICT")
+          }
+
+          const appt = await tx.appointment.update({
+            where: { id, businessId: ctx.businessId },
+            data: { startTime: newStart, endTime: newEnd },
+          })
+
+          if (appointment.services[0]) {
+            await tx.appointmentService.update({
+              where: { id: appointment.services[0].id },
+              data: {
+                startTime: newStart,
+                endTime: newEnd,
+                ...(newStaffId ? { staffId: newStaffId } : {}),
+              },
+            })
+          }
+
+          return appt
+        })
+
+        return ok(updated)
+      } catch (e) {
+        if ((e as Error).message === "CONFLICT") return err("Time slot already booked for this staff member")
+        const slotErr = slotErrorMessage(e)
+        if (slotErr) return err(slotErr)
+        throw e
+      }
     }
   )
 
@@ -245,8 +297,9 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ id, reason }) => {
       const appointment = await prisma.appointment.findFirst({ where: { id, businessId: ctx.businessId } })
       if (!appointment) return err("Appointment not found")
+      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
       const updated = await prisma.appointment.update({
-        where: { id },
+        where: { id, businessId: ctx.businessId },
         data: {
           status: "cancelled",
           cancellationReason: reason,
@@ -271,11 +324,18 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       notes: z.string().optional().describe("Notes for all appointments in the series"),
     },
     async ({ clientId, serviceId, staffId, startTime, recurrenceRule, recurrenceEndDate, notes }) => {
-      const [service, location] = await Promise.all([
-        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId } }),
+      const [service, client, staff, location] = await Promise.all([
+        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.client.findFirst({ where: { id: clientId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.staff.findFirst({
+          where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
+        }),
         prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
       ])
       if (!service) return err("Service not found")
+      if (!client) return err("Client not found")
+      if (!staff) return err("Staff not found")
+      if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       if (!location) return err("Business not configured")
 
       const seriesId = crypto.randomUUID()
@@ -293,20 +353,36 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           const occurrenceStart = new Date(current)
           const occurrenceEnd = new Date(current.getTime() + service.durationMinutes * 60000)
 
+          // ONE TRANSACTION PER OCCURRENCE: assertSlotAllowed needs a tx client,
+          // so each occurrence is written under its own transaction with the
+          // guard in front. The try/catch wraps the WHOLE loop (not each
+          // occurrence): a working-hours / approved-time-off violation (or a
+          // conflict) on any occurrence throws out of the loop and aborts the
+          // series — matching HEAD's semantics — so the caller gets a single
+          // slot/conflict error rather than a partially-booked series.
           const appt = await prisma.$transaction(async (tx) => {
             // Same working-hours / break / approved-time-off guard the server
             // actions and v1 API use (BOOKING-RESIDUAL): lock -> assertSlotAllowed
-            // -> create. assertSlotAllowed needs a tx client, so each occurrence
-            // is written under its own transaction with the guard in front.
+            // -> conflict check -> create.
             await lockStaffSchedule(tx, ctx.businessId, staffId)
             await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd)
+
+            const conflict = await tx.appointmentService.findFirst({
+              where: {
+                staffId,
+                appointment: { status: { notIn: ["cancelled", "no_show"] } },
+                startTime: { lt: occurrenceEnd },
+                endTime: { gt: occurrenceStart },
+              },
+            })
+            if (conflict) throw new Error("CONFLICT")
 
             const created = await tx.appointment.create({
               data: {
                 businessId: ctx.businessId,
                 locationId: location.id,
                 clientId,
-                bookingReference: genBookingRef(),
+                bookingReference: generateBookingReference(),
                 status: "confirmed",
                 source: "pos",
                 startTime: occurrenceStart,
@@ -344,6 +420,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           count++
         }
       } catch (e) {
+        if ((e as Error).message === "CONFLICT") return err("One or more recurring time slots are already booked")
         const slotErr = slotErrorMessage(e)
         if (slotErr) return err(slotErr)
         throw e
@@ -387,11 +464,23 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       notes: z.string().optional(),
     },
     async ({ serviceId, staffId, startTime, maxParticipants, clientIds = [], notes }) => {
-      const [service, location] = await Promise.all([
-        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId } }),
+      if (new Set(clientIds).size !== clientIds.length) return err("Duplicate participants are not allowed")
+      if (clientIds.length > maxParticipants) return err("Too many participants")
+
+      const [service, staff, clientCount, location] = await Promise.all([
+        prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
+        prisma.staff.findFirst({
+          where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
+        }),
+        clientIds.length
+          ? prisma.client.count({ where: { id: { in: clientIds }, businessId: ctx.businessId, deletedAt: null } })
+          : Promise.resolve(0),
         prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
       ])
       if (!service) return err("Service not found")
+      if (!staff) return err("Staff not found")
+      if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
+      if (clientCount !== clientIds.length) return err("Client not found")
       if (!location) return err("Business not configured")
 
       const start = new Date(startTime)
@@ -402,16 +491,26 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         const appointment = await prisma.$transaction(async (tx) => {
           // Same working-hours / break / approved-time-off guard the server
           // actions and v1 API use (BOOKING-RESIDUAL): lock -> assertSlotAllowed
-          // -> create.
+          // -> conflict check -> create.
           await lockStaffSchedule(tx, ctx.businessId, staffId)
           await assertSlotAllowed(tx, staffId, location.id, start, end)
 
-          const created = await tx.appointment.create({
+          const conflict = await tx.appointmentService.findFirst({
+            where: {
+              staffId,
+              appointment: { status: { notIn: ["cancelled", "no_show"] } },
+              startTime: { lt: end },
+              endTime: { gt: start },
+            },
+          })
+          if (conflict) throw new Error("CONFLICT")
+
+          const appt = await tx.appointment.create({
             data: {
               businessId: ctx.businessId,
               locationId: location.id,
               clientId: clientIds[0] ?? null,
-              bookingReference: genBookingRef(),
+              bookingReference: generateBookingReference(),
               status: "confirmed",
               source: "pos",
               startTime: start,
@@ -432,7 +531,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
 
           await tx.appointmentService.create({
             data: {
-              appointmentId: created.id,
+              appointmentId: appt.id,
               serviceId,
               staffId,
               name: service.name,
@@ -444,11 +543,12 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
             },
           })
 
-          return created
+          return appt
         })
 
         return ok(appointment)
       } catch (e) {
+        if ((e as Error).message === "CONFLICT") return err("Time slot already booked for this staff member")
         const slotErr = slotErrorMessage(e)
         if (slotErr) return err(slotErr)
         throw e
@@ -466,16 +566,45 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ appointmentId, clientId }) => {
       const appointment = await prisma.appointment.findFirst({
         where: { id: appointmentId, businessId: ctx.businessId, isGroupBooking: true },
-        include: { groupParticipants: true },
+        include: { groupParticipants: true, services: true },
       })
       if (!appointment) return err("Group appointment not found")
+      if (!(await canAccessAppointment(ctx, appointmentId))) return err("Forbidden")
       if (appointment.maxParticipants && appointment.groupParticipants.length >= appointment.maxParticipants) {
         return err("Group appointment is full")
       }
-      const participant = await prisma.groupParticipant.create({
-        data: { appointmentId, clientId },
+      const client = await prisma.client.findFirst({
+        where: { id: clientId, businessId: ctx.businessId, deletedAt: null },
+        select: { id: true },
       })
-      return ok(participant)
+      if (!client) return err("Client not found")
+
+      const slotStaffId = appointment.services[0]?.staffId
+      try {
+        const participant = await prisma.$transaction(async (tx) => {
+          // Re-validate the group session's slot before adding load to it. Same
+          // working-hours / break / approved-time-off guard the booking write
+          // paths use (BOOKING-RESIDUAL): lock -> assertSlotAllowed -> create.
+          if (slotStaffId) {
+            await lockStaffSchedule(tx, ctx.businessId, slotStaffId)
+            await assertSlotAllowed(
+              tx,
+              slotStaffId,
+              appointment.locationId,
+              appointment.startTime,
+              appointment.endTime,
+            )
+          }
+          return tx.groupParticipant.create({
+            data: { appointmentId, clientId },
+          })
+        })
+        return ok(participant)
+      } catch (e) {
+        const slotErr = slotErrorMessage(e)
+        if (slotErr) return err(slotErr)
+        throw e
+      }
     }
   )
 
@@ -489,6 +618,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ appointmentId, clientId }) => {
       const appointment = await prisma.appointment.findFirst({ where: { id: appointmentId, businessId: ctx.businessId } })
       if (!appointment) return err("Group appointment not found")
+      if (!(await canAccessAppointment(ctx, appointmentId))) return err("Forbidden")
       await prisma.groupParticipant.deleteMany({ where: { appointmentId, clientId } })
       return ok({ removed: true })
     }

@@ -2,7 +2,12 @@ import { jwtVerify } from "jose"
 import { prisma } from "@/lib/prisma"
 import AcceptInvitationClient from "./client"
 
-const SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
+function getInvitationSecret(): Uint8Array {
+  if (!process.env.NEXTAUTH_SECRET) {
+    throw new Error("NEXTAUTH_SECRET is required for staff invitations")
+  }
+  return new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
+}
 
 export type InvitationState =
   | { status: "invalid_token" }
@@ -33,7 +38,7 @@ export default async function AcceptInvitationPage({
 
   let payload: { purpose: string; invitationId: string; email: string; businessId: string }
   try {
-    const result = await jwtVerify(token, SECRET)
+    const result = await jwtVerify(token, getInvitationSecret())
     payload = result.payload as typeof payload
   } catch {
     return <AcceptInvitationClient state={{ status: "invalid_token" }} />

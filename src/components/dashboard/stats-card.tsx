@@ -128,21 +128,23 @@ export function StatsCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4 }}
-      whileHover={{ y: -4, boxShadow: "0 12px 40px rgba(5, 150, 105, 0.08)" }}
+      whileHover={{ y: -4, boxShadow: "0 2px 4px rgba(16, 64, 48, 0.04), 0 18px 44px -12px rgba(16, 64, 48, 0.22)" }}
       onClick={href ? () => router.push(href) : undefined}
       className={cn(
-        "bg-card rounded-2xl p-6 border border-cream-200 shadow-sm card-warm transition-shadow",
+        "group relative overflow-hidden bg-card rounded-2xl p-6 border border-cream-200/80 shadow-card card-warm transition-shadow",
         href && "cursor-pointer"
       )}
     >
-      <div className="flex items-start justify-between" ref={countRef}>
+      {/* Soft brand wash that warms on hover */}
+      <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-sal-100/40 blur-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="relative z-10 flex items-start justify-between" ref={countRef}>
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground font-medium">{title}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">{title}</p>
           <motion.p
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: delay + 0.2, type: "spring", stiffness: 200 }}
-            className="text-3xl font-heading font-bold text-foreground"
+            className="text-[2rem] leading-none font-heading font-bold tracking-tight text-foreground tabular-nums"
           >
             {prefix}{displayCount}
           </motion.p>
@@ -151,23 +153,23 @@ export function StatsCard({
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: delay + 0.5, duration: 0.3 }}
-              className="flex items-center gap-1"
+              className="flex items-center gap-2"
             >
-              {isPositive && <TrendingUp className="w-4 h-4 text-sal-500" />}
-              {isNegative && <TrendingDown className="w-4 h-4 text-red-500" />}
               <span
                 className={cn(
-                  "text-sm font-medium",
-                  isPositive && "text-sal-600",
-                  isNegative && "text-red-600",
-                  !isPositive && !isNegative && "text-muted-foreground"
+                  "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+                  isPositive && "bg-sal-100 text-sal-700",
+                  isNegative && "bg-red-100 text-red-700",
+                  !isPositive && !isNegative && "bg-cream-200 text-muted-foreground"
                 )}
               >
+                {isPositive && <TrendingUp className="w-3 h-3" />}
+                {isNegative && <TrendingDown className="w-3 h-3" />}
                 {isPositive && "+"}
                 {change}%
               </span>
               {changeLabel && (
-                <span className="text-sm text-muted-foreground/70">{changeLabel}</span>
+                <span className="text-xs text-muted-foreground/70">{changeLabel}</span>
               )}
             </motion.div>
           )}
@@ -177,7 +179,10 @@ export function StatsCard({
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ delay: delay + 0.1, type: "spring", stiffness: 200 }}
-            className={cn("p-3 rounded-xl", iconBgColor)}
+            className={cn(
+              "p-3 rounded-2xl ring-1 ring-inset ring-black/5 shadow-inset-hi transition-transform duration-300 group-hover:scale-105",
+              iconBgColor
+            )}
           >
             <Icon className={cn("w-6 h-6", iconColor)} />
           </motion.div>
