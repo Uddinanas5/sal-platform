@@ -186,7 +186,10 @@ async function main() {
   // ============================================================================
   const devKeyBody = crypto.randomBytes(24).toString("hex")
   const devApiKey = `sal_devseed_${devKeyBody}`
-  const devKeyHash = crypto.createHash("sha256").update(devApiKey).digest("hex")
+  // withV1Auth strips the "sal_" prefix before hashing (api-keys route stores
+  // sha256 of the post-prefix secret), so hash the secret WITHOUT "sal_" or the
+  // seeded key can never authenticate.
+  const devKeyHash = crypto.createHash("sha256").update(devApiKey.slice(4)).digest("hex")
   const devKeyPrefix = devApiKey.slice(0, 12)
 
   await prisma.apiKey.create({
