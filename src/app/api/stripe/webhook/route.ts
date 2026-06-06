@@ -81,6 +81,48 @@ function subscriptionResolveWhere(
   return null
 }
 
+// Convert Stripe's event.created (UNIX seconds) into a Date. Used both as the
+// staleness watermark we persist and as the cutoff that gates out-of-order
+// downgrades.
+function eventCreatedDate(event: Stripe.Event): Date {
+  return new Date(event.created * 1000)
+}
+
+// Staleness guard for ABSOLUTE-STATE billing writes (the downgrade paths).
+//
+// A business's subscriptionStatus is driven entirely by these webhooks, and
+// Stripe makes no ordering guarantee. The dangerous case: a card retry succeeds,
+// the recovery (invoice.payment_succeeded / subscription.updated→active) lands
+// and flips the salon back to `active`, and THEN a stale invoice.payment_failed
+// for the now-paid invoice is delivered late — re-setting `past_due` on a salon
+// that is fully current (false "update your card" banner).
+//
+// We persist `lastBillingEventAt` = the event.created of the freshest billing
+// event we have applied. A downgrade is only allowed to write when THIS event is
+// at least as new as that watermark — i.e. the stored watermark is null (nothing
+// applied yet) OR < this event's created. Expressed as a Prisma OR so it folds
+// into the existing where (keeping the whole mutation a single atomic
+// updateMany). The watermark itself is bumped to max(current, event.created) as
+// part of the same write (see billingWatermarkData), so a later, genuinely fresh
+// event still wins.
+function freshnessWhere(eventCreated: Date): {
+  OR: [{ lastBillingEventAt: null }, { lastBillingEventAt: { lt: Date } }]
+} {
+  return {
+    OR: [
+      { lastBillingEventAt: null },
+      { lastBillingEventAt: { lt: eventCreated } },
+    ],
+  }
+}
+
+// Bump the per-business watermark to this event's created time. We never move it
+// backwards: the where on these writes already requires lastBillingEventAt to be
+// null or < eventCreated, so writing eventCreated is always max(current, event).
+function billingWatermarkData(eventCreated: Date): { lastBillingEventAt: Date } {
+  return { lastBillingEventAt: eventCreated }
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!webhookSecret) {
@@ -403,19 +445,27 @@ export async function POST(request: NextRequest) {
         // completed / created event isn't required for the row to be keyed, and
         // so the cancelled hard gate (which needs a non-null id) can fire even if
         // this is the only event we ever see for the subscription.
+        //
+        // This sets an ABSOLUTE state, so it carries the freshness guard: a stale
+        // subscription.updated (older event.created than the last billing event we
+        // applied) must not clobber a fresher state. The watermark is bumped to
+        // this event's created time in the same atomic write.
+        const eventCreated = eventCreatedDate(event)
         const updated = await prisma.business.updateMany({
-          where,
+          where: { ...where, ...freshnessWhere(eventCreated) },
           data: {
             subscriptionStatus: mapped,
             stripeSubscriptionId: subscription.id,
+            ...billingWatermarkData(eventCreated),
           },
         })
-        // Loud: a 0-match here means an out-of-order/dropped event we could not
-        // attribute to any business (e.g. a cancellation that would otherwise be
-        // silently swallowed). Surface it for manual review.
+        // Loud: a 0-match here means EITHER an out-of-order/dropped event we could
+        // not attribute to any business (e.g. a cancellation that would otherwise
+        // be silently swallowed) OR a stale event the freshness guard correctly
+        // rejected. The latter is expected/benign; surface for manual review.
         if (updated.count === 0) {
           console.error(
-            `[stripe.webhook] customer.subscription.updated matched 0 businesses — subscription=${subscription.id} customer=${customerId} metadata.businessId=${subscription.metadata?.businessId} status=${mapped}. Out-of-order/dropped event?`
+            `[stripe.webhook] customer.subscription.updated matched 0 businesses — subscription=${subscription.id} customer=${customerId} metadata.businessId=${subscription.metadata?.businessId} status=${mapped}. Out-of-order/dropped event or stale (freshness guard)?`
           )
         }
 
@@ -447,14 +497,94 @@ export async function POST(request: NextRequest) {
         // A fresh checkout (checkout.session.completed) overwrites the stale id,
         // so we don't need to null it to allow re-subscribing. This also matches
         // the self-service path in actions/account.ts (cancelled, id intact).
+        //
+        // Carries the freshness guard + watermark bump: a stale deletion older
+        // than an already-applied event must not clobber a fresher state. (A real
+        // cancellation is terminal and always the latest billing event, so this
+        // never rejects a genuine cancellation.)
+        const eventCreated = eventCreatedDate(event)
         const deleted = await prisma.business.updateMany({
-          where,
-          data: { subscriptionStatus: "cancelled" },
+          where: { ...where, ...freshnessWhere(eventCreated) },
+          data: {
+            subscriptionStatus: "cancelled",
+            ...billingWatermarkData(eventCreated),
+          },
         })
         if (deleted.count === 0) {
           console.error(
-            `[stripe.webhook] customer.subscription.deleted matched 0 businesses — subscription=${subscription.id} customer=${customerId} metadata.businessId=${subscription.metadata?.businessId}. Out-of-order/dropped event?`
+            `[stripe.webhook] customer.subscription.deleted matched 0 businesses — subscription=${subscription.id} customer=${customerId} metadata.businessId=${subscription.metadata?.businessId}. Out-of-order/dropped event or stale (freshness guard)?`
           )
+        }
+
+        break
+      }
+
+      // Successful recurring charge — INCLUDING a card retry that recovers a
+      // past_due subscription. Stripe fires `invoice.payment_succeeded` (and
+      // `invoice.paid`) on every successful invoice. We can't rely on a later
+      // customer.subscription.updated(active) to lift past_due, because Stripe
+      // may deliver these out of order (or not re-send .updated at all). So this
+      // is the DETERMINISTIC recovery path: clear past_due → active.
+      case "invoice.payment_succeeded":
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice
+
+        const customerId =
+          typeof invoice.customer === "string"
+            ? invoice.customer
+            : invoice.customer?.id ?? null
+
+        // Durable resolution, mirroring the subscription handlers: prefer the
+        // businessId stamped on the subscription's metadata (rides on every
+        // invoice via subscription_details), else fall back to the customer id.
+        const metaBusinessId =
+          (invoice as { subscription_details?: { metadata?: { businessId?: string } } })
+            .subscription_details?.metadata?.businessId ?? null
+
+        if (!metaBusinessId && !customerId) {
+          console.error(
+            `[stripe.webhook] ${event.type} without businessId or customer — invoice=${invoice.id}`
+          )
+          break
+        }
+
+        const eventCreated = eventCreatedDate(event)
+
+        // Base where: resolve the LIVE subscription owner. metadata.businessId is
+        // the durable key; otherwise the customer with a non-null sub id.
+        const recoverWhere = metaBusinessId
+          ? { id: metaBusinessId }
+          : { stripeCustomerId: customerId as string, NOT: { stripeSubscriptionId: null } }
+
+        // Recovery flip: lift past_due → active, but ONLY when currently
+        // `past_due`. This deliberately does NOT touch a `cancelled` or `paused`
+        // salon (a stray successful invoice must not resurrect a cancelled salon,
+        // and a paused sub stays paused). Guarded by freshness + bumps watermark.
+        const recovered = await prisma.business.updateMany({
+          where: {
+            ...recoverWhere,
+            subscriptionStatus: "past_due",
+            ...freshnessWhere(eventCreated),
+          },
+          data: {
+            subscriptionStatus: "active",
+            ...billingWatermarkData(eventCreated),
+          },
+        })
+
+        // If we didn't flip (already active, cancelled, paused, or stale), still
+        // advance the watermark for an active live subscription so a LATER stale
+        // payment_failed can't re-flip it. We only bump when currently `active`
+        // (don't clobber cancelled/paused, and don't bump on a stale event).
+        if (recovered.count === 0) {
+          await prisma.business.updateMany({
+            where: {
+              ...recoverWhere,
+              subscriptionStatus: "active",
+              ...freshnessWhere(eventCreated),
+            },
+            data: billingWatermarkData(eventCreated),
+          })
         }
 
         break
@@ -481,13 +611,28 @@ export async function POST(request: NextRequest) {
         // past_due state on a salon with no live subscription — that would show
         // a contradictory "Past due / Update payment method" UI for a salon that
         // has nothing to update.
+        //
+        // Freshness guard: this is a DOWNGRADE. If a card retry already succeeded
+        // and we applied a fresher recovery event (invoice.payment_succeeded /
+        // subscription.updated→active), a stale payment_failed delivered late
+        // would otherwise re-flip the now-current salon back to past_due. The
+        // `lastBillingEventAt` cutoff (null OR < this event's created) blocks that
+        // out-of-order overwrite; the watermark is bumped in the same write.
+        const eventCreated = eventCreatedDate(event)
         const invoiceFailed = await prisma.business.updateMany({
-          where: { stripeCustomerId: customerId, NOT: { stripeSubscriptionId: null } },
-          data: { subscriptionStatus: "past_due" },
+          where: {
+            stripeCustomerId: customerId,
+            NOT: { stripeSubscriptionId: null },
+            ...freshnessWhere(eventCreated),
+          },
+          data: {
+            subscriptionStatus: "past_due",
+            ...billingWatermarkData(eventCreated),
+          },
         })
         if (invoiceFailed.count === 0) {
           console.error(
-            `[stripe.webhook] invoice.payment_failed matched 0 live subscriptions — customer=${customerId} invoice=${invoice.id} (no business with a non-null stripeSubscriptionId). Stray/late invoice?`
+            `[stripe.webhook] invoice.payment_failed matched 0 live subscriptions — customer=${customerId} invoice=${invoice.id} (no live subscription, or a stale event the freshness guard rejected). Stray/late/out-of-order invoice?`
           )
         }
 

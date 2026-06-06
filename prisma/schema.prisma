@@ -313,6 +313,11 @@ model Business {
   // SAL subscription billing (the salon paying SAL — distinct from Connect)
   stripeCustomerId     String?          @unique @map("stripe_customer_id") @db.VarChar(255)
   stripeSubscriptionId String?          @unique @map("stripe_subscription_id") @db.VarChar(255)
+  // Watermark of the latest Stripe BILLING event (event.created) we have
+  // successfully applied to subscriptionStatus. Used as a staleness guard so an
+  // out-of-order downgrade (a late invoice.payment_failed / subscription.updated
+  // delivered AFTER a card-retry recovery) cannot overwrite a fresher state.
+  lastBillingEventAt   DateTime?        @map("last_billing_event_at") @db.Timestamptz
   // Beta salons are exempt from billing gates
   billingExempt        Boolean          @default(false) @map("billing_exempt")
   stripeAccountId    String?            @map("stripe_account_id") @db.VarChar(255)
