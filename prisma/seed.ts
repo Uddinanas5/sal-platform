@@ -20,7 +20,12 @@ const sslmode = isLocal ? 'disable' : 'require'
 const sslUrl = connectionString.includes('?')
   ? `${connectionString}&sslmode=${sslmode}&uselibpqcompat=true`
   : `${connectionString}?sslmode=${sslmode}&uselibpqcompat=true`
-const adapter = new PrismaPg({ connectionString: sslUrl })
+// Respect Prisma's ?schema= URL param exactly like src/lib/prisma.ts — without
+// this the adapter falls back to the ROLE's default search_path, which for
+// sal_agent is the `agents` schema: the destructive seed would wipe the wrong
+// sandbox instead of the schema named in the URL.
+const schema = /[?&]schema=([^&]+)/.exec(connectionString)?.[1]
+const adapter = new PrismaPg({ connectionString: sslUrl }, schema ? { schema } : undefined)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
@@ -155,14 +160,22 @@ async function main() {
     { dayOfWeek: 6, isClosed: false, openTime: "09:00", closeTime: "17:00" }, // Saturday
   ]
 
+  // Prisma 7 @db.Time columns require a Date (time portion only) — mirror the
+  // timeStringToDate conversion used by actions/onboarding.ts.
+  const timeStringToDate = (timeStr: string | null): Date | null => {
+    if (!timeStr) return null
+    const [hours, minutes] = timeStr.split(":").map(Number)
+    return new Date(1970, 0, 1, hours, minutes, 0, 0)
+  }
+
   for (const bh of businessHoursData) {
     await prisma.businessHours.create({
       data: {
         locationId: location.id,
         dayOfWeek: bh.dayOfWeek,
         isClosed: bh.isClosed,
-        openTime: bh.openTime,
-        closeTime: bh.closeTime,
+        openTime: timeStringToDate(bh.openTime),
+        closeTime: timeStringToDate(bh.closeTime),
       },
     })
   }
