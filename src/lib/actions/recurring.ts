@@ -205,6 +205,180 @@ export async function createRecurringAppointment(data: {
   }
 }
 
+/**
+ * Series membership for ONE appointment, tenant-scoped. The calendar detail
+ * sheet calls this when it opens an appointment so it can (a) show a
+ * "Repeats … · series" badge and (b) decide whether to offer cancellation
+ * scopes (this / this & following / all). Returns isSeriesMember=false for a
+ * one-off appointment so the UI shows neither the badge nor the scope picker.
+ */
+export async function getSeriesInfo(
+  appointmentId: string
+): Promise<
+  ActionResult<{
+    isSeriesMember: boolean
+    seriesId: string | null
+    recurrenceRule: string | null
+    startTime: string | null
+  }>
+> {
+  try {
+    const id = idSchema.parse(appointmentId)
+    const { businessId } = await getBusinessContext()
+
+    const appt = await prisma.appointment.findFirst({
+      where: { id, businessId },
+      select: { seriesId: true, recurrenceRule: true, startTime: true },
+    })
+    if (!appt) return { success: false, error: "Appointment not found" }
+
+    return {
+      success: true,
+      data: {
+        isSeriesMember: Boolean(appt.seriesId),
+        seriesId: appt.seriesId,
+        recurrenceRule: appt.recurrenceRule,
+        startTime: appt.startTime ? appt.startTime.toISOString() : null,
+      },
+    }
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
+    if ((e as Error).message === "Not authenticated" || (e as Error).message === "No business context") {
+      return { success: false, error: (e as Error).message }
+    }
+    console.error("getSeriesInfo error:", e)
+    return { success: false, error: (e as Error).message }
+  }
+}
+
+const cancelRecurringSchema = z.object({
+  appointmentId: z.string().uuid(),
+  scope: z.enum(["this", "following", "all"]),
+  status: z.enum(["cancelled", "no_show"]),
+  initiator: z.enum(["client", "business", "staff", "system"]),
+  reasonCode: z.enum([
+    "client_request",
+    "illness",
+    "scheduling_conflict",
+    "staff_unavailable",
+    "no_show",
+    "payment_issue",
+    "other",
+  ]),
+  note: z.string().max(500).optional(),
+})
+
+/**
+ * Cancel (or mark no-show) a member of a recurring series with an explicit
+ * scope, mirroring the structured-reason fields of the single-appointment
+ * cancelAppointment action (initiator, reason code, note, cancelledBy, and the
+ * cancelledAt / noShowAt timestamps).
+ *
+ * Scope → WHERE resolution (all tenant-scoped by businessId):
+ *   - "this"      → just this appointment id (a single occurrence; the rest of
+ *                   the series is untouched). Works even for a one-off, but the
+ *                   UI only surfaces the scope picker for series members.
+ *   - "following" → every occurrence in the SAME series whose startTime is at or
+ *                   after this one (this occurrence forward).
+ *   - "all"       → every occurrence in the same series.
+ *
+ * Already-terminal occurrences (completed / cancelled) are left alone for the
+ * batch scopes, matching cancelRecurringSeries — you can't re-cancel a finished
+ * appointment. Returns how many appointments were actually cancelled.
+ */
+export async function cancelRecurring(input: {
+  appointmentId: string
+  scope: "this" | "following" | "all"
+  status: "cancelled" | "no_show"
+  initiator: "client" | "business" | "staff" | "system"
+  reasonCode:
+    | "client_request"
+    | "illness"
+    | "scheduling_conflict"
+    | "staff_unavailable"
+    | "no_show"
+    | "payment_issue"
+    | "other"
+  note?: string
+}): Promise<ActionResult<{ count: number }>> {
+  let parsed: z.infer<typeof cancelRecurringSchema>
+  try {
+    parsed = cancelRecurringSchema.parse(input)
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
+    throw e
+  }
+
+  try {
+    const { businessId, userId } = await getBusinessContext()
+    const now = new Date()
+
+    // Look up the anchor appointment (tenant-scoped) to learn its series + time.
+    const anchor = await prisma.appointment.findFirst({
+      where: { id: parsed.appointmentId, businessId },
+      select: { id: true, seriesId: true, startTime: true },
+    })
+    if (!anchor) return { success: false, error: "Appointment not found" }
+
+    // "following" / "all" only make sense for a real series. Fall back to a
+    // single-occurrence cancel (scope "this") if asked to batch a one-off, so we
+    // never silently no-op or touch unrelated appointments.
+    const effectiveScope =
+      parsed.scope !== "this" && !anchor.seriesId ? "this" : parsed.scope
+
+    const data = {
+      status: parsed.status,
+      cancellationInitiator: parsed.initiator,
+      cancellationReasonCode: parsed.reasonCode,
+      cancellationReason: parsed.note,
+      cancelledBy: userId,
+      cancelledAt: parsed.status === "cancelled" ? now : undefined,
+      noShowAt: parsed.status === "no_show" ? now : undefined,
+    }
+
+    let count: number
+    if (effectiveScope === "this") {
+      // Single occurrence — scope strictly to this id + tenant.
+      await prisma.appointment.update({
+        where: { id: anchor.id, businessId },
+        data,
+      })
+      count = 1
+    } else {
+      const where: Record<string, unknown> = {
+        seriesId: anchor.seriesId,
+        businessId,
+        status: { notIn: ["completed", "cancelled"] },
+      }
+      if (effectiveScope === "following" && anchor.startTime) {
+        where.startTime = { gte: anchor.startTime }
+      }
+      const result = await prisma.appointment.updateMany({
+        where: where as never,
+        data,
+      })
+      count = result.count
+    }
+
+    revalidatePath("/calendar")
+    revalidatePath("/dashboard")
+    return { success: true, data: { count } }
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
+    if ((e as Error).message === "Not authenticated" || (e as Error).message === "No business context") {
+      return { success: false, error: (e as Error).message }
+    }
+    console.error("cancelRecurring error:", e)
+    return { success: false, error: (e as Error).message }
+  }
+}
+
 export async function cancelRecurringSeries(
   seriesId: string,
   cancelFrom?: string
