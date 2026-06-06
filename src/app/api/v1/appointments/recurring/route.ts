@@ -53,8 +53,14 @@ export async function POST(req: Request) {
   })
   if (!staffRecord) return ERRORS.NOT_FOUND("Staff")
 
-  const location = await prisma.location.findFirst({ where: { businessId: ctx.businessId } })
+  const [location, business] = await Promise.all([
+    prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
+    prisma.business.findUnique({ where: { id: ctx.businessId }, select: { timezone: true } }),
+  ])
   if (!location) return ERRORS.BAD_REQUEST("Business not configured")
+  // Salon IANA timezone anchors assertSlotAllowed's @db.Time hours to the
+  // salon's clock (not the server's) on any host.
+  const timezone = business?.timezone ?? "UTC"
 
   const baseStart = new Date(startTimeStr)
   const endDate = new Date(recurrenceEndDate)
@@ -94,8 +100,9 @@ export async function POST(req: Request) {
         // Enforce working-hours / break / approved-time-off for EVERY occurrence
         // (BOOKING-RESIDUAL). One out-of-hours date fails the whole series —
         // consistent with the all-or-nothing transaction semantics. Ordering
-        // mirrors the actions: lock -> assertSlotAllowed -> conflict check.
-        await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd)
+        // mirrors the actions: lock -> assertSlotAllowed -> conflict check. The
+        // salon timezone anchors the @db.Time hours on any host.
+        await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd, timezone)
 
         const conflicting = await tx.appointmentService.findFirst({
           where: {

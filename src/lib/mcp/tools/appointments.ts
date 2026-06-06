@@ -101,19 +101,23 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       notes: z.string().optional().describe("Appointment notes"),
     },
     async ({ clientId, serviceId, staffId, startTime, notes }) => {
-      const [service, client, staff, location] = await Promise.all([
+      const [service, client, staff, location, business] = await Promise.all([
         prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
         prisma.client.findFirst({ where: { id: clientId, businessId: ctx.businessId, deletedAt: null } }),
         prisma.staff.findFirst({
           where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
         }),
         prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
+        prisma.business.findUnique({ where: { id: ctx.businessId }, select: { timezone: true } }),
       ])
       if (!service) return err("Service not found")
       if (!client) return err("Client not found")
       if (!staff) return err("Staff not found")
       if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       if (!location) return err("Business not configured")
+      // Salon IANA timezone anchors assertSlotAllowed's @db.Time hours to the
+      // salon's clock (not the server's) on any host.
+      const timezone = business?.timezone ?? "UTC"
 
       const start = new Date(startTime)
       const end = new Date(start.getTime() + service.durationMinutes * 60000)
@@ -125,9 +129,10 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         const appointment = await prisma.$transaction(async (tx) => {
           // Same working-hours / break / approved-time-off guard the server
           // actions and v1 API use (BOOKING-RESIDUAL). Ordering mirrors them:
-          // lock -> assertSlotAllowed -> conflict check.
+          // lock -> assertSlotAllowed -> conflict check. Salon timezone anchors
+          // the @db.Time hours on any host.
           await lockStaffSchedule(tx, ctx.businessId, staffId)
-          await assertSlotAllowed(tx, staffId, location.id, start, end)
+          await assertSlotAllowed(tx, staffId, location.id, start, end, timezone)
 
           const conflict = await tx.appointmentService.findFirst({
             where: {
@@ -222,7 +227,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ id, newStartTime, newStaffId }) => {
       const appointment = await prisma.appointment.findFirst({
         where: { id, businessId: ctx.businessId },
-        include: { services: true },
+        include: { services: true, business: { select: { timezone: true } } },
       })
       if (!appointment) return err("Appointment not found")
       if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
@@ -274,7 +279,8 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
 
           for (const su of serviceUpdates) {
             if (!su.staffId) continue
-            await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime)
+            // Salon timezone anchors the @db.Time working-hours window on any host.
+            await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime, appointment.business.timezone)
             const conflict = await tx.appointmentService.findFirst({
               where: {
                 staffId: su.staffId,
@@ -357,19 +363,23 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       notes: z.string().optional().describe("Notes for all appointments in the series"),
     },
     async ({ clientId, serviceId, staffId, startTime, recurrenceRule, recurrenceEndDate, notes }) => {
-      const [service, client, staff, location] = await Promise.all([
+      const [service, client, staff, location, business] = await Promise.all([
         prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
         prisma.client.findFirst({ where: { id: clientId, businessId: ctx.businessId, deletedAt: null } }),
         prisma.staff.findFirst({
           where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
         }),
         prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
+        prisma.business.findUnique({ where: { id: ctx.businessId }, select: { timezone: true } }),
       ])
       if (!service) return err("Service not found")
       if (!client) return err("Client not found")
       if (!staff) return err("Staff not found")
       if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       if (!location) return err("Business not configured")
+      // Salon IANA timezone anchors assertSlotAllowed's @db.Time hours to the
+      // salon's clock (not the server's) on any host.
+      const timezone = business?.timezone ?? "UTC"
 
       const seriesId = crypto.randomUUID()
       const start = new Date(startTime)
@@ -396,9 +406,10 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           const appt = await prisma.$transaction(async (tx) => {
             // Same working-hours / break / approved-time-off guard the server
             // actions and v1 API use (BOOKING-RESIDUAL): lock -> assertSlotAllowed
-            // -> conflict check -> create.
+            // -> conflict check -> create. Salon timezone anchors the @db.Time
+            // hours on any host.
             await lockStaffSchedule(tx, ctx.businessId, staffId)
-            await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd)
+            await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd, timezone)
 
             const conflict = await tx.appointmentService.findFirst({
               where: {
@@ -508,7 +519,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       if (new Set(clientIds).size !== clientIds.length) return err("Duplicate participants are not allowed")
       if (clientIds.length > maxParticipants) return err("Too many participants")
 
-      const [service, staff, clientCount, location] = await Promise.all([
+      const [service, staff, clientCount, location, business] = await Promise.all([
         prisma.service.findFirst({ where: { id: serviceId, businessId: ctx.businessId, deletedAt: null } }),
         prisma.staff.findFirst({
           where: { id: staffId, primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
@@ -517,12 +528,16 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           ? prisma.client.count({ where: { id: { in: clientIds }, businessId: ctx.businessId, deletedAt: null } })
           : Promise.resolve(0),
         prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
+        prisma.business.findUnique({ where: { id: ctx.businessId }, select: { timezone: true } }),
       ])
       if (!service) return err("Service not found")
       if (!staff) return err("Staff not found")
       if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       if (clientCount !== clientIds.length) return err("Client not found")
       if (!location) return err("Business not configured")
+      // Salon IANA timezone anchors assertSlotAllowed's @db.Time hours to the
+      // salon's clock (not the server's) on any host.
+      const timezone = business?.timezone ?? "UTC"
 
       const start = new Date(startTime)
       const end = new Date(start.getTime() + service.durationMinutes * 60000)
@@ -532,9 +547,10 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         const appointment = await prisma.$transaction(async (tx) => {
           // Same working-hours / break / approved-time-off guard the server
           // actions and v1 API use (BOOKING-RESIDUAL): lock -> assertSlotAllowed
-          // -> conflict check -> create.
+          // -> conflict check -> create. Salon timezone anchors the @db.Time
+          // hours on any host.
           await lockStaffSchedule(tx, ctx.businessId, staffId)
-          await assertSlotAllowed(tx, staffId, location.id, start, end)
+          await assertSlotAllowed(tx, staffId, location.id, start, end, timezone)
 
           const conflict = await tx.appointmentService.findFirst({
             where: {
@@ -610,7 +626,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ appointmentId, clientId }) => {
       const appointment = await prisma.appointment.findFirst({
         where: { id: appointmentId, businessId: ctx.businessId, isGroupBooking: true },
-        include: { groupParticipants: true, services: true },
+        include: { groupParticipants: true, services: true, business: { select: { timezone: true } } },
       })
       if (!appointment) return err("Group appointment not found")
       if (!(await canAccessAppointment(ctx, appointmentId))) return err("Forbidden")
@@ -631,12 +647,14 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           // paths use (BOOKING-RESIDUAL): lock -> assertSlotAllowed -> create.
           if (slotStaffId) {
             await lockStaffSchedule(tx, ctx.businessId, slotStaffId)
+            // Salon timezone anchors the @db.Time working-hours window on any host.
             await assertSlotAllowed(
               tx,
               slotStaffId,
               appointment.locationId,
               appointment.startTime,
               appointment.endTime,
+              appointment.business.timezone,
             )
           }
           return tx.groupParticipant.create({

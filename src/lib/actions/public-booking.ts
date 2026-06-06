@@ -46,6 +46,7 @@ import {
   ERR_OUTSIDE_WORKING_HOURS,
   ERR_ON_APPROVED_TIME_OFF,
 } from "@/lib/scheduling/working-hours"
+import { formatInZone } from "@/lib/scheduling/zoned-time"
 
 const addToPublicWaitlistSchema = z.object({
   businessId: z.string().uuid(),
@@ -279,7 +280,10 @@ export async function createPublicBooking(data: {
 
     // 8. Send booking confirmation email (non-blocking)
     if (client.email) {
-      const dateTime = new Intl.DateTimeFormat("en-US", {
+      // Render the appointment time in the SALON's timezone so the email shows
+      // the salon's wall-clock, not the server's (a UTC host must not show
+      // "1:00 PM" for a 9am-ET appointment).
+      const dateTime = formatInZone(startTime, business.timezone, {
         weekday: "long",
         month: "long",
         day: "numeric",
@@ -287,7 +291,7 @@ export async function createPublicBooking(data: {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-      }).format(startTime)
+      })
 
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
       const manageUrl = `${baseUrl}/book/manage/${appointment.bookingReference}`
@@ -484,7 +488,7 @@ export async function cancelPublicBooking(
       where: { bookingReference },
       include: {
         client: { select: { email: true, firstName: true, lastName: true } },
-        business: { select: { name: true, email: true, settings: true } },
+        business: { select: { name: true, email: true, settings: true, timezone: true } },
         services: {
           include: {
             service: { select: { name: true } },
@@ -549,7 +553,16 @@ export async function cancelPublicBooking(
           html: appointmentCancelledEmail({
             clientName: `${appointment.client.firstName} ${appointment.client.lastName}`,
             serviceName: appointment.services[0]?.service.name ?? "Service",
-            dateTime: appointment.startTime.toLocaleString(),
+            // Render in the SALON's timezone (toLocaleString would use the server's).
+            dateTime: formatInZone(appointment.startTime, appointment.business.timezone, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            }),
             businessName: appointment.business.name,
             bookingRef: appointment.bookingReference ?? "",
             manageUrl,
@@ -769,6 +782,8 @@ export async function reschedulePublicBooking(
     // Reschedule email — best-effort. sendEmail logs and returns when Resend
     // isn't configured; we never block or fail the reschedule on email.
     if (appointment.client?.email) {
+      // Both times render in the SALON's timezone so the email shows the salon's
+      // wall-clock, not the server's (a UTC host must not show "1:00 PM" for 9am ET).
       const dateFormatOptions: Intl.DateTimeFormatOptions = {
         weekday: "long",
         month: "long",
@@ -778,8 +793,9 @@ export async function reschedulePublicBooking(
         minute: "2-digit",
         hour12: true,
       }
-      const oldDateTime = new Intl.DateTimeFormat("en-US", dateFormatOptions).format(oldStartTime)
-      const newDateTime = new Intl.DateTimeFormat("en-US", dateFormatOptions).format(startTime)
+      const tz = appointment.business.timezone
+      const oldDateTime = formatInZone(oldStartTime, tz, dateFormatOptions)
+      const newDateTime = formatInZone(startTime, tz, dateFormatOptions)
 
       const staffUser = appointment.services[0]?.staff?.user
       const staffName = staffUser

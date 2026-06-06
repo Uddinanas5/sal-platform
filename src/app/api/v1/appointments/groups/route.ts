@@ -52,8 +52,14 @@ export async function POST(req: Request) {
   })
   if (clientsInBiz !== clientIds.length) return ERRORS.NOT_FOUND("Client")
 
-  const location = await prisma.location.findFirst({ where: { businessId: ctx.businessId } })
+  const [location, business] = await Promise.all([
+    prisma.location.findFirst({ where: { businessId: ctx.businessId } }),
+    prisma.business.findUnique({ where: { id: ctx.businessId }, select: { timezone: true } }),
+  ])
   if (!location) return ERRORS.BAD_REQUEST("Business not configured")
+  // Salon IANA timezone anchors assertSlotAllowed's @db.Time hours to the
+  // salon's clock (not the server's) on any host.
+  const timezone = business?.timezone ?? "UTC"
 
   const startTime = new Date(startTimeStr)
   const endTime = new Date(startTime)
@@ -73,7 +79,7 @@ export async function POST(req: Request) {
       // (BOOKING-RESIDUAL) before the conflict check. Ordering mirrors the
       // actions: lock -> assertSlotAllowed -> conflict check.
       await lockStaffSchedule(tx, ctx.businessId, staffId)
-      await assertSlotAllowed(tx, staffId, location.id, startTime, endTime)
+      await assertSlotAllowed(tx, staffId, location.id, startTime, endTime, timezone)
       // Tenant-scoped conflict check on the staff slot. Without this a group
       // booking can silently double-book the stylist (and on a 12-person group
       // that's a much louder calendar collision than a single booking).

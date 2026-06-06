@@ -213,6 +213,15 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
       )
     }
 
+    // Salon IANA timezone (scoped to the caller's business) anchors
+    // assertSlotAllowed's @db.Time hours to the salon's clock (not the server's)
+    // on any host. Cheap select; business is otherwise not loaded on this path.
+    const businessRow = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { timezone: true },
+    })
+    const timezone = businessRow?.timezone ?? 'UTC'
+
     // If a clientId is provided, validate it belongs to caller's business
     if (clientId) {
       const client = await prisma.client.findFirst({
@@ -321,8 +330,8 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
       for (const svc of serviceDetails) {
         // Same in-transaction working-hours / break / approved-time-off guard
         // every other booking write path uses: lock -> assertSlotAllowed ->
-        // conflict check.
-        await assertSlotAllowed(tx, svc.staffId, locationId, svc.startTime, svc.endTime)
+        // conflict check. Salon timezone anchors the @db.Time hours on any host.
+        await assertSlotAllowed(tx, svc.staffId, locationId, svc.startTime, svc.endTime, timezone)
         const conflicting = await tx.appointmentService.findFirst({
           where: {
             staffId: svc.staffId,

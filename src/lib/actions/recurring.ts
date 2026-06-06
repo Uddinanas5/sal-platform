@@ -63,6 +63,14 @@ export async function createRecurringAppointment(data: {
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!location) return { success: false, error: "Business not configured" }
 
+    // Salon IANA timezone anchors the @db.Time working-hours window in
+    // assertSlotAllowed to the salon's clock (not the server's) on any host.
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { timezone: true },
+    })
+    const timezone = business?.timezone ?? "UTC"
+
     const baseStart = new Date(parsed.startTime)
     const endDate = new Date(parsed.recurrenceEndDate)
     const price = Number(service.price)
@@ -106,8 +114,9 @@ export async function createRecurringAppointment(data: {
 
         // Enforce working-hours / break / approved-time-off for EVERY occurrence
         // (GAP-001). One out-of-hours date fails the whole series — consistent
-        // with the all-or-nothing transaction semantics below.
-        await assertSlotAllowed(tx, parsed.staffId, location.id, startTime, endTime)
+        // with the all-or-nothing transaction semantics below. Salon timezone
+        // anchors the @db.Time hours on any host.
+        await assertSlotAllowed(tx, parsed.staffId, location.id, startTime, endTime, timezone)
 
         const conflicting = await tx.appointmentService.findFirst({
           where: {
@@ -456,6 +465,14 @@ export async function createGroupBooking(data: {
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!location) return { success: false, error: "Business not configured" }
 
+    // Salon IANA timezone anchors the @db.Time working-hours window in
+    // assertSlotAllowed to the salon's clock (not the server's) on any host.
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { timezone: true },
+    })
+    const timezone = business?.timezone ?? "UTC"
+
     const startTime = new Date(parsed.startTime)
     const endTime = new Date(startTime)
     endTime.setMinutes(endTime.getMinutes() + service.durationMinutes)
@@ -473,7 +490,8 @@ export async function createGroupBooking(data: {
 
       // Group bookings hit the working-hours / break / approved-time-off guard
       // too (GAP-001): a group can't be slotted onto a barber's lunch or day off.
-      await assertSlotAllowed(tx, parsed.staffId, location.id, startTime, endTime)
+      // Salon timezone anchors the @db.Time hours on any host.
+      await assertSlotAllowed(tx, parsed.staffId, location.id, startTime, endTime, timezone)
 
       const conflicting = await tx.appointmentService.findFirst({
         where: {

@@ -9,6 +9,7 @@ import {
 } from "@/lib/scheduling/working-hours"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail } from "@/lib/email-templates"
+import { formatInZone } from "@/lib/scheduling/zoned-time"
 import { parseYmd } from "@/lib/date-utils"
 import { z } from "zod"
 
@@ -154,8 +155,9 @@ export async function POST(req: Request) {
       // server actions use (BOOKING-RESIDUAL). Without this, a crafted startTime
       // via the API can book a client onto a barber's lunch, day off, after
       // close, or approved time-off. Ordering mirrors the actions: lock ->
-      // assertSlotAllowed -> conflict check.
-      await assertSlotAllowed(tx, staffId, location.id, startTime, endTime)
+      // assertSlotAllowed -> conflict check. The salon timezone anchors the
+      // @db.Time hours to the salon's clock (not the server's) on any host.
+      await assertSlotAllowed(tx, staffId, location.id, startTime, endTime, business.timezone)
       const conflicting = await tx.appointmentService.findFirst({
         where: {
           staffId,
@@ -220,10 +222,12 @@ export async function POST(req: Request) {
       }),
     ])
     if (emailClient?.email) {
-      const dateTime = new Intl.DateTimeFormat("en-US", {
+      // Render the appointment time in the SALON's timezone so a 9am-ET booking
+      // never emails as "1:00 PM" on a UTC host.
+      const dateTime = formatInZone(startTime, business.timezone, {
         weekday: "long", month: "long", day: "numeric", year: "numeric",
         hour: "numeric", minute: "2-digit", hour12: true,
-      }).format(startTime)
+      })
       sendEmail({
         to: emailClient.email,
         subject: `Booking Confirmed - ${service.name}`,

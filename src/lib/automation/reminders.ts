@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
+import { formatInZone } from "@/lib/scheduling/zoned-time"
 import { AppointmentStatus } from "@/generated/prisma"
 
 // ============================================================================
@@ -82,6 +83,7 @@ type DueAppointment = {
     name: string
     email: string | null
     phone: string | null
+    timezone: string
   }
   services: { name: string }[]
 }
@@ -132,7 +134,7 @@ export async function findDueReminders(
         },
       },
       business: {
-        select: { name: true, email: true, phone: true },
+        select: { name: true, email: true, phone: true, timezone: true },
       },
       services: {
         select: { name: true },
@@ -162,8 +164,10 @@ async function claimReminder(
   return res.count === 1
 }
 
-function formatWhen(start: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
+// Render the appointment time in the SALON's timezone, not the server's, so a
+// 9am-ET appointment never reminds as "1:00 PM" on a UTC host.
+function formatWhen(start: Date, timezone: string): string {
+  return formatInZone(start, timezone, {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -171,7 +175,7 @@ function formatWhen(start: Date): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(start)
+  })
 }
 
 // Minimal, self-contained reminder email. Kept local to this module so the
@@ -278,7 +282,7 @@ export async function runDueReminders(
         html: reminderEmailHtml({
           clientName: `${client.firstName} ${client.lastName}`.trim(),
           serviceName,
-          dateTime: formatWhen(appt.startTime),
+          dateTime: formatWhen(appt.startTime, appt.business.timezone),
           businessName: appt.business.name,
           bookingRef: appt.bookingReference,
           businessEmail: appt.business.email,

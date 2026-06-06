@@ -62,7 +62,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const appointment = await prisma.appointment.findUnique({
       where: { id, businessId: ctx.businessId },
-      include: { services: true },
+      include: { services: true, business: { select: { timezone: true } } },
     })
     if (!appointment) return ERRORS.NOT_FOUND("Appointment")
 
@@ -112,7 +112,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
         for (const su of serviceUpdates) {
           if (!su.staffId) continue
-          await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime)
+          // Salon timezone anchors the @db.Time working-hours window on any host.
+          await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime, appointment.business.timezone)
           const conflicting = await tx.appointmentService.findFirst({
             where: {
               staffId: su.staffId,

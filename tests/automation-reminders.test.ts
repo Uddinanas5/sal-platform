@@ -50,7 +50,7 @@ function appt(overrides: Record<string, unknown> = {}) {
       lastName: "Reyes",
       emailConsent: true,
     },
-    business: { name: "Anas Cuts", email: "shop@example.com", phone: "5551234" },
+    business: { name: "Anas Cuts", email: "shop@example.com", phone: "5551234", timezone: "UTC" },
     services: [{ name: "Haircut" }],
     ...overrides,
   }

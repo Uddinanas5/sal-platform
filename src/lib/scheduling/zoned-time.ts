@@ -58,6 +58,27 @@ export function timeStringToUtcDate(timeStr: string): Date {
   return new Date(Date.UTC(1970, 0, 1, h || 0, m || 0, s || 0, 0))
 }
 
+/**
+ * Format an appointment instant for a recipient in the SALON's timezone.
+ *
+ * Customer-facing emails (confirmation / reschedule / reminder) must print the
+ * appointment time in the salon's clock, not the SERVER's. On a UTC host a
+ * 9:00 America/New_York appointment would otherwise render as "1:00 PM". This
+ * centralizes the `Intl.DateTimeFormat(..., { timeZone })` so every email call
+ * site renders identically. Falls back to UTC when `timezone` is falsy (schema
+ * default), matching the rest of this module.
+ */
+export function formatInZone(
+  instant: Date,
+  timezone: string,
+  opts: Intl.DateTimeFormatOptions,
+): string {
+  return new Intl.DateTimeFormat("en-US", {
+    ...opts,
+    timeZone: timezone || "UTC",
+  }).format(instant)
+}
+
 /** Salon-local calendar date (YYYY-MM-DD) for an instant in the given zone. */
 export function localDateString(instant: Date, timezone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {

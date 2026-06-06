@@ -153,6 +153,8 @@ describe("MCP reschedule-appointment — multi-service integrity", () => {
       locationId: "loc_1",
       startTime: ORIG_START,
       totalDuration: 60,
+      // Reschedule threads appointment.business.timezone into assertSlotAllowed.
+      business: { timezone: "UTC" },
       services: [
         {
           id: AS_CUT,

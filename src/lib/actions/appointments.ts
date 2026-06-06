@@ -13,6 +13,7 @@ import {
   ERR_OUTSIDE_WORKING_HOURS,
   ERR_ON_APPROVED_TIME_OFF,
 } from "@/lib/scheduling/working-hours"
+import { formatInZone } from "@/lib/scheduling/zoned-time"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -148,8 +149,10 @@ export async function createAppointment(data: {
       // public booking path uses (GAP-001), applied over the COMBINED time
       // range so the whole multi-service block fits inside working hours and
       // misses every break. Without this, internal/POS staff could book a
-      // client onto a barber's lunch, day off, or after close.
-      await assertSlotAllowed(tx, data.staffId, location.id, startTime, endTime)
+      // client onto a barber's lunch, day off, or after close. Pass the salon
+      // timezone so @db.Time hours are interpreted in the salon's clock, not the
+      // server's — full parity with the public path on any host.
+      await assertSlotAllowed(tx, data.staffId, location.id, startTime, endTime, business.timezone)
       // Double-booking prevention: check for overlapping appointments for the
       // same staff member across the WHOLE combined range.
       const conflicting = await tx.appointmentService.findFirst({
@@ -217,7 +220,9 @@ export async function createAppointment(data: {
         : leadService.name
 
     if (client?.email) {
-      const dateTime = new Intl.DateTimeFormat("en-US", {
+      // Render the appointment time in the SALON's timezone, not the server's,
+      // so a 9am-ET appointment never emails as "1:00 PM" on a UTC host.
+      const dateTime = formatInZone(startTime, business.timezone, {
         weekday: "long",
         month: "long",
         day: "numeric",
@@ -225,7 +230,7 @@ export async function createAppointment(data: {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-      }).format(startTime)
+      })
 
       sendEmail({
         to: client.email,
@@ -317,7 +322,7 @@ export async function updateAppointmentStatus(
 
     // Send cancellation email when status changes to cancelled
     if (dbStatus === "cancelled" && appointment.client?.email) {
-      const dateTime = new Intl.DateTimeFormat("en-US", {
+      const dateTime = formatInZone(appointment.startTime, appointment.business.timezone, {
         weekday: "long",
         month: "long",
         day: "numeric",
@@ -325,7 +330,7 @@ export async function updateAppointmentStatus(
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-      }).format(appointment.startTime)
+      })
 
       sendEmail({
         to: appointment.client.email,
@@ -415,7 +420,7 @@ export async function cancelAppointment(input: {
 
     // Notify the client when a (non-no-show) cancellation happens.
     if (parsed.status === "cancelled" && appointment.client?.email) {
-      const dateTime = new Intl.DateTimeFormat("en-US", {
+      const dateTime = formatInZone(appointment.startTime, appointment.business.timezone, {
         weekday: "long",
         month: "long",
         day: "numeric",
@@ -423,7 +428,7 @@ export async function cancelAppointment(input: {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-      }).format(appointment.startTime)
+      })
 
       sendEmail({
         to: appointment.client.email,
@@ -511,7 +516,8 @@ export async function rescheduleAppointment(
 
       for (const su of serviceUpdates) {
         if (!su.staffId) continue
-        await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime)
+        // Salon timezone anchors the @db.Time working-hours window on any host.
+        await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime, appointment.business.timezone)
         const conflicting = await tx.appointmentService.findFirst({
           where: {
             staffId: su.staffId,
@@ -548,6 +554,8 @@ export async function rescheduleAppointment(
 
     // Send reschedule email (non-blocking)
     if (appointment.client?.email) {
+      // Both times render in the SALON's timezone so the email shows the salon's
+      // wall-clock, not the server's (a UTC host must not show "1:00 PM" for 9am ET).
       const dateFormatOptions: Intl.DateTimeFormatOptions = {
         weekday: "long",
         month: "long",
@@ -557,8 +565,9 @@ export async function rescheduleAppointment(
         minute: "2-digit",
         hour12: true,
       }
-      const oldDateTime = new Intl.DateTimeFormat("en-US", dateFormatOptions).format(oldStartTime)
-      const newDateTime = new Intl.DateTimeFormat("en-US", dateFormatOptions).format(startTime)
+      const tz = appointment.business.timezone
+      const oldDateTime = formatInZone(oldStartTime, tz, dateFormatOptions)
+      const newDateTime = formatInZone(startTime, tz, dateFormatOptions)
 
       const staffUser = appointment.services[0]?.staff?.user
       const staffName = staffUser
@@ -625,7 +634,7 @@ export async function resizeAppointment(
 
     const appointment = await prisma.appointment.findUnique({
       where: { id, businessId },
-      include: { services: true },
+      include: { services: true, business: { select: { timezone: true } } },
     })
     if (!appointment) return { success: false, error: "Appointment not found" }
 
@@ -638,7 +647,8 @@ export async function resizeAppointment(
     await prisma.$transaction(async (tx) => {
       if (staffId) {
         await lockStaffSchedule(tx, businessId, staffId)
-        await assertSlotAllowed(tx, staffId, appointment.locationId, startTime, newEndTime)
+        // Salon timezone anchors the @db.Time working-hours window on any host.
+        await assertSlotAllowed(tx, staffId, appointment.locationId, startTime, newEndTime, appointment.business.timezone)
         const conflicting = await tx.appointmentService.findFirst({
           where: {
             staffId,
