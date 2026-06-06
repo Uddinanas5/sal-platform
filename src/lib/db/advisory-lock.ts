@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import type { Prisma } from "@/generated/prisma"
+import { Prisma } from "@/generated/prisma"
 
 /**
  * Transaction-scoped advisory lock keyed on (businessId, staffId).
@@ -53,4 +53,33 @@ export async function lockGiftCard(
   const key1 = hash.readInt32BE(0)
   const key2 = hash.readInt32BE(4)
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(${key1}::int4, ${key2}::int4)`
+}
+
+/**
+ * Detect the contention-induced failures a booking/checkout $transaction can
+ * surface when many concurrent requests serialize behind the same advisory
+ * lock. These are NOT integrity failures — exactly one writer still wins; the
+ * losers either hit the interactive-transaction timeout (P2028) or a
+ * write-conflict/deadlock retry (P2034). They should map to the SAME "slot is
+ * already taken, please try again" client error as a CONFLICT, never a 500.
+ *
+ * P2028 = transaction API error (timeout / transaction already closed)
+ * P2034 = write conflict or deadlock; transaction should be retried
+ *
+ * Also matches the raw timeout strings ("expired transaction" /
+ * "Transaction API error") as a belt-and-braces fallback in case the engine
+ * surfaces them without a typed code.
+ */
+export function isBookingContentionError(e: unknown): boolean {
+  if (
+    e instanceof Prisma.PrismaClientKnownRequestError &&
+    (e.code === "P2028" || e.code === "P2034")
+  ) {
+    return true
+  }
+  const message = e instanceof Error ? e.message : ""
+  return (
+    message.includes("expired transaction") ||
+    message.includes("Transaction API error")
+  )
 }

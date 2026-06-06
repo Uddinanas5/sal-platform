@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getBusinessContext } from '@/lib/auth-utils'
-import { lockStaffSchedule } from '@/lib/db/advisory-lock'
+import { lockStaffSchedule, isBookingContentionError } from '@/lib/db/advisory-lock'
 import {
   assertSlotAllowed,
   ERR_OUTSIDE_WORKING_HOURS,
@@ -395,7 +395,7 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
       }
 
         return apt
-      })
+      }, { timeout: 20000, maxWait: 15000 })
     } catch (e) {
       const msg = (e as Error).message
       if (msg === ERR_OUTSIDE_WORKING_HOURS) {
@@ -406,6 +406,15 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
       }
       if (msg.includes('was just taken')) {
         return NextResponse.json({ error: msg }, { status: 409 })
+      }
+      // Concurrency contention behind the advisory lock (tx timeout P2028 /
+      // write-conflict P2034) is not an integrity failure — map it to the same
+      // clean conflict response (409) instead of letting it fall through to a 500.
+      if (isBookingContentionError(e)) {
+        return NextResponse.json(
+          { error: 'This time slot is no longer available, please try again' },
+          { status: 409 },
+        )
       }
       throw e
     }

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { addWeeks, addMonths } from "date-fns"
 import { getBusinessContext } from "@/lib/auth-utils"
-import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
 import {
   assertClientOwned,
   assertClientsOwned,
@@ -166,7 +166,7 @@ export async function createRecurringAppointment(data: {
       }
 
       return createdIds
-    })
+    }, { timeout: 20000, maxWait: 15000 })
 
     revalidatePath("/calendar")
     revalidatePath("/dashboard")
@@ -199,6 +199,11 @@ export async function createRecurringAppointment(data: {
     }
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
+    }
+    // Concurrency contention behind the advisory lock (tx timeout P2028 /
+    // write-conflict P2034) — surface the same clean "try again" conflict error.
+    if (isBookingContentionError(e)) {
+      return { success: false, error: "This time slot is no longer available, please try again" }
     }
     console.error("createRecurringAppointment error:", e)
     return { success: false, error: msg }
@@ -526,7 +531,7 @@ export async function createGroupBooking(data: {
       })
 
       return appt
-    })
+    }, { timeout: 20000, maxWait: 15000 })
 
     revalidatePath("/calendar")
     revalidatePath("/dashboard")
@@ -550,6 +555,11 @@ export async function createGroupBooking(data: {
     }
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
+    }
+    // Concurrency contention behind the advisory lock (tx timeout P2028 /
+    // write-conflict P2034) — surface the same clean "try again" conflict error.
+    if (isBookingContentionError(e)) {
+      return { success: false, error: "This time slot is no longer available, please try again" }
     }
     console.error("createGroupBooking error:", e)
     return { success: false, error: msg }

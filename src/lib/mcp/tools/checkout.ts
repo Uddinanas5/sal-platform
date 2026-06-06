@@ -3,6 +3,7 @@ import { type ApiContext } from "@/lib/api/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { recordCheckout, RecordCheckoutError } from "@/lib/checkout/record-checkout"
+import { isBookingContentionError } from "@/lib/db/advisory-lock"
 import { GiftCardError } from "@/lib/checkout/gift-card-redeem"
 import {
   CommissionPeriodClosedError,
@@ -102,6 +103,7 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
             method,
             giftCardCode,
           }),
+          { timeout: 20000, maxWait: 15000 },
         )
 
         return ok({
@@ -123,6 +125,12 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
         }
         if (e instanceof RecordCheckoutError) {
           return err(e.message)
+        }
+        // Concurrency contention behind the per-client / per-gift-card advisory
+        // lock (tx timeout P2028 / write-conflict P2034) — no payment was
+        // recorded; return a clean "try again" message instead of a 500.
+        if (isBookingContentionError(e)) {
+          return err("This checkout could not be completed right now, please try again")
         }
         console.error("process-checkout error:", e)
         return err("Checkout failed")

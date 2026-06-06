@@ -1,7 +1,7 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiError, apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
-import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
 import {
   assertSlotAllowed,
   ERR_OUTSIDE_WORKING_HOURS,
@@ -129,7 +129,7 @@ export async function POST(req: Request) {
       })
 
       return appointment.id
-    })
+    }, { timeout: 20000, maxWait: 15000 })
 
     return apiSuccess({ id: appointmentId, participantCount: clientIds.length }, 201)
   } catch (e) {
@@ -142,6 +142,12 @@ export async function POST(req: Request) {
     }
     if (msg === ERR_ON_APPROVED_TIME_OFF) {
       return apiError("ON_APPROVED_TIME_OFF", "Staff member has approved time off during this slot", 400)
+    }
+    // Concurrency contention behind the advisory lock (tx timeout P2028 /
+    // write-conflict P2034) is not an integrity failure — map it to the same
+    // clean conflict 400 instead of a 500.
+    if (isBookingContentionError(e)) {
+      return ERRORS.BAD_REQUEST("This time slot is no longer available, please try again")
     }
     return ERRORS.SERVER_ERROR()
   }

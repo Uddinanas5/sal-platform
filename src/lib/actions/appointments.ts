@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail, appointmentCancelledEmail, appointmentRescheduledEmail } from "@/lib/email-templates"
 import { getBusinessContext } from "@/lib/auth-utils"
-import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
 import { assertClientOwned, assertStaffOwned, generateBookingReference } from "@/lib/ownership"
 import {
   assertSlotAllowed,
@@ -195,7 +195,7 @@ export async function createAppointment(data: {
       }
 
       return appt
-    })
+    }, { timeout: 20000, maxWait: 15000 })
 
     if (!appointment) {
       return { success: false, error: "Failed to create appointment" }
@@ -259,6 +259,12 @@ export async function createAppointment(data: {
     }
     if (msg === "Not authenticated" || msg === "No business context") {
       return { success: false, error: msg }
+    }
+    // Concurrency contention behind the advisory lock (tx timeout P2028 /
+    // write-conflict P2034) is not an integrity failure — surface the same
+    // clean "try again" conflict error instead of a raw 500-style message.
+    if (isBookingContentionError(e)) {
+      return { success: false, error: "This time slot is no longer available, please try again" }
     }
     console.error("createAppointment error:", e)
     return { success: false, error: msg }
@@ -538,7 +544,7 @@ export async function rescheduleAppointment(
           data: updateData,
         })
       }
-    })
+    }, { timeout: 20000, maxWait: 15000 })
 
     // Send reschedule email (non-blocking)
     if (appointment.client?.email) {
@@ -590,6 +596,11 @@ export async function rescheduleAppointment(
     }
     if (msg === ERR_ON_APPROVED_TIME_OFF) {
       return { success: false, error: "Staff member has approved time off during this slot" }
+    }
+    // Concurrency contention behind the advisory lock (tx timeout P2028 /
+    // write-conflict P2034) — surface the same clean "try again" conflict error.
+    if (isBookingContentionError(e)) {
+      return { success: false, error: "This time slot is no longer available, please try again" }
     }
     console.error("rescheduleAppointment error:", e)
     return { success: false, error: msg }
@@ -658,7 +669,7 @@ export async function resizeAppointment(
           },
         })
       }
-    })
+    }, { timeout: 20000, maxWait: 15000 })
 
     revalidatePath("/calendar")
     return { success: true, data: undefined }
@@ -672,6 +683,11 @@ export async function resizeAppointment(
     }
     if (msg === ERR_ON_APPROVED_TIME_OFF) {
       return { success: false, error: "Resized end time overlaps approved staff time off" }
+    }
+    // Concurrency contention behind the advisory lock (tx timeout P2028 /
+    // write-conflict P2034) — surface the same clean "try again" conflict error.
+    if (isBookingContentionError(e)) {
+      return { success: false, error: "This time slot is no longer available, please try again" }
     }
     console.error("resizeAppointment error:", e)
     return { success: false, error: msg }

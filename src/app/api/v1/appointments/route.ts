@@ -1,7 +1,7 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiError, apiSuccess, apiPaginated, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
-import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
 import {
   assertSlotAllowed,
   ERR_OUTSIDE_WORKING_HOURS,
@@ -206,7 +206,7 @@ export async function POST(req: Request) {
       })
 
       return appt
-    })
+    }, { timeout: 20000, maxWait: 15000 })
 
     // Send confirmation email (non-blocking). Re-fetch is tenant-scoped as
     // defense-in-depth: upstream gates already prove these IDs belong to
@@ -251,6 +251,13 @@ export async function POST(req: Request) {
     }
     if (msg === ERR_ON_APPROVED_TIME_OFF) {
       return apiError("ON_APPROVED_TIME_OFF", "Staff member has approved time off during this slot", 400)
+    }
+    // Under heavy concurrent contention the advisory-lock serialization can push
+    // a queued request past the interactive-transaction timeout (P2028) or trip
+    // a write-conflict/deadlock retry (P2034). Integrity is intact — one booking
+    // still won — so surface the same clean conflict 400, not a 500.
+    if (isBookingContentionError(e)) {
+      return ERRORS.BAD_REQUEST("This time slot is no longer available, please try again")
     }
     console.error("POST /api/v1/appointments error:", e)
     return ERRORS.SERVER_ERROR()

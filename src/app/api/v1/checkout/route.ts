@@ -3,6 +3,7 @@ import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { recordCheckout, RecordCheckoutError } from "@/lib/checkout/record-checkout"
+import { isBookingContentionError } from "@/lib/db/advisory-lock"
 import { GiftCardError } from "@/lib/checkout/gift-card-redeem"
 import {
   CommissionPeriodClosedError,
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
         redeemPoints: data.redeemPoints,
         giftCardCode: data.giftCardCode,
       }),
+      { timeout: 20000, maxWait: 15000 },
     )
 
     return apiSuccess(
@@ -125,6 +127,12 @@ export async function POST(req: Request) {
     }
     if (e instanceof RecordCheckoutError) {
       return ERRORS.BAD_REQUEST(e.message)
+    }
+    // Concurrency contention behind the per-client / per-gift-card advisory lock
+    // (tx timeout P2028 / write-conflict P2034) is not an integrity failure — no
+    // payment was recorded — so surface a clean 400 "try again", not a 500.
+    if (isBookingContentionError(e)) {
+      return ERRORS.BAD_REQUEST("This checkout could not be completed right now, please try again")
     }
     console.error("POST /api/v1/checkout error:", e)
     return ERRORS.SERVER_ERROR()

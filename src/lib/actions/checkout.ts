@@ -7,6 +7,7 @@ import { getBusinessContext } from "@/lib/auth-utils"
 import { sendEmail } from "@/lib/email"
 import { receiptEmail } from "@/lib/email-templates"
 import { recordCheckout, RecordCheckoutError } from "@/lib/checkout/record-checkout"
+import { isBookingContentionError } from "@/lib/db/advisory-lock"
 import { GiftCardError } from "@/lib/checkout/gift-card-redeem"
 import {
   CommissionPeriodClosedError,
@@ -131,6 +132,7 @@ export async function processPayment(data: {
         redeemPoints: input.redeemPoints,
         giftCardCode: input.giftCardCode,
       }),
+      { timeout: 20000, maxWait: 15000 },
     )
 
     revalidatePath("/checkout")
@@ -164,6 +166,12 @@ export async function processPayment(data: {
     }
     if (e instanceof RecordCheckoutError) {
       return { success: false, error: e.message }
+    }
+    // Concurrency contention behind the per-client / per-gift-card advisory lock
+    // (tx timeout P2028 / write-conflict P2034) — no payment was recorded;
+    // surface a clean "try again" message instead of a raw 500-style error.
+    if (isBookingContentionError(e)) {
+      return { success: false, error: "This checkout could not be completed right now, please try again" }
     }
     console.error("processPayment error:", e)
     return { success: false, error: msg }

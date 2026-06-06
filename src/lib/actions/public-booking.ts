@@ -10,7 +10,7 @@ import {
 } from "@/lib/email-templates"
 import { revalidatePath } from "next/cache"
 import { z, ZodError } from "zod"
-import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
 import { generateBookingReference } from "@/lib/booking-reference"
 import { isSlotAvailable } from "@/lib/availability"
 import { getPublicBookingSettings } from "@/lib/actions/booking-settings"
@@ -254,7 +254,7 @@ export async function createPublicBooking(data: {
       })
 
       return appt
-    })
+    }, { timeout: 20000, maxWait: 15000 })
 
     // 8. Send booking confirmation email (non-blocking)
     if (client.email) {
@@ -306,6 +306,12 @@ export async function createPublicBooking(data: {
     }
     if (msg === ERR_ON_APPROVED_TIME_OFF) {
       return { success: false, error: "That time is no longer available." }
+    }
+    // Concurrency contention behind the advisory lock (tx timeout P2028 /
+    // write-conflict P2034) is not an integrity failure — surface the same
+    // clean "try again" conflict error instead of the generic failure.
+    if (isBookingContentionError(e)) {
+      return { success: false, error: "This time slot is no longer available, please try again" }
     }
     console.error("createPublicBooking error:", e)
     return { success: false, error: "Failed to create booking. Please try again." }
@@ -664,7 +670,7 @@ export async function reschedulePublicBooking(
           data: { startTime: su.startTime, endTime: su.endTime },
         })
       }
-    })
+    }, { timeout: 20000, maxWait: 15000 })
 
     // Reschedule email — best-effort. sendEmail logs and returns when Resend
     // isn't configured; we never block or fail the reschedule on email.
@@ -726,6 +732,11 @@ export async function reschedulePublicBooking(
     }
     if (msg === ERR_ON_APPROVED_TIME_OFF) {
       return { success: false, error: "That time is no longer available." }
+    }
+    // Concurrency contention behind the advisory lock (tx timeout P2028 /
+    // write-conflict P2034) — surface the same clean "try again" conflict error.
+    if (isBookingContentionError(e)) {
+      return { success: false, error: "This time slot is no longer available, please try again" }
     }
     console.error("reschedulePublicBooking error:", e)
     return { success: false, error: "Failed to reschedule appointment. Please try again." }

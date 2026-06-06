@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
 import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { prisma } from "@/lib/prisma"
-import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
 import { generateBookingReference } from "@/lib/booking-reference"
 import { hasRole } from "@/lib/permissions"
 import {
@@ -172,12 +172,15 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           })
 
           return appt
-        })
+        }, { timeout: 20000, maxWait: 15000 })
         return ok(appointment)
       } catch (e) {
         if ((e as Error).message === "CONFLICT") return err("Time slot already booked for this staff member")
         const slotErr = slotErrorMessage(e)
         if (slotErr) return err(slotErr)
+        // Concurrency contention behind the advisory lock (tx timeout P2028 /
+        // write-conflict P2034) — return the same clean conflict message.
+        if (isBookingContentionError(e)) return err("Time slot already booked for this staff member")
         throw e
       }
     }
@@ -275,13 +278,16 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           }
 
           return appt
-        })
+        }, { timeout: 20000, maxWait: 15000 })
 
         return ok(updated)
       } catch (e) {
         if ((e as Error).message === "CONFLICT") return err("Time slot already booked for this staff member")
         const slotErr = slotErrorMessage(e)
         if (slotErr) return err(slotErr)
+        // Concurrency contention behind the advisory lock (tx timeout P2028 /
+        // write-conflict P2034) — return the same clean conflict message.
+        if (isBookingContentionError(e)) return err("Time slot already booked for this staff member")
         throw e
       }
     }
@@ -413,7 +419,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
             })
 
             return created
-          })
+          }, { timeout: 20000, maxWait: 15000 })
 
           appointments.push({ id: appt.id, startTime: appt.startTime })
           current = new Date(current.getTime() + intervalDays * 86400000)
@@ -423,6 +429,9 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         if ((e as Error).message === "CONFLICT") return err("One or more recurring time slots are already booked")
         const slotErr = slotErrorMessage(e)
         if (slotErr) return err(slotErr)
+        // Concurrency contention behind the advisory lock (tx timeout P2028 /
+        // write-conflict P2034) — return the same clean conflict message.
+        if (isBookingContentionError(e)) return err("One or more recurring time slots are already booked")
         throw e
       }
 
@@ -544,13 +553,16 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           })
 
           return appt
-        })
+        }, { timeout: 20000, maxWait: 15000 })
 
         return ok(appointment)
       } catch (e) {
         if ((e as Error).message === "CONFLICT") return err("Time slot already booked for this staff member")
         const slotErr = slotErrorMessage(e)
         if (slotErr) return err(slotErr)
+        // Concurrency contention behind the advisory lock (tx timeout P2028 /
+        // write-conflict P2034) — return the same clean conflict message.
+        if (isBookingContentionError(e)) return err("Time slot already booked for this staff member")
         throw e
       }
     }
@@ -598,11 +610,14 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           return tx.groupParticipant.create({
             data: { appointmentId, clientId },
           })
-        })
+        }, { timeout: 20000, maxWait: 15000 })
         return ok(participant)
       } catch (e) {
         const slotErr = slotErrorMessage(e)
         if (slotErr) return err(slotErr)
+        // Concurrency contention behind the advisory lock (tx timeout P2028 /
+        // write-conflict P2034) — return a clean "try again" message.
+        if (isBookingContentionError(e)) return err("This time slot is no longer available, please try again")
         throw e
       }
     }

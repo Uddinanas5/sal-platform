@@ -3,7 +3,7 @@ import { apiError, apiSuccess, ERRORS } from "@/lib/api/response"
 import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { assertStaffOwned } from "@/lib/ownership"
 import { prisma } from "@/lib/prisma"
-import { lockStaffSchedule } from "@/lib/db/advisory-lock"
+import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
 import {
   assertSlotAllowed,
   ERR_OUTSIDE_WORKING_HOURS,
@@ -141,7 +141,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           if (su.applyStaffUpdate) updateData.staffId = su.staffId
           await tx.appointmentService.update({ where: { id: su.id }, data: updateData })
         }
-      })
+      }, { timeout: 20000, maxWait: 15000 })
       return apiSuccess({ rescheduled: true })
     } catch (e) {
       const msg = (e as Error).message
@@ -153,6 +153,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
       if (msg === ERR_ON_APPROVED_TIME_OFF) {
         return apiError("ON_APPROVED_TIME_OFF", "Reschedule overlaps approved staff time off", 400)
+      }
+      // Concurrency contention behind the advisory lock (tx timeout P2028 /
+      // write-conflict P2034) is not an integrity failure — map it to the same
+      // clean conflict 400 instead of a 500.
+      if (isBookingContentionError(e)) {
+        return ERRORS.BAD_REQUEST("This time slot is no longer available, please try again")
       }
       return ERRORS.SERVER_ERROR()
     }
