@@ -1,7 +1,7 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { hasRole } from "@/lib/permissions"
-import { prisma } from "@/lib/prisma"
+import { sendCampaignCore } from "@/lib/marketing/send-core"
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await withV1Auth(req)
@@ -9,20 +9,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!hasRole(ctx.role, "admin")) return ERRORS.FORBIDDEN()
   const { id } = await params
 
-  try {
-    const existing = await prisma.campaign.findFirst({
-      where: { id, businessId: ctx.businessId },
-      select: { channel: true },
-    })
-    if (!existing) return ERRORS.NOT_FOUND("Campaign")
-    if (existing.channel !== "email") return ERRORS.BAD_REQUEST("SMS messaging is not configured yet")
-
-    const campaign = await prisma.campaign.update({
-      where: { id, businessId: ctx.businessId },
-      data: { status: "sent", sentAt: new Date() },
-    })
-    return apiSuccess(campaign)
-  } catch {
-    return ERRORS.NOT_FOUND("Campaign")
+  // Delegate to the single shared send core (audience resolution + consent gate
+  // + per-send cap + batched real sends + status/recipientCount completion) so
+  // this REST surface can never fake a send the way it used to (a bare status
+  // flip to "sent" with zero emails dispatched).
+  const result = await sendCampaignCore(ctx.businessId, id)
+  if (!result.success) {
+    if (result.error === "Campaign not found") return ERRORS.NOT_FOUND("Campaign")
+    return ERRORS.BAD_REQUEST(result.error)
   }
+  return apiSuccess({ ...result.campaign, sent: result.sent, recipientCount: result.recipientCount })
 }
