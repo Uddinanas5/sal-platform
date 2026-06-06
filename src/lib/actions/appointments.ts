@@ -559,6 +559,9 @@ export async function rescheduleAppointment(
         ? `${staffUser.firstName} ${staffUser.lastName}`
         : "Our team"
 
+      // P0-008: include the same self-service manage URL the confirmation
+      // email carries, so a rescheduled client can still view/cancel online.
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
       sendEmail({
         to: appointment.client.email,
         subject: `Appointment Rescheduled - ${appointment.services[0]?.name || "Your appointment"}`,
@@ -570,6 +573,7 @@ export async function rescheduleAppointment(
           staffName,
           businessName: appointment.business.name,
           bookingRef: appointment.bookingReference,
+          manageUrl: `${baseUrl}/book/manage/${appointment.bookingReference}`,
         }),
       }).catch(console.error) // Don't block on email failure
     }
