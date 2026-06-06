@@ -47,19 +47,10 @@ export function PlanCard({ plan, index = 0, onEdit, onToggleActive, busy = false
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{plan.description}</p>
           </div>
-          {plan.discount > 0 && (
-            <Badge
-              variant="secondary"
-              className="text-xs"
-              style={{
-                backgroundColor: `${plan.color}15`,
-                color: plan.color,
-                borderColor: `${plan.color}30`,
-              }}
-            >
-              {plan.discount}% off
-            </Badge>
-          )}
+          {/* Percent-off badge intentionally removed for beta: the member
+              discount is not yet applied at checkout (record-checkout.ts), so we
+              don't advertise an unhonored entitlement. Restore when member
+              discount-at-checkout ships. */}
         </div>
 
         {/* Price */}

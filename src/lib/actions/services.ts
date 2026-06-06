@@ -143,7 +143,7 @@ export async function updateService(
     const { businessId } = await requireMinRole("admin")
 
     await prisma.service.update({
-      where: { id, businessId },
+      where: { id, businessId, deletedAt: null },
       data: {
         name: data.name,
         description: data.description,
@@ -166,11 +166,14 @@ export async function toggleServiceActive(id: string): Promise<ActionResult> {
   try {
     const { businessId } = await requireMinRole("admin")
 
-    const service = await prisma.service.findUnique({ where: { id, businessId } })
+    // deletedAt:null so the toggle can never resurrect a soft-deleted service.
+    const service = await prisma.service.findUnique({
+      where: { id, businessId, deletedAt: null },
+    })
     if (!service) return { success: false, error: "Service not found" }
 
     await prisma.service.update({
-      where: { id, businessId },
+      where: { id, businessId, deletedAt: null },
       data: { isActive: !service.isActive },
     })
 

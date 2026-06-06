@@ -73,9 +73,10 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
 
   // Fetch all required data in parallel
   const [service, staffSchedule, staffTimeOff, existingAppointments, staff, businessHours] = await Promise.all([
-    // Get service duration
+    // Get service duration. deletedAt:null so a soft-deleted (incl. resurrected-
+    // to-isActive) service never resolves real slots from any availability caller.
     prisma.service.findUnique({
-      where: { id: serviceId },
+      where: { id: serviceId, deletedAt: null },
       select: {
         durationMinutes: true,
         bufferBeforeMinutes: true,
@@ -136,12 +137,16 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
       orderBy: { startTime: 'asc' },
     }),
 
-    // Get staff buffer settings
+    // Get staff buffer settings + activation flags (defense-in-depth: a
+    // deactivated / soft-deleted staff member must never resolve slots, even if
+    // a caller's where-clause omitted the isActive/deletedAt filter).
     prisma.staff.findUnique({
       where: { id: staffId },
       select: {
         bookingBufferMinutes: true,
         canAcceptBookings: true,
+        isActive: true,
+        deletedAt: true,
       },
     }),
 
@@ -156,7 +161,7 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
     throw new Error('Service not found')
   }
 
-  if (!staff || !staff.canAcceptBookings) {
+  if (!staff || !staff.canAcceptBookings || !staff.isActive || staff.deletedAt) {
     return {
       slots: [],
       staffId,

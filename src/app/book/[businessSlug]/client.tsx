@@ -381,7 +381,10 @@ function StaffStep({
   onSelect: (s: Staff | "any") => void
 }) {
   const availableStaff = useMemo(
-    () => staff.filter((s) => s.isActive && s.services.includes(selectedService.id)),
+    () =>
+      staff.filter(
+        (s) => s.isActive && s.canAcceptBookings && s.services.includes(selectedService.id),
+      ),
     [staff, selectedService]
   )
 
@@ -534,6 +537,7 @@ function DateTimeStep({
   businessHours,
   availableSlots,
   slotsLoading,
+  availabilityReason,
   maxAdvanceBooking,
   timezone,
   // Waitlist props
@@ -553,6 +557,7 @@ function DateTimeStep({
   businessHours: BusinessHourData[]
   availableSlots: AvailabilitySlot[]
   slotsLoading: boolean
+  availabilityReason: string | null
   maxAdvanceBooking?: string
   timezone: string
   serviceId: string | null
@@ -933,8 +938,9 @@ function DateTimeStep({
                       Try another date instead
                     </Button>
                   </motion.div>
-                ) : (
-                  // Initial prompt to join waitlist
+                ) : availabilityReason === "fully_booked" ? (
+                  // Genuinely full for this date — the one case a waitlist can
+                  // resolve. Offer to notify when a spot opens.
                   <div className="text-center space-y-3 py-4">
                     <p className="text-sm text-muted-foreground">
                       No available slots for{" "}
@@ -953,6 +959,25 @@ function DateTimeStep({
                     <Button size="sm" onClick={onShowWaitlist} disabled={!serviceId}>
                       <Bell className="w-4 h-4 mr-2" />
                       Join Waitlist
+                    </Button>
+                  </div>
+                ) : (
+                  // Not a full-day situation a waitlist can fix (no bookable
+                  // staff, closed, or out of the booking window). Steer the
+                  // client to another date instead of a dead-end waitlist.
+                  <div className="text-center space-y-3 py-4">
+                    <p className="text-sm text-muted-foreground">
+                      {availabilityReason === "no_staff" || availabilityReason === "not_accepting"
+                        ? "This service isn't bookable online right now."
+                        : availabilityReason === "out_of_window"
+                          ? "That date is outside the booking window."
+                          : "No available slots for this date."}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Please try another date.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={onTryAnotherDate}>
+                      Try another date
                     </Button>
                   </div>
                 )}
@@ -1380,16 +1405,22 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
   // bookings and the lead-time window.
   const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
+  // Machine-readable reason for an empty result. Only "fully_booked" should
+  // surface the Join-Waitlist CTA — a waitlist can't conjure a barber for a
+  // no_staff/not_accepting service or open a closed/out-of-window day.
+  const [availabilityReason, setAvailabilityReason] = useState<string | null>(null)
 
   useEffect(() => {
     if (!selectedService || !selectedDate) {
       setAvailableSlots([])
+      setAvailabilityReason(null)
       setSlotsLoading(false)
       return
     }
     let active = true
     setSlotsLoading(true)
     setAvailableSlots([])
+    setAvailabilityReason(null)
     const pad = (n: number) => String(n).padStart(2, "0")
     const dateStr = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())}`
     const params = new URLSearchParams({ serviceId: selectedService.id, date: dateStr, locationId })
@@ -1398,14 +1429,23 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
       .then(async (res) => {
         if (!active) return
         if (!res.ok) {
+          // A non-200 (out-of-window, service/staff-not-found, etc.) is never a
+          // waitlist-able "full" case.
+          const errBody = await res.json().catch(() => ({}))
           setAvailableSlots([])
+          setAvailabilityReason(errBody?.error?.code === "OUT_OF_BOOKING_WINDOW" ? "out_of_window" : "unavailable")
           return
         }
         const data = await res.json().catch(() => ({}))
-        setAvailableSlots(Array.isArray(data?.slots) ? (data.slots as AvailabilitySlot[]) : [])
+        const slots = Array.isArray(data?.slots) ? (data.slots as AvailabilitySlot[]) : []
+        setAvailableSlots(slots)
+        setAvailabilityReason(slots.length === 0 ? (typeof data?.reason === "string" ? data.reason : "fully_booked") : null)
       })
       .catch(() => {
-        if (active) setAvailableSlots([])
+        if (active) {
+          setAvailableSlots([])
+          setAvailabilityReason("unavailable")
+        }
       })
       .finally(() => {
         if (active) setSlotsLoading(false)
@@ -1682,6 +1722,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
                   businessHours={businessHours}
                   availableSlots={availableSlots}
                   slotsLoading={slotsLoading}
+                  availabilityReason={availabilityReason}
                   maxAdvanceBooking={maxAdvanceBooking}
                   timezone={timezone}
                   serviceId={selectedService?.id ?? null}

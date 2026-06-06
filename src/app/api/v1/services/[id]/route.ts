@@ -39,10 +39,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const action = url.searchParams.get("action")
 
   if (action === "toggle") {
-    const service = await prisma.service.findUnique({ where: { id, businessId: ctx.businessId } })
+    // deletedAt:null — never flip a soft-deleted service back to active (that
+    // would resurrect it into a bookable, deletedAt-non-null edge state).
+    const service = await prisma.service.findUnique({
+      where: { id, businessId: ctx.businessId, deletedAt: null },
+    })
     if (!service) return ERRORS.NOT_FOUND("Service")
     const updated = await prisma.service.update({
-      where: { id, businessId: ctx.businessId },
+      where: { id, businessId: ctx.businessId, deletedAt: null },
       data: { isActive: !service.isActive },
     })
     return apiSuccess(updated)
@@ -53,7 +57,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   try {
     const service = await prisma.service.update({
-      where: { id, businessId: ctx.businessId },
+      where: { id, businessId: ctx.businessId, deletedAt: null },
       data: {
         name: parsed.data.name,
         description: parsed.data.description,

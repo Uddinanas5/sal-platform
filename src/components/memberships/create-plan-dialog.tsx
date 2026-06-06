@@ -59,7 +59,6 @@ export function CreatePlanDialog({ open, onOpenChange, plan, onSaved }: CreatePl
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
-  const [discount, setDiscount] = useState("")
   const [features, setFeatures] = useState<string[]>([])
   const [newFeature, setNewFeature] = useState("")
   const [saving, setSaving] = useState(false)
@@ -72,14 +71,12 @@ export function CreatePlanDialog({ open, onOpenChange, plan, onSaved }: CreatePl
       setDescription(plan.description ?? "")
       setPrice(String(plan.price))
       setBillingCycle((plan.billingCycle as BillingCycle) || "monthly")
-      setDiscount(plan.discountPercent != null ? String(plan.discountPercent) : "")
       setFeatures(plan.benefits ?? [])
     } else {
       setName("")
       setDescription("")
       setPrice("")
       setBillingCycle("monthly")
-      setDiscount("")
       setFeatures([])
     }
     setNewFeature("")
@@ -109,19 +106,17 @@ export function CreatePlanDialog({ open, onOpenChange, plan, onSaved }: CreatePl
       toast.error("Please enter a name and a valid price")
       return
     }
-    const discountNum = discount === "" ? undefined : Number(discount)
-    if (discountNum !== undefined && (Number.isNaN(discountNum) || discountNum < 0 || discountNum > 100)) {
-      toast.error("Discount must be between 0 and 100")
-      return
-    }
-
     setSaving(true)
+    // NOTE: percent-off discount is intentionally NOT collected here. The
+    // discount is not yet applied at checkout (see record-checkout.ts), so we do
+    // not let salons advertise an entitlement the code can't honor. When member-
+    // discount-at-checkout ships, restore a Discount % field here. We leave any
+    // existing discountPercent on an edited plan untouched (omitted from payload).
     const payload = {
       name: name.trim(),
       description: description.trim() || undefined,
       price: priceNum,
       billingCycle,
-      discountPercent: discountNum,
       benefits: features,
     }
 
@@ -212,24 +207,6 @@ export function CreatePlanDialog({ open, onOpenChange, plan, onSaved }: CreatePl
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-
-          {/* Discount */}
-          <div className="space-y-2">
-            <Label>Discount %</Label>
-            <div className="relative">
-              <Input
-                type="number"
-                placeholder="10"
-                value={discount}
-                onChange={(e) => setDiscount(e.target.value)}
-                min="0"
-                max="100"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/70">
-                %
-              </span>
             </div>
           </div>
 

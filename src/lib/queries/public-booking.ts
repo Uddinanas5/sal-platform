@@ -12,6 +12,7 @@ export interface PublicBookingStaff {
   id: string
   name: string
   isActive: boolean
+  canAcceptBookings: boolean
   services: string[]
   color: string
   role: "admin" | "staff"
@@ -31,8 +32,11 @@ export async function getPublicBookingStaff(
       id: true,
       color: true,
       isActive: true,
+      canAcceptBookings: true,
       user: { select: { firstName: true, lastName: true, role: true } },
-      staffServices: { select: { serviceId: true } },
+      // Only ACTIVE staff-service links — an inactive link means this staff
+      // member no longer performs the service, so it must not advertise it.
+      staffServices: { where: { isActive: true }, select: { serviceId: true } },
     },
   })
 
@@ -40,6 +44,7 @@ export async function getPublicBookingStaff(
     id: s.id,
     name: `${s.user.firstName} ${s.user.lastName}`,
     isActive: s.isActive,
+    canAcceptBookings: s.canAcceptBookings,
     services: s.staffServices.map((ss) => ss.serviceId),
     color: s.color || "#059669",
     role: s.user.role === "admin" || s.user.role === "owner" ? "admin" : "staff",

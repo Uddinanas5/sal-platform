@@ -158,16 +158,27 @@ export default async function PublicBookingPage({
     isClosed: bh.isClosed,
   }))
 
-  const services = dbServices.map((s: typeof dbServices[number]) => ({
-    id: s.id,
-    name: s.name,
-    description: s.description || "",
-    duration: s.durationMinutes,
-    price: Number(s.price),
-    category: s.category?.name || "Uncategorized",
-    color: s.color || "#059669",
-    isActive: s.isActive,
-  }))
+  // A service with no active, bookable staff who perform it can never produce a
+  // slot — and a waitlist can't conjure a barber for it — so drop it from the
+  // catalog entirely rather than letting it dead-end on an empty step 3.
+  const bookableServiceIds = new Set(
+    staff
+      .filter((s) => s.isActive && s.canAcceptBookings)
+      .flatMap((s) => s.services),
+  )
+
+  const services = dbServices
+    .filter((s) => bookableServiceIds.has(s.id))
+    .map((s: typeof dbServices[number]) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description || "",
+      duration: s.durationMinutes,
+      price: Number(s.price),
+      category: s.category?.name || "Uncategorized",
+      color: s.color || "#059669",
+      isActive: s.isActive,
+    }))
 
   return (
     <BookingPageClient

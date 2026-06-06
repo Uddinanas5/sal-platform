@@ -16,6 +16,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const parsed = bookSchema.safeParse(body)
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
 
+  // Verify the appointment belongs to THIS business before linking it — the
+  // column has no FK, so without this a caller could pin their waitlist entry to
+  // another tenant's appointmentId (cross-tenant dangling reference).
+  const appt = await prisma.appointment.findFirst({
+    where: { id: parsed.data.appointmentId, businessId: ctx.businessId },
+    select: { id: true },
+  })
+  if (!appt) return ERRORS.NOT_FOUND("Appointment")
+
   try {
     const entry = await prisma.waitlistEntry.update({
       where: { id, businessId: ctx.businessId },

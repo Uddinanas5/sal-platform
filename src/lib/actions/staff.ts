@@ -507,9 +507,12 @@ export async function deleteStaff(id: string): Promise<ActionResult> {
     })
     if (!staff) return { success: false, error: "Staff not found" }
 
+    // Also clear canAcceptBookings so EVERY availability angle (which guards on
+    // that flag) stops offering slots for this staff member, not just the paths
+    // that filter isActive/deletedAt — defense-in-depth against a stale schedule.
     await prisma.staff.update({
       where: { id },
-      data: { isActive: false, deletedAt: new Date() },
+      data: { isActive: false, deletedAt: new Date(), canAcceptBookings: false },
     })
     revalidatePath("/staff")
     revalidatePath("/calendar")

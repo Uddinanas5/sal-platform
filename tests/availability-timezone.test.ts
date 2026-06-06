@@ -49,6 +49,8 @@ beforeEach(() => {
   prismaMock.staff.findUnique.mockResolvedValue({
     bookingBufferMinutes: 0,
     canAcceptBookings: true,
+    isActive: true,
+    deletedAt: null,
   })
   // Business hours 9–17.
   prismaMock.businessHours.findFirst.mockResolvedValue({

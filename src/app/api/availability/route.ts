@@ -83,9 +83,12 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       )
     }
 
-    // Fetch service + booking settings to enforce lead time
+    // Fetch service + booking settings to enforce lead time. isActive + deletedAt
+    // null so a soft-deleted (or deleted-then-resurrected) / offline service
+    // returns SERVICE_NOT_FOUND from this public endpoint rather than leaking
+    // slots — the booking write path filters the same way.
     const service = await prisma.service.findUnique({
-      where: { id: serviceId },
+      where: { id: serviceId, isActive: true, isOnlineBooking: true, deletedAt: null },
       select: { businessId: true, durationMinutes: true, business: { select: { timezone: true } } },
     })
     if (!service?.businessId) {
@@ -131,6 +134,11 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       ? await prisma.staff.findMany({
           where: {
             id: staffId,
+            // Mirror the booking write path + read query: a removed or
+            // not-accepting staffId must resolve to STAFF_NOT_FOUND, not slots.
+            isActive: true,
+            deletedAt: null,
+            canAcceptBookings: true,
             primaryLocation: { businessId: service.businessId },
           },
           include: {
@@ -141,6 +149,7 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
           where: {
             locationId,
             isActive: true,
+            deletedAt: null,
             canAcceptBookings: true,
             staffServices: { some: { serviceId, isActive: true } },
           },
@@ -156,7 +165,9 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       return publicError('STAFF_NOT_FOUND')
     }
 
-    // Empty case — return the same envelope with empty slots/byStaff
+    // No staff perform this service at this location — distinct from "fully
+    // booked". Return a machine-readable reason so the client gates the
+    // Join-Waitlist CTA (a waitlist can't conjure a barber for this service).
     if (staffMembers.length === 0) {
       return NextResponse.json({
         date: dateStr,
@@ -164,6 +175,7 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
         serviceDuration: service.durationMinutes,
         slots: [],
         byStaff: [],
+        reason: 'no_staff',
       })
     }
 
@@ -219,12 +231,17 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
         staffCount: data.staffIds.length,
       }))
 
+    // Empty slots here means staff DO perform this service and ARE accepting
+    // bookings, but every offered slot is taken / the day is closed for them —
+    // i.e. genuinely full. That's the one case a waitlist can resolve, so tag it
+    // 'fully_booked' and the client gates the Join-Waitlist CTA on this reason.
     return NextResponse.json({
       date: dateStr,
       serviceId,
       serviceDuration: availabilityMap.values().next().value?.serviceDuration ?? service.durationMinutes,
       slots,
       byStaff,
+      ...(slots.length === 0 ? { reason: 'fully_booked' } : {}),
     })
 })
 

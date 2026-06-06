@@ -14,6 +14,7 @@ import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-l
 import { generateBookingReference } from "@/lib/booking-reference"
 import { isSlotAvailable } from "@/lib/availability"
 import { getPublicBookingSettings } from "@/lib/actions/booking-settings"
+import { parseYmd } from "@/lib/date-utils"
 
 // Mirrors the maps in the /api/availability route — kept in sync by hand (the
 // values rarely change). The write path must honour the same lead-time and
@@ -108,15 +109,25 @@ export async function createPublicBooking(data: {
     })
     if (!location) return { success: false, error: "No active location found" }
 
-    // 2. Get service details (verify it belongs to this business)
+    // 2. Get service details (verify it belongs to this business). deletedAt:null
+    // so a soft-deleted service (incl. one resurrected to isActive=true by the
+    // v1 toggle while deletedAt stays set) can never be booked from this path.
     const service = await prisma.service.findUnique({
-      where: { id: data.serviceId, businessId: business.id },
+      where: { id: data.serviceId, businessId: business.id, deletedAt: null },
     })
     if (!service) return { success: false, error: "Service not found" }
 
-    // 2b. Verify staff belongs to this business via their location
+    // 2b. Verify staff belongs to this business via their location. isActive +
+    // deletedAt:null mirror the public-picker read query (queries/public-booking
+    // .ts) so a deactivated / soft-deleted staff member that vanished from the UI
+    // can't still be booked directly via this server action.
     const staff = await prisma.staff.findFirst({
-      where: { id: data.staffId, primaryLocation: { businessId: business.id } },
+      where: {
+        id: data.staffId,
+        isActive: true,
+        deletedAt: null,
+        primaryLocation: { businessId: business.id },
+      },
       include: { user: true },
     })
     if (!staff) return { success: false, error: "Staff not found" }
@@ -141,15 +152,24 @@ export async function createPublicBooking(data: {
     const requestedStart = new Date(data.startTime)
     const bookingSettings = await getPublicBookingSettings(business.id)
     // Min lead time (covers past dates too: a 0-lead "none" still rejects < now).
+    // Floor `now` to the minute so this write cutoff matches availability's
+    // minute-grained read cutoff — otherwise a non-zero seconds/ms `now` rejects
+    // a slot the UI just offered ("too soon to book" on a freshly-shown time).
     const leadMinutes = LEAD_TIME_MINUTES[bookingSettings.minLeadTime] ?? 30
-    if (requestedStart.getTime() < Date.now() + leadMinutes * 60_000) {
+    const nowFloor = new Date()
+    nowFloor.setSeconds(0, 0)
+    if (requestedStart.getTime() < nowFloor.getTime() + leadMinutes * 60_000) {
       return { success: false, error: "That time is too soon to book. Please choose a later slot." }
     }
-    // Max advance window.
+    // Max advance window. Push maxDate to end-of-day so the WHOLE last bookable
+    // calendar day is accepted — /api/availability advertises slots all day on
+    // the boundary date (inclusive `date > maxDate` at midnight), and the write
+    // must not reject every time-of-day except 00:00 on that same day.
     const maxDays = MAX_ADVANCE_DAYS[bookingSettings.maxAdvanceBooking] ?? 30
     const maxDate = new Date()
     maxDate.setHours(0, 0, 0, 0)
     maxDate.setDate(maxDate.getDate() + maxDays)
+    maxDate.setHours(23, 59, 59, 999)
     if (requestedStart > maxDate) {
       return { success: false, error: `Bookings can only be made up to ${maxDays} days in advance.` }
     }
@@ -345,11 +365,63 @@ export async function addToPublicWaitlist(data: {
     const business = await prisma.business.findUnique({ where: { id: parsed.businessId } })
     if (!business) return { success: false, error: "Business not found" }
 
-    // Verify service belongs to this business
+    // Verify service belongs to this business and isn't soft-deleted. deletedAt:
+    // null mirrors the booking path so a removed/resurrected-deleted service can
+    // never seed a "waiting" row either.
     const service = await prisma.service.findUnique({
-      where: { id: parsed.serviceId, businessId: business.id },
+      where: { id: parsed.serviceId, businessId: business.id, deletedAt: null },
     })
     if (!service) return { success: false, error: "Service not found" }
+
+    // Same online-booking gate the booking funnel enforces — don't let clients
+    // wait on a service the salon has pulled from online booking.
+    if (!service.isActive || !service.isOnlineBooking) {
+      return { success: false, error: "This service isn't available for online booking." }
+    }
+
+    // If a staff member was requested, validate they belong to this business and
+    // actually perform the service — mirrors createPublicBooking so a crafted /
+    // cross-tenant staffId can't be stored verbatim on the waitlist row.
+    if (parsed.staffId) {
+      const staff = await prisma.staff.findFirst({
+        where: {
+          id: parsed.staffId,
+          isActive: true,
+          deletedAt: null,
+          primaryLocation: { businessId: business.id },
+        },
+        select: { id: true },
+      })
+      if (!staff) return { success: false, error: "Staff not found" }
+      const performsService = await prisma.staffService.findFirst({
+        where: { staffId: parsed.staffId, serviceId: parsed.serviceId, isActive: true },
+        select: { id: true },
+      })
+      if (!performsService) {
+        return { success: false, error: "This staff member doesn't offer the selected service" }
+      }
+    }
+
+    // Validate preferredDate strictly (rejects impossible calendar dates like
+    // 2027-02-30) and confine it to the same advance window the booking funnel
+    // advertises. A waitlist preferred-DATE has no time component, so the floor
+    // is today (date granularity), not createPublicBooking's minute lead-time.
+    const preferredDate = parseYmd(parsed.preferredDate)
+    if (!preferredDate) {
+      return { success: false, error: "Please choose a valid date." }
+    }
+    const waitlistSettings = await getPublicBookingSettings(business.id)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (preferredDate < today) {
+      return { success: false, error: "Please choose a date that isn't in the past." }
+    }
+    const maxWaitlistDays = MAX_ADVANCE_DAYS[waitlistSettings.maxAdvanceBooking] ?? 30
+    const maxWaitlistDate = new Date(today)
+    maxWaitlistDate.setDate(maxWaitlistDate.getDate() + maxWaitlistDays)
+    if (preferredDate > maxWaitlistDate) {
+      return { success: false, error: `Please choose a date within the next ${maxWaitlistDays} days.` }
+    }
 
     // Find or create client
     let client = await prisma.client.findFirst({
@@ -374,7 +446,7 @@ export async function addToPublicWaitlist(data: {
         clientId: client.id,
         serviceId: parsed.serviceId,
         staffId: parsed.staffId ?? null,
-        preferredDate: new Date(parsed.preferredDate),
+        preferredDate,
         preferredTimeStart: parsed.preferredTimeStart
           ? new Date(`1970-01-01T${parsed.preferredTimeStart}`)
           : null,
@@ -604,15 +676,21 @@ export async function reschedulePublicBooking(
     const deltaMs = startTime.getTime() - oldStartTime.getTime()
 
     // Lead-time floor (also rejects past times: "none" is 0 lead, still < now).
+    // Floor `now` to the minute to match availability's minute-grained read
+    // cutoff (same boundary alignment as createPublicBooking).
     const leadMinutes = LEAD_TIME_MINUTES[settings.minLeadTime] ?? 30
-    if (startTime.getTime() < Date.now() + leadMinutes * 60_000) {
+    const nowFloor = new Date()
+    nowFloor.setSeconds(0, 0)
+    if (startTime.getTime() < nowFloor.getTime() + leadMinutes * 60_000) {
       return { success: false, error: "That time is too soon to book. Please choose a later slot." }
     }
-    // Advance-window ceiling.
+    // Advance-window ceiling — end-of-day so the whole last bookable calendar
+    // day is accepted, matching /api/availability's inclusive boundary.
     const maxDays = MAX_ADVANCE_DAYS[settings.maxAdvanceBooking] ?? 30
     const maxDate = new Date()
     maxDate.setHours(0, 0, 0, 0)
     maxDate.setDate(maxDate.getDate() + maxDays)
+    maxDate.setHours(23, 59, 59, 999)
     if (startTime > maxDate) {
       return { success: false, error: `Bookings can only be made up to ${maxDays} days in advance.` }
     }

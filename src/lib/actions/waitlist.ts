@@ -94,6 +94,13 @@ export async function bookFromWaitlist(id: string, appointmentId: string) {
     const parsedId = idSchema.parse(id)
     const parsedAppointmentId = idSchema.parse(appointmentId)
     const { businessId } = await getBusinessContext()
+    // Confirm the appointment is THIS tenant's before linking it — no FK on the
+    // column, so this is the only guard against a cross-tenant dangling ref.
+    const appt = await prisma.appointment.findFirst({
+      where: { id: parsedAppointmentId, businessId },
+      select: { id: true },
+    })
+    if (!appt) return { success: false, error: "Appointment not found" }
     await prisma.waitlistEntry.update({
       where: { id: parsedId, businessId },
       data: {
