@@ -40,7 +40,17 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
         // caller dictate revenue/commission. Kept optional only so older callers
         // that still send it don't fail schema validation.
         price: z.number().nonnegative().optional().describe("DEPRECATED — ignored; price is taken from the DB"),
-      })).min(1, "At least one item is required").describe("Line items in the checkout"),
+      })).default([]).describe("Catalog line items (services/products). At least one catalog OR custom item is required."),
+      // Ad-hoc "Quick Sale" lines: operator-named/priced rows with no catalog
+      // entry. UNLIKE catalog items, unitPrice IS authoritative for that line
+      // only and is folded into the server-computed subtotal/tax/total in
+      // recordCheckout, so the recorded sale equals the cash collected.
+      customItems: z.array(z.object({
+        type: z.literal("custom").describe("Always 'custom'"),
+        name: z.string().min(1).max(200).describe("Line description, e.g. 'Walk-in trim'"),
+        unitPrice: z.number().nonnegative().describe("Per-unit price (authoritative for this line)"),
+        quantity: z.number().int().positive().describe("Quantity"),
+      })).default([]).describe("Ad-hoc Quick Sale line items (no catalog entry)"),
       // Money fields below (subtotal/total/tax) are advisory only; recordCheckout
       // recomputes subtotal/amount/tax/total server-side from DB prices and
       // per-item tax config. Only discount/tip are caller inputs that actually
@@ -58,10 +68,21 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
       // Gift-card code, required when method === "gift_card".
       giftCardCode: z.string().min(1).optional().describe("Gift card code (required when method is gift_card)"),
     },
-    async ({ clientId, appointmentId, items, discount, tip, method, giftCardCode }) => {
+    async ({ clientId, appointmentId, items, customItems, discount, tip, method, giftCardCode }) => {
       try {
         if (method === "gift_card" && !giftCardCode) {
           return err("A gift card code is required to pay by gift card")
+        }
+
+        // Default to empty arrays defensively (the zod-shape .default([]) covers
+        // the normal SDK path, but the tool should never throw on a bare call).
+        const catalogItems = items ?? []
+        const adHocItems = customItems ?? []
+
+        // At least one line — catalog OR custom — must be present (the per-array
+        // .min(1) is replaced by .default([]) so a custom-only Quick Sale works).
+        if (catalogItems.length + adHocItems.length === 0) {
+          return err("At least one item is required")
         }
 
         // Pre-transaction idempotency guard (mirrors the dashboard action +
@@ -97,7 +118,13 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
           recordCheckout(tx, ctx.businessId, {
             clientId,
             appointmentId,
-            items: items.map((i) => ({ type: i.type, id: i.id, quantity: i.quantity })),
+            items: catalogItems.map((i) => ({ type: i.type, id: i.id, quantity: i.quantity })),
+            customItems: adHocItems.map((c) => ({
+              type: "custom" as const,
+              name: c.name,
+              unitPrice: c.unitPrice,
+              quantity: c.quantity,
+            })),
             discount,
             tip,
             method,

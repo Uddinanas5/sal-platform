@@ -177,6 +177,7 @@ export function PaymentDialog({
     setStep("processing")
 
     try {
+      // Catalog lines (price re-fetched from the DB server-side, GAP-034).
       const payableItems = items
         .filter((item): item is CartItem & { type: "service" | "product" } => item.type !== "custom")
         .map((item) => ({
@@ -185,9 +186,22 @@ export function PaymentDialog({
           quantity: item.quantity,
         }))
 
+      // Ad-hoc "Quick Sale" lines: sent as first-class custom lines (NOT dropped)
+      // so the recorded sale includes them. The unitPrice is authoritative for
+      // the line only; the server still owns subtotal/tax/total.
+      const customItems = items
+        .filter((item): item is CartItem & { type: "custom" } => item.type === "custom")
+        .map((item) => ({
+          type: "custom" as const,
+          name: item.name,
+          unitPrice: item.price,
+          quantity: item.quantity,
+        }))
+
       const result = await processPayment({
         clientId: clientId || undefined,
         items: payableItems,
+        customItems,
         discount,
         tax,
         tip,

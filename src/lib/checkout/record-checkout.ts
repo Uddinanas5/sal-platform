@@ -29,10 +29,28 @@ export class RecordCheckoutError extends Error {
   }
 }
 
+// Ad-hoc "Quick Sale" line item: an operator-named, operator-priced row with no
+// catalog entry behind it. UNLIKE service/product lines (whose price is always
+// re-fetched from the DB, GAP-034), a custom line's `unitPrice` IS authoritative
+// for that line ONLY — there is no DB row to recompute it from. It is still
+// folded into the SAME server-computed subtotal/amount/tax/total so the recorded
+// sale matches what the customer was charged (fixes the silent under-record where
+// custom lines were dropped before the writer). Always treated as taxable at the
+// platform-flat TAX_RATE so the books stay in lockstep with the UI estimate.
+export type CustomCheckoutLine = {
+  type: "custom"
+  name: string
+  unitPrice: number
+  quantity: number
+}
+
 export type RecordCheckoutInput = {
   clientId?: string
   appointmentId?: string
   items: { type: "service" | "product"; id: string; quantity: number }[]
+  // Optional ad-hoc lines (Quick Sale). Folded into subtotal/tax/total/amount and
+  // persisted in Payment.notes; never count toward inventory or commission.
+  customItems?: CustomCheckoutLine[]
   discount: number
   // Caller-supplied tax is ACCEPTED for backward compat but IGNORED — tax is
   // recomputed server-side per line from the DB (isTaxable/taxRate), mirroring
@@ -186,8 +204,32 @@ export async function recordCheckout(
     lines.push({ amount: lineAmount, taxRate: entry.taxRate })
     subtotal += lineAmount
   }
+
+  // Ad-hoc "Quick Sale" lines. The unitPrice is authoritative for THIS line only
+  // (no catalog row to recompute from) — but it is still validated and folded
+  // into the same server subtotal/tax/total so the recorded sale equals the cash
+  // collected. Treated as taxable at the platform-flat TAX_RATE, matching the UI.
+  const customItems = data.customItems ?? []
+  const customNotes: string[] = []
+  for (const c of customItems) {
+    if (!Number.isFinite(c.unitPrice) || c.unitPrice < 0) {
+      throw new RecordCheckoutError("BAD_REQUEST", "Custom item price must be zero or greater")
+    }
+    if (!Number.isInteger(c.quantity) || c.quantity <= 0) {
+      throw new RecordCheckoutError("BAD_REQUEST", "Custom item quantity must be a positive integer")
+    }
+    const lineAmount = Math.round(c.unitPrice * c.quantity * 100) / 100
+    lines.push({ amount: lineAmount, taxRate: TAX_RATE })
+    subtotal += lineAmount
+    const name = c.name.trim() || "Quick Sale"
+    customNotes.push(`${name} x${c.quantity} @ ${c.unitPrice.toFixed(2)} = ${lineAmount.toFixed(2)}`)
+  }
+
   subtotal = Math.round(subtotal * 100) / 100
 
+  // Discount is capped against the FULL subtotal (catalog + custom), so a mixed
+  // cart with a legitimate discount no longer hard-fails just because the custom
+  // lines were excluded from the comparison base.
   if (data.discount > subtotal) throw new RecordCheckoutError("BAD_REQUEST", "Discount cannot exceed subtotal")
 
   let resolvedClientId: string | undefined = data.clientId
@@ -352,6 +394,10 @@ export async function recordCheckout(
       tipAmount: data.tip,
       totalAmount: total,
       currency: "USD",
+      // Persist ad-hoc Quick Sale lines so the recorded sale is auditable (the
+      // catalog lines are reconstructable from the appointment/products; custom
+      // lines have no catalog row, so their detail lives here).
+      notes: customNotes.length > 0 ? `Quick Sale items:\n${customNotes.join("\n")}` : null,
       processedAt: new Date(),
     },
   })

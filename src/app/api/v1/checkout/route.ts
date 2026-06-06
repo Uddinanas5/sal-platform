@@ -31,7 +31,17 @@ const processPaymentSchema = z
       type: z.enum(["service", "product"]),
       id: z.string().uuid(),
       quantity: z.number().int().positive(),
-    })).min(1, "At least one item is required"),
+    })).default([]),
+    // Ad-hoc "Quick Sale" lines (operator-named/priced, no catalog row). The
+    // unitPrice is authoritative for that line only and is folded into the
+    // server-computed subtotal/tax/total in recordCheckout so the recorded sale
+    // equals the cash collected (matches the dashboard action).
+    customItems: z.array(z.object({
+      type: z.literal("custom"),
+      name: z.string().min(1).max(200),
+      unitPrice: z.number().nonnegative(),
+      quantity: z.number().int().positive(),
+    })).default([]),
     discount: z.number().nonnegative().default(0),
     tax: z.number().nonnegative().default(0),
     tip: z.number().nonnegative().default(0),
@@ -47,6 +57,10 @@ const processPaymentSchema = z
   .refine((d) => d.method !== "gift_card" || !!d.giftCardCode, {
     message: "A gift card code is required to pay by gift card",
     path: ["giftCardCode"],
+  })
+  .refine((d) => d.items.length + d.customItems.length > 0, {
+    message: "At least one item is required",
+    path: ["items"],
   })
 
 export async function POST(req: Request) {
@@ -96,6 +110,7 @@ export async function POST(req: Request) {
         clientId: data.clientId,
         appointmentId: data.appointmentId,
         items: data.items,
+        customItems: data.customItems,
         discount: data.discount,
         tip: data.tip,
         method: data.method,
