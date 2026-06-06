@@ -59,8 +59,8 @@ export default async function ReportsPage({
   ] = await Promise.all([
     getReportSummary(businessId, range),
     getRevenueByMonth(6, businessId),
-    getRevenueByCategory(businessId),
-    getRevenueByPaymentMethod(businessId),
+    getRevenueByCategory(businessId, range),
+    getRevenueByPaymentMethod(businessId, range),
     getStaffPerformance(businessId, range),
     getAppointmentsByHour(businessId, range),
     getAppointmentCompletionRate(businessId, range),

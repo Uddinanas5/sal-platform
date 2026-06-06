@@ -37,7 +37,9 @@ const columns: ColumnDef<StaffMember>[] = [
   },
   {
     accessorKey: "revenue",
-    header: "Revenue",
+    // Paid (checked-out) service revenue from the commission ledger — ties to the
+    // Commission column. Distinct from the all-status Appointments visit count.
+    header: "Revenue (paid)",
     cell: ({ row }) => (
       <div className="font-medium text-foreground">
         {formatCurrency(row.getValue("revenue"))}
@@ -96,7 +98,7 @@ export function StaffTab({ staffPerformance }: StaffTabProps) {
           dataKey="revenue"
           xAxisKey="name"
           title="Revenue Comparison"
-          description="Staff revenue performance side by side"
+          description="Paid (checked-out) service revenue per staff member"
           height={320}
           layout="vertical"
           formatValue={(v) => formatCurrency(v)}

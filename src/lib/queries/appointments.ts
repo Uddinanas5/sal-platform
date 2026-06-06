@@ -142,19 +142,27 @@ export async function getDashboardStats(businessId: string) {
       _avg: { overallRating: true },
       _count: true,
     }),
-    prisma.appointment.aggregate({
+    // Weekly + monthly revenue come from the Payment ledger (status completed,
+    // createdAt window) — the SAME source as todayRevenue (above) and the 7-day
+    // sparkline (getRevenueByDay). Previously these summed Appointment.totalAmount
+    // (the booked price+tax estimate written at booking and never updated at
+    // checkout), so they diverged from actually-collected revenue and ignored
+    // walk-in/POS payments that have no appointment. Sourcing from Payment lets
+    // the weekly card tie to the 7-day sparkline and reflects discounts, tips,
+    // loyalty redemption, custom Quick-Sale lines, and appointment-less sales.
+    prisma.payment.aggregate({
       where: {
         ...businessFilter,
         status: "completed",
-        completedAt: { gte: weekAgo },
+        createdAt: { gte: weekAgo },
       },
       _sum: { totalAmount: true },
     }),
-    prisma.appointment.aggregate({
+    prisma.payment.aggregate({
       where: {
         ...businessFilter,
         status: "completed",
-        completedAt: { gte: monthAgo },
+        createdAt: { gte: monthAgo },
       },
       _sum: { totalAmount: true },
     }),

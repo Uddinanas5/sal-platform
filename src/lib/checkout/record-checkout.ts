@@ -179,9 +179,9 @@ export async function recordCheckout(
     productIds.length
       ? tx.product.findMany({
           where: { id: { in: productIds }, businessId, deletedAt: null },
-          select: { id: true, retailPrice: true, taxRate: true, isTaxable: true },
+          select: { id: true, name: true, retailPrice: true, taxRate: true, isTaxable: true },
         })
-      : Promise.resolve([] as { id: string; retailPrice: Prisma.Decimal; taxRate: Prisma.Decimal | null; isTaxable: boolean }[]),
+      : Promise.resolve([] as { id: string; name: string; retailPrice: Prisma.Decimal; taxRate: Prisma.Decimal | null; isTaxable: boolean }[]),
   ])
 
   if (services.length !== serviceIds.length) throw new RecordCheckoutError("NOT_FOUND", "One or more services not found")
@@ -191,6 +191,11 @@ export async function recordCheckout(
   const priceMap = new Map<string, { price: number; taxRate: number }>()
   for (const s of services) priceMap.set(`service:${s.id}`, { price: Number(s.price), taxRate: taxRateFor(s.isTaxable, s.taxRate) })
   for (const p of products) priceMap.set(`product:${p.id}`, { price: Number(p.retailPrice), taxRate: taxRateFor(p.isTaxable, p.taxRate) })
+
+  // Product detail lookup (name + unit price) for writing the AppointmentProduct
+  // line at checkout — sourced from the DB, never the caller.
+  const productMap = new Map<string, { name: string; retailPrice: number }>()
+  for (const p of products) productMap.set(p.id, { name: p.name, retailPrice: Number(p.retailPrice) })
 
   // Per-line amounts carry their own tax rate so the final tax can be applied
   // to the DISCOUNTED base proportionally (a discount lowers every line's
@@ -458,6 +463,32 @@ export async function recordCheckout(
 
   for (const item of data.items) {
     if (item.type !== "product") continue
+
+    // Persist a product-sale line so reports reconcile product revenue with the
+    // Payment ledger and the inventory decrement (before this, product sales
+    // wrote no line, so reports.ts product revenue was structurally always $0
+    // and folded into serviceRevenue). unitPrice/totalPrice are DB-sourced (the
+    // same authoritative retailPrice used to build the line above) — never the
+    // caller. appointmentId is nullable so a standalone (walk-in / POS) product
+    // sale is still recorded; businessId scoping for reports flows through the
+    // product relation. The line carries the gross (pre-discount, pre-tax) total,
+    // matching how AppointmentService.finalPrice feeds service revenue.
+    const prod = productMap.get(item.id)
+    if (prod) {
+      const lineTotal = Math.round(prod.retailPrice * item.quantity * 100) / 100
+      await tx.appointmentProduct.create({
+        data: {
+          appointmentId: data.appointmentId ?? null,
+          paymentId: payment.id,
+          productId: item.id,
+          name: prod.name,
+          quantity: item.quantity,
+          unitPrice: prod.retailPrice,
+          totalPrice: lineTotal,
+        },
+      })
+    }
+
     const inv = await tx.productInventory.findFirst({
       where: { productId: item.id, product: { businessId } },
     })

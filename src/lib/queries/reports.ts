@@ -106,20 +106,27 @@ export async function getStaffPerformance(
   const staffIds = staff.map((s) => s.id)
   if (staffIds.length === 0) return []
 
-  // 2. Aggregate revenue and appointment counts per staff (DB-level filtering for completed)
-  // 3. Aggregate average ratings per staff
-  // 4. Aggregate REAL earned commission from the Commission ledger (populated by
-  //    checkout). Scoped to this business's staff + the selected window. If the
-  //    ledger has no rows for a staff member, their commission honestly reads $0
-  //    rather than a fabricated ~35% estimate.
-  const [revenueByStaff, ratingsByStaff, commissionByStaff] = await Promise.all([
+  // 2. Aggregate average ratings per staff.
+  // 3. Aggregate REAL earned commission AND the matching service revenue from the
+  //    SAME Commission ledger window (populated by checkout). Revenue is the sum of
+  //    Commission.grossAmount (= AppointmentService.finalPrice snapshotted at
+  //    checkout) and commission is the sum of Commission.commissionAmount, both over
+  //    the SAME { createdAt window, type:"service" }. This ties the two columns to
+  //    the same paid sales — commission reads as ~rate% of the displayed revenue —
+  //    and reflects checked-out (paid) revenue, the correct basis for an earnings
+  //    table. (Previously revenue used appointment-startTime pre-discount finalPrice
+  //    while commission used Commission.createdAt, so they described different sales
+  //    and never reconciled.) If the ledger has no rows for a staff member, both
+  //    honestly read $0 rather than a fabricated estimate.
+  // 4. Appointment count stays on the appointment basis (completed appointments in
+  //    the window) — a distinct "how many visits" metric, labelled as such.
+  const [appointmentsByStaff, ratingsByStaff, ledgerByStaff] = await Promise.all([
     prisma.appointmentService.groupBy({
       by: ["staffId"],
       where: {
         staffId: { in: staffIds },
         appointment: { status: "completed", ...apptPeriodFilter },
       },
-      _sum: { finalPrice: true },
       _count: true,
     }),
     prisma.review.groupBy({
@@ -133,40 +140,43 @@ export async function getStaffPerformance(
       by: ["staffId"],
       where: {
         staffId: { in: staffIds },
+        type: "service",
         ...periodFilter,
       },
-      _sum: { commissionAmount: true },
+      _sum: { grossAmount: true, commissionAmount: true },
     }),
   ])
 
   // 5. Build lookup maps for O(1) access
-  const revenueMap = new Map(
-    revenueByStaff.map((r) => [
-      r.staffId,
-      { revenue: Number(r._sum.finalPrice ?? 0), count: r._count },
-    ])
+  const appointmentCountMap = new Map(
+    appointmentsByStaff.map((r) => [r.staffId, r._count])
   )
   const ratingMap = new Map(
     ratingsByStaff
       .filter((r): r is typeof r & { staffId: string } => r.staffId !== null)
       .map((r) => [r.staffId, Number(r._avg.overallRating ?? 0)])
   )
-  const commissionMap = new Map(
-    commissionByStaff.map((c) => [c.staffId, Number(c._sum.commissionAmount ?? 0)])
+  const ledgerMap = new Map(
+    ledgerByStaff.map((c) => [
+      c.staffId,
+      {
+        revenue: Number(c._sum.grossAmount ?? 0),
+        commission: Number(c._sum.commissionAmount ?? 0),
+      },
+    ])
   )
 
   // 6. Combine results
   return staff.map((s) => {
-    const stats = revenueMap.get(s.id) ?? { revenue: 0, count: 0 }
+    const ledger = ledgerMap.get(s.id) ?? { revenue: 0, commission: 0 }
     const avgRating = ratingMap.get(s.id) ?? 0
-    const commission = commissionMap.get(s.id) ?? 0
 
     return {
       name: `${s.user.firstName} ${s.user.lastName}`,
-      appointments: stats.count,
-      revenue: Math.round(stats.revenue * 100) / 100,
+      appointments: appointmentCountMap.get(s.id) ?? 0,
+      revenue: Math.round(ledger.revenue * 100) / 100,
       rating: Math.round(avgRating * 10) / 10,
-      commission: Math.round(commission * 100) / 100,
+      commission: Math.round(ledger.commission * 100) / 100,
     }
   })
 }
@@ -239,7 +249,8 @@ export async function getReportSummary(
         status: "completed",
         createdAt: { gte: thisMonthStart, lte: rangeEnd },
       },
-      _sum: { totalAmount: true },
+      _sum: { totalAmount: true, tipAmount: true, amount: true },
+      _count: true,
     }),
     prisma.payment.aggregate({
       where: {
@@ -248,6 +259,7 @@ export async function getReportSummary(
         createdAt: { gte: lastMonthStart, lt: lastMonthEnd },
       },
       _sum: { totalAmount: true },
+      _count: true,
     }),
     prisma.appointment.count({
       where: { ...businessFilter, startTime: { gte: thisMonthStart, lte: rangeEnd } },
@@ -266,8 +278,15 @@ export async function getReportSummary(
   const totalRevenue = Number(currentPaymentAgg._sum.totalAmount ?? 0)
   const lastRevenue = Number(lastPaymentAgg._sum.totalAmount ?? 0)
 
-  const averageTicket = currentAppointments > 0 ? totalRevenue / currentAppointments : 0
-  const lastAvgTicket = lastAppointments > 0 ? lastRevenue / lastAppointments : 0
+  // Average ticket = completed revenue / completed PAYMENTS in the SAME window.
+  // Numerator and denominator are now on the same rows + time axis (Payment.createdAt),
+  // so cancelled/no-show appointments no longer inflate the denominator and the two
+  // sides are no longer on mismatched time bases. (totalAppointments below stays an
+  // all-status booking count — a separate metric.)
+  const currentPaymentCount = currentPaymentAgg._count
+  const lastPaymentCount = lastPaymentAgg._count
+  const averageTicket = currentPaymentCount > 0 ? totalRevenue / currentPaymentCount : 0
+  const lastAvgTicket = lastPaymentCount > 0 ? lastRevenue / lastPaymentCount : 0
 
   // Retention rate: returning clients / total clients with visits in window
   const totalClientsThisMonth = await prisma.client.count({
@@ -287,19 +306,46 @@ export async function getReportSummary(
     ? Math.round((returningClientsThisMonth / totalClientsThisMonth) * 1000) / 10
     : 0
 
-  // Product vs service revenue
-  const productPayments = await prisma.appointmentProduct.aggregate({
-    where: {
-      appointment: {
-        ...businessFilter,
-        status: "completed",
-        startTime: { gte: thisMonthStart, lte: rangeEnd },
+  // Service vs product revenue, each on a clean PRE-TAX, PRE-TIP line basis —
+  // NOT by subtracting a gross product total from a tax+tip-inclusive payment
+  // total (which conflated tax + tip + discount into "service revenue").
+  //
+  // - serviceRevenue: sum of AppointmentService.finalPrice (post-discount,
+  //   pre-tax, pre-tip) for completed appointments in the window.
+  // - productRevenue: sum of AppointmentProduct.totalPrice for product lines sold
+  //   in the window. Product lines are now written at checkout (record-checkout.ts);
+  //   they carry a paymentId so they window by the SAME Payment.createdAt axis as
+  //   totalRevenue, and are businessId-scoped through the product relation (a
+  //   standalone walk-in product sale has no appointment, so we cannot scope via
+  //   the appointment relation alone).
+  // - tax + tips are reported as their own summary lines rather than folded into
+  //   service revenue (taxCollected = total − amount − tip; tips = Payment.tipAmount).
+  const [serviceRevenueAgg, productRevenueAgg] = await Promise.all([
+    prisma.appointmentService.aggregate({
+      where: {
+        appointment: {
+          ...businessFilter,
+          status: "completed",
+          startTime: { gte: thisMonthStart, lte: rangeEnd },
+        },
       },
-    },
-    _sum: { totalPrice: true },
-  })
-  const productRevenue = Number(productPayments._sum.totalPrice ?? 0)
-  const serviceRevenue = totalRevenue - productRevenue
+      _sum: { finalPrice: true },
+    }),
+    prisma.appointmentProduct.aggregate({
+      where: {
+        product: businessId ? { businessId } : {},
+        payment: { status: "completed", createdAt: { gte: thisMonthStart, lte: rangeEnd } },
+      },
+      _sum: { totalPrice: true },
+    }),
+  ])
+  const serviceRevenue = Number(serviceRevenueAgg._sum.finalPrice ?? 0)
+  const productRevenue = Number(productRevenueAgg._sum.totalPrice ?? 0)
+
+  // Tax + tips as their own lines (kept out of service/product revenue).
+  const tipsCollected = Number(currentPaymentAgg._sum.tipAmount ?? 0)
+  const taxCollected =
+    totalRevenue - Number(currentPaymentAgg._sum.amount ?? 0) - tipsCollected
 
   return {
     totalRevenue: Math.round(totalRevenue * 100) / 100,
@@ -321,6 +367,8 @@ export async function getReportSummary(
     retentionRate,
     productRevenue: Math.round(productRevenue * 100) / 100,
     serviceRevenue: Math.round(serviceRevenue * 100) / 100,
+    taxCollected: Math.round(taxCollected * 100) / 100,
+    tipsCollected: Math.round(tipsCollected * 100) / 100,
   }
 }
 
@@ -370,7 +418,10 @@ export async function getRevenueByMonth(months: number = 6, businessId?: string)
   }))
 }
 
-export async function getRevenueByCategory(businessId?: string) {
+export async function getRevenueByCategory(
+  businessId?: string,
+  range?: { from?: Date | null; to?: Date | null }
+) {
   const categoryColors: Record<string, string> = {
     Hair: "#f97316",
     Wellness: "#10b981",
@@ -381,9 +432,19 @@ export async function getRevenueByCategory(businessId?: string) {
   const defaultColors = ["#f97316", "#10b981", "#ec4899", "#06b6d4", "#8b5cf6", "#6366f1", "#14b8a6"]
   const businessFilter = businessId ? { businessId } : {}
 
+  // Honour the picker range so this breakdown reconciles with the windowed Total
+  // Revenue card on the same tab (previously this query was all-time). A window is
+  // applied only when the caller passes a range; absent one it stays all-time.
+  const window = range && (range.from || range.to) ? resolveRange(range) : null
+  const apptWhere = {
+    ...businessFilter,
+    status: "completed" as const,
+    ...(window ? { startTime: { gte: window.from, lte: window.to } } : {}),
+  }
+
   const services = await prisma.appointmentService.findMany({
     where: {
-      appointment: { ...businessFilter, status: "completed" },
+      appointment: apptWhere,
     },
     select: {
       finalPrice: true,
@@ -401,10 +462,16 @@ export async function getRevenueByCategory(businessId?: string) {
     byCategory[catName] = (byCategory[catName] ?? 0) + Number(s.finalPrice)
   }
 
-  // Add product revenue
+  // Add product revenue from the product-sale lines, windowed by the Payment
+  // ledger (same createdAt axis as the Total Revenue card) and businessId-scoped
+  // through the product relation so standalone (no-appointment) sales count too.
   const productRevenue = await prisma.appointmentProduct.aggregate({
     where: {
-      appointment: { ...businessFilter, status: "completed" },
+      product: businessId ? { businessId } : {},
+      payment: {
+        status: "completed",
+        ...(window ? { createdAt: { gte: window.from, lte: window.to } } : {}),
+      },
     },
     _sum: { totalPrice: true },
   })
@@ -423,7 +490,10 @@ export async function getRevenueByCategory(businessId?: string) {
     .sort((a, b) => b.value - a.value)
 }
 
-export async function getRevenueByPaymentMethod(businessId?: string) {
+export async function getRevenueByPaymentMethod(
+  businessId?: string,
+  range?: { from?: Date | null; to?: Date | null }
+) {
   const methodColors: Record<string, string> = {
     card: "#059669",
     cash: "#34d399",
@@ -442,9 +512,18 @@ export async function getRevenueByPaymentMethod(businessId?: string) {
 
   const businessFilter = businessId ? { businessId } : {}
 
+  // Honour the picker range (windowed by Payment.createdAt, matching the Total
+  // Revenue card) so this pie reconciles with the windowed summary instead of
+  // showing all-time totals. A window is applied only when a range is passed.
+  const window = range && (range.from || range.to) ? resolveRange(range) : null
+
   const payments = await prisma.payment.groupBy({
     by: ["method"],
-    where: { ...businessFilter, status: "completed" },
+    where: {
+      ...businessFilter,
+      status: "completed",
+      ...(window ? { createdAt: { gte: window.from, lte: window.to } } : {}),
+    },
     _sum: { totalAmount: true },
   })
 

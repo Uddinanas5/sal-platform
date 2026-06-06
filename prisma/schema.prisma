@@ -841,7 +841,12 @@ model AppointmentService {
 
 model AppointmentProduct {
   id             String   @id @default(uuid()) @db.Uuid
-  appointmentId  String   @map("appointment_id") @db.Uuid
+  // Nullable: a product can be sold standalone (walk-in / POS) with no appointment.
+  appointmentId  String?  @map("appointment_id") @db.Uuid
+  // Links the product-sale line to the Payment that collected it, so reports can
+  // window product revenue by the payment's createdAt and reconcile with the
+  // Payment ledger. businessId scoping flows through the product relation.
+  paymentId      String?  @map("payment_id") @db.Uuid
   productId      String   @map("product_id") @db.Uuid
   staffId        String?  @map("staff_id") @db.Uuid
   name           String   @db.VarChar(255)
@@ -853,12 +858,14 @@ model AppointmentProduct {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // Relations
-  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  product     Product     @relation(fields: [productId], references: [id])
-  staff       Staff?      @relation(fields: [staffId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  payment     Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  product     Product      @relation(fields: [productId], references: [id])
+  staff       Staff?       @relation(fields: [staffId], references: [id])
 
   @@index([appointmentId])
   @@index([productId])
+  @@index([paymentId])
   @@map("appointment_products")
 
 }
@@ -925,6 +932,7 @@ model Payment {
   client        Client?      @relation(fields: [clientId], references: [id])
   processedUser User?        @relation("ProcessedBy", fields: [processedBy], references: [id])
   loyaltyTransactions LoyaltyTransaction[]
+  productLines        AppointmentProduct[]
 
   @@index([businessId])
   @@index([businessId, status])

@@ -35,13 +35,17 @@ const CLIENT = "44444444-4444-4444-8444-444444444444"
 // schema (isTaxable=true, taxRate=null) so the flat TAX_RATE fallback applies —
 // the same path current beta data takes.
 type ServiceRow = { id: string; price: number; isTaxable?: boolean; taxRate?: number | null }
-type ProductRow = { id: string; retailPrice: number; isTaxable?: boolean; taxRate?: number | null }
+type ProductRow = { id: string; name?: string; retailPrice: number; isTaxable?: boolean; taxRate?: number | null }
 
 const withTax = <T extends { isTaxable?: boolean; taxRate?: number | null }>(row: T) => ({
   isTaxable: true,
   taxRate: null,
   ...row,
 })
+
+// Product rows also carry a `name` (selected at checkout to write the
+// AppointmentProduct line). Defaults to a placeholder when not specified.
+const withProductDefaults = (row: ProductRow) => ({ name: "Test Product", ...withTax(row) })
 
 type TxOverrides = {
   services?: ServiceRow[]
@@ -54,7 +58,7 @@ function fakeTx(o: TxOverrides = {}) {
   const tx = {
     $executeRaw: vi.fn(),
     service: { findMany: vi.fn(async () => (o.services ?? [{ id: SVC, price: 60 }]).map(withTax)) },
-    product: { findMany: vi.fn(async () => (o.products ?? []).map(withTax)) },
+    product: { findMany: vi.fn(async () => (o.products ?? []).map(withProductDefaults)) },
     appointment: { findFirst: vi.fn(), update: vi.fn() },
     client: {
       // loyaltyPoints is read for redeem validation (0 = nothing to redeem); the
@@ -74,6 +78,7 @@ function fakeTx(o: TxOverrides = {}) {
     staffService: { findMany: vi.fn(async () => []) },
     commission: { create: vi.fn(async () => ({ id: "com_1" })) },
     loyaltyTransaction: { create: vi.fn(async () => ({ id: "loy_1" })) },
+    appointmentProduct: { create: vi.fn(async () => ({ id: "ap_1" })) },
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return tx as any
@@ -161,7 +166,7 @@ describe("recordCheckout — server-side price authority", () => {
     })
     expect(tx.product.findMany).toHaveBeenCalledWith({
       where: { id: { in: [PROD] }, businessId: BIZ, deletedAt: null },
-      select: { id: true, retailPrice: true, taxRate: true, isTaxable: true },
+      select: { id: true, name: true, retailPrice: true, taxRate: true, isTaxable: true },
     })
   })
 
