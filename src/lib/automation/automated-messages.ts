@@ -3,7 +3,16 @@ import { sendEmail } from "@/lib/email"
 import { marketingEmail } from "@/lib/email-templates"
 import { renderNotificationTemplate } from "@/lib/notifications/render-template"
 import { AutomatedMessageTrigger } from "@/generated/prisma"
-import { INACTIVE_CLIENT_DAYS } from "@/lib/marketing/audience"
+import { CAMPAIGN_RECIPIENT_CAP, INACTIVE_CLIENT_DAYS } from "@/lib/marketing/audience"
+
+// Hard per-message-per-run recipient cap. The campaign sender
+// (src/lib/marketing/audience.ts) deliberately bounds an inline send at
+// CAMPAIGN_RECIPIENT_CAP so a single fat-finger run can't blow the function
+// timeout; this engine sends through the SAME inline sendEmail path on every
+// cron tick, so it gets the same ceiling. Candidates beyond the cap are
+// processed on a later tick (the idempotency stamp makes already-handled
+// candidates no-ops, so paging across ticks converges without double-sends).
+export const AUTOMATED_MESSAGE_RECIPIENT_CAP = CAMPAIGN_RECIPIENT_CAP
 
 // ============================================================================
 // Automated-message execution engine (daily-evaluable triggers).
@@ -99,6 +108,9 @@ export type AutomatedMessageRunResult = {
   emailsSent: number
   skippedAlreadySent: number
   skippedNoEmailOrConsent: number
+  // Number of candidates that hit the per-run cap and were deferred to a later
+  // tick (summed across all messages this run).
+  deferredOverCap: number
 }
 
 /**
@@ -220,6 +232,10 @@ async function findCandidates(
       lastVisitAt: true,
     },
     orderBy: { createdAt: "asc" },
+    // Bounded like the campaign sender: never pull more than the per-run cap
+    // (+1 so the caller can detect-and-log an over-cap tail). Deterministic
+    // createdAt ordering means successive ticks make progress through the book.
+    take: AUTOMATED_MESSAGE_RECIPIENT_CAP + 1,
   }) as unknown as Promise<CandidateClient[]>
 }
 
@@ -268,6 +284,7 @@ export async function runDueAutomatedMessages(
     emailsSent: 0,
     skippedAlreadySent: 0,
     skippedNoEmailOrConsent: 0,
+    deferredOverCap: 0,
   }
 
   const messages = await findActiveMessages()
@@ -291,7 +308,22 @@ export async function runDueAutomatedMessages(
 
     result.messagesEvaluated++
     const timezone = msg.business.timezone || "UTC"
-    const candidates = await findCandidates(msg.trigger, msg.businessId, now)
+    const fetched = await findCandidates(msg.trigger, msg.businessId, now)
+
+    // Enforce the per-message-per-run cap (same ceiling the campaign sender
+    // uses). We fetched CAP+1 rows; if there's an overflow, process only the
+    // first CAP this tick and log the deferred tail. The idempotency stamp
+    // makes already-handled candidates no-ops, so the remainder is picked up on
+    // a later tick without double-sending.
+    const candidates = fetched.slice(0, AUTOMATED_MESSAGE_RECIPIENT_CAP)
+    if (fetched.length > AUTOMATED_MESSAGE_RECIPIENT_CAP) {
+      result.deferredOverCap += fetched.length - AUTOMATED_MESSAGE_RECIPIENT_CAP
+      console.warn("[automated-messages] recipient cap hit — deferring overflow to next tick", {
+        messageId: msg.id,
+        businessId: msg.businessId,
+        cap: AUTOMATED_MESSAGE_RECIPIENT_CAP,
+      })
+    }
 
     for (const client of candidates) {
       result.candidatesScanned++

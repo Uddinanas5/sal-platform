@@ -227,10 +227,10 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       if (!appointment) return err("Appointment not found")
       if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
 
-      const durationMinutes = appointment.services[0]?.durationMinutes ?? appointment.totalDuration
       const newStart = new Date(newStartTime)
-      const newEnd = new Date(newStart.getTime() + durationMinutes * 60000)
-      const effectiveStaffId = newStaffId ?? appointment.services[0]?.staffId
+      const newEnd = new Date(newStart.getTime() + appointment.totalDuration * 60000)
+      const oldStartMs = appointment.startTime.getTime()
+      const deltaMs = newStart.getTime() - oldStartMs
 
       if (newStaffId) {
         const staff = await prisma.staff.findFirst({
@@ -240,22 +240,48 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         if (!hasRole(ctx.role, "admin") && staff.userId !== ctx.userId) return err("Forbidden")
       }
 
+      // Shift EVERY service row by the same delta — never just services[0].
+      // A multi-service appointment (cut+beard+lineup) lays its rows out
+      // back-to-back; moving only the first row would orphan services[1..N] at
+      // the old slot (a ghost booking that still occupies the staff's original
+      // time and is invisible to the new-slot conflict check). Mirrors the
+      // server action (actions/appointments.ts) and reschedulePublicBooking.
+      const sortedServices = [...appointment.services].sort(
+        (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+      )
+      const serviceUpdates = sortedServices.map((s, i) => ({
+        id: s.id,
+        startTime: new Date(s.startTime.getTime() + deltaMs),
+        endTime: new Date(s.endTime.getTime() + deltaMs),
+        // newStaffId reassigns only the lead service; services[1..N] keep their
+        // original staff (no per-service reassignment field on this tool).
+        staffId: newStaffId && i === 0 ? newStaffId : s.staffId,
+        applyStaffUpdate: Boolean(newStaffId && i === 0),
+      }))
+
       try {
         const updated = await prisma.$transaction(async (tx) => {
-          if (effectiveStaffId) {
-            // Same working-hours / break / approved-time-off guard the server
-            // actions and v1 API use (BOOKING-RESIDUAL). Ordering mirrors them:
-            // lock -> assertSlotAllowed -> conflict check.
-            await lockStaffSchedule(tx, ctx.businessId, effectiveStaffId)
-            await assertSlotAllowed(tx, effectiveStaffId, appointment.locationId, newStart, newEnd)
+          // Same working-hours / break / approved-time-off guard the server
+          // actions and v1 API use (BOOKING-RESIDUAL). Ordering mirrors them:
+          // lock all distinct involved staff -> assertSlotAllowed + conflict
+          // check EACH shifted row -> update.
+          const uniqueStaffIds = Array.from(
+            new Set(serviceUpdates.map((s) => s.staffId).filter(Boolean) as string[]),
+          ).sort()
+          for (const staffId of uniqueStaffIds) {
+            await lockStaffSchedule(tx, ctx.businessId, staffId)
+          }
 
+          for (const su of serviceUpdates) {
+            if (!su.staffId) continue
+            await assertSlotAllowed(tx, su.staffId, appointment.locationId, su.startTime, su.endTime)
             const conflict = await tx.appointmentService.findFirst({
               where: {
-                staffId: effectiveStaffId,
+                staffId: su.staffId,
                 appointmentId: { not: id },
                 appointment: { status: { notIn: ["cancelled", "no_show"] } },
-                startTime: { lt: newEnd },
-                endTime: { gt: newStart },
+                startTime: { lt: su.endTime },
+                endTime: { gt: su.startTime },
               },
             })
             if (conflict) throw new Error("CONFLICT")
@@ -266,14 +292,15 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
             data: { startTime: newStart, endTime: newEnd },
           })
 
-          if (appointment.services[0]) {
+          for (const su of serviceUpdates) {
+            const updateData: Record<string, unknown> = {
+              startTime: su.startTime,
+              endTime: su.endTime,
+            }
+            if (su.applyStaffUpdate) updateData.staffId = su.staffId
             await tx.appointmentService.update({
-              where: { id: appointment.services[0].id },
-              data: {
-                startTime: newStart,
-                endTime: newEnd,
-                ...(newStaffId ? { staffId: newStaffId } : {}),
-              },
+              where: { id: su.id },
+              data: updateData,
             })
           }
 

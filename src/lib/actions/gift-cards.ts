@@ -1,6 +1,7 @@
 "use server"
 
 import { z } from "zod"
+import { Prisma } from "@/generated/prisma"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
@@ -55,20 +56,32 @@ export async function issueGiftCard(data: {
       select: { currency: true },
     })
 
-    const giftCard = await prisma.giftCard.create({
-      data: {
-        businessId,
-        code: data.code,
-        initialValue: data.initialValue,
-        currentBalance: data.initialValue,
-        currency: business?.currency || "USD",
-        purchasedBy: data.purchaserId || null,
-        recipientName: data.recipientName || null,
-        recipientEmail: data.recipientEmail || null,
-        isActive: true,
-        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
-      },
-    })
+    let giftCard
+    try {
+      giftCard = await prisma.giftCard.create({
+        data: {
+          businessId,
+          code: data.code,
+          initialValue: data.initialValue,
+          currentBalance: data.initialValue,
+          currency: business?.currency || "USD",
+          purchasedBy: data.purchaserId || null,
+          recipientName: data.recipientName || null,
+          recipientEmail: data.recipientEmail || null,
+          isActive: true,
+          expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+        },
+      })
+    } catch (e) {
+      // The pre-check above is non-transactional, so a concurrent issue (or the
+      // now per-tenant unique index gift_cards_business_id_code_key) can still
+      // collide on the create. Map the Prisma P2002 to the same friendly
+      // message instead of leaking a raw constraint error.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        return { success: false, error: "A gift card with this code already exists" }
+      }
+      throw e
+    }
 
     revalidatePath("/memberships")
     return { success: true, data: { id: giftCard.id, code: giftCard.code } }

@@ -638,6 +638,19 @@ export async function reschedulePublicBooking(
         await lockStaffSchedule(tx, businessId, staffId)
       }
 
+      // Re-enforce the online-booking gate the public CREATE path enforces via
+      // isSlotAvailable -> getAvailability (which rejects canAcceptBookings=false
+      // staff). assertSlotAllowed only covers working hours / breaks / time-off,
+      // NOT this flag — so without this a crafted reschedule could move a booking
+      // onto a staff member the salon has since switched to not-accepting-bookings.
+      for (const staffId of uniqueStaffIds) {
+        const s = await tx.staff.findUnique({
+          where: { id: staffId },
+          select: { canAcceptBookings: true },
+        })
+        if (!s || !s.canAcceptBookings) throw new Error("STAFF_NOT_ACCEPTING")
+      }
+
       for (const su of serviceUpdates) {
         if (!su.staffId) continue
         // Working hours + approved time off, inside the lock.
@@ -726,6 +739,9 @@ export async function reschedulePublicBooking(
     const msg = (e as Error).message
     if (msg === "CONFLICT") {
       return { success: false, error: "This time slot is already booked for the selected staff member" }
+    }
+    if (msg === "STAFF_NOT_ACCEPTING") {
+      return { success: false, error: "That staff member is no longer accepting online bookings. Please choose another time." }
     }
     if (msg === ERR_OUTSIDE_WORKING_HOURS) {
       return { success: false, error: "That time is outside the staff member's working hours." }

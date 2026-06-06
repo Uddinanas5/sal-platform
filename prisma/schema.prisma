@@ -966,7 +966,7 @@ model Invoice {
 model GiftCard {
   id              String    @id @default(uuid()) @db.Uuid
   businessId      String    @map("business_id") @db.Uuid
-  code            String    @unique @db.VarChar(50)
+  code            String    @db.VarChar(50)
   initialValue    Decimal   @map("initial_value") @db.Decimal(10, 2)
   currentBalance  Decimal   @map("current_balance") @db.Decimal(10, 2)
   currency        String    @db.VarChar(3)
@@ -984,6 +984,9 @@ model GiftCard {
   business  Business @relation(fields: [businessId], references: [id])
   purchaser Client?  @relation("PurchasedBy", fields: [purchasedBy], references: [id])
 
+  // Codes are unique PER TENANT (like Discount.code), not globally — two
+  // salons may both issue "GIFT100" without colliding.
+  @@unique([businessId, code])
   @@index([businessId])
   @@map("gift_cards")
 

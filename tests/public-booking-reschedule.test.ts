@@ -100,12 +100,17 @@ function baseAppointment(overrides: Record<string, unknown> = {}) {
 function makeTx(opts: {
   schedule?: typeof open9to5 | null
   conflict?: boolean
+  canAcceptBookings?: boolean
 }) {
   const apptUpdate = vi.fn(async (_args: { where: unknown; data: { startTime: Date; endTime: Date } }) => ({}))
   const svcUpdate = vi.fn(async (_args: { where: { id: string }; data: { startTime: Date; endTime: Date } }) => ({}))
   const tx = {
     staffSchedule: { findFirst: async () => opts.schedule ?? null },
     staffTimeOff: { findFirst: async () => null },
+    // The reschedule write path re-checks the online-booking gate per staff.
+    staff: {
+      findUnique: vi.fn(async () => ({ canAcceptBookings: opts.canAcceptBookings ?? true })),
+    },
     appointmentService: {
       findFirst: vi.fn(async () => (opts.conflict ? { id: "conflict" } : null)),
       update: svcUpdate,
@@ -183,6 +188,38 @@ describe("reschedulePublicBooking — working-hours guard", () => {
     if (!result.success) {
       expect(result.error).not.toBe(ERR_OUTSIDE_WORKING_HOURS)
     }
+  })
+})
+
+describe("reschedulePublicBooking — canAcceptBookings gate", () => {
+  it("rejects when the staff member no longer accepts online bookings", async () => {
+    prismaMock.appointment.findUnique.mockResolvedValue(baseAppointment())
+
+    // In-hours slot, no conflict, but the staff was switched to not-accepting.
+    const { tx, apptUpdate, svcUpdate } = makeTx({
+      schedule: open9to5,
+      conflict: false,
+      canAcceptBookings: false,
+    })
+    prismaMock.$transaction.mockImplementation(async (cb: (t: unknown) => Promise<unknown>) =>
+      cb(tx),
+    )
+
+    const newStart = futureWednesdayAt(13).toISOString()
+    const result = await reschedulePublicBooking(REF, EMAIL, newStart)
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toMatch(/no longer accepting online bookings/i)
+    }
+    // The gate fires before any write — nothing is moved.
+    expect(apptUpdate).not.toHaveBeenCalled()
+    expect(svcUpdate).not.toHaveBeenCalled()
+    // The flag was actually re-checked for the booking's staff member.
+    expect(tx.staff.findUnique).toHaveBeenCalledWith({
+      where: { id: STAFF },
+      select: { canAcceptBookings: true },
+    })
   })
 })
 
