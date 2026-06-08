@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 import { prisma } from "@/lib/prisma"
 import { timeStringToUtcDate } from "@/lib/scheduling/zoned-time"
 import { z } from "zod"
@@ -31,6 +32,8 @@ export function registerWaitlistTools(server: McpServer, ctx: ApiContext) {
       notes: z.string().optional().describe("Notes"),
     },
     async ({ clientId, serviceId, staffId, preferredDate, preferredTimeStart, preferredTimeEnd, notes }) => {
+      const unowned = await assertOwnedRefs(ctx, { client: clientId, service: serviceId, staff: staffId })
+      if (unowned) return err(`${unowned} not found`)
       const entry = await prisma.waitlistEntry.create({
         data: {
           businessId: ctx.businessId,

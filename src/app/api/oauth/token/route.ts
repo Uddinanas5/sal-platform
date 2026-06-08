@@ -52,7 +52,10 @@ export async function POST(req: Request) {
     return oauthError("invalid_grant", "Client ID mismatch", 400)
   }
 
-  if (redirectUri && authCode.redirectUri !== redirectUri) {
+  // RFC 6749 §4.1.3: if the authorization request included a redirect_uri, the
+  // token request MUST include it and it must match exactly. Only checking when
+  // the client supplies it (the old behaviour) let an attacker omit it entirely.
+  if (authCode.redirectUri && (!redirectUri || authCode.redirectUri !== redirectUri)) {
     return oauthError("invalid_grant", "Redirect URI mismatch", 400)
   }
 

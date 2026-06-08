@@ -50,7 +50,7 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
         name: z.string().min(1).max(200).describe("Line description, e.g. 'Walk-in trim'"),
         unitPrice: z.number().nonnegative().describe("Per-unit price (authoritative for this line)"),
         quantity: z.number().int().positive().describe("Quantity"),
-      })).default([]).describe("Ad-hoc Quick Sale line items (no catalog entry)"),
+      })).max(100).default([]).describe("Ad-hoc Quick Sale line items (no catalog entry)"),
       // Money fields below (subtotal/total/tax) are advisory only; recordCheckout
       // recomputes subtotal/amount/tax/total server-side from DB prices and
       // per-item tax config. Only discount/tip are caller inputs that actually

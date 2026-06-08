@@ -491,6 +491,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       // a staff-role API key could mass-cancel another barber's series.
       if (!(await canAccessAppointmentSeries(ctx, seriesId))) return err("Forbidden")
       const fromDate = cancelFrom ? new Date(cancelFrom) : new Date(0)
+      if (Number.isNaN(fromDate.getTime())) return err("Invalid cancelFrom date")
       const result = await prisma.appointment.updateMany({
         where: {
           businessId: ctx.businessId,

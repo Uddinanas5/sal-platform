@@ -267,7 +267,22 @@ export function InventoryClient(props: InventoryClientProps) {
                     label: "Export",
                     icon: <Download className="h-3.5 w-3.5" />,
                     variant: "outline",
-                    onClick: (rows) => toast.success(`Exported ${rows.length} products to CSV`),
+                    onClick: (rows) => {
+                      exportToCsv(
+                        "inventory-export",
+                        ["Name", "SKU", "Category", "Cost Price", "Retail Price", "Stock", "Supplier"],
+                        rows.map((p) => [
+                          p.name,
+                          p.sku,
+                          p.category,
+                          formatCurrency(p.costPrice),
+                          formatCurrency(p.retailPrice),
+                          String(p.stockLevel),
+                          p.supplier,
+                        ])
+                      )
+                      toast.success(`Exported ${rows.length} products to CSV`)
+                    },
                   },
                   {
                     label: "Delete",

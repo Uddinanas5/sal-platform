@@ -64,6 +64,15 @@ export function registerStaffTools(server: McpServer, ctx: ApiContext) {
       const location = await prisma.location.findFirst({ where: { businessId: ctx.businessId } })
       if (!location) return err("Business not configured (no location)")
 
+      // serviceIds must all belong to this business — never link another tenant's services.
+      if (serviceIds.length > 0) {
+        const uniqueIds = Array.from(new Set(serviceIds))
+        const ownedCount = await prisma.service.count({
+          where: { id: { in: uniqueIds }, businessId: ctx.businessId },
+        })
+        if (ownedCount !== uniqueIds.length) return err("One or more services not found")
+      }
+
       const existingUser = await prisma.user.findUnique({ where: { email } })
       if (existingUser) return err("A user with this email already exists")
 

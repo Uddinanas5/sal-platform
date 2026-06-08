@@ -416,7 +416,11 @@ export async function cancelRecurringSeries(
     }
 
     if (cancelFrom) {
-      where.startTime = { gte: new Date(cancelFrom) }
+      const cancelFromDate = new Date(cancelFrom)
+      if (Number.isNaN(cancelFromDate.getTime())) {
+        return { success: false, error: "Invalid cancelFrom date" }
+      }
+      where.startTime = { gte: cancelFromDate }
     }
 
     const result = await prisma.appointment.updateMany({

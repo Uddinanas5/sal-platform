@@ -267,6 +267,7 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
           serviceId: svc.serviceId,
           startTime,
           locationId,
+          timezone,
         })
 
         if (!available) {
@@ -326,6 +327,18 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
       ).sort()
       for (const sid of uniqueStaffIds) {
         await lockStaffSchedule(tx, businessId, sid)
+      }
+      // Re-enforce the online-booking gate inside the lock. isSlotAvailable ->
+      // getAvailability rejected canAcceptBookings=false staff before the txn,
+      // but assertSlotAllowed below only covers working hours / breaks / time-off
+      // — so re-check the flag here to close the race where a staff member is
+      // switched to not-accepting-bookings during the booking window.
+      for (const sid of uniqueStaffIds) {
+        const s = await tx.staff.findUnique({
+          where: { id: sid },
+          select: { canAcceptBookings: true },
+        })
+        if (!s || !s.canAcceptBookings) throw new Error('STAFF_NOT_ACCEPTING')
       }
       for (const svc of serviceDetails) {
         // Same in-transaction working-hours / break / approved-time-off guard

@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -48,6 +49,8 @@ export function registerServiceTools(server: McpServer, ctx: ApiContext) {
     },
     async ({ name, description, duration, price, categoryId, color }) => {
       if (!isAdmin(ctx)) return err("Insufficient permissions: admin or owner required")
+      const unowned = await assertOwnedRefs(ctx, { serviceCategory: categoryId })
+      if (unowned) return err(`${unowned} not found`)
       const service = await prisma.service.create({
         data: {
           businessId: ctx.businessId,
@@ -80,6 +83,8 @@ export function registerServiceTools(server: McpServer, ctx: ApiContext) {
       if (!isAdmin(ctx)) return err("Insufficient permissions: admin or owner required")
       const existing = await prisma.service.findFirst({ where: { id, businessId: ctx.businessId } })
       if (!existing) return err("Service not found")
+      const unowned = await assertOwnedRefs(ctx, { serviceCategory: rest.categoryId })
+      if (unowned) return err(`${unowned} not found`)
       const data = { ...rest, ...(duration !== undefined ? { durationMinutes: duration } : {}) }
       const service = await prisma.service.update({ where: { id }, data })
       return ok(service)

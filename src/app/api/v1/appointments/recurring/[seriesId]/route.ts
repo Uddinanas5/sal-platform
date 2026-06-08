@@ -12,6 +12,16 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ serie
   const url = new URL(req.url)
   const cancelFrom = url.searchParams.get("cancelFrom")
 
+  // Validate cancelFrom up front: an unparseable value becomes an Invalid Date,
+  // which throws a RangeError when Prisma serializes it — crashing the request.
+  let cancelFromDate: Date | null = null
+  if (cancelFrom) {
+    cancelFromDate = new Date(cancelFrom)
+    if (Number.isNaN(cancelFromDate.getTime())) {
+      return ERRORS.BAD_REQUEST("Invalid cancelFrom date")
+    }
+  }
+
   const seriesAppointment = await prisma.appointment.findFirst({
     where: { seriesId, businessId: ctx.businessId },
   })
@@ -22,7 +32,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ serie
     businessId: ctx.businessId,
     status: { notIn: ["completed", "cancelled"] },
   }
-  if (cancelFrom) where.startTime = { gte: new Date(cancelFrom) }
+  if (cancelFromDate) where.startTime = { gte: cancelFromDate }
 
   const result = await prisma.appointment.updateMany({
     where: where as never,

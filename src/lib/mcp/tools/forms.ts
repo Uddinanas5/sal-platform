@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -88,6 +89,8 @@ export function registerFormTools(server: McpServer, ctx: ApiContext) {
     async ({ formId, clientId, appointmentId, responses }) => {
       const form = await prisma.formTemplate.findFirst({ where: { id: formId, businessId: ctx.businessId } })
       if (!form) return err("Form template not found")
+      const unowned = await assertOwnedRefs(ctx, { client: clientId, appointment: appointmentId })
+      if (unowned) return err(`${unowned} not found`)
       const submission = await prisma.formSubmission.create({
         data: {
           templateId: formId,

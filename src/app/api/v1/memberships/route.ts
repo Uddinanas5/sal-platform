@@ -1,4 +1,5 @@
 import { withV1Auth } from "@/lib/api/auth"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { hasRole } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
@@ -40,6 +41,10 @@ export async function POST(req: Request) {
     where: { id: parsed.data.planId, businessId: ctx.businessId },
   })
   if (!plan) return ERRORS.NOT_FOUND("Membership plan")
+
+  // The client must belong to the caller's business — never trust the supplied id.
+  const unowned = await assertOwnedRefs(ctx, { client: parsed.data.clientId })
+  if (unowned) return ERRORS.NOT_FOUND(unowned)
 
   const membership = await prisma.membership.create({
     data: {

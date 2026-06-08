@@ -6,12 +6,19 @@ export type ReviewTokenPayload = {
 }
 
 function getSecret() {
-  return (
+  const secret =
     process.env.REVIEW_TOKEN_SECRET ||
     process.env.NEXTAUTH_SECRET ||
-    process.env.AUTH_SECRET ||
-    "sal-dev-review-token-secret"
-  )
+    process.env.AUTH_SECRET
+  if (!secret) {
+    // Never fall back to a committed value — a known secret means forgeable
+    // review tokens. NEXTAUTH_SECRET is already required at startup, so this
+    // only ever fires in a misconfigured environment.
+    throw new Error(
+      "No review-token secret configured (set REVIEW_TOKEN_SECRET or NEXTAUTH_SECRET)",
+    )
+  }
+  return secret
 }
 
 function encode(value: string) {

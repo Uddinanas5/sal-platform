@@ -1,5 +1,6 @@
 import { withV1Auth } from "@/lib/api/auth"
 import { canAccessAppointment } from "@/lib/api/appointment-access"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 
@@ -16,6 +17,10 @@ export async function DELETE(
     where: { id, businessId: ctx.businessId },
   })
   if (!appointment) return ERRORS.NOT_FOUND("Appointment")
+
+  // Defence-in-depth: the client being removed must also belong to this business.
+  const unowned = await assertOwnedRefs(ctx, { client: clientId })
+  if (unowned) return ERRORS.NOT_FOUND("Participant")
 
   try {
     await prisma.groupParticipant.delete({

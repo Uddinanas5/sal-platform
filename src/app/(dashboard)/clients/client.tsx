@@ -432,11 +432,17 @@ function ClientTable({
                       <User className="w-4 h-4 mr-2" />
                       View Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toast.info(`Editing ${client.name}`)}>
+                    <DropdownMenuItem onClick={() => router.push(`/clients/${client.id}`)}>
                       <Pencil className="w-4 h-4 mr-2" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toast.success(`Message sent to ${client.name}`)}>
+                    <DropdownMenuItem onClick={() => {
+                      if (client.email) {
+                        window.open(`mailto:${client.email}`, "_blank")
+                      } else {
+                        toast.error("No email address on file")
+                      }
+                    }}>
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Send Message
                     </DropdownMenuItem>
