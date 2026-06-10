@@ -288,9 +288,10 @@ export function CalendarClient(props: CalendarClientProps) {
       setAppointments(prevAppointments)
       setSelectedAppointment(prevSelected)
       toast.error(result.error || "Failed to update appointment status")
-    } else {
-      router.refresh()
+      return false
     }
+    router.refresh()
+    return true
   }, [appointments, selectedAppointment, router])
 
   // Empty slot click handler - opens new appointment dialog

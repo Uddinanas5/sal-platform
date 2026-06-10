@@ -84,6 +84,14 @@ async function main() {
   await prisma.payrollPeriod.deleteMany()
   await prisma.auditLog.deleteMany()
   await prisma.apiKey.deleteMany()
+  // RESTRICT-FK tables to businesses (added by later migrations) — must be wiped
+  // before the business delete or re-seeding a dev DB that used these features
+  // fails mid-cleanup. Optional-chained so an older client without these models
+  // still runs.
+  await prisma.serviceBundle?.deleteMany?.()
+  await prisma.staffInvitation?.deleteMany?.()
+  await prisma.visitNote?.deleteMany?.()
+  await prisma.loyaltyTransaction?.deleteMany?.()
   await prisma.location.deleteMany()
   await prisma.business.deleteMany()
   await prisma.user.deleteMany()

@@ -23,17 +23,17 @@ export const metadata: Metadata = {
   authors: [{ name: "SAL Platform" }],
   creator: "SAL Platform",
   publisher: "SAL Platform",
-  metadataBase: new URL("https://sal-platform.vercel.app"),
+  metadataBase: new URL("https://www.meetsal.ai"),
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://sal-platform.vercel.app",
+    url: "https://www.meetsal.ai",
     siteName: "SAL Platform",
     title: "SAL - The All-in-One Platform for Salons & Spas",
     description: "Manage appointments, clients, staff, and payments — all in one beautiful dashboard. Free to get started.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/logos/sal-full.svg",
         width: 1200,
         height: 630,
         alt: "SAL Platform - Salon & Spa Management",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "SAL - The All-in-One Platform for Salons & Spas",
     description: "Manage appointments, clients, staff, and payments — all in one beautiful dashboard.",
-    images: ["/og-image.png"],
+    images: ["/logos/sal-full.svg"],
   },
   robots: {
     index: true,

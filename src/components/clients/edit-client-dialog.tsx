@@ -33,6 +33,11 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
   const [phone, setPhone] = useState(client.phone)
   const [notes, setNotes] = useState(client.notes || "")
   const [allergies, setAllergies] = useState(client.allergies || "")
+  // @db.Date comes through as a Date (UTC midnight); render as YYYY-MM-DD in UTC
+  // so the <input type="date"> isn't shifted a day in Americas timezones.
+  const [dateOfBirth, setDateOfBirth] = useState(
+    client.dateOfBirth ? new Date(client.dateOfBirth).toISOString().slice(0, 10) : ""
+  )
   const [tags, setTags] = useState<string[]>(client.tags || [])
   const [newTag, setNewTag] = useState("")
   const [saving, setSaving] = useState(false)
@@ -78,6 +83,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
       notes,
       allergies,
       tags,
+      dateOfBirth: dateOfBirth || null,
     })
     setSaving(false)
 
@@ -97,6 +103,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
     setPhone(client.phone)
     setNotes(client.notes || "")
     setAllergies(client.allergies || "")
+    setDateOfBirth(client.dateOfBirth ? new Date(client.dateOfBirth).toISOString().slice(0, 10) : "")
     setTags(client.tags || [])
     setNewTag("")
     onOpenChange(false)
@@ -139,6 +146,16 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone number"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Date of Birth</label>
+            <Input
+              type="date"
+              value={dateOfBirth}
+              onChange={(e) => setDateOfBirth(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Used for birthday messages.</p>
           </div>
 
           <div className="space-y-2">

@@ -90,7 +90,7 @@ interface AppointmentDetailSheetProps {
   staffList: Staff[]
   serviceList: Service[]
   clientList: Client[]
-  onStatusChange?: (appointmentId: string, newStatus: string) => void
+  onStatusChange?: (appointmentId: string, newStatus: string) => void | Promise<boolean>
 }
 
 const STATUS_CONFIG: Record<
@@ -207,14 +207,16 @@ export function AppointmentDetailSheet({
   const client = clientList.find((c) => c.id === appointment.clientId)
   const statusConfig = STATUS_CONFIG[appointment.status] || STATUS_CONFIG.confirmed
 
-  const handleStatusAction = (action: string, newStatus: string) => {
-    if (onStatusChange) {
-      onStatusChange(appointment.id, newStatus)
+  const handleStatusAction = async (action: string, newStatus: string) => {
+    // Await the server result and only confirm on success, so we don't show a
+    // success toast that the parent's failure path immediately contradicts.
+    const ok = await onStatusChange?.(appointment.id, newStatus)
+    if (ok !== false) {
+      toast.success(`Appointment ${action}`, {
+        description: `${appointment.clientName}'s appointment has been ${action.toLowerCase()}.`,
+      })
+      onOpenChange(false)
     }
-    toast.success(`Appointment ${action}`, {
-      description: `${appointment.clientName}'s appointment has been ${action.toLowerCase()}.`,
-    })
-    onOpenChange(false)
   }
 
   const openCancel = (mode: "cancelled" | "no_show") => {

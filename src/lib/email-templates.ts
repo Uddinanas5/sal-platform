@@ -1,6 +1,21 @@
 const SAL_COLOR = "#059669"
 const SAL_COLOR_DARK = "#047857"
 
+/**
+ * Escape HTML so business- and client-controlled strings (names, service titles,
+ * notes — some of which originate from the PUBLIC booking form) can't inject
+ * markup/script into a transactional email. Applied to every interpolated
+ * user-supplied value below; server-formatted values (dates, refs) are safe.
+ */
+function esc(value: string | null | undefined): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 function baseLayout(content: string): string {
   return `
 <!DOCTYPE html>
@@ -137,6 +152,10 @@ export function reviewRequestEmail({
   serviceName?: string
   reviewUrl: string
 }): string {
+  clientName = esc(clientName)
+  businessName = esc(businessName)
+  staffName = staffName ? esc(staffName) : staffName
+  serviceName = serviceName ? esc(serviceName) : serviceName
   const withStaff = staffName ? ` with <strong>${staffName}</strong>` : ""
   const serviceLine = serviceName
     ? `We hope you loved your <strong>${serviceName}</strong>${withStaff}.`
@@ -192,6 +211,12 @@ export function bookingConfirmationEmail({
   businessPhone?: string
   manageUrl?: string
 }): string {
+  // Escape every user-supplied value (clientName/businessName come from the
+  // public booking form). dateTime + bookingRef are server-generated, safe.
+  clientName = esc(clientName)
+  serviceName = esc(serviceName)
+  staffName = esc(staffName)
+  businessName = esc(businessName)
   const content = `
     <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1a1a1a;">Booking Confirmed</h1>
     <p style="margin: 0 0 24px; font-size: 15px; color: #6b6560; line-height: 1.5;">

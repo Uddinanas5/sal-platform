@@ -11,7 +11,6 @@ import {
   DollarSign,
   Eye,
   EyeOff,
-  GripVertical,
   Scissors,
   Pencil,
   Copy,
@@ -130,12 +129,7 @@ function ServiceCard({
       <div className="p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-start gap-3">
-            <button
-              className="mt-1 cursor-grab active:cursor-grabbing text-muted-foreground/70 hover:text-muted-foreground"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <GripVertical className="w-5 h-5" />
-            </button>
+            {/* Reordering isn't implemented (no dnd), so no fake drag handle. */}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-semibold text-foreground">{service.name}</h3>
@@ -417,10 +411,14 @@ export function ServicesClient(props: ServicesClientProps) {
             icon={<Scissors className="w-8 h-8 text-sal-600" />}
             title="No services found"
             description="No services match your current search or category. Try adjusting your filters or create a new service."
-            action={{
-              label: "Add Service",
-              onClick: () => setIsAddDialogOpen(true),
-            }}
+            action={
+              isReadOnly
+                ? undefined
+                : {
+                    label: "Add Service",
+                    onClick: () => setIsAddDialogOpen(true),
+                  }
+            }
           />
         )}
 

@@ -77,12 +77,14 @@ export function RespondDialog({
     const result = await respondToReview(review.id, response.trim())
 
     if (result.success) {
-      toast.success("Response sent successfully")
+      // The response is SAVED to the review record (shown on the dashboard);
+      // it is not emailed to the client, so don't claim it was "sent".
+      toast.success("Response saved")
       setResponse("")
       onOpenChange(false)
       router.refresh()
     } else {
-      toast.error(`Failed to send response: ${result.error}`)
+      toast.error(`Failed to save response: ${result.error}`)
     }
 
     setIsSending(false)

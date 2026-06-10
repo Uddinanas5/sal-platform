@@ -25,6 +25,9 @@ const updateClientSchema = z.object({
   notes: z.string().optional(),
   allergies: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  // "YYYY-MM-DD", or "" / null to clear. Stored as a @db.Date (UTC midnight) and
+  // consumed by the birthday automated-message trigger.
+  dateOfBirth: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal(""), z.null()]).optional(),
 })
 
 export async function createClient(data: {
@@ -93,6 +96,7 @@ export async function updateClient(
     notes?: string
     allergies?: string
     tags?: string[]
+    dateOfBirth?: string | null
   }
 ): Promise<ActionResult> {
   try {
@@ -127,6 +131,12 @@ export async function updateClient(
         notes: data.notes,
         allergies: data.allergies !== undefined ? (data.allergies.trim() || null) : undefined,
         tags: data.tags,
+        dateOfBirth:
+          data.dateOfBirth !== undefined
+            ? data.dateOfBirth
+              ? new Date(`${data.dateOfBirth}T00:00:00.000Z`)
+              : null
+            : undefined,
       },
     })
 

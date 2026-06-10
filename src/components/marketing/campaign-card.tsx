@@ -64,13 +64,6 @@ const statusBadgeColors: Record<string, string> = {
 }
 
 export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate, onSend, sending }: CampaignCardProps) {
-  const openRate = campaign.recipientCount > 0
-    ? Math.round((campaign.openCount / campaign.recipientCount) * 1000) / 10
-    : 0
-  const clickRate = campaign.recipientCount > 0
-    ? Math.round((campaign.clickCount / campaign.recipientCount) * 1000) / 10
-    : 0
-
   const dateDisplay = campaign.sentAt
     ? `Completed ${formatDate(campaign.sentAt)}`
     : campaign.scheduledAt
@@ -124,27 +117,15 @@ export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate, onS
             </span>
           </div>
 
-          {/* Metrics (if sent > 0) */}
+          {/* Metrics. Open/click tracking isn't implemented (no pixel/redirect),
+              so openCount/clickCount are always 0 — showing them as "Open Rate"
+              would lie. Only the real Recipients count is shown. */}
           {campaign.recipientCount > 0 && (campaign.status === "sent" || campaign.status === "active" || campaign.status === "completed") && (
-            <div className="grid grid-cols-3 gap-2 mb-3 p-3 rounded-lg bg-cream-50">
-              <div className="text-center">
-                <p className="text-sm font-semibold text-foreground">
-                  {campaign.recipientCount.toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">Sent</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-sal-600">
-                  {openRate}%
-                </p>
-                <p className="text-xs text-muted-foreground">Open Rate</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-sal-600">
-                  {clickRate}%
-                </p>
-                <p className="text-xs text-muted-foreground">Click Rate</p>
-              </div>
+            <div className="mb-3 p-3 rounded-lg bg-cream-50 text-center">
+              <p className="text-sm font-semibold text-foreground">
+                {campaign.recipientCount.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground">Recipients</p>
             </div>
           )}
 
