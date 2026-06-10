@@ -1254,7 +1254,10 @@ function ConfirmationStep({
 
       <Card className="bg-sal-500/5 border-sal-500/20">
         <CardContent className="p-4 flex items-center justify-between">
-          <span className="font-medium text-foreground">Total</span>
+          <div>
+            <span className="font-medium text-foreground">Price</span>
+            <p className="text-xs text-muted-foreground">Tax calculated at checkout</p>
+          </div>
           <span className="text-xl font-bold text-sal-600 dark:text-sal-400 font-heading">
             {formatCurrency(service.price)}
           </span>
@@ -1376,7 +1379,7 @@ function SuccessState({
             </div>
             <div className="border-t border-border" />
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total</span>
+              <span className="text-sm text-muted-foreground">Price</span>
               <span className="font-semibold text-sal-600 dark:text-sal-400">
                 {formatCurrency(service.price)}
               </span>

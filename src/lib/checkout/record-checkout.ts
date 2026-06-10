@@ -6,7 +6,7 @@ import {
   type ResolvedPayrollPeriod,
 } from "./resolve-payroll-period"
 import { POINTS_TO_DOLLARS, pointsEarnedFor } from "@/lib/loyalty"
-import { lockClient, lockAppointment } from "@/lib/db/advisory-lock"
+import { lockClient, lockAppointment, lockBusiness } from "@/lib/db/advisory-lock"
 import { redeemGiftCardInTx } from "@/lib/checkout/gift-card-redeem"
 import { TAX_RATE } from "@/lib/utils"
 
@@ -152,6 +152,17 @@ async function ensureOpenPayrollPeriod(
     return await resolvePayrollPeriod(tx, businessId, checkoutAt)
   } catch (err) {
     if (!(err instanceof NoPayrollPeriodError)) throw err
+
+    // Serialize the bootstrap on the business so two concurrent first-ever
+    // checkouts (different clients → no shared client lock) can't both insert a
+    // period for the same month. After acquiring the lock, RE-RESOLVE: if the
+    // other transaction already created it, use that and skip our insert.
+    await lockBusiness(tx, businessId)
+    try {
+      return await resolvePayrollPeriod(tx, businessId, checkoutAt)
+    } catch (err2) {
+      if (!(err2 instanceof NoPayrollPeriodError)) throw err2
+    }
 
     const business = await tx.business.findUnique({
       where: { id: businessId },

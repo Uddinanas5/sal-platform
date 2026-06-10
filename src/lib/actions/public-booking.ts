@@ -197,6 +197,9 @@ export async function createPublicBooking(data: {
       where: {
         businessId: business.id,
         email: data.clientEmail.trim().toLowerCase(),
+        // Skip soft-deleted (zombie) rows so a re-booking creates a fresh client
+        // instead of resurrecting a deleted one.
+        deletedAt: null,
       },
     })
 
@@ -433,9 +436,9 @@ export async function addToPublicWaitlist(data: {
       return { success: false, error: `Please choose a date within the next ${maxWaitlistDays} days.` }
     }
 
-    // Find or create client
+    // Find or create client (skip soft-deleted rows — see createPublicBooking)
     let client = await prisma.client.findFirst({
-      where: { businessId: business.id, email: parsed.clientEmail },
+      where: { businessId: business.id, email: parsed.clientEmail, deletedAt: null },
     })
     if (!client) {
       client = await prisma.client.create({

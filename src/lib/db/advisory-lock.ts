@@ -56,6 +56,23 @@ export async function lockGiftCard(
 }
 
 /**
+ * Transaction-scoped advisory lock keyed on businessId alone. Serializes
+ * business-wide bootstrap operations that would otherwise race (e.g. auto-
+ * creating the first PayrollPeriod on the first-ever checkout), where two
+ * concurrent transactions for different clients share no other lock. The
+ * "business:" prefix keeps this keyspace distinct.
+ */
+export async function lockBusiness(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+): Promise<void> {
+  const hash = createHash("sha256").update(`business:${businessId}`).digest()
+  const key1 = hash.readInt32BE(0)
+  const key2 = hash.readInt32BE(4)
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${key1}::int4, ${key2}::int4)`
+}
+
+/**
  * Transaction-scoped advisory lock keyed on (businessId, appointmentId).
  * Serializes concurrent checkouts of the SAME appointment so the
  * already-paid / already-completed re-check can run INSIDE the transaction
