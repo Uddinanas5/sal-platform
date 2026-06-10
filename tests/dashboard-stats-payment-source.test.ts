@@ -11,6 +11,7 @@ const { prismaMock } = vi.hoisted(() => {
     payment: { aggregate: vi.fn() },
     client: { count: vi.fn() },
     review: { aggregate: vi.fn() },
+    business: { findUnique: vi.fn(async () => ({ timezone: "UTC" })) },
   }
   return { prismaMock }
 })

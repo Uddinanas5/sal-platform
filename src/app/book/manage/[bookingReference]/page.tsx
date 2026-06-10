@@ -51,6 +51,7 @@ export default async function ManageBookingPage({
             phone: true,
             email: true,
             settings: true,
+            timezone: true,
           },
         },
         client: {
@@ -110,6 +111,7 @@ export default async function ManageBookingPage({
     staffId: leadService?.staff?.id ?? null,
     businessName: appointment.business.name,
     businessSlug: appointment.business.slug,
+    businessTimezone: appointment.business.timezone || "UTC",
     businessPhone: appointment.business.phone,
     businessEmail: appointment.business.email,
     clientName: `${appointment.client?.firstName ?? ""} ${appointment.client?.lastName ?? ""}`.trim(),

@@ -2,6 +2,37 @@ import { prisma } from "@/lib/prisma"
 import { subDays, subMonths, startOfDay, startOfMonth, endOfMonth, format } from "date-fns"
 
 // ============================================================================
+// TIMEZONE HELPERS — bucket appointment/payment instants by the SALON's wall
+// clock, not the server's (UTC on Vercel). Without these, "appointments by hour"
+// and the busiest-times heatmap are shifted by the salon's UTC offset and
+// evening rows spill into the wrong hour/day.
+// ============================================================================
+
+async function getBusinessTimezone(businessId?: string): Promise<string> {
+  if (!businessId) return "UTC"
+  const b = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true } })
+  return b?.timezone || "UTC"
+}
+
+/** Hour-of-day (0–23) of an instant in the given IANA timezone. */
+function hourInZone(instant: Date, timezone: string): number {
+  const s = new Intl.DateTimeFormat("en-US", { timeZone: timezone || "UTC", hour: "2-digit", hourCycle: "h23" }).format(instant)
+  return parseInt(s, 10)
+}
+
+const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+
+/** Weekday short label ("Mon") of an instant in the given IANA timezone. */
+function weekdayInZone(instant: Date, timezone: string): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone: timezone || "UTC", weekday: "short" }).format(instant)
+}
+
+/** Weekday index (0=Sun … 6=Sat) of an instant in the given IANA timezone. */
+function weekdayIndexInZone(instant: Date, timezone: string): number {
+  return WEEKDAY_INDEX[weekdayInZone(instant, timezone)] ?? 0
+}
+
+// ============================================================================
 // DATE RANGE HELPER
 // ============================================================================
 
@@ -48,6 +79,7 @@ export function resolveRange(range?: { from?: Date | null; to?: Date | null }): 
 export async function getRevenueByDay(days: number, businessId?: string) {
   const since = startOfDay(subDays(new Date(), days - 1))
   const businessFilter = businessId ? { businessId } : {}
+  const timezone = await getBusinessTimezone(businessId)
 
   const payments = await prisma.payment.findMany({
     where: {
@@ -58,14 +90,16 @@ export async function getRevenueByDay(days: number, businessId?: string) {
     select: { totalAmount: true, createdAt: true },
   })
 
+  // Bucket by the SALON's weekday so a late-evening sale counts on the salon's
+  // day, not the server's (which may already be tomorrow in UTC).
   const byDay: Record<string, number> = {}
   for (let i = 0; i < days; i++) {
     const d = subDays(new Date(), days - 1 - i)
-    byDay[format(d, "EEE")] = 0
+    byDay[weekdayInZone(d, timezone)] = 0
   }
 
   for (const p of payments) {
-    const key = format(p.createdAt, "EEE")
+    const key = weekdayInZone(p.createdAt, timezone)
     byDay[key] = (byDay[key] || 0) + Number(p.totalAmount)
   }
 
@@ -549,6 +583,7 @@ export async function getAppointmentsByHour(
 
   const { from, to } = resolveRange(range)
   const businessFilter = { businessId }
+  const timezone = await getBusinessTimezone(businessId)
 
   const appointments = await prisma.appointment.findMany({
     where: { ...businessFilter, startTime: { gte: from, lte: to } },
@@ -561,7 +596,7 @@ export async function getAppointmentsByHour(
   }
 
   for (const a of appointments) {
-    const hour = a.startTime.getHours()
+    const hour = hourInZone(a.startTime, timezone)
     if (hour >= 8 && hour <= 19) {
       hourCounts[hour] = (hourCounts[hour] ?? 0) + 1
     }
@@ -616,6 +651,7 @@ export async function getBusiestTimesHeatmap(businessId?: string) {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   const dayMap: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5 }
   const businessFilter = businessId ? { businessId } : {}
+  const timezone = await getBusinessTimezone(businessId)
 
   // Look at the last 30 days of appointments
   const since = subDays(new Date(), 30)
@@ -629,8 +665,10 @@ export async function getBusiestTimesHeatmap(businessId?: string) {
   const grid: number[][] = days.map(() => Array(12).fill(0))
 
   for (const a of appointments) {
-    const dayOfWeek = a.startTime.getDay() // 0=Sun, 1=Mon, ...
-    const hour = a.startTime.getHours()
+    // Day-of-week + hour in the SALON's timezone, so an evening appointment
+    // isn't bucketed into the next UTC day / wrong hour.
+    const dayOfWeek = weekdayIndexInZone(a.startTime, timezone) // 0=Sun, 1=Mon, ...
+    const hour = hourInZone(a.startTime, timezone)
     const dayIdx = dayMap[dayOfWeek]
     if (dayIdx !== undefined && hour >= 8 && hour <= 19) {
       grid[dayIdx][hour - 8]++
