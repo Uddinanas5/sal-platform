@@ -11,13 +11,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const staff = await prisma.staff.findFirst({
     where: { id, primaryLocation: { businessId: ctx.businessId }, isActive: true },
     include: {
-      user: true,
+      // Never return the full user row (it carries passwordHash + auth columns).
+      user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, avatarUrl: true, role: true } },
       staffSchedules: true,
       timeOff: { where: { startDate: { gte: new Date() } }, orderBy: { startDate: "asc" } },
       staffServices: { include: { service: { select: { id: true, name: true } } } },
     },
   })
   if (!staff) return ERRORS.NOT_FOUND("Staff member")
+
+  // Pay fields are admin-only.
+  if (!hasRole(ctx.role, "admin")) {
+    const { commissionRate, hourlyRate, employmentType, employeeId, hireDate, ...rest } = staff
+    void commissionRate; void hourlyRate; void employmentType; void employeeId; void hireDate
+    return apiSuccess(rest)
+  }
   return apiSuccess(staff)
 }
 

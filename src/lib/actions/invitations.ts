@@ -210,21 +210,45 @@ export async function acceptInvitation(data: {
       let user = await tx.user.findUnique({ where: { email } })
 
       if (user) {
+        // User.role is global. If this person already belongs to a DIFFERENT business
+        // (owns one, or has an active staff profile elsewhere), we must NOT let this
+        // invitation rewrite their role — that would change their privileges at the
+        // other business too (cross-tenant escalation/downgrade). Only set the role
+        // for users who have no other business membership.
+        const [ownsOtherBusiness, staffElsewhere] = await Promise.all([
+          tx.business.findFirst({
+            where: { ownerId: user.id, id: { not: invitation.businessId } },
+            select: { id: true },
+          }),
+          tx.staff.findFirst({
+            where: {
+              userId: user.id,
+              isActive: true,
+              deletedAt: null,
+              primaryLocation: { businessId: { not: invitation.businessId } },
+            },
+            select: { id: true },
+          }),
+        ])
+        const belongsElsewhere = Boolean(ownsOtherBusiness || staffElsewhere)
+
         if (!user.passwordHash && passwordHash) {
-          // No password yet — set password and update role
+          // No password yet — set password, activate, and (only if not bound to another
+          // business) adopt the invited role.
           await tx.user.update({
             where: { id: user.id },
-            data: { passwordHash, role: invitation.role, status: "active" },
+            data: {
+              passwordHash,
+              status: "active",
+              ...(belongsElsewhere ? {} : { role: invitation.role }),
+            },
           })
-        } else {
-          // Existing user with password — just link to business
-          // Don't downgrade an owner to staff
-          if (user.role !== "owner") {
-            await tx.user.update({
-              where: { id: user.id },
-              data: { role: invitation.role },
-            })
-          }
+        } else if (!belongsElsewhere && user.role !== "owner") {
+          // Existing single-business user — safe to set the invited role (never downgrade an owner)
+          await tx.user.update({
+            where: { id: user.id },
+            data: { role: invitation.role },
+          })
         }
       } else {
         if (!passwordHash) {

@@ -110,7 +110,10 @@ export async function redeemGiftCard(data: {
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    // This standalone redemption decrements a card's balance WITHOUT recording a
+    // sale/Payment, so it must be admin-only — the staff checkout flow redeems via
+    // redeemGiftCardInTx inside record-checkout (which writes a Payment), not here.
+    const { businessId } = await requireMinRole("admin")
 
     // Concurrency-safe redemption: delegate to the same hardened in-tx helper
     // the checkout money-writer uses. It takes a pg_advisory_xact_lock on
