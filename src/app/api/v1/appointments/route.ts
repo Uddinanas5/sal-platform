@@ -9,8 +9,12 @@ import {
 } from "@/lib/scheduling/working-hours"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail } from "@/lib/email-templates"
-import { formatInZone } from "@/lib/scheduling/zoned-time"
+import { formatInZone, combineDateWithTimeZoned } from "@/lib/scheduling/zoned-time"
 import { parseYmd } from "@/lib/date-utils"
+
+// Canonical UTC-midnight @db.Time value, combined with a civil day to derive
+// salon-local day boundaries.
+const ZERO_TIME = new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0))
 import { z } from "zod"
 
 const createAppointmentSchema = z.object({
@@ -39,19 +43,26 @@ export async function GET(req: Request) {
   if (status) where.status = status
   if (dateFrom || dateTo) {
     // Strict YYYY-MM-DD parse — `new Date('2026-06-31')` silently rolls to
-    // July 1, so we reject impossible dates with a 400 instead.
+    // July 1, so we reject impossible dates with a 400 instead. Day boundaries
+    // are computed in the SALON's timezone (not the server's), so a date filter
+    // selects the salon's calendar day rather than a UTC-shifted window.
+    const biz = await prisma.business.findUnique({
+      where: { id: ctx.businessId },
+      select: { timezone: true },
+    })
+    const tz = biz?.timezone || "UTC"
     let gte: Date | undefined
     let lte: Date | undefined
     if (dateFrom) {
       const from = parseYmd(dateFrom)
       if (!from) return ERRORS.BAD_REQUEST("Invalid dateFrom. Use YYYY-MM-DD")
-      gte = from
+      gte = combineDateWithTimeZoned(from, ZERO_TIME, tz)
     }
     if (dateTo) {
       const to = parseYmd(dateTo)
       if (!to) return ERRORS.BAD_REQUEST("Invalid dateTo. Use YYYY-MM-DD")
-      to.setHours(23, 59, 59, 999)
-      lte = to
+      const nextDay = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1)
+      lte = new Date(combineDateWithTimeZoned(nextDay, ZERO_TIME, tz).getTime() - 1)
     }
     where.startTime = {
       ...(gte ? { gte } : {}),
@@ -111,7 +122,7 @@ export async function POST(req: Request) {
   // Scope every entity lookup by caller's business — prevents cross-tenant
   // booking creation and frankenstein-mix (e.g. biz-A service + biz-B staff).
   const service = await prisma.service.findFirst({
-    where: { id: serviceId, businessId: ctx.businessId },
+    where: { id: serviceId, businessId: ctx.businessId, deletedAt: null },
   })
   if (!service) return ERRORS.NOT_FOUND("Service")
 

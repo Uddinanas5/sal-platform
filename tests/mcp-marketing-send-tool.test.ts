@@ -15,7 +15,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 
 const { prismaMock, sendEmailMock } = vi.hoisted(() => {
   const prismaMock = {
-    campaign: { findFirst: vi.fn(), update: vi.fn() },
+    campaign: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(async () => ({ count: 1 })) },
     business: { findUnique: vi.fn() },
     client: { findMany: vi.fn() },
   }

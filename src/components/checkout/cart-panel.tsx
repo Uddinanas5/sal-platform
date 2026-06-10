@@ -43,8 +43,14 @@ interface ClientItem {
   tags?: string[]
 }
 
+interface StaffOption {
+  id: string
+  name: string
+}
+
 interface CartPanelProps {
   clients: ClientItem[]
+  staff: StaffOption[]
   items: CartItem[]
   clientId: string | null
   clientName: string | null
@@ -55,6 +61,7 @@ interface CartPanelProps {
   redeemPoints: number
   onUpdateQuantity: (id: string, quantity: number) => void
   onRemoveItem: (id: string) => void
+  onSetItemStaff: (id: string, staffId?: string) => void
   onSetClient: (clientId: string, clientName: string) => void
   onClearClient: () => void
   onSetDiscount: (value: number, type: "percentage" | "fixed") => void
@@ -72,6 +79,7 @@ const tipPresets = [5, 10, 15, 20]
 
 export function CartPanel({
   clients,
+  staff,
   items,
   clientId,
   clientName,
@@ -82,6 +90,7 @@ export function CartPanel({
   redeemPoints,
   onUpdateQuantity,
   onRemoveItem,
+  onSetItemStaff,
   onSetClient,
   onClearClient,
   onSetDiscount,
@@ -187,8 +196,10 @@ export function CartPanel({
                     <CartItemRow
                       key={item.id}
                       {...item}
+                      staff={staff}
                       onUpdateQuantity={onUpdateQuantity}
                       onRemove={onRemoveItem}
+                      onSetStaff={onSetItemStaff}
                     />
                   ))}
                 </AnimatePresence>

@@ -1,8 +1,9 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { DollarSign, Percent, TrendingUp, Settings } from "lucide-react"
+import { DollarSign, Percent, TrendingUp, Settings, Loader2 } from "lucide-react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import type { Staff, Appointment } from "@/data/mock-data"
+import { updateStaffProfile } from "@/lib/actions/staff"
 import { toast } from "sonner"
 
 interface StaffCommissionTabProps {
@@ -78,8 +80,10 @@ const columns: ColumnDef<CommissionRow>[] = [
 ]
 
 export function StaffCommissionTab({ staff, appointments }: StaffCommissionTabProps) {
+  const router = useRouter()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [newRate, setNewRate] = useState(staff.commission ?? 35)
+  const [saving, setSaving] = useState(false)
 
   const commissionRate = staff.commission ?? 35
 
@@ -109,11 +113,33 @@ export function StaffCommissionTab({ staff, appointments }: StaffCommissionTabPr
     0
   )
 
-  const handleSaveRate = () => {
-    toast.success(
-      `Commission rate updated to ${newRate}% for ${staff.name}`
-    )
-    setSettingsOpen(false)
+  const handleSaveRate = async () => {
+    if (Number.isNaN(newRate) || newRate < 0 || newRate > 100) {
+      toast.error("Enter a commission rate between 0 and 100")
+      return
+    }
+
+    setSaving(true)
+    try {
+      const result = await updateStaffProfile({
+        staffId: staff.id,
+        commissionRate: newRate,
+      })
+
+      if (result.success) {
+        toast.success(
+          `Commission rate updated to ${newRate}% for ${staff.name}`
+        )
+        setSettingsOpen(false)
+        router.refresh()
+      } else {
+        toast.error(result.error || "Failed to update commission rate")
+      }
+    } catch {
+      toast.error("Failed to update commission rate")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -235,10 +261,14 @@ export function StaffCommissionTab({ staff, appointments }: StaffCommissionTabPr
               <Button
                 variant="outline"
                 onClick={() => setSettingsOpen(false)}
+                disabled={saving}
               >
                 Cancel
               </Button>
-              <Button onClick={handleSaveRate}>Save Rate</Button>
+              <Button onClick={handleSaveRate} disabled={saving} className="gap-2">
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Rate
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

@@ -53,7 +53,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { cn } from "@/lib/utils"
 import type { Staff, Service } from "@/data/mock-data"
-import { deleteStaff } from "@/lib/actions/staff"
+import { deleteStaff, setStaffActive } from "@/lib/actions/staff"
 import { sendInvitation } from "@/lib/actions/invitations"
 
 const roleConfig = {
@@ -70,7 +70,28 @@ interface StaffClientProps {
 }
 
 function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; index: number; onDelete: (staff: Staff) => void; allServices: Service[] }) {
+  const router = useRouter()
+  // Optimistic active state backed by the real setStaffActive server action;
+  // reverts if the server rejects. Re-syncs from props after router.refresh().
   const [isActive, setIsActive] = useState(staff.isActive)
+  const [toggling, setToggling] = useState(false)
+  React.useEffect(() => { setIsActive(staff.isActive) }, [staff.isActive])
+
+  const handleToggleActive = async (next: boolean) => {
+    if (toggling) return
+    setToggling(true)
+    setIsActive(next)
+    const result = await setStaffActive(staff.id, next)
+    setToggling(false)
+    if (result.success) {
+      toast.success(next ? "Staff activated" : "Staff deactivated")
+      router.refresh()
+    } else {
+      setIsActive(!next) // rollback
+      toast.error(result.error || "Failed to update staff")
+    }
+  }
+
   const roleInfo = roleConfig[staff.role]
   const RoleIcon = roleInfo.icon
 
@@ -165,8 +186,13 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
                 </Badge>
               </div>
             </div>
-            <div onClick={(e) => e.preventDefault()}>
-              <Switch checked={isActive} onCheckedChange={setIsActive} />
+            <div onClick={(e) => e.stopPropagation()}>
+              <Switch
+                checked={isActive}
+                disabled={toggling}
+                onCheckedChange={handleToggleActive}
+                aria-label={isActive ? "Deactivate staff member" : "Activate staff member"}
+              />
             </div>
           </div>
 
@@ -312,7 +338,7 @@ export function StaffClient(props: StaffClientProps) {
             { label: "Total Staff", value: totalStaff },
             { label: "Active Staff", value: activeStaff },
             { label: "Admins", value: props.initialStaff.filter((s) => s.role === "admin").length },
-            { label: "Avg. Services", value: Math.round(props.initialStaff.reduce((sum, s) => sum + s.services.length, 0) / totalStaff) },
+            { label: "Avg. Services", value: totalStaff > 0 ? Math.round(props.initialStaff.reduce((sum, s) => sum + s.services.length, 0) / totalStaff) : 0 },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}

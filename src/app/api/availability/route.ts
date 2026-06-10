@@ -6,6 +6,7 @@ import { withSafeErrors } from '@/lib/api/safe-handler'
 import { isUuid } from '@/lib/api/uuid'
 import { publicError } from '@/lib/api/public-errors'
 import { parseYmd } from '@/lib/date-utils'
+import { localDateString } from '@/lib/scheduling/zoned-time'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,17 +73,6 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
       return publicError('INVALID_REQUEST', 'Invalid date format. Use YYYY-MM-DD')
     }
 
-    // Past dates aren't a malformed request — the input parsed fine, it just
-    // falls outside the bookable window. Same code as the forward bound below.
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    if (date < today) {
-      return publicError(
-        'OUT_OF_BOOKING_WINDOW',
-        'Cannot check availability for past dates'
-      )
-    }
-
     // Fetch service + booking settings to enforce lead time. isActive + deletedAt
     // null so a soft-deleted (or deleted-then-resurrected) / offline service
     // returns SERVICE_NOT_FOUND from this public endpoint rather than leaking
@@ -98,6 +88,18 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
     // The salon's IANA timezone anchors @db.Time working hours and slot labels
     // to the salon's wall clock instead of the server's (UTC on Vercel).
     const timezone = service.business?.timezone || 'UTC'
+
+    // "Today" is the salon's calendar day, NOT the server's. On a UTC host an
+    // evening booking in the Americas would otherwise see server-midnight already
+    // rolled to tomorrow, rejecting same-day availability every night. Compare
+    // YYYY-MM-DD strings in the salon timezone (lexical compare is date-correct).
+    const todayKey = localDateString(new Date(), timezone)
+    if (dateStr < todayKey) {
+      return publicError(
+        'OUT_OF_BOOKING_WINDOW',
+        'Cannot check availability for past dates'
+      )
+    }
 
     // Verify the location exists and belongs to the same business as the service.
     // Without this, a bogus or cross-tenant locationId leaks through as an empty
@@ -118,9 +120,12 @@ export const GET = withSafeErrors('GET /api/availability', async (request: NextR
     // 200 + empty slots — indistinguishable from "fully booked" and the kind
     // of input that tends to expose weird edges in the staff-schedule query.
     const maxAdvanceDays = MAX_ADVANCE_DAYS_MAP[bookingSettings.maxAdvanceBooking] ?? 30
-    const maxDate = new Date(today)
-    maxDate.setDate(maxDate.getDate() + maxAdvanceDays)
-    if (date > maxDate) {
+    // Forward bound is also anchored to the salon's today. Build the max date key
+    // by advancing the salon-local civil day, then compare YYYY-MM-DD strings.
+    const [ty, tm, td] = todayKey.split('-').map(Number)
+    const maxCivil = new Date(Date.UTC(ty, tm - 1, td + maxAdvanceDays))
+    const maxKey = `${maxCivil.getUTCFullYear()}-${String(maxCivil.getUTCMonth() + 1).padStart(2, '0')}-${String(maxCivil.getUTCDate()).padStart(2, '0')}`
+    if (dateStr > maxKey) {
       return publicError(
         'OUT_OF_BOOKING_WINDOW',
         `Bookings must be made within the next ${maxAdvanceDays} days`

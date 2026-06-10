@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 
 const { prismaMock, sendEmailMock } = vi.hoisted(() => {
   const prismaMock = {
-    campaign: { findFirst: vi.fn(), update: vi.fn() },
+    campaign: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(async () => ({ count: 1 })) },
     business: { findUnique: vi.fn() },
     client: { findMany: vi.fn() },
   }
@@ -188,10 +188,10 @@ describe("sendCampaign — delivery", () => {
     prismaMock.campaign.findFirst.mockResolvedValue(draftCampaign())
     prismaMock.client.findMany.mockResolvedValue([client(1), client(2)])
 
-    // 1st update = mark "sending" (ok). 2nd update = final "sent" stamp → throws
-    // (e.g. dropped pooled connection). 3rd update = best-effort revert to draft.
+    // The "sending" claim is now a guarded updateMany (count:1 by default).
+    // 1st update = final "sent" stamp → throws (e.g. dropped pooled connection).
+    // 2nd update = best-effort revert to draft.
     prismaMock.campaign.update
-      .mockResolvedValueOnce({ id: CAMPAIGN_ID }) // sending flip
       .mockRejectedValueOnce(new Error("connection dropped during final write")) // final stamp
       .mockResolvedValueOnce({ id: CAMPAIGN_ID }) // revert
 

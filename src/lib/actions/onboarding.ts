@@ -71,31 +71,33 @@ export async function updateBusinessDetails(data: {
     })
     if (!business) return { success: false, error: "Business not found" }
 
-    // Update business
-    await prisma.business.update({
-      where: { id: parsed.businessId },
-      data: {
-        name: parsed.name.trim(),
-        phone: parsed.phone.trim(),
-        timezone: parsed.timezone,
-      },
-    })
-
-    // Update primary location
+    // Update business + primary location atomically so a mid-write failure can't
+    // leave the business name/timezone committed while the location lags behind.
     const primaryLocation = business.locations[0]
-    if (primaryLocation) {
-      await prisma.location.update({
-        where: { id: primaryLocation.id },
+    await prisma.$transaction(async (tx) => {
+      await tx.business.update({
+        where: { id: parsed.businessId },
         data: {
           name: parsed.name.trim(),
-          addressLine1: parsed.addressLine1.trim(),
-          city: parsed.city.trim(),
-          state: parsed.state.trim(),
-          postalCode: parsed.postalCode.trim(),
-          country: parsed.country,
+          phone: parsed.phone.trim(),
+          timezone: parsed.timezone,
         },
       })
-    }
+
+      if (primaryLocation) {
+        await tx.location.update({
+          where: { id: primaryLocation.id },
+          data: {
+            name: parsed.name.trim(),
+            addressLine1: parsed.addressLine1.trim(),
+            city: parsed.city.trim(),
+            state: parsed.state.trim(),
+            postalCode: parsed.postalCode.trim(),
+            country: parsed.country,
+          },
+        })
+      }
+    })
 
     return { success: true, data: undefined }
   } catch (e) {

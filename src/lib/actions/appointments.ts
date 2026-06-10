@@ -90,7 +90,10 @@ export async function createAppointment(data: {
     // silently drop a service the caller paid for. (A repeated id resolves to
     // the same DB row twice, which legitimately books that service twice.)
     const dbServices = await prisma.service.findMany({
-      where: { id: { in: requestedServiceIds }, businessId },
+      // deletedAt:null so a soft-deleted service can't be booked with its stale
+      // name/price/duration snapshotted into a new appointment (parity with the
+      // public booking + availability paths).
+      where: { id: { in: requestedServiceIds }, businessId, deletedAt: null },
     })
     const serviceById = new Map(dbServices.map((s) => [s.id, s]))
     const orderedServices = requestedServiceIds.map((id) => serviceById.get(id))
@@ -637,6 +640,18 @@ export async function resizeAppointment(
       include: { services: true, business: { select: { timezone: true } } },
     })
     if (!appointment) return { success: false, error: "Appointment not found" }
+
+    // Drag-to-resize only makes sense for a single-service appointment. For a
+    // multi-service appointment, resizing one block can't unambiguously
+    // redistribute the others — and the old code silently corrupted it (it
+    // overwrote totalDuration with one service's duration and moved only
+    // services[0], leaving the rest mistimed/overlapping). Refuse instead.
+    if (appointment.services.length > 1) {
+      return {
+        success: false,
+        error: "Can't resize a multi-service appointment by dragging. Open it to edit the services instead.",
+      }
+    }
 
     const startTime = appointment.startTime
     const newEndTime = new Date(startTime)

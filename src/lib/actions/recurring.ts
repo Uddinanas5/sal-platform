@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { addWeeks, addMonths } from "date-fns"
 import { getBusinessContext } from "@/lib/auth-utils"
-import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
+import { lockStaffSchedule, lockAppointment, isBookingContentionError } from "@/lib/db/advisory-lock"
 import {
   assertClientOwned,
   assertClientsOwned,
@@ -21,6 +21,11 @@ import {
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
 const idSchema = z.string().uuid("Invalid ID")
+
+// Module-private sentinel: thrown inside the addGroupParticipant transaction when
+// the re-count under the lock shows the group is already full, so the tx rolls
+// back and the caller returns a friendly message (unexported — "use server").
+class GroupFullError extends Error {}
 
 const createRecurringSchema = z.object({
   clientId: z.string().uuid(),
@@ -57,7 +62,7 @@ export async function createRecurringAppointment(data: {
     await assertClientOwned(parsed.clientId, businessId)
     await assertStaffOwned(parsed.staffId, businessId)
 
-    const service = await prisma.service.findFirst({ where: { id: parsed.serviceId, businessId } })
+    const service = await prisma.service.findFirst({ where: { id: parsed.serviceId, businessId, deletedAt: null } })
     if (!service) return { success: false, error: "Service not found" }
 
     const location = await prisma.location.findFirst({ where: { businessId } })
@@ -416,7 +421,11 @@ export async function cancelRecurringSeries(
     }
 
     if (cancelFrom) {
-      where.startTime = { gte: new Date(cancelFrom) }
+      const cancelFromDate = new Date(cancelFrom)
+      if (Number.isNaN(cancelFromDate.getTime())) {
+        return { success: false, error: "Invalid cancelFrom date" }
+      }
+      where.startTime = { gte: cancelFromDate }
     }
 
     const result = await prisma.appointment.updateMany({
@@ -459,7 +468,7 @@ export async function createGroupBooking(data: {
     await assertStaffOwned(parsed.staffId, businessId)
     await assertClientsOwned(parsed.clientIds, businessId)
 
-    const service = await prisma.service.findFirst({ where: { id: parsed.serviceId, businessId } })
+    const service = await prisma.service.findFirst({ where: { id: parsed.serviceId, businessId, deletedAt: null } })
     if (!service) return { success: false, error: "Service not found" }
 
     const location = await prisma.location.findFirst({ where: { businessId } })
@@ -595,26 +604,42 @@ export async function addGroupParticipant(
 
     const appointment = await prisma.appointment.findUnique({
       where: { id: parsedAppointmentId, businessId },
-      include: { groupParticipants: true },
+      select: { id: true, isGroupBooking: true, maxParticipants: true },
     })
 
     if (!appointment) return { success: false, error: "Appointment not found" }
     if (!appointment.isGroupBooking) return { success: false, error: "Not a group booking" }
-    if (appointment.groupParticipants.length >= appointment.maxParticipants) {
-      return { success: false, error: "Group is full" }
-    }
 
     await assertClientOwned(parsedClientId, businessId)
 
-    await prisma.groupParticipant.create({
-      data: { appointmentId: parsedAppointmentId, clientId: parsedClientId },
-    })
+    // Capacity check + insert must be atomic: take a per-appointment advisory
+    // lock, RE-COUNT under it, then create — otherwise two staff adding the last
+    // seat concurrently both read count = max-1 and both insert, overselling
+    // maxParticipants.
+    await prisma.$transaction(async (tx) => {
+      await lockAppointment(tx, businessId, parsedAppointmentId)
+      const count = await tx.groupParticipant.count({
+        where: { appointmentId: parsedAppointmentId },
+      })
+      if (count >= appointment.maxParticipants) {
+        throw new GroupFullError()
+      }
+      await tx.groupParticipant.create({
+        data: { appointmentId: parsedAppointmentId, clientId: parsedClientId },
+      })
+    }, { timeout: 20000, maxWait: 15000 })
 
     revalidatePath("/calendar")
     return { success: true, data: undefined }
   } catch (e) {
     if (e instanceof z.ZodError) {
       return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
+    }
+    if (e instanceof GroupFullError) {
+      return { success: false, error: "Group is full" }
+    }
+    if (isBookingContentionError(e)) {
+      return { success: false, error: "Someone else just joined — please try again" }
     }
     console.error("addGroupParticipant error:", e)
     return { success: false, error: (e as Error).message }

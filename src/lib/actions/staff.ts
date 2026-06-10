@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
+import { hasRole } from "@/lib/permissions"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -146,13 +147,19 @@ export async function requestTimeOff(data: {
 }): Promise<ActionResult> {
   try {
     const parsed = requestTimeOffSchema.parse(data)
-    const { businessId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
 
     // Verify the staff belongs to this business
     const staff = await prisma.staff.findFirst({
       where: { id: parsed.staffId, primaryLocation: { businessId } },
     })
     if (!staff) return { success: false, error: "Staff not found" }
+
+    // Staff-role users may only request time off for themselves; admins/owners can
+    // file on behalf of any team member.
+    if (!hasRole(role, "admin") && staff.userId !== userId) {
+      return { success: false, error: "You can only request time off for yourself" }
+    }
 
     await prisma.staffTimeOff.create({
       data: {
@@ -594,5 +601,41 @@ export async function updateStaffProfile(data: {
   } catch (e) {
     console.error("updateStaffProfile error:", e)
     return { success: false, error: (e as Error).message }
+  }
+}
+
+/**
+ * Activate / deactivate a staff member. Admin/owner only, tenant-scoped. A
+ * deactivated staff member stops accepting bookings and is excluded from the
+ * availability engine (it already filters on isActive). This is a reversible
+ * toggle (unlike removeTeamMember, which also soft-deletes the staff profile).
+ */
+export async function setStaffActive(staffId: string, isActive: boolean): Promise<ActionResult> {
+  try {
+    z.string().uuid().parse(staffId)
+    const { businessId } = await requireMinRole("admin")
+
+    const staff = await prisma.staff.findFirst({
+      where: { id: staffId, primaryLocation: { businessId }, deletedAt: null },
+      select: { id: true },
+    })
+    if (!staff) return { success: false, error: "Staff not found" }
+
+    await prisma.staff.update({
+      where: { id: staffId },
+      data: { isActive },
+    })
+
+    revalidatePath("/staff")
+    revalidatePath("/calendar")
+    return { success: true, data: undefined }
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: "Invalid staff ID" }
+    const msg = (e as Error).message
+    if (msg === "Not authenticated" || msg === "No business context" || msg.startsWith("Insufficient permissions")) {
+      return { success: false, error: msg }
+    }
+    console.error("setStaffActive error:", e)
+    return { success: false, error: msg }
   }
 }

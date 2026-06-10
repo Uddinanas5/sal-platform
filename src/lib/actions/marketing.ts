@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { requireMinRole } from "@/lib/auth-utils"
 import { sendCampaignCore, isSendInFlight } from "@/lib/marketing/send-core"
+import { INACTIVE_CLIENT_DAYS } from "@/lib/marketing/audience"
 
 const channelEnum = z.literal("email")
 
@@ -63,6 +64,46 @@ const toggleAutomatedMessageSchema = z.object({
   id: z.string().uuid(),
   isActive: z.boolean(),
 })
+
+/**
+ * Real per-audience recipient counts for the create-campaign UI. Uses the SAME
+ * consent-first base gate and per-bucket where-clauses as resolveCampaignAudience
+ * (src/lib/marketing/audience.ts), but with count() instead of findMany so the
+ * numbers shown match exactly who a send would actually reach. "Custom" maps to
+ * the full consented pool (it has no extra server-side filter yet), same as the
+ * resolver. Tenant-scoped by businessId.
+ */
+export async function getCampaignAudienceCounts(): Promise<
+  | { success: true; data: { all: number; vip: number; active: number; inactive: number } }
+  | { success: false; error: string }
+> {
+  try {
+    const { businessId } = await requireMinRole("admin")
+
+    const base = {
+      businessId,
+      deletedAt: null,
+      isBlocked: false,
+      email: { not: null },
+      emailConsent: true,
+      marketingConsent: true,
+    }
+    const cutoff = new Date(Date.now() - INACTIVE_CLIENT_DAYS * 24 * 60 * 60 * 1000)
+
+    const [all, vip, active, inactive] = await Promise.all([
+      prisma.client.count({ where: base }),
+      prisma.client.count({
+        where: { ...base, OR: [{ tags: { has: "vip" } }, { loyaltyPoints: { gt: 0 } }] },
+      }),
+      prisma.client.count({ where: { ...base, lastVisitAt: { gte: cutoff } } }),
+      prisma.client.count({ where: { ...base, lastVisitAt: { lt: cutoff } } }),
+    ])
+
+    return { success: true, data: { all, vip, active, inactive } }
+  } catch {
+    return { success: false, error: "Failed to load audience counts" }
+  }
+}
 
 export async function createCampaign(data: {
   name: string

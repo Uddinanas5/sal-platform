@@ -120,12 +120,29 @@ export async function sendCampaignCore(
     }
   }
 
-  // Mark "sending" + stamp the start so a concurrent click sees it in flight and
-  // a crash leaves a recoverable (stale) marker.
-  await prisma.campaign.update({
-    where: { id: campaignId, businessId },
+  // Atomically CLAIM the campaign by flipping to "sending" only if it is not
+  // already sent and not currently in flight (status≠sending, or a null/stale
+  // sendingStartedAt). The pre-checks above are a fast fail; this guarded
+  // compare-and-set is the real race protection — two concurrent sends (double
+  // click, dashboard + MCP) can both pass the reads, but only ONE updateMany
+  // matches the row, so the audience is never emailed twice.
+  const staleBefore = new Date(Date.now() - SENDING_RECOVERY_MS)
+  const claim = await prisma.campaign.updateMany({
+    where: {
+      id: campaignId,
+      businessId,
+      status: { not: "sent" },
+      OR: [
+        { status: { not: "sending" } },
+        { sendingStartedAt: null },
+        { sendingStartedAt: { lt: staleBefore } },
+      ],
+    },
     data: { status: "sending", sendingStartedAt: new Date() },
   })
+  if (claim.count === 0) {
+    return { success: false, error: "This campaign is already being sent" }
+  }
 
   try {
     const subject = existing.subject?.trim() || existing.name

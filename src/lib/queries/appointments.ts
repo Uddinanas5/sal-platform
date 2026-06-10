@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
-import { startOfDay, endOfDay } from "date-fns"
 import type { Appointment } from "@/data/mock-data"
+import { dayBoundsInZone } from "@/lib/scheduling/zoned-time"
 
 type AppointmentStatus = Appointment["status"]
 
@@ -86,18 +86,29 @@ export async function getAppointments(filters: {
 }
 
 export async function getTodaysAppointments(businessId: string) {
-  const now = new Date()
+  // "Today" is the salon's calendar day, not the server's (UTC on Vercel) —
+  // otherwise the dashboard shows the wrong day's appointments near midnight.
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { timezone: true },
+  })
+  const { start, end } = dayBoundsInZone(new Date(), business?.timezone || "UTC")
   return getAppointments({
-    dateFrom: startOfDay(now),
-    dateTo: endOfDay(now),
+    dateFrom: start,
+    dateTo: end,
     businessId,
   })
 }
 
 export async function getDashboardStats(businessId: string) {
   const now = new Date()
-  const todayStart = startOfDay(now)
-  const todayEnd = endOfDay(now)
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { timezone: true },
+  })
+  // Salon-local "today" window so today's appointment count + revenue reflect
+  // the salon's calendar day, not the server's.
+  const { start: todayStart, end: todayEnd } = dayBoundsInZone(now, business?.timezone || "UTC")
 
   const businessFilter = { businessId }
 

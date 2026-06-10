@@ -29,6 +29,15 @@ import { formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { createDeal, toggleDeal } from "@/lib/actions/marketing"
 
+// The DB persists deal status as "active_deal" / "paused_deal" (see toggleDeal
+// in src/lib/actions/marketing.ts). Compare against the real stored value so the
+// switch reflects actual state after a reload, not just the optimistic guess.
+const ACTIVE_STATUS = "active_deal"
+const PAUSED_STATUS = "paused_deal"
+function isDealActive(status: string): boolean {
+  return status === ACTIVE_STATUS || status === "active"
+}
+
 interface DealItem {
   id: string
   name: string
@@ -133,9 +142,10 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
   }
 
   const handleToggle = async (dealId: string, checked: boolean) => {
-    // Optimistic update
+    // Optimistic update — mirror the DB's stored status values exactly so the
+    // switch stays consistent with what a refresh would show.
     setDeals((prev) =>
-      prev.map((d) => (d.id === dealId ? { ...d, status: checked ? "active" : "inactive" } : d))
+      prev.map((d) => (d.id === dealId ? { ...d, status: checked ? ACTIVE_STATUS : PAUSED_STATUS } : d))
     )
     const result = await toggleDeal(dealId, checked)
     if (result.success) {
@@ -143,7 +153,7 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
     } else {
       // Revert on failure
       setDeals((prev) =>
-        prev.map((d) => (d.id === dealId ? { ...d, status: checked ? "inactive" : "active" } : d))
+        prev.map((d) => (d.id === dealId ? { ...d, status: checked ? PAUSED_STATUS : ACTIVE_STATUS } : d))
       )
       toast.error(result.error || "Failed to toggle deal")
     }
@@ -159,12 +169,22 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {deals.filter((d) => d.status === "active").length} active deals
+          {deals.filter((d) => isDealActive(d.status)).length} active deals
         </p>
         <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
           <Plus className="w-4 h-4" />
           Create Deal
         </Button>
+      </div>
+
+      {/* Honesty note: deals/promo codes are tracked here but are not yet wired
+          into checkout or booking, so creating one does not discount anything
+          for clients today. */}
+      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
+        <p className="text-xs text-amber-800 dark:text-amber-300">
+          Promo-code redemption is coming soon. You can create and organize deals
+          here, but codes do not yet apply a discount at checkout or booking.
+        </p>
       </div>
 
       {/* Deals Grid */}
@@ -199,7 +219,7 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
                       </Badge>
                     </div>
                     <Switch
-                      checked={deal.status === "active"}
+                      checked={isDealActive(deal.status)}
                       onCheckedChange={(checked) =>
                         handleToggle(deal.id, checked)
                       }

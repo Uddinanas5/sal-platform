@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -59,6 +60,9 @@ export function registerProductTools(server: McpServer, ctx: ApiContext) {
     },
     async ({ name, description, sku, categoryId, costPrice, retailPrice, stockLevel, reorderLevel, supplier }) => {
       if (!isAdmin(ctx)) return err("Insufficient permissions: admin or owner required")
+
+      const unowned = await assertOwnedRefs(ctx, { productCategory: categoryId })
+      if (unowned) return err(`${unowned} not found`)
 
       const location = await prisma.location.findFirst({ where: { businessId: ctx.businessId } })
       if (!location) return err("Business not configured")

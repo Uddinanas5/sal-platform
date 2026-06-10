@@ -41,7 +41,7 @@ const processPaymentSchema = z
       name: z.string().min(1).max(200),
       unitPrice: z.number().nonnegative(),
       quantity: z.number().int().positive(),
-    })).default([]),
+    })).max(100).default([]),
     discount: z.number().nonnegative().default(0),
     tax: z.number().nonnegative().default(0),
     tip: z.number().nonnegative().default(0),

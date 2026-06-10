@@ -1,4 +1,5 @@
 import { withV1Auth } from "@/lib/api/auth"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
@@ -22,6 +23,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const template = await prisma.formTemplate.findUnique({ where: { id } })
   if (!template || template.businessId !== ctx.businessId) return ERRORS.NOT_FOUND("Form template")
+
+  // The client/appointment a submission is bound to must belong to this business.
+  const unowned = await assertOwnedRefs(ctx, {
+    client: parsed.data.clientId,
+    appointment: parsed.data.appointmentId,
+  })
+  if (unowned) return ERRORS.NOT_FOUND(unowned)
 
   const submission = await prisma.formSubmission.create({
     data: {

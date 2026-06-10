@@ -31,13 +31,13 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
   const [name, setName] = useState(client.name)
   const [email, setEmail] = useState(client.email)
   const [phone, setPhone] = useState(client.phone)
-  const [dateOfBirth, setDateOfBirth] = useState(
-    client.dateOfBirth
-      ? client.dateOfBirth.toISOString().split("T")[0]
-      : ""
-  )
   const [notes, setNotes] = useState(client.notes || "")
   const [allergies, setAllergies] = useState(client.allergies || "")
+  // @db.Date comes through as a Date (UTC midnight); render as YYYY-MM-DD in UTC
+  // so the <input type="date"> isn't shifted a day in Americas timezones.
+  const [dateOfBirth, setDateOfBirth] = useState(
+    client.dateOfBirth ? new Date(client.dateOfBirth).toISOString().slice(0, 10) : ""
+  )
   const [tags, setTags] = useState<string[]>(client.tags || [])
   const [newTag, setNewTag] = useState("")
   const [saving, setSaving] = useState(false)
@@ -83,6 +83,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
       notes,
       allergies,
       tags,
+      dateOfBirth: dateOfBirth || null,
     })
     setSaving(false)
 
@@ -100,13 +101,9 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
     setName(client.name)
     setEmail(client.email)
     setPhone(client.phone)
-    setDateOfBirth(
-      client.dateOfBirth
-        ? client.dateOfBirth.toISOString().split("T")[0]
-        : ""
-    )
     setNotes(client.notes || "")
     setAllergies(client.allergies || "")
+    setDateOfBirth(client.dateOfBirth ? new Date(client.dateOfBirth).toISOString().slice(0, 10) : "")
     setTags(client.tags || [])
     setNewTag("")
     onOpenChange(false)
@@ -158,6 +155,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
               value={dateOfBirth}
               onChange={(e) => setDateOfBirth(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">Used for birthday messages.</p>
           </div>
 
           <div className="space-y-2">

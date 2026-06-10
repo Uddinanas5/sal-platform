@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Clock, MoreVertical, CheckCircle2, XCircle, Eye, Pencil, CalendarClock, Play, ShoppingCart } from "lucide-react"
 import { formatTime, formatCurrency } from "@/lib/utils"
@@ -46,10 +47,25 @@ const nextAction: Record<string, { label: string; icon: typeof CheckCircle2; toa
 }
 
 export function AppointmentCard({ appointment, variant = "detailed", index = 0 }: AppointmentCardProps) {
+  const router = useRouter()
   const [currentStatus, setCurrentStatus] = useState(appointment.status)
+  const [isCancelling, setIsCancelling] = useState(false)
   const status = statusConfig[currentStatus]
   const StatusIcon = status.icon
   const action = nextAction[currentStatus]
+
+  async function handleCancel() {
+    if (currentStatus === "cancelled" || isCancelling) return
+    setIsCancelling(true)
+    const result = await updateAppointmentStatus(appointment.id, "cancelled")
+    setIsCancelling(false)
+    if (result.success) {
+      setCurrentStatus("cancelled")
+      toast.success(`Appointment for ${appointment.clientName} cancelled`)
+    } else {
+      toast.error(result.error ?? "Failed to cancel appointment")
+    }
+  }
 
   if (variant === "compact") {
     return (
@@ -137,25 +153,29 @@ export function AppointmentCard({ appointment, variant = "detailed", index = 0 }
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => toast.info(`Viewing details for ${appointment.clientName}'s appointment`)}>
+            <DropdownMenuItem onClick={() => router.push(`/calendar?appointmentId=${appointment.id}`)}>
               <Eye className="w-4 h-4 mr-2" />
               View Details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast.info(`Editing ${appointment.clientName}'s appointment`)}>
+            <DropdownMenuItem onClick={() => router.push(`/calendar?appointmentId=${appointment.id}`)}>
               <Pencil className="w-4 h-4 mr-2" />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast.info(`Rescheduling ${appointment.clientName}'s appointment`)}>
+            <DropdownMenuItem onClick={() => router.push(`/calendar?appointmentId=${appointment.id}`)}>
               <CalendarClock className="w-4 h-4 mr-2" />
               Reschedule
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-red-600 focus:text-red-600"
-              onClick={() => toast.success(`Appointment for ${appointment.clientName} cancelled`)}
+              disabled={isCancelling || currentStatus === "cancelled"}
+              onSelect={(e) => {
+                e.preventDefault()
+                handleCancel()
+              }}
             >
               <XCircle className="w-4 h-4 mr-2" />
-              Cancel
+              {isCancelling ? "Cancelling…" : "Cancel"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

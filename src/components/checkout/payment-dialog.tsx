@@ -184,6 +184,9 @@ export function PaymentDialog({
           type: item.type,
           id: item.catalogId ?? item.id,
           quantity: item.quantity,
+          // Service lines carry the staff who performed them so the server records
+          // commission for walk-in sales (no appointment). Undefined for products.
+          ...(item.type === "service" && item.staffId ? { staffId: item.staffId } : {}),
         }))
 
       // Ad-hoc "Quick Sale" lines: sent as first-class custom lines (NOT dropped)
@@ -275,8 +278,25 @@ export function PaymentDialog({
     onOpenChange(false)
   }
 
+  // Guard dialog dismissal so a sale can't be double-recorded:
+  // - while "processing": ignore close requests entirely (the request is in flight).
+  // - on the "success" screen: any dismissal (ESC / click-outside / X) must clear
+  //   the cart via onComplete, otherwise the same cart stays loaded and could be
+  //   processed a second time.
+  const handleDialogOpenChange = (next: boolean) => {
+    if (next) {
+      onOpenChange(true)
+      return
+    }
+    if (step === "processing") return
+    if (step === "success") {
+      onComplete()
+    }
+    onOpenChange(false)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <AnimatePresence mode="wait">
           {/* Step 1: Payment Method / Input */}
@@ -634,7 +654,7 @@ export function PaymentDialog({
                     className="flex-col gap-1.5 h-auto py-3"
                     onClick={() => {
                       const receiptEl = document.getElementById("receipt-print-area")
-                      if (!receiptEl) { toast.success("Receipt sent to printer"); return }
+                      if (!receiptEl) { toast.error("Could not prepare the receipt to print"); return }
                       const printWindow = window.open("", "_blank", "width=400,height=600")
                       if (!printWindow) { toast.error("Pop-up blocked"); return }
                       printWindow.document.write(
@@ -684,6 +704,27 @@ export function PaymentDialog({
                   Done
                 </Button>
               </motion.div>
+
+              {/* Always-mounted hidden receipt so the Print button has a DOM node
+                  to read on the success screen (the visible ReceiptView only
+                  renders in the mutually-exclusive showReceipt branch). */}
+              <div id="receipt-print-area" className="sr-only" aria-hidden>
+                <ReceiptView
+                  items={items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price }))}
+                  clientName={clientName}
+                  subtotal={subtotal}
+                  discount={discount}
+                  discountType={discountType}
+                  discountValue={discountValue}
+                  tax={tax}
+                  tip={tip}
+                  total={total}
+                  paymentMethod={paymentMethod}
+                  businessName={businessName}
+                  businessAddress={businessAddress}
+                  businessPhone={businessPhone}
+                />
+              </div>
             </motion.div>
           )}
 

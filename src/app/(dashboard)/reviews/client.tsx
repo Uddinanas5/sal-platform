@@ -35,7 +35,7 @@ interface ReviewsClientProps {
   }
 }
 
-type SourceFilter = "all" | "Google" | "Yelp" | "Website" | "App"
+type SourceFilter = "all" | "Website"
 type RatingFilter = "all" | "5" | "4" | "3" | "2" | "1"
 type SortOption = "newest" | "oldest" | "highest" | "lowest"
 
@@ -130,10 +130,7 @@ export function ReviewsClient(props: ReviewsClientProps) {
             >
               <TabsList>
                 <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="Google">Google</TabsTrigger>
-                <TabsTrigger value="Yelp">Yelp</TabsTrigger>
                 <TabsTrigger value="Website">Website</TabsTrigger>
-                <TabsTrigger value="App">App</TabsTrigger>
               </TabsList>
             </Tabs>
 

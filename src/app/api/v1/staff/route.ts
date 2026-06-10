@@ -17,6 +17,8 @@ export async function GET(req: Request) {
   const ctx = await withV1Auth(req)
   if (!ctx) return ERRORS.UNAUTHORIZED()
 
+  const isAdmin = hasRole(ctx.role, "admin")
+
   const staff = await prisma.staff.findMany({
     where: { primaryLocation: { businessId: ctx.businessId }, isActive: true, deletedAt: null },
     include: {
@@ -26,7 +28,16 @@ export async function GET(req: Request) {
     orderBy: { user: { firstName: "asc" } },
   })
 
-  return apiSuccess(staff)
+  // Pay fields (commission rate, hourly rate, employment terms) are admin-only —
+  // strip them for staff-role callers so colleagues can't read each other's pay.
+  const sanitized = isAdmin
+    ? staff
+    : staff.map(({ commissionRate, hourlyRate, employmentType, employeeId, hireDate, ...rest }) => {
+        void commissionRate; void hourlyRate; void employmentType; void employeeId; void hireDate
+        return rest
+      })
+
+  return apiSuccess(sanitized)
 }
 
 export async function POST(req: Request) {

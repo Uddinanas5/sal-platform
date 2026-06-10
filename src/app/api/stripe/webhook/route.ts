@@ -354,21 +354,38 @@ export async function POST(request: NextRequest) {
             ? session.customer
             : session.customer?.id ?? null
 
+        // Freshness guard: activation is an absolute-state write just like the
+        // updated/deleted handlers, so a stale/out-of-order checkout.completed
+        // must not resurrect a later cancellation. Only apply if this event is
+        // newer than the last billing event we processed, and bump the watermark.
+        const completedEventCreated = eventCreatedDate(event)
         const completed = await prisma.business.updateMany({
-          where: { id: businessId },
+          where: { id: businessId, ...freshnessWhere(completedEventCreated) },
           data: {
             subscriptionStatus: "active",
             subscriptionTier: "pro",
             ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
             ...(customerId ? { stripeCustomerId: customerId } : {}),
+            ...billingWatermarkData(completedEventCreated),
           },
         })
         if (completed.count === 0) {
-          // The salon PAID but we couldn't flip it to active — loud, because a
-          // charged-but-not-active salon is a revenue/access incident.
-          console.error(
-            `[stripe.webhook] checkout.session.completed matched 0 businesses — businessId=${businessId} session=${session.id} subscription=${subscriptionId}. Charged but NOT activated — manual review needed.`
-          )
+          // 0 rows means either the business is missing OR a newer billing event
+          // already superseded this one. Distinguish so we only alarm on a true
+          // charged-but-not-activated incident.
+          const exists = await prisma.business.findUnique({
+            where: { id: businessId },
+            select: { lastBillingEventAt: true },
+          })
+          if (!exists) {
+            console.error(
+              `[stripe.webhook] checkout.session.completed matched 0 businesses — businessId=${businessId} session=${session.id} subscription=${subscriptionId}. Charged but NOT activated — manual review needed.`
+            )
+          } else {
+            console.warn(
+              `[stripe.webhook] checkout.session.completed superseded by a newer billing event — businessId=${businessId} session=${session.id}. No-op (stale).`
+            )
+          }
         }
 
         break
@@ -397,17 +414,19 @@ export async function POST(request: NextRequest) {
           break
         }
 
+        const createdEventCreated = eventCreatedDate(event)
         const created = await prisma.business.updateMany({
-          where,
+          where: { ...where, ...freshnessWhere(createdEventCreated) },
           data: {
             subscriptionStatus: mapped,
             stripeSubscriptionId: subscription.id,
             ...(customerId ? { stripeCustomerId: customerId } : {}),
+            ...billingWatermarkData(createdEventCreated),
           },
         })
         if (created.count === 0) {
-          console.error(
-            `[stripe.webhook] customer.subscription.created matched 0 businesses — subscription=${subscription.id} customer=${customerId} metadata.businessId=${subscription.metadata?.businessId}. Out-of-order/dropped event?`
+          console.warn(
+            `[stripe.webhook] customer.subscription.created matched 0 businesses — subscription=${subscription.id} customer=${customerId} metadata.businessId=${subscription.metadata?.businessId}. Unresolvable, or superseded by a newer billing event.`
           )
         }
 

@@ -132,6 +132,7 @@ describe("checkout.session.completed (subscription mode)", () => {
     constructEventMock.mockReturnValue({
       id: "evt_checkout",
       type: "checkout.session.completed",
+      created: NOW_SECS,
       data: {
         object: {
           id: "cs_1",
@@ -149,11 +150,18 @@ describe("checkout.session.completed (subscription mode)", () => {
 
     expect(prismaMock.business.updateMany).toHaveBeenCalledTimes(1)
     const arg = prismaMock.business.updateMany.mock.calls[0][0]
-    expect(arg.where).toEqual({ id: BIZ })
+    // Activation now carries the freshness guard (so a stale completed event
+    // can't resurrect a later cancellation) + a watermark bump.
+    expect(arg.where.id).toBe(BIZ)
+    expect(arg.where.OR).toEqual([
+      { lastBillingEventAt: null },
+      { lastBillingEventAt: { lt: NOW_DATE } },
+    ])
     expect(arg.data.subscriptionStatus).toBe("active")
     expect(arg.data.subscriptionTier).toBe("pro")
     expect(arg.data.stripeSubscriptionId).toBe("sub_123")
     expect(arg.data.stripeCustomerId).toBe("cus_123")
+    expect(arg.data.lastBillingEventAt).toEqual(NOW_DATE)
   })
 
   it("ignores a non-subscription checkout session (no business mutation)", async () => {
@@ -189,6 +197,7 @@ describe("customer.subscription.created", () => {
     constructEventMock.mockReturnValue({
       id: "evt_created",
       type: "customer.subscription.created",
+      created: NOW_SECS,
       data: { object: { id: "sub_123", status: "active", customer: "cus_123", metadata: { businessId: BIZ } } },
     })
 
@@ -196,10 +205,16 @@ describe("customer.subscription.created", () => {
     expect(res.status).toBe(200)
 
     const arg = prismaMock.business.updateMany.mock.calls[0][0]
-    // Resolved by the durable metadata.businessId, NOT the not-yet-stored sub id.
-    expect(arg.where).toEqual({ id: BIZ })
+    // Resolved by the durable metadata.businessId, NOT the not-yet-stored sub id,
+    // now with the freshness guard + watermark bump folded in.
+    expect(arg.where.id).toBe(BIZ)
+    expect(arg.where.OR).toEqual([
+      { lastBillingEventAt: null },
+      { lastBillingEventAt: { lt: NOW_DATE } },
+    ])
     expect(arg.data.subscriptionStatus).toBe("active")
     expect(arg.data.stripeSubscriptionId).toBe("sub_123")
+    expect(arg.data.lastBillingEventAt).toEqual(NOW_DATE)
   })
 })
 

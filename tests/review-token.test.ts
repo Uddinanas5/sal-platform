@@ -1,4 +1,10 @@
 import { describe, expect, it } from "vitest"
+
+// review-token reads its secret from process.env at call time. The production
+// code no longer falls back to a hardcoded dev secret (that made tokens
+// forgeable), so the test must supply one — mirroring review-collection-loop.
+process.env.NEXTAUTH_SECRET = "test-review-token-secret"
+
 import { createReviewToken, verifyReviewToken } from "@/lib/reviews/review-token"
 
 describe("review tokens", () => {

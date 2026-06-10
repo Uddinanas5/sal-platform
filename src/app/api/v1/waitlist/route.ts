@@ -1,4 +1,5 @@
 import { withV1Auth } from "@/lib/api/auth"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { hasRole } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
@@ -36,6 +37,14 @@ export async function POST(req: Request) {
 
   const parsed = addToWaitlistSchema.safeParse(body)
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
+
+  // Every supplied reference must belong to the caller's business.
+  const unowned = await assertOwnedRefs(ctx, {
+    client: parsed.data.clientId,
+    service: parsed.data.serviceId,
+    staff: parsed.data.staffId,
+  })
+  if (unowned) return ERRORS.NOT_FOUND(unowned)
 
   const entry = await prisma.waitlistEntry.create({
     data: {

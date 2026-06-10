@@ -11,3 +11,9 @@ prisma/generated/
 supabase/.temp/
 tsconfig.tsbuildinfo
 .mcp.json
+
+# agent/workflow scratch
+.claude/
+.codex/
+.env.backup-local
+.claude-review-findings.json

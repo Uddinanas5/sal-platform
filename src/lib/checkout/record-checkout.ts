@@ -6,7 +6,7 @@ import {
   type ResolvedPayrollPeriod,
 } from "./resolve-payroll-period"
 import { POINTS_TO_DOLLARS, pointsEarnedFor } from "@/lib/loyalty"
-import { lockClient } from "@/lib/db/advisory-lock"
+import { lockClient, lockAppointment, lockBusiness } from "@/lib/db/advisory-lock"
 import { redeemGiftCardInTx } from "@/lib/checkout/gift-card-redeem"
 import { TAX_RATE } from "@/lib/utils"
 
@@ -16,10 +16,35 @@ import { TAX_RATE } from "@/lib/utils"
 // so /100), and falls back to the platform-wide flat TAX_RATE when no per-item
 // rate is configured (taxRate is nullable and currently null for all beta data,
 // so this fallback keeps the server total in lockstep with the UI estimate).
-function taxRateFor(isTaxable: boolean, taxRate: Prisma.Decimal | null): number {
+function taxRateFor(isTaxable: boolean, taxRate: Prisma.Decimal | null, defaultRate: number): number {
   if (!isTaxable) return 0
-  if (taxRate == null) return TAX_RATE
+  if (taxRate == null) return defaultRate
   return Number(taxRate) / 100
+}
+
+// Read a business's configured checkout tax/currency settings (persisted by the
+// Payments settings tab in Business.settings.payments). The recorded sale must
+// honor these instead of a hardcoded platform rate. Falls back to the platform
+// flat TAX_RATE / USD only when nothing is configured.
+type CheckoutTaxConfig = {
+  defaultRate: number
+  taxOnServices: boolean
+  taxOnProducts: boolean
+  currency: string
+}
+function readTaxConfig(
+  settings: unknown,
+  currency: string | null | undefined,
+): CheckoutTaxConfig {
+  const payments = ((settings as Record<string, unknown>)?.payments ?? {}) as Record<string, unknown>
+  const parsedRate = typeof payments.taxRate === "string" ? parseFloat(payments.taxRate) : Number(payments.taxRate)
+  const defaultRate = Number.isFinite(parsedRate) && parsedRate >= 0 ? parsedRate / 100 : TAX_RATE
+  return {
+    defaultRate,
+    taxOnServices: payments.taxOnServices !== false,
+    taxOnProducts: payments.taxOnProducts !== false,
+    currency: (currency || "USD").toUpperCase(),
+  }
 }
 
 export class RecordCheckoutError extends Error {
@@ -47,7 +72,11 @@ export type CustomCheckoutLine = {
 export type RecordCheckoutInput = {
   clientId?: string
   appointmentId?: string
-  items: { type: "service" | "product"; id: string; quantity: number }[]
+  // `staffId` (optional, service lines only) attributes a walk-in / standalone
+  // POS sale to the staff member who performed it, so commission is recorded even
+  // when there is no appointment behind the sale. Ignored when appointmentId is
+  // set (the appointment's own per-service staff assignment is authoritative).
+  items: { type: "service" | "product"; id: string; quantity: number; staffId?: string }[]
   // Optional ad-hoc lines (Quick Sale). Folded into subtotal/tax/total/amount and
   // persisted in Payment.notes; never count toward inventory or commission.
   customItems?: CustomCheckoutLine[]
@@ -124,6 +153,17 @@ async function ensureOpenPayrollPeriod(
   } catch (err) {
     if (!(err instanceof NoPayrollPeriodError)) throw err
 
+    // Serialize the bootstrap on the business so two concurrent first-ever
+    // checkouts (different clients → no shared client lock) can't both insert a
+    // period for the same month. After acquiring the lock, RE-RESOLVE: if the
+    // other transaction already created it, use that and skip our insert.
+    await lockBusiness(tx, businessId)
+    try {
+      return await resolvePayrollPeriod(tx, businessId, checkoutAt)
+    } catch (err2) {
+      if (!(err2 instanceof NoPayrollPeriodError)) throw err2
+    }
+
     const business = await tx.business.findUnique({
       where: { id: businessId },
       select: { timezone: true },
@@ -169,6 +209,15 @@ export async function recordCheckout(
   const serviceIds = Array.from(new Set(data.items.filter((i) => i.type === "service").map((i) => i.id)))
   const productIds = Array.from(new Set(data.items.filter((i) => i.type === "product").map((i) => i.id)))
 
+  // Business-configured tax + currency (Payments settings), used as the default
+  // tax rate for lines with no per-item override and to honor the per-category
+  // tax toggles. Without this, every checkout used a hardcoded NYC rate / USD.
+  const businessConfig = await tx.business.findUnique({
+    where: { id: businessId },
+    select: { settings: true, currency: true },
+  })
+  const taxConfig = readTaxConfig(businessConfig?.settings, businessConfig?.currency)
+
   const [services, products] = await Promise.all([
     serviceIds.length
       ? tx.service.findMany({
@@ -189,8 +238,16 @@ export async function recordCheckout(
 
   // Per-item price + tax rate, taken from the DB (never the caller).
   const priceMap = new Map<string, { price: number; taxRate: number }>()
-  for (const s of services) priceMap.set(`service:${s.id}`, { price: Number(s.price), taxRate: taxRateFor(s.isTaxable, s.taxRate) })
-  for (const p of products) priceMap.set(`product:${p.id}`, { price: Number(p.retailPrice), taxRate: taxRateFor(p.isTaxable, p.taxRate) })
+  for (const s of services)
+    priceMap.set(`service:${s.id}`, {
+      price: Number(s.price),
+      taxRate: taxRateFor(s.isTaxable && taxConfig.taxOnServices, s.taxRate, taxConfig.defaultRate),
+    })
+  for (const p of products)
+    priceMap.set(`product:${p.id}`, {
+      price: Number(p.retailPrice),
+      taxRate: taxRateFor(p.isTaxable && taxConfig.taxOnProducts, p.taxRate, taxConfig.defaultRate),
+    })
 
   // Product detail lookup (name + unit price) for writing the AppointmentProduct
   // line at checkout — sourced from the DB, never the caller.
@@ -224,7 +281,7 @@ export async function recordCheckout(
       throw new RecordCheckoutError("BAD_REQUEST", "Custom item quantity must be a positive integer")
     }
     const lineAmount = Math.round(c.unitPrice * c.quantity * 100) / 100
-    lines.push({ amount: lineAmount, taxRate: TAX_RATE })
+    lines.push({ amount: lineAmount, taxRate: taxConfig.defaultRate })
     subtotal += lineAmount
     const name = c.name.trim() || "Quick Sale"
     customNotes.push(`${name} x${c.quantity} @ ${c.unitPrice.toFixed(2)} = ${lineAmount.toFixed(2)}`)
@@ -247,10 +304,25 @@ export async function recordCheckout(
   }[] = []
 
   if (data.appointmentId) {
+    // Serialize concurrent checkouts of the SAME appointment, then re-verify
+    // inside the lock that it has not already been completed/paid. The action's
+    // pre-transaction guard (actions/checkout.ts) is only a fast-fail; without
+    // this in-tx re-check two requests could both pass it and double-record the
+    // sale (TOCTOU). The lock + re-read here is the authoritative guard.
+    await lockAppointment(tx, businessId, data.appointmentId)
+    const existingPaid = await tx.payment.findFirst({
+      where: { appointmentId: data.appointmentId, businessId, type: "payment", status: "completed" },
+      select: { id: true },
+    })
+    if (existingPaid) {
+      throw new RecordCheckoutError("BAD_REQUEST", "This appointment has already been paid.")
+    }
+
     const appt = await tx.appointment.findFirst({
       where: { id: data.appointmentId, businessId },
       select: {
         clientId: true,
+        status: true,
         services: {
           select: {
             id: true,
@@ -263,6 +335,9 @@ export async function recordCheckout(
       },
     })
     if (!appt) throw new RecordCheckoutError("NOT_FOUND", "Appointment not found")
+    if (appt.status === "completed") {
+      throw new RecordCheckoutError("BAD_REQUEST", "This appointment has already been checked out.")
+    }
     if (data.clientId && appt.clientId && appt.clientId !== data.clientId) {
       throw new RecordCheckoutError("BAD_REQUEST", "Appointment does not belong to this client")
     }
@@ -356,7 +431,8 @@ export async function recordCheckout(
   // Staff.commissionRate is non-null (default 0); zero is a legitimate value
   // (e.g. salaried roles), not a "missing config" signal — so no further fallback.
   type CommissionCommit = {
-    appointmentServiceId: string
+    referenceType: string
+    referenceId: string
     staffId: string
     grossAmount: number
     commissionRate: number
@@ -376,11 +452,51 @@ export async function recordCheckout(
       const override = overrideMap.get(`${as.staffId}:${as.serviceId}`)
       const commissionRate = Number(override ?? as.staff.commissionRate)
       commits.push({
-        appointmentServiceId: as.id,
+        referenceType: "appointment_service",
+        referenceId: as.id,
         staffId: as.staffId,
         grossAmount: Number(as.finalPrice),
         commissionRate,
       })
+    }
+  } else {
+    // Walk-in / standalone POS: no appointment, so attribute commission per
+    // service line to the staff member chosen in the cart. Only service lines
+    // with a staffId produce commission (a sale with no assigned staff records
+    // none, same as before). Staff must be active in THIS business (tenant +
+    // existence check); rate is the StaffService override else Staff default.
+    const staffServiceLines = data.items.filter(
+      (i): i is typeof i & { staffId: string } => i.type === "service" && typeof i.staffId === "string",
+    )
+    if (staffServiceLines.length > 0) {
+      const staffIds = Array.from(new Set(staffServiceLines.map((i) => i.staffId)))
+      const validStaff = await tx.staff.findMany({
+        where: { id: { in: staffIds }, isActive: true, deletedAt: null, primaryLocation: { businessId } },
+        select: { id: true, commissionRate: true },
+      })
+      const staffMap = new Map(validStaff.map((s) => [s.id, s.commissionRate]))
+      const overrides = await tx.staffService.findMany({
+        where: { OR: staffServiceLines.map((i) => ({ staffId: i.staffId, serviceId: i.id })) },
+        select: { staffId: true, serviceId: true, commissionRate: true },
+      })
+      const overrideMap = new Map<string, Prisma.Decimal | null>()
+      for (const ss of overrides) overrideMap.set(`${ss.staffId}:${ss.serviceId}`, ss.commissionRate)
+
+      for (const line of staffServiceLines) {
+        const staffDefault = staffMap.get(line.staffId)
+        if (staffDefault === undefined) {
+          throw new RecordCheckoutError("BAD_REQUEST", "Assigned staff is not part of this business")
+        }
+        const servicePrice = priceMap.get(`service:${line.id}`)?.price ?? 0
+        const override = overrideMap.get(`${line.staffId}:${line.id}`)
+        commits.push({
+          referenceType: "service",
+          referenceId: line.id,
+          staffId: line.staffId,
+          grossAmount: Math.round(servicePrice * line.quantity * 100) / 100,
+          commissionRate: Number(override ?? staffDefault),
+        })
+      }
     }
   }
 
@@ -398,7 +514,7 @@ export async function recordCheckout(
       amount,
       tipAmount: data.tip,
       totalAmount: total,
-      currency: "USD",
+      currency: taxConfig.currency,
       // Persist ad-hoc Quick Sale lines so the recorded sale is auditable (the
       // catalog lines are reconstructable from the appointment/products; custom
       // lines have no catalog row, so their detail lives here).
@@ -491,12 +607,36 @@ export async function recordCheckout(
 
     const inv = await tx.productInventory.findFirst({
       where: { productId: item.id, product: { businessId } },
+      select: { id: true, locationId: true },
     })
     if (inv) {
-      await tx.productInventory.update({
-        where: { id: inv.id },
+      // Guarded atomic decrement with a zero floor: only decrement if enough
+      // stock remains, so concurrent sales can't drive quantity negative. Record
+      // an InventoryTransaction 'sale' row so the ledger keeps reconciling with
+      // ProductInventory.quantity (the whole point of the ledger).
+      const dec = await tx.productInventory.updateMany({
+        where: { id: inv.id, quantity: { gte: item.quantity } },
         data: { quantity: { decrement: item.quantity } },
       })
+      if (dec.count > 0) {
+        const after = await tx.productInventory.findUnique({
+          where: { id: inv.id },
+          select: { quantity: true },
+        })
+        await tx.inventoryTransaction.create({
+          data: {
+            productId: item.id,
+            locationId: inv.locationId,
+            type: "sale",
+            quantityChange: -item.quantity,
+            quantityAfter: after?.quantity ?? 0,
+            notes: `Sold at checkout (payment ${payment.paymentReference})`,
+          },
+        })
+      }
+      // If dec.count === 0 the product is out of stock; the sale still completes
+      // (service businesses routinely sell display/last items) but we don't push
+      // the counter negative or write a misleading ledger row.
     }
   }
 
@@ -525,8 +665,8 @@ export async function recordCheckout(
         staffId: c.staffId,
         appointmentId: data.appointmentId ?? null,
         type: "service",
-        referenceType: "appointment_service",
-        referenceId: c.appointmentServiceId,
+        referenceType: c.referenceType,
+        referenceId: c.referenceId,
         grossAmount: c.grossAmount,
         commissionRate: c.commissionRate,
         commissionAmount,

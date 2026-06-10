@@ -79,6 +79,36 @@ export function formatInZone(
   }).format(instant)
 }
 
+/**
+ * The UTC instant of salon-local midnight starting the calendar day that
+ * contains `instant` (in `timezone`). Use to window "today"/per-day queries on
+ * the salon's clock instead of the server's — e.g. dashboard "today's revenue"
+ * or a reports day bucket — so a sale near midnight lands on the right day.
+ */
+export function startOfDayInZone(instant: Date, timezone: string): Date {
+  const key = localDateString(instant, timezone)
+  const [y, m, d] = key.split("-").map(Number)
+  const civilLocalMidnight = new Date(y, m - 1, d)
+  const ZERO = new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0))
+  return combineDateWithTimeZoned(civilLocalMidnight, ZERO, timezone || "UTC")
+}
+
+/**
+ * Inclusive [start, end] UTC instants of the salon-local calendar day that
+ * contains `instant`. `end` is the instant 1ms before the next local midnight,
+ * so a query with `lte: end` includes the whole salon day (DST-correct, since it
+ * derives the next day's midnight rather than adding a fixed 24h).
+ */
+export function dayBoundsInZone(instant: Date, timezone: string): { start: Date; end: Date } {
+  const start = startOfDayInZone(instant, timezone)
+  const key = localDateString(instant, timezone)
+  const [y, m, d] = key.split("-").map(Number)
+  const nextCivil = new Date(y, m - 1, d + 1)
+  const ZERO = new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0))
+  const end = new Date(combineDateWithTimeZoned(nextCivil, ZERO, timezone || "UTC").getTime() - 1)
+  return { start, end }
+}
+
 /** Salon-local calendar date (YYYY-MM-DD) for an instant in the given zone. */
 export function localDateString(instant: Date, timezone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {

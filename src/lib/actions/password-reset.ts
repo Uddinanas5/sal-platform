@@ -91,6 +91,13 @@ export async function resetPassword(
   try {
     const parsed = resetPasswordSchema.parse({ token, newPassword })
 
+    // Rate limit attempts per token so a leaked/intercepted token can't be used
+    // for unlimited password-change attempts within its validity window.
+    const rl = rateLimit(`reset-password:${parsed.token}`, 5, 15 * 60 * 1000)
+    if (rl.limited) {
+      return { success: false, error: "Too many attempts. Please request a new reset link." }
+    }
+
     // Verify the JWT token
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let payload: any

@@ -25,6 +25,7 @@ import { PaymentsSettingsTab } from "@/components/settings/payments-settings-tab
 import { NotificationsSettingsTab } from "@/components/settings/notifications-settings-tab"
 import { OnlinePresenceTab } from "@/components/settings/online-presence-tab"
 import { FormsSection } from "@/components/settings/forms-section"
+import type { FormTemplateItem } from "@/components/settings/forms-section"
 import { ResourcesSection } from "@/components/settings/resources-section"
 import { TeamMembersTab } from "@/components/settings/team-members-tab"
 import { DeleteAccountSection } from "./delete-account-section"
@@ -172,6 +173,10 @@ interface TeamMember {
 interface SettingsClientProps {
   resources: Resource[]
   services: ServiceOption[]
+  // Real persisted form templates (from getFormTemplates). The query types
+  // `fields` loosely (JSON column), so we narrow to FormTemplateItem when
+  // handing off to FormsSection below.
+  formTemplates: Array<Omit<FormTemplateItem, "fields"> & { fields: Record<string, unknown>[] }>;
   initialBusiness: {
     name: string
     phone: string | null
@@ -228,7 +233,7 @@ interface BillingState {
   tier: string
 }
 
-export default function SettingsClient({ resources, services, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings, notificationSettings, businessSlug, onlinePresenceSettings, paymentSettings, billing, initialTab, billingResult }: SettingsClientProps) {
+export default function SettingsClient({ resources, services, formTemplates, initialBusiness, initialLocation, role, currentUserId, invitations, teamMembers, bookingSettings, notificationSettings, businessSlug, onlinePresenceSettings, paymentSettings, billing, initialTab, billingResult }: SettingsClientProps) {
   const isAdminOrOwner = role === "owner" || role === "admin"
 
   // Honor the ?tab= deep link / gate redirect target. Validate against the known
@@ -277,7 +282,6 @@ export default function SettingsClient({ resources, services, initialBusiness, i
   const [businessZip, setBusinessZip] = useState(initialLocation?.postalCode || "")
   const [timezone, setTimezone] = useState(initialBusiness?.timezone || "America/New_York")
   const [currency, setCurrency] = useState(initialBusiness?.currency || "USD")
-  const [language, setLanguage] = useState("en")
   const [isSaving, setIsSaving] = useState(false)
 
   // Apply theme to document and persist
@@ -413,12 +417,15 @@ export default function SettingsClient({ resources, services, initialBusiness, i
                         </AvatarFallback>
                       </Avatar>
                       <div className="space-y-2">
-                        <Button variant="outline">
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Logo
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" disabled>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload Logo
+                          </Button>
+                          <Badge variant="secondary">Coming soon</Badge>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          PNG, JPG up to 2MB. Recommended 200x200px
+                          Custom logo uploads are coming soon.
                         </p>
                       </div>
                     </div>
@@ -506,17 +513,21 @@ export default function SettingsClient({ resources, services, initialBusiness, i
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Language</label>
-                        <Select value={language} onValueChange={setLanguage}>
+                        <label className="text-sm font-medium flex items-center gap-2">
+                          Language
+                          <Badge variant="secondary">Coming soon</Badge>
+                        </label>
+                        <Select value="en" disabled>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="en">English</SelectItem>
-                            <SelectItem value="es">{`Espa\u00f1ol`}</SelectItem>
-                            <SelectItem value="fr">{`Fran\u00e7ais`}</SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Translations coming soon.
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -753,52 +764,22 @@ export default function SettingsClient({ resources, services, initialBusiness, i
               >
                 <Card>
                   <CardHeader>
-                    <CardTitle className="font-heading">Connected Services</CardTitle>
+                    <CardTitle className="font-heading">Integrations</CardTitle>
                     <CardDescription>
-                      Manage your integrations with third-party services
+                      Connect SAL with third-party services
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    {[
-                      { name: "Google Calendar", status: "connected", icon: "\uD83D\uDCC5" },
-                      { name: "SAL Payments", status: "connected", icon: "\uD83D\uDCB3" },
-                      { name: "Mailchimp", status: "disconnected", icon: "\uD83D\uDCE7" },
-                      { name: "Instagram", status: "disconnected", icon: "\uD83D\uDCF8" },
-                    ].map((integration) => (
-                      <div
-                        key={integration.name}
-                        className="flex items-center justify-between p-4 rounded-lg border border-cream-200"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">{integration.icon}</span>
-                          <div>
-                            <p className="font-medium">{integration.name}</p>
-                            <Badge
-                              variant={
-                                integration.status === "connected"
-                                  ? "success"
-                                  : "secondary"
-                              }
-                              className="mt-1"
-                            >
-                              {integration.status}
-                            </Badge>
-                          </div>
-                        </div>
-                        <Button
-                          variant={
-                            integration.status === "connected"
-                              ? "outline"
-                              : "default"
-                          }
-                          size="sm"
-                        >
-                          {integration.status === "connected"
-                            ? "Disconnect"
-                            : "Connect"}
-                        </Button>
+                  <CardContent>
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="w-12 h-12 rounded-full bg-sal-500/10 flex items-center justify-center mb-4">
+                        <Globe className="w-6 h-6 text-sal-500" />
                       </div>
-                    ))}
+                      <p className="font-medium text-foreground">Coming soon</p>
+                      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                        Integrations with calendars, email marketing, and social
+                        tools are on the way. We&apos;ll let you know when they&apos;re ready.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -824,25 +805,34 @@ export default function SettingsClient({ resources, services, initialBusiness, i
                       label="Two-Factor Authentication"
                       description="Add an extra layer of security to your account"
                     >
-                      <Button variant="outline" size="sm">
-                        Enable
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">Coming soon</Badge>
+                        <Button variant="outline" size="sm" disabled>
+                          Enable
+                        </Button>
+                      </div>
                     </SettingRow>
                     <SettingRow
                       label="Change Password"
                       description="Update your password regularly"
                     >
-                      <Button variant="outline" size="sm">
-                        Update
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">Coming soon</Badge>
+                        <Button variant="outline" size="sm" disabled>
+                          Update
+                        </Button>
+                      </div>
                     </SettingRow>
                     <SettingRow
                       label="Active Sessions"
                       description="Manage devices where you're logged in"
                     >
-                      <Button variant="outline" size="sm">
-                        View All
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">Coming soon</Badge>
+                        <Button variant="outline" size="sm" disabled>
+                          View All
+                        </Button>
+                      </div>
                     </SettingRow>
                   </CardContent>
                 </Card>
@@ -899,7 +889,7 @@ export default function SettingsClient({ resources, services, initialBusiness, i
           {/* Client Forms */}
           <TabsContent value="forms">
             <div className="max-w-4xl">
-              <FormsSection templates={[]} />
+              <FormsSection templates={formTemplates as unknown as FormTemplateItem[]} />
             </div>
           </TabsContent>
 

@@ -31,6 +31,21 @@ export function formatDate(date: Date): string {
   }).format(date)
 }
 
+/**
+ * Format a DATE-ONLY value (Prisma `@db.Date`, stored at UTC midnight) without
+ * shifting it into the viewer's timezone. Using the local-zone formatter on a
+ * UTC-midnight date renders the previous day in any Americas timezone — pin to
+ * UTC so the calendar day shown is the one that was stored.
+ */
+export function formatDateUTC(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+}
+
 export function formatDateRange(start: Date, end: Date): string {
   const startStr = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(start)
   const endStr = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(end)

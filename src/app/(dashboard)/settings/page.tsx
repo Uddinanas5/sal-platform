@@ -5,6 +5,7 @@ import { stripe } from "@/lib/stripe"
 import { reconcileCheckoutSession } from "@/lib/billing/plan"
 import { getResources } from "@/lib/queries/resources"
 import { getServices } from "@/lib/queries/services"
+import { getFormTemplates } from "@/lib/queries/forms"
 import { getInvitations } from "@/lib/queries/invitations"
 import { hasRole } from "@/lib/permissions"
 import { getBookingSettings } from "@/lib/actions/booking-settings"
@@ -62,6 +63,14 @@ export default async function SettingsPage({
     services = await getServices(businessId)
   } catch {
     services = []
+  }
+
+  let formTemplates: Awaited<ReturnType<typeof getFormTemplates>> = []
+
+  try {
+    formTemplates = await getFormTemplates(businessId)
+  } catch {
+    formTemplates = []
   }
 
   const business = businessId ? await prisma.business.findUnique({
@@ -216,6 +225,7 @@ export default async function SettingsPage({
     <SettingsClient
       resources={resources}
       services={serviceOptions}
+      formTemplates={formTemplates}
       initialBusiness={business}
       initialLocation={location}
       role={role}

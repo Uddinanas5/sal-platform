@@ -73,6 +73,33 @@ const channelBadgeColors: Record<string, string> = {
   both: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
 }
 
+// Only these three triggers are actually evaluated by the daily automation
+// engine (see DAILY_TRIGGERS in src/lib/automation/automated-messages.ts).
+// Their activate switch + editable template genuinely change what the engine
+// sends, so they stay interactive.
+const ENGINE_TRIGGERS = new Set(["birthday", "win_back", "rebooking_reminder"])
+
+// These triggers are NOT run by this engine, but ARE handled elsewhere by the
+// appointment lifecycle / reminder cron — their template here is informational
+// only (the reminder system, not this row's toggle, controls delivery).
+const SYSTEM_HANDLED_TRIGGERS = new Set([
+  "appointment_reminder",
+  "booking_confirmation",
+])
+
+// Anything else listed here has no automation wired yet.
+type TriggerStatus = "engine" | "system" | "coming_soon"
+function triggerStatus(trigger: string): TriggerStatus {
+  if (ENGINE_TRIGGERS.has(trigger)) return "engine"
+  if (SYSTEM_HANDLED_TRIGGERS.has(trigger)) return "system"
+  return "coming_soon"
+}
+
+const statusNote: Record<Exclude<TriggerStatus, "engine">, string> = {
+  system: "Sent automatically by the reminder system",
+  coming_soon: "Not yet automated — coming soon",
+}
+
 function highlightMergeFields(text: string): React.ReactNode[] {
   const parts = text.split(/(\{[^}]+\})/g)
   return parts.map((part, i) => {
@@ -112,8 +139,13 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
 
   // The activate/deactivate toggle persists via `toggleAutomatedMessage`. The
   // edit dialog persists subject/body via `updateAutomatedMessage` for email
-  // messages. SMS rows are toggle-rejected (beta) and open read-only.
-  const editable = editMessage?.channel === "email"
+  // messages — but ONLY for engine-driven triggers, since editing the template
+  // of a trigger the engine never sends would be a no-op for clients. SMS rows
+  // and non-engine triggers open read-only.
+  const editable =
+    editMessage?.channel === "email" &&
+    !!editMessage &&
+    triggerStatus(editMessage.trigger) === "engine"
 
   const handleToggle = async (messageId: string, checked: boolean) => {
     const msg = messages.find((m) => m.id === messageId)
@@ -159,6 +191,10 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
       toast.error("SMS automation is disabled for beta")
       return
     }
+    if (triggerStatus(editMessage.trigger) !== "engine") {
+      toast.error("This message is not editable yet")
+      return
+    }
     if (draftBody.trim().length === 0) {
       toast.error("Message content cannot be empty")
       return
@@ -190,11 +226,15 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
     }
   }
 
+  // Only engine-driven triggers can be meaningfully "active" — they're the ones
+  // the daily automation actually evaluates and sends.
+  const engineMessages = messages.filter((m) => triggerStatus(m.trigger) === "engine")
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        {messages.filter((m) => m.isActive).length} of {messages.length}{" "}
-        automated messages active
+        {engineMessages.filter((m) => m.isActive).length} of {engineMessages.length}{" "}
+        automations active
       </p>
 
       {/* Message List */}
@@ -243,31 +283,53 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
 
                   {/* Actions */}
                   <div className="flex items-center gap-3 shrink-0 ml-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(message)}
-                      className="gap-1.5"
-                    >
-                      {message.channel === "email" ? (
+                    {(() => {
+                      const status = triggerStatus(message.trigger)
+                      const isEngine = status === "engine"
+                      // Only engine triggers can be edited/toggled — they're the
+                      // only ones whose template + on/off here actually affect
+                      // what gets sent. Everything else is preview-only with an
+                      // honest status so owners aren't misled.
+                      const canEdit = isEngine && message.channel === "email"
+                      return (
                         <>
-                          <Pencil className="w-3.5 h-3.5" />
-                          Edit
+                          {status !== "engine" && (
+                            <span className="text-xs text-muted-foreground/80 text-right max-w-[160px]">
+                              {statusNote[status]}
+                            </span>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(message)}
+                            className="gap-1.5"
+                          >
+                            {canEdit ? (
+                              <>
+                                <Pencil className="w-3.5 h-3.5" />
+                                Edit
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="w-3.5 h-3.5" />
+                                Preview
+                              </>
+                            )}
+                          </Button>
+                          {isEngine ? (
+                            <Switch
+                              checked={message.isActive}
+                              disabled={message.channel !== "email"}
+                              onCheckedChange={(checked) =>
+                                handleToggle(message.id, checked)
+                              }
+                            />
+                          ) : (
+                            <Switch checked={false} disabled aria-label="Not editable" />
+                          )}
                         </>
-                      ) : (
-                        <>
-                          <Eye className="w-3.5 h-3.5" />
-                          Preview
-                        </>
-                      )}
-                    </Button>
-                    <Switch
-                      checked={message.isActive}
-                      disabled={message.channel !== "email"}
-                      onCheckedChange={(checked) =>
-                        handleToggle(message.id, checked)
-                      }
-                    />
+                      )
+                    })()}
                   </div>
                 </div>
               </CardContent>
@@ -402,11 +464,14 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
                     </div>
                   </div>
 
-                  {/* SMS-disabled notice */}
+                  {/* Read-only notice — reason depends on why it can't be edited */}
                   <div className="rounded-lg border border-cream-200 bg-cream-50 p-3">
                     <p className="text-xs text-muted-foreground">
-                      SMS automation is disabled for beta, so this template is
-                      read-only. Email templates can be edited.
+                      {editMessage.channel !== "email"
+                        ? "SMS automation is disabled for beta, so this template is read-only."
+                        : triggerStatus(editMessage.trigger) === "system"
+                          ? "This message is sent automatically by the reminder system, so its template is managed there and shown here read-only."
+                          : "This automation isn't available yet — coming soon. The template is shown read-only for now."}
                     </p>
                   </div>
                 </>

@@ -62,7 +62,11 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
   // existing-appointments query (its startTime/endTime are absolute @db.Timestamp
   // columns). Midnight-to-midnight in the salon timezone (not the server's).
   const startOfDay = combineDateWithTimeZoned(civilDate, ZERO_TIME, timezone)
-  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1)
+  // End-of-day is the instant before the NEXT salon-local midnight, not start +
+  // 24h. On a DST transition the salon day is 23h or 25h long; the fixed +24h
+  // would drop appointments in the fall-back extra hour (or overrun in spring).
+  const nextCivilDate = new Date(civilDate.getFullYear(), civilDate.getMonth(), civilDate.getDate() + 1)
+  const endOfDay = new Date(combineDateWithTimeZoned(nextCivilDate, ZERO_TIME, timezone).getTime() - 1)
 
   // For @db.Date columns (schedule effective dates, time-off start/end) Postgres
   // stores UTC midnight, so compare against this day's UTC midnight — not the
@@ -126,7 +130,11 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
         startTime: { gte: startOfDay },
         endTime: { lte: endOfDay },
         appointment: {
-          status: { notIn: ['cancelled'] },
+          // Free no_show slots too, matching every booking WRITE conflict check
+          // (notIn ['cancelled','no_show']). A no-show didn't occupy the chair, so
+          // the slot must be re-offerable — otherwise it vanishes from online
+          // booking while the write path would happily allow it.
+          status: { notIn: ['cancelled', 'no_show'] },
         },
       },
       select: {
@@ -343,8 +351,12 @@ export async function isSlotAvailable(params: {
   startTime: Date
   locationId: string
   timezone?: string
+  // Must match the lead time getAvailability used when it OFFERED the slot,
+  // otherwise re-validation here (defaulting to 30) rejects same-day slots a
+  // shorter configured lead time legitimately allowed.
+  minLeadTimeMinutes?: number
 }): Promise<boolean> {
-  const { staffId, serviceId, startTime, locationId, timezone } = params
+  const { staffId, serviceId, startTime, locationId, timezone, minLeadTimeMinutes } = params
 
   // startTime is an absolute instant; getAvailability anchors slots to the
   // salon-local civil day, so derive that civil day from startTime in the salon
@@ -360,6 +372,7 @@ export async function isSlotAvailable(params: {
     date: civilDate,
     locationId,
     timezone: tz,
+    minLeadTimeMinutes,
   })
 
   return availability.slots.some(slot =>

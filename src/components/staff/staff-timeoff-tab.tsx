@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { cn, formatDate } from "@/lib/utils"
+import { cn, formatDateUTC } from "@/lib/utils"
 import { type Staff } from "@/data/mock-data"
 import { toast } from "sonner"
 import {
@@ -119,9 +119,9 @@ function TimeOffCard({
           </Badge>
         </div>
         <p className="text-sm font-medium text-foreground mt-1">
-          {formatDate(startDate)}
-          {startDate.toDateString() !== endDate.toDateString() &&
-            ` - ${formatDate(endDate)}`}
+          {formatDateUTC(startDate)}
+          {startDate.toUTCString().slice(0, 16) !== endDate.toUTCString().slice(0, 16) &&
+            ` - ${formatDateUTC(endDate)}`}
         </p>
         <p className="text-xs text-muted-foreground">
           {days} day{days > 1 ? "s" : ""}

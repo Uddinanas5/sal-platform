@@ -25,6 +25,7 @@ const PAYMENT_ID = "pay_line_1"
 function fakeTx() {
   const tx = {
     $executeRaw: vi.fn(),
+    business: { findUnique: vi.fn(async () => ({ settings: {}, currency: "USD" })) },
     service: { findMany: vi.fn(async () => []) },
     product: {
       // name + retailPrice are what the AppointmentProduct line is built from.
@@ -41,12 +42,16 @@ function fakeTx() {
       update: vi.fn(async () => ({})),
     },
     payment: {
+      findFirst: vi.fn(async () => null),
       create: vi.fn(async () => ({ id: PAYMENT_ID, paymentReference: "PAY-X" })),
     },
     productInventory: {
-      findFirst: vi.fn(async () => ({ id: "inv_1" })),
+      findFirst: vi.fn(async () => ({ id: "inv_1", locationId: "loc_1" })),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+      findUnique: vi.fn(async () => ({ quantity: 8 })),
       update: vi.fn(async () => ({})),
     },
+    inventoryTransaction: { create: vi.fn(async () => ({ id: "it_1" })) },
     staffService: { findMany: vi.fn(async () => []) },
     commission: { create: vi.fn(async () => ({ id: "com_1" })) },
     loyaltyTransaction: { create: vi.fn(async () => ({ id: "loy_1" })) },
@@ -89,11 +94,17 @@ describe("recordCheckout — writes an AppointmentProduct line per product sale"
     // Payment.createdAt) and has no appointment for a standalone sale.
     expect(data.paymentId).toBe(PAYMENT_ID)
     expect(data.appointmentId).toBeNull()
-    // Inventory is still decremented.
-    expect(tx.productInventory.update).toHaveBeenCalledWith({
-      where: { id: "inv_1" },
+    // Inventory is decremented atomically with a zero-floor guard.
+    expect(tx.productInventory.updateMany).toHaveBeenCalledWith({
+      where: { id: "inv_1", quantity: { gte: 2 } },
       data: { quantity: { decrement: 2 } },
     })
+    // And a ledger 'sale' row keeps ProductInventory reconcilable.
+    expect(tx.inventoryTransaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: "sale", quantityChange: -2 }),
+      }),
+    )
   })
 
   it("attaches the appointmentId when the sale is part of an appointment checkout", async () => {

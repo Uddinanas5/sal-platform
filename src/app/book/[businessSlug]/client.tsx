@@ -17,6 +17,9 @@ import {
   Star,
   PartyPopper,
   Loader2,
+  Instagram,
+  Facebook,
+  Globe,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -56,6 +59,12 @@ interface BookingPageClientProps {
   businessHours: BusinessHourData[]
   maxAdvanceBooking?: string
   timezone: string
+  socialLinks?: {
+    instagram?: string
+    facebook?: string
+    tiktok?: string
+    website?: string
+  }
 }
 
 interface ClientDetails {
@@ -1245,7 +1254,10 @@ function ConfirmationStep({
 
       <Card className="bg-sal-500/5 border-sal-500/20">
         <CardContent className="p-4 flex items-center justify-between">
-          <span className="font-medium text-foreground">Total</span>
+          <div>
+            <span className="font-medium text-foreground">Price</span>
+            <p className="text-xs text-muted-foreground">Tax calculated at checkout</p>
+          </div>
           <span className="text-xl font-bold text-sal-600 dark:text-sal-400 font-heading">
             {formatCurrency(service.price)}
           </span>
@@ -1367,7 +1379,7 @@ function SuccessState({
             </div>
             <div className="border-t border-border" />
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total</span>
+              <span className="text-sm text-muted-foreground">Price</span>
               <span className="font-semibold text-sal-600 dark:text-sal-400">
                 {formatCurrency(service.price)}
               </span>
@@ -1387,7 +1399,7 @@ function SuccessState({
 // Main Client Component
 // ---------------------------------------------------------------------------
 
-export function BookingPageClient({ businessSlug, businessId, businessName, locationId, services, staff, businessHours, maxAdvanceBooking, timezone }: BookingPageClientProps) {
+export function BookingPageClient({ businessSlug, businessId, businessName, locationId, services, staff, businessHours, maxAdvanceBooking, timezone, socialLinks }: BookingPageClientProps) {
   // Suppress unused variable warning - businessSlug is kept for future URL-based features
   void businessSlug
   const [step, setStep] = useState<BookingStep>(1)
@@ -1421,6 +1433,9 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
     setSlotsLoading(true)
     setAvailableSlots([])
     setAvailabilityReason(null)
+    // Any change to the service/staff/date inputs makes a previously chosen slot
+    // stale — clear it so a slot from a prior query can never be submitted.
+    setSelectedTime(null)
     const pad = (n: number) => String(n).padStart(2, "0")
     const dateStr = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())}`
     const params = new URLSearchParams({ serviceId: selectedService.id, date: dateStr, locationId })
@@ -1570,6 +1585,24 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
     }
   }, [selectedService, selectedDate, selectedTime, selectedStaff, businessId, clientDetails])
 
+  const handleSelectService = useCallback((service: Service) => {
+    setSelectedService((prev) => {
+      // Picking a different service invalidates any previously chosen slot, and
+      // may invalidate the chosen staff if they don't perform the new service.
+      if (prev?.id !== service.id) {
+        setSelectedTime(null)
+        setSelectedStaff((prevStaff) =>
+          prevStaff && prevStaff !== "any" && !prevStaff.services.includes(service.id)
+            ? null
+            : prevStaff
+        )
+        setShowWaitlistForm(false)
+        setWaitlistSubmitted(false)
+      }
+      return service
+    })
+  }, [])
+
   const handleSelectDate = useCallback((d: Date) => {
     setSelectedDate(d)
     setSelectedTime(null)
@@ -1702,7 +1735,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
                 <ServiceStep
                   services={services}
                   selectedService={selectedService}
-                  onSelect={setSelectedService}
+                  onSelect={handleSelectService}
                 />
               )}
               {step === 2 && selectedService && (
@@ -1762,6 +1795,66 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
             </motion.div>
           )}
         </AnimatePresence>
+        {/* Social links footer — saved via Settings → Online Presence */}
+        {socialLinks &&
+          (socialLinks.instagram ||
+            socialLinks.facebook ||
+            socialLinks.tiktok ||
+            socialLinks.website) && (
+            <footer className="mt-10 pt-6 border-t border-border">
+              <p className="text-center text-xs text-muted-foreground mb-3">
+                Follow {businessName}
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                {socialLinks.instagram && (
+                  <a
+                    href={socialLinks.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Instagram"
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                  >
+                    <Instagram className="w-5 h-5" />
+                  </a>
+                )}
+                {socialLinks.facebook && (
+                  <a
+                    href={socialLinks.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Facebook"
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                  >
+                    <Facebook className="w-5 h-5" />
+                  </a>
+                )}
+                {socialLinks.tiktok && (
+                  <a
+                    href={socialLinks.tiktok}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="TikTok"
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+                    </svg>
+                  </a>
+                )}
+                {socialLinks.website && (
+                  <a
+                    href={socialLinks.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Website"
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                  >
+                    <Globe className="w-5 h-5" />
+                  </a>
+                )}
+              </div>
+            </footer>
+          )}
       </main>
 
       {/* Bottom nav bar */}

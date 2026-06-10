@@ -51,12 +51,13 @@ type TxOverrides = {
   services?: ServiceRow[]
   products?: ProductRow[]
   client?: { id: string } | null
-  inventory?: { id: string } | null
+  inventory?: { id: string; locationId?: string } | null
 }
 
 function fakeTx(o: TxOverrides = {}) {
   const tx = {
     $executeRaw: vi.fn(),
+    business: { findUnique: vi.fn(async () => ({ settings: {}, currency: "USD" })) },
     service: { findMany: vi.fn(async () => (o.services ?? [{ id: SVC, price: 60 }]).map(withTax)) },
     product: { findMany: vi.fn(async () => (o.products ?? []).map(withProductDefaults)) },
     appointment: { findFirst: vi.fn(), update: vi.fn() },
@@ -69,12 +70,16 @@ function fakeTx(o: TxOverrides = {}) {
       update: vi.fn(async () => ({})),
     },
     payment: {
+      findFirst: vi.fn(async () => null),
       create: vi.fn(async () => ({ id: "pay_1", paymentReference: "PAY-X" })),
     },
     productInventory: {
-      findFirst: vi.fn(async () => (o.inventory === undefined ? { id: "inv_1" } : o.inventory)),
+      findFirst: vi.fn(async () => (o.inventory === undefined ? { id: "inv_1", locationId: "loc_1" } : o.inventory)),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+      findUnique: vi.fn(async () => ({ quantity: 5 })),
       update: vi.fn(async () => ({})),
     },
+    inventoryTransaction: { create: vi.fn(async () => ({ id: "it_1" })) },
     staffService: { findMany: vi.fn(async () => []) },
     commission: { create: vi.fn(async () => ({ id: "com_1" })) },
     loyaltyTransaction: { create: vi.fn(async () => ({ id: "loy_1" })) },
@@ -193,13 +198,13 @@ describe("recordCheckout — server-side price authority", () => {
     const tx = fakeTx({
       services: [],
       products: [{ id: PROD, retailPrice: 25 }],
-      inventory: { id: "inv_1" },
+      inventory: { id: "inv_1", locationId: "loc_1" },
     })
     await recordCheckout(tx, BIZ, baseInput({
       items: [{ type: "product", id: PROD, quantity: 3 }],
     }))
-    expect(tx.productInventory.update).toHaveBeenCalledWith({
-      where: { id: "inv_1" },
+    expect(tx.productInventory.updateMany).toHaveBeenCalledWith({
+      where: { id: "inv_1", quantity: { gte: 3 } },
       data: { quantity: { decrement: 3 } },
     })
   })

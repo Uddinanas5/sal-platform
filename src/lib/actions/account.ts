@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext } from "@/lib/auth-utils"
 import { sendEmail } from "@/lib/email"
+import { getStripe } from "@/lib/stripe"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -67,7 +68,7 @@ export async function requestAccountDeletion(data: {
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { id: true, name: true, email: true, subscriptionStatus: true, ownerId: true },
+    select: { id: true, name: true, email: true, subscriptionStatus: true, ownerId: true, stripeSubscriptionId: true },
   })
 
   if (!business) {
@@ -84,12 +85,32 @@ export async function requestAccountDeletion(data: {
     return { success: false, error: "The name you typed does not match your business name" }
   }
 
+  // 0. Cancel the live Stripe subscription FIRST so the owner stops being billed.
+  //    Without this the local "cancelled" flag is cosmetic — Stripe keeps charging
+  //    and the next invoice webhook would flip subscriptionStatus back to active.
+  //    Best-effort: a Stripe hiccup must not block recording the request, but we
+  //    note the failure so the team can finish the cancellation manually.
+  let stripeCancelNote = business.stripeSubscriptionId
+    ? "Subscription cancellation pending."
+    : "No active Stripe subscription on file."
+  if (business.stripeSubscriptionId) {
+    try {
+      await getStripe().subscriptions.cancel(business.stripeSubscriptionId)
+      stripeCancelNote = `Stripe subscription ${business.stripeSubscriptionId} cancelled.`
+    } catch (e) {
+      console.error("requestAccountDeletion stripe cancel error:", e)
+      stripeCancelNote = `⚠️ FAILED to cancel Stripe subscription ${business.stripeSubscriptionId} — cancel it manually in the Stripe dashboard.`
+    }
+  }
+
   try {
-    // 1. Cancel the subscription + 2. write the audit trail, atomically.
+    // 1. Cancel the subscription locally + 2. write the audit trail, atomically.
+    //    Stamp lastBillingEventAt = now so a stale/out-of-order subscription
+    //    webhook arriving after this can't resurrect the cancelled status.
     await prisma.$transaction(async (tx) => {
       await tx.business.update({
         where: { id: businessId },
-        data: { subscriptionStatus: "cancelled" },
+        data: { subscriptionStatus: "cancelled", lastBillingEventAt: new Date() },
       })
 
       await tx.auditLog.create({
@@ -138,7 +159,8 @@ export async function requestAccountDeletion(data: {
           <li><strong>Requested at:</strong> ${new Date().toISOString()}</li>
         </ul>
         <p>The subscription has been set to <strong>cancelled</strong> and an audit log
-        entry was written. Please complete data removal within 30 days per the privacy policy.</p>
+        entry was written. <strong>${stripeCancelNote}</strong> Please complete data removal
+        within 30 days per the privacy policy.</p>
       `,
     })
   } catch (e) {

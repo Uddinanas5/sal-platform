@@ -32,6 +32,37 @@ export async function POST(req: Request) {
     )
   }
 
+  // Validate every redirect_uri before it is ever stored or echoed back. Without
+  // this, a `javascript:`/`data:` URI registers cleanly and later executes when
+  // the authorize page redirects to it (XSS), and arbitrary `http://` targets
+  // enable phishing / auth-code theft. This is the right gate for public Dynamic
+  // Client Registration (RFC 7591) — the endpoint must stay unauthenticated for
+  // MCP clients, so we harden the URIs instead of locking the route.
+  const isProd = process.env.NODE_ENV === "production"
+  for (const uri of redirectUris) {
+    let parsed: URL
+    try {
+      parsed = new URL(uri)
+    } catch {
+      return NextResponse.json(
+        { error: "invalid_redirect_uri", error_description: `Malformed redirect_uri: ${uri}` },
+        { status: 400 }
+      )
+    }
+    const isLocalhost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1"
+    const schemeOk =
+      parsed.protocol === "https:" || (parsed.protocol === "http:" && (!isProd || isLocalhost))
+    if (!schemeOk) {
+      return NextResponse.json(
+        {
+          error: "invalid_redirect_uri",
+          error_description: `redirect_uri must use https (got "${parsed.protocol}"): ${uri}`,
+        },
+        { status: 400 }
+      )
+    }
+  }
+
   const grantTypes = Array.isArray(body.grant_types)
     ? (body.grant_types as string[])
     : ["authorization_code"]

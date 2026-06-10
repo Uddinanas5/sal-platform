@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext, requireMinRole } from "@/lib/auth-utils"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 
 const createFormTemplateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -130,6 +131,13 @@ export async function submitForm(data: {
     if (!template || template.businessId !== businessId) {
       return { success: false, error: "Form template not found" }
     }
+
+    // The client/appointment the submission binds to must belong to this business.
+    const unowned = await assertOwnedRefs(
+      { businessId },
+      { client: parsed.clientId, appointment: parsed.appointmentId },
+    )
+    if (unowned) return { success: false, error: `${unowned} not found` }
 
     const submission = await prisma.formSubmission.create({
       data: {

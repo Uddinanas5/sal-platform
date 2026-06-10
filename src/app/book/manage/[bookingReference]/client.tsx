@@ -52,6 +52,7 @@ interface BookingData {
   staffId: string | null
   businessName: string
   businessSlug: string
+  businessTimezone: string
   businessPhone: string | null
   businessEmail: string | null
   clientName: string
@@ -83,8 +84,10 @@ interface AvailabilitySlot {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatDateTime(iso: string) {
-  const date = new Date(iso)
+// All three render in the SALON's timezone (passed through from the business),
+// so the times shown here match what the customer saw at booking — not the
+// viewer's device timezone.
+function formatDateTime(iso: string, tz: string) {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
@@ -93,26 +96,27 @@ function formatDateTime(iso: string) {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(date)
+    timeZone: tz || "UTC",
+  }).format(new Date(iso))
 }
 
-function formatDateOnly(iso: string) {
-  const date = new Date(iso)
+function formatDateOnly(iso: string, tz: string) {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
-  }).format(date)
+    timeZone: tz || "UTC",
+  }).format(new Date(iso))
 }
 
-function formatTimeOnly(iso: string) {
-  const date = new Date(iso)
+function formatTimeOnly(iso: string, tz: string) {
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(date)
+    timeZone: tz || "UTC",
+  }).format(new Date(iso))
 }
 
 function formatDuration(minutes: number): string {
@@ -236,7 +240,7 @@ function CancelDialog({ booking, onClose, onCancelled }: CancelDialogProps) {
 
           <div className="mb-4 rounded-lg bg-gray-50 p-4 text-sm text-gray-700">
             <p className="font-medium">{booking.services[0]?.name ?? "Appointment"}</p>
-            <p className="mt-1 text-gray-500">{formatDateTime(booking.startTime)}</p>
+            <p className="mt-1 text-gray-500">{formatDateTime(booking.startTime, booking.businessTimezone)}</p>
           </div>
 
           <div className="mb-4">
@@ -796,12 +800,12 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
           <CardContent className="space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
-              <span className="text-gray-700">{formatDateOnly(startTime)}</span>
+              <span className="text-gray-700">{formatDateOnly(startTime, booking.businessTimezone)}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Clock className="h-4 w-4 shrink-0 text-gray-400" />
               <span className="text-gray-700">
-                {formatTimeOnly(startTime)} &ndash; {formatTimeOnly(endTime)}
+                {formatTimeOnly(startTime, booking.businessTimezone)} &ndash; {formatTimeOnly(endTime, booking.businessTimezone)}
               </span>
             </div>
           </CardContent>

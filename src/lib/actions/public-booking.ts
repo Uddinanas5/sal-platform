@@ -47,7 +47,7 @@ import {
   ERR_OUTSIDE_WORKING_HOURS,
   ERR_ON_APPROVED_TIME_OFF,
 } from "@/lib/scheduling/working-hours"
-import { formatInZone } from "@/lib/scheduling/zoned-time"
+import { formatInZone, localDateString } from "@/lib/scheduling/zoned-time"
 
 const addToPublicWaitlistSchema = z.object({
   businessId: z.string().uuid(),
@@ -184,6 +184,9 @@ export async function createPublicBooking(data: {
       startTime: requestedStart,
       locationId: location.id,
       timezone: business.timezone,
+      // Use the SAME configured lead time the slot was offered under, so this
+      // re-check can't reject a near-term slot the UI legitimately showed.
+      minLeadTimeMinutes: leadMinutes,
     })
     if (!slotOk) {
       return { success: false, error: "That time isn't available. Please choose another slot." }
@@ -194,6 +197,9 @@ export async function createPublicBooking(data: {
       where: {
         businessId: business.id,
         email: data.clientEmail.trim().toLowerCase(),
+        // Skip soft-deleted (zombie) rows so a re-booking creates a fresh client
+        // instead of resurrecting a deleted one.
+        deletedAt: null,
       },
     })
 
@@ -416,21 +422,23 @@ export async function addToPublicWaitlist(data: {
       return { success: false, error: "Please choose a valid date." }
     }
     const waitlistSettings = await getPublicBookingSettings(business.id)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    if (preferredDate < today) {
+    // "Past" is measured against the salon's calendar day, not the server's, so
+    // joining today's waitlist isn't rejected every evening on a UTC host.
+    const todayKey = localDateString(new Date(), business.timezone)
+    if (parsed.preferredDate < todayKey) {
       return { success: false, error: "Please choose a date that isn't in the past." }
     }
     const maxWaitlistDays = MAX_ADVANCE_DAYS[waitlistSettings.maxAdvanceBooking] ?? 30
-    const maxWaitlistDate = new Date(today)
-    maxWaitlistDate.setDate(maxWaitlistDate.getDate() + maxWaitlistDays)
-    if (preferredDate > maxWaitlistDate) {
+    const [wy, wm, wd] = todayKey.split("-").map(Number)
+    const maxCivil = new Date(Date.UTC(wy, wm - 1, wd + maxWaitlistDays))
+    const maxKey = `${maxCivil.getUTCFullYear()}-${String(maxCivil.getUTCMonth() + 1).padStart(2, "0")}-${String(maxCivil.getUTCDate()).padStart(2, "0")}`
+    if (parsed.preferredDate > maxKey) {
       return { success: false, error: `Please choose a date within the next ${maxWaitlistDays} days.` }
     }
 
-    // Find or create client
+    // Find or create client (skip soft-deleted rows — see createPublicBooking)
     let client = await prisma.client.findFirst({
-      where: { businessId: business.id, email: parsed.clientEmail },
+      where: { businessId: business.id, email: parsed.clientEmail, deletedAt: null },
     })
     if (!client) {
       client = await prisma.client.create({

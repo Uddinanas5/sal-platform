@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
 import {
@@ -11,7 +11,6 @@ import {
   DollarSign,
   Eye,
   EyeOff,
-  GripVertical,
   Scissors,
   Pencil,
   Copy,
@@ -88,15 +87,25 @@ function ServiceCard({
   index: number
   onClick: () => void
   onDelete: (service: Service) => void
-  onToggleActive: (serviceId: string, currentActive: boolean) => void
+  onToggleActive: (serviceId: string, currentActive: boolean) => Promise<boolean>
   readOnly?: boolean
 }) {
   const [isActive, setIsActive] = useState(service.isActive)
 
+  // Keep the optimistic local state in sync with the server-truthful prop after
+  // router.refresh() re-fetches services.
+  useEffect(() => {
+    setIsActive(service.isActive)
+  }, [service.isActive])
+
   const handleToggle = async () => {
-    const newActive = !isActive
+    const previous = isActive
+    const newActive = !previous
+    // Optimistic flip, then revert if the server action fails so the card never
+    // shows a state the database doesn't actually hold.
     setIsActive(newActive)
-    onToggleActive(service.id, isActive)
+    const ok = await onToggleActive(service.id, previous)
+    if (!ok) setIsActive(previous)
   }
 
   return (
@@ -120,12 +129,7 @@ function ServiceCard({
       <div className="p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-start gap-3">
-            <button
-              className="mt-1 cursor-grab active:cursor-grabbing text-muted-foreground/70 hover:text-muted-foreground"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <GripVertical className="w-5 h-5" />
-            </button>
+            {/* Reordering isn't implemented (no dnd), so no fake drag handle. */}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-semibold text-foreground">{service.name}</h3>
@@ -255,13 +259,15 @@ export function ServicesClient(props: ServicesClientProps) {
     setSheetOpen(true)
   }
 
-  const handleToggleActive = async (serviceId: string, currentActive: boolean) => {
+  const handleToggleActive = async (serviceId: string, currentActive: boolean): Promise<boolean> => {
     const result = await toggleServiceActive(serviceId)
     if (result.success) {
       toast.success(`Service ${currentActive ? "deactivated" : "activated"}`)
       router.refresh()
+      return true
     } else {
       toast.error(result.error)
+      return false
     }
   }
 
@@ -405,10 +411,14 @@ export function ServicesClient(props: ServicesClientProps) {
             icon={<Scissors className="w-8 h-8 text-sal-600" />}
             title="No services found"
             description="No services match your current search or category. Try adjusting your filters or create a new service."
-            action={{
-              label: "Add Service",
-              onClick: () => setIsAddDialogOpen(true),
-            }}
+            action={
+              isReadOnly
+                ? undefined
+                : {
+                    label: "Add Service",
+                    onClick: () => setIsAddDialogOpen(true),
+                  }
+            }
           />
         )}
 

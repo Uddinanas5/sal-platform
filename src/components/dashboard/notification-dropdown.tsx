@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 import {
   Bell,
   CalendarPlus,
@@ -193,20 +192,21 @@ export function NotificationDropdown() {
             })}
           </div>
         </ScrollArea>
-        <DropdownMenuSeparator className="m-0" />
-        <div className="p-2">
-          <Button
-            variant="ghost"
-            className="w-full text-sm text-sal-600 hover:text-sal-700 hover:bg-sal-50"
-            onClick={() => {
-              // Mark all as read and close
-              setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-              toast.success("All notifications marked as read")
-            }}
-          >
-            View All Notifications
-          </Button>
-        </div>
+        {notifications.length > 0 && (
+          <>
+            <DropdownMenuSeparator className="m-0" />
+            <div className="p-2">
+              <Button
+                variant="ghost"
+                className="w-full text-sm text-sal-600 hover:text-sal-700 hover:bg-sal-50"
+                onClick={markAllRead}
+                disabled={unreadCount === 0}
+              >
+                Mark all as read
+              </Button>
+            </div>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )
