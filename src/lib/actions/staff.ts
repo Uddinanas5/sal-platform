@@ -603,3 +603,39 @@ export async function updateStaffProfile(data: {
     return { success: false, error: (e as Error).message }
   }
 }
+
+/**
+ * Activate / deactivate a staff member. Admin/owner only, tenant-scoped. A
+ * deactivated staff member stops accepting bookings and is excluded from the
+ * availability engine (it already filters on isActive). This is a reversible
+ * toggle (unlike removeTeamMember, which also soft-deletes the staff profile).
+ */
+export async function setStaffActive(staffId: string, isActive: boolean): Promise<ActionResult> {
+  try {
+    z.string().uuid().parse(staffId)
+    const { businessId } = await requireMinRole("admin")
+
+    const staff = await prisma.staff.findFirst({
+      where: { id: staffId, primaryLocation: { businessId }, deletedAt: null },
+      select: { id: true },
+    })
+    if (!staff) return { success: false, error: "Staff not found" }
+
+    await prisma.staff.update({
+      where: { id: staffId },
+      data: { isActive },
+    })
+
+    revalidatePath("/staff")
+    revalidatePath("/calendar")
+    return { success: true, data: undefined }
+  } catch (e) {
+    if (e instanceof z.ZodError) return { success: false, error: "Invalid staff ID" }
+    const msg = (e as Error).message
+    if (msg === "Not authenticated" || msg === "No business context" || msg.startsWith("Insufficient permissions")) {
+      return { success: false, error: msg }
+    }
+    console.error("setStaffActive error:", e)
+    return { success: false, error: msg }
+  }
+}

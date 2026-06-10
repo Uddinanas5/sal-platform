@@ -53,7 +53,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { cn } from "@/lib/utils"
 import type { Staff, Service } from "@/data/mock-data"
-import { deleteStaff } from "@/lib/actions/staff"
+import { deleteStaff, setStaffActive } from "@/lib/actions/staff"
 import { sendInvitation } from "@/lib/actions/invitations"
 
 const roleConfig = {
@@ -70,11 +70,28 @@ interface StaffClientProps {
 }
 
 function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; index: number; onDelete: (staff: Staff) => void; allServices: Service[] }) {
-  // Active state is derived straight from props — there is no server action to
-  // persist an active/inactive toggle, so the Switch below is disabled
-  // ("Coming soon") rather than flipping local-only state that silently reverts
-  // on reload.
-  const isActive = staff.isActive
+  const router = useRouter()
+  // Optimistic active state backed by the real setStaffActive server action;
+  // reverts if the server rejects. Re-syncs from props after router.refresh().
+  const [isActive, setIsActive] = useState(staff.isActive)
+  const [toggling, setToggling] = useState(false)
+  React.useEffect(() => { setIsActive(staff.isActive) }, [staff.isActive])
+
+  const handleToggleActive = async (next: boolean) => {
+    if (toggling) return
+    setToggling(true)
+    setIsActive(next)
+    const result = await setStaffActive(staff.id, next)
+    setToggling(false)
+    if (result.success) {
+      toast.success(next ? "Staff activated" : "Staff deactivated")
+      router.refresh()
+    } else {
+      setIsActive(!next) // rollback
+      toast.error(result.error || "Failed to update staff")
+    }
+  }
+
   const roleInfo = roleConfig[staff.role]
   const RoleIcon = roleInfo.icon
 
@@ -169,8 +186,13 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
                 </Badge>
               </div>
             </div>
-            <div onClick={(e) => e.preventDefault()} title="Activate/deactivate coming soon">
-              <Switch checked={isActive} disabled aria-label="Active (coming soon)" />
+            <div onClick={(e) => e.stopPropagation()}>
+              <Switch
+                checked={isActive}
+                disabled={toggling}
+                onCheckedChange={handleToggleActive}
+                aria-label={isActive ? "Deactivate staff member" : "Activate staff member"}
+              />
             </div>
           </div>
 

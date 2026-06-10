@@ -16,7 +16,10 @@ const createProductSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   sku: z.string().optional(),
-  categoryId: z.string().uuid(),
+  // Category by NAME — resolved (find-or-create) to a ProductCategory scoped to
+  // the business. The Add Product dialog only has category names, and
+  // ProductCategory is unique on (businessId, name).
+  category: z.string().min(1, "Category is required"),
   costPrice: z.number().nonnegative(),
   retailPrice: z.number().nonnegative(),
   stockLevel: z.number().int().nonnegative(),
@@ -38,7 +41,7 @@ export async function createProduct(data: {
   name: string
   description?: string
   sku?: string
-  categoryId: string
+  category: string
   costPrice: number
   retailPrice: number
   stockLevel: number
@@ -53,28 +56,42 @@ export async function createProduct(data: {
     const location = await prisma.location.findFirst({ where: { businessId } })
     if (!location) return { success: false, error: "Business not configured" }
 
-    const product = await prisma.product.create({
-      data: {
-        businessId,
-        categoryId: parsed.categoryId,
-        name: parsed.name,
-        description: parsed.description,
-        sku: parsed.sku,
-        costPrice: parsed.costPrice,
-        retailPrice: parsed.retailPrice,
-        metadata: parsed.supplier ? { supplier: parsed.supplier } : {},
-        isActive: true,
-      },
-    })
+    const categoryName = parsed.category.trim()
 
-    await prisma.productInventory.create({
-      data: {
-        productId: product.id,
-        locationId: location.id,
-        quantity: parsed.stockLevel,
-        lowStockThreshold: parsed.reorderLevel,
-        reorderPoint: parsed.reorderLevel,
-      },
+    const product = await prisma.$transaction(async (tx) => {
+      // Find-or-create the category for this business (unique on businessId+name).
+      const category = await tx.productCategory.upsert({
+        where: { businessId_name: { businessId, name: categoryName } },
+        update: {},
+        create: { businessId, name: categoryName },
+        select: { id: true },
+      })
+
+      const created = await tx.product.create({
+        data: {
+          businessId,
+          categoryId: category.id,
+          name: parsed.name,
+          description: parsed.description,
+          sku: parsed.sku,
+          costPrice: parsed.costPrice,
+          retailPrice: parsed.retailPrice,
+          metadata: parsed.supplier ? { supplier: parsed.supplier } : {},
+          isActive: true,
+        },
+      })
+
+      await tx.productInventory.create({
+        data: {
+          productId: created.id,
+          locationId: location.id,
+          quantity: parsed.stockLevel,
+          lowStockThreshold: parsed.reorderLevel,
+          reorderPoint: parsed.reorderLevel,
+        },
+      })
+
+      return created
     })
 
     revalidatePath("/inventory")

@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
+import { createProduct } from "@/lib/actions/products"
 import { Info } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -21,13 +23,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 
@@ -48,6 +43,8 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
   const [reorderLevel, setReorderLevel] = useState("")
   const [supplier, setSupplier] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const router = useRouter()
 
   // Clear a specific field error when user starts typing
   function clearError(field: string) {
@@ -102,16 +99,31 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
     return Object.keys(newErrors).length === 0
   }
 
-  function handleSubmit() {
-    if (!validate()) return
+  async function handleSubmit() {
+    if (!validate() || isSubmitting) return
 
-    // NOTE: Product creation is not wired up yet. The createProduct server
-    // action requires a category UUID, but this dialog only has category
-    // *names* (derived from existing products) — there is no name→id mapping
-    // available here, so we can't honestly persist a product. Rather than show
-    // a fake success toast and silently drop the data, surface that it's not
-    // available yet.
-    toast.info("Adding products isn't available yet — coming soon")
+    setIsSubmitting(true)
+    const result = await createProduct({
+      name: name.trim(),
+      description: description.trim() || undefined,
+      sku: sku.trim() || undefined,
+      category: category.trim(),
+      costPrice: parseFloat(costPrice),
+      retailPrice: parseFloat(retailPrice),
+      stockLevel: parseInt(stockLevel),
+      reorderLevel: parseInt(reorderLevel),
+      supplier: supplier.trim() || undefined,
+    })
+    setIsSubmitting(false)
+
+    if (result.success) {
+      toast.success("Product added")
+      resetForm()
+      onOpenChange(false)
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to add product")
+    }
   }
 
   function handleCancel() {
@@ -184,18 +196,21 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
               <Label>
                 Category <span className="text-red-500">*</span>
               </Label>
-              <Select value={category} onValueChange={(v) => { setCategory(v); clearError("category") }}>
-                <SelectTrigger className={cn(errors.category && "border-red-300 focus:ring-red-400")}>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Combobox: pick an existing category or type a new one — the
+                  server find-or-creates it, so a brand-new shop can still add
+                  products before any category exists. */}
+              <Input
+                list="product-category-options"
+                value={category}
+                onChange={(e) => { setCategory(e.target.value); clearError("category") }}
+                placeholder="Select or type a category"
+                className={cn(errors.category && "border-red-300 focus:ring-red-400")}
+              />
+              <datalist id="product-category-options">
+                {categories.map((cat) => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
               {errors.category && (
                 <p className="text-xs text-red-500">{errors.category}</p>
               )}
@@ -318,11 +333,11 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
               Please fix {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? "s" : ""} above
             </p>
           )}
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled title="Coming soon">
-            Add Product (Coming soon)
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? "Adding…" : "Add Product"}
           </Button>
         </DialogFooter>
       </DialogContent>
