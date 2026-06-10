@@ -6,6 +6,35 @@ Baseline before fixes: typecheck ✅ lint ✅ tests ✅ build ✅.
 
 Branch: `fix/security-tenancy-honesty` (origin/main + prior security commit 8d7c99d).
 
+## OUTCOME (2026-06-10)
+
+All batches landed in 8 commits on this branch. **Every batch gate green: typecheck +
+lint + 397 tests (under TZ=UTC and TZ=America/New_York) + production build.**
+~55 of the ~60 canonical units fixed; the rest are migration-gated (below).
+
+Notable: walk-in commissions now record (the original "$0 commission" bug), checkout
+double-ring-up closed, configured tax/currency honored, OAuth staff→admin escalation
+closed, same-day booking fixed on the UTC host, reports/dashboards bucket on the salon
+clock, and the fake-UI sweep made controls real or honestly "coming soon". Two features
+the honesty pass had to disable were upgraded to genuinely working: **Add Product** and
+**staff activate/deactivate**.
+
+### DEFERRED — need a Prisma migration + prod deploy (NOT applied this session)
+These have non-migration mitigations in place (advisory locks / deletedAt filters); the
+unique constraints are the hard backstops and require `prisma migrate deploy` on the prod
+DB with the 6 real businesses:
+- D3: `@@unique([businessId, periodStart, periodEnd])` on `payroll_periods`
+  (mitigated by a per-business advisory lock in ensureOpenPayrollPeriod).
+- D7: partial `UNIQUE (businessId, email) WHERE deletedAt IS NULL` on `clients`
+  (mitigated by a deletedAt:null filter on the find-or-create).
+
+### PARTIAL / follow-ups (low severity)
+- Email HTML-escaping applied to the public-facing templates (booking confirmation,
+  review request); the remaining transactional templates (cancel/reschedule/receipt)
+  render stored names and should get the same `esc()` pass.
+- P2 email escaping and the broader notification-template rendering remain as the
+  email pipeline's coming-soon items.
+
 ## Batch 1 — Security / Tenancy
 - [ ] S1 OAuth access tokens hardcode `role:"admin"` → privilege escalation (api/auth.ts:37) [HIGH]
 - [ ] S2 User.role is global; cross-tenant role rewrite (invitations.ts) [HIGH]
