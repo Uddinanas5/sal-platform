@@ -184,6 +184,9 @@ export function PaymentDialog({
           type: item.type,
           id: item.catalogId ?? item.id,
           quantity: item.quantity,
+          // Service lines carry the staff who performed them so the server records
+          // commission for walk-in sales (no appointment). Undefined for products.
+          ...(item.type === "service" && item.staffId ? { staffId: item.staffId } : {}),
         }))
 
       // Ad-hoc "Quick Sale" lines: sent as first-class custom lines (NOT dropped)
@@ -275,8 +278,25 @@ export function PaymentDialog({
     onOpenChange(false)
   }
 
+  // Guard dialog dismissal so a sale can't be double-recorded:
+  // - while "processing": ignore close requests entirely (the request is in flight).
+  // - on the "success" screen: any dismissal (ESC / click-outside / X) must clear
+  //   the cart via onComplete, otherwise the same cart stays loaded and could be
+  //   processed a second time.
+  const handleDialogOpenChange = (next: boolean) => {
+    if (next) {
+      onOpenChange(true)
+      return
+    }
+    if (step === "processing") return
+    if (step === "success") {
+      onComplete()
+    }
+    onOpenChange(false)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <AnimatePresence mode="wait">
           {/* Step 1: Payment Method / Input */}

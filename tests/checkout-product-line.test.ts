@@ -25,6 +25,7 @@ const PAYMENT_ID = "pay_line_1"
 function fakeTx() {
   const tx = {
     $executeRaw: vi.fn(),
+    business: { findUnique: vi.fn(async () => ({ settings: {}, currency: "USD" })) },
     service: { findMany: vi.fn(async () => []) },
     product: {
       // name + retailPrice are what the AppointmentProduct line is built from.
@@ -41,6 +42,7 @@ function fakeTx() {
       update: vi.fn(async () => ({})),
     },
     payment: {
+      findFirst: vi.fn(async () => null),
       create: vi.fn(async () => ({ id: PAYMENT_ID, paymentReference: "PAY-X" })),
     },
     productInventory: {

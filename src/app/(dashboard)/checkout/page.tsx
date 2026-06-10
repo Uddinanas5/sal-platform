@@ -14,10 +14,15 @@ export default async function CheckoutPage() {
   const businessId = (session?.user as any)?.businessId as string | undefined
   if (!businessId) redirect("/onboarding")
 
-  const [services, products, clients, business] = await Promise.all([
+  const [services, products, clients, staffRows, business] = await Promise.all([
     getServices(businessId),
     getProducts(businessId),
     getClients(undefined, businessId),
+    prisma.staff.findMany({
+      where: { primaryLocation: { businessId }, isActive: true, deletedAt: null },
+      select: { id: true, user: { select: { firstName: true, lastName: true } } },
+      orderBy: { user: { firstName: "asc" } },
+    }),
     prisma.business.findUnique({
       where: { id: businessId },
       select: {
@@ -41,6 +46,11 @@ export default async function CheckoutPage() {
   // Derive product categories from actual products
   const categories = Array.from(new Set(products.map((p) => p.category)))
 
+  const staff = staffRows.map((s) => ({
+    id: s.id,
+    name: `${s.user.firstName} ${s.user.lastName}`.trim(),
+  }))
+
   const primaryLocation = business?.locations?.[0]
   const businessAddress = primaryLocation
     ? [
@@ -60,6 +70,7 @@ export default async function CheckoutPage() {
       services={services}
       products={products}
       clients={clients}
+      staff={staff}
       productCategories={categories}
       businessName={business?.name}
       businessAddress={businessAddress}

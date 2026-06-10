@@ -56,6 +56,26 @@ export async function lockGiftCard(
 }
 
 /**
+ * Transaction-scoped advisory lock keyed on (businessId, appointmentId).
+ * Serializes concurrent checkouts of the SAME appointment so the
+ * already-paid / already-completed re-check can run INSIDE the transaction
+ * without two writers both passing it and double-recording the sale
+ * (Payment + commission + loyalty + revenue). The "appt:" prefix keeps this
+ * keyspace distinct from the staff/client/gift-card locks. Released on
+ * commit or rollback.
+ */
+export async function lockAppointment(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  appointmentId: string,
+): Promise<void> {
+  const hash = createHash("sha256").update(`appt:${businessId}:${appointmentId}`).digest()
+  const key1 = hash.readInt32BE(0)
+  const key2 = hash.readInt32BE(4)
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${key1}::int4, ${key2}::int4)`
+}
+
+/**
  * Detect the contention-induced failures a booking/checkout $transaction can
  * surface when many concurrent requests serialize behind the same advisory
  * lock. These are NOT integrity failures — exactly one writer still wins; the

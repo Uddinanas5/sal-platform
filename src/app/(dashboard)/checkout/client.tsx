@@ -58,6 +58,7 @@ type CartAction =
     }
   | { type: "REMOVE_ITEM"; payload: { id: string } }
   | { type: "UPDATE_QUANTITY"; payload: { id: string; quantity: number } }
+  | { type: "SET_ITEM_STAFF"; payload: { id: string; staffId?: string; staffName?: string } }
   | { type: "SET_CLIENT"; payload: { clientId: string; clientName: string } }
   | { type: "CLEAR_CLIENT" }
   | {
@@ -141,6 +142,16 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       }
       return { ...state, items: [...state.items, newItem] }
     }
+
+    case "SET_ITEM_STAFF":
+      return {
+        ...state,
+        items: state.items.map((item) =>
+          item.id === action.payload.id
+            ? { ...item, staffId: action.payload.staffId, staffName: action.payload.staffName }
+            : item
+        ),
+      }
 
     case "REMOVE_ITEM":
       return {
@@ -241,10 +252,16 @@ interface ClientItem {
   tags?: string[]
 }
 
+interface StaffOption {
+  id: string
+  name: string
+}
+
 interface CheckoutClientProps {
   services: ServiceItem[]
   products: ProductItem[]
   clients: ClientItem[]
+  staff: StaffOption[]
   productCategories: string[]
   businessName?: string
   businessAddress?: string
@@ -257,6 +274,7 @@ export default function CheckoutClient({
   services,
   products,
   clients,
+  staff,
   productCategories,
   businessName,
   businessAddress,
@@ -314,6 +332,14 @@ export default function CheckoutClient({
     dispatch({ type: "REMOVE_ITEM", payload: { id } })
   }, [])
 
+  const handleSetItemStaff = useCallback(
+    (id: string, staffId?: string) => {
+      const staffName = staffId ? staff.find((s) => s.id === staffId)?.name : undefined
+      dispatch({ type: "SET_ITEM_STAFF", payload: { id, staffId, staffName } })
+    },
+    [staff]
+  )
+
   const handleSetClient = useCallback(
     (clientId: string, clientName: string) => {
       dispatch({ type: "SET_CLIENT", payload: { clientId, clientName } })
@@ -358,6 +384,7 @@ export default function CheckoutClient({
 
   const cartPanelProps = {
     clients,
+    staff,
     items: state.items,
     clientId: state.clientId,
     clientName: state.clientName,
@@ -368,6 +395,7 @@ export default function CheckoutClient({
     redeemPoints: state.redeemPoints,
     onUpdateQuantity: handleUpdateQuantity,
     onRemoveItem: handleRemoveItem,
+    onSetItemStaff: handleSetItemStaff,
     onSetClient: handleSetClient,
     onClearClient: handleClearClient,
     onSetDiscount: handleSetDiscount,

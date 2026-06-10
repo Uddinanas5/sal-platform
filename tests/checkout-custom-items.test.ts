@@ -44,6 +44,7 @@ type TxOverrides = {
 function fakeTx(o: TxOverrides = {}) {
   const tx = {
     $executeRaw: vi.fn(),
+    business: { findUnique: vi.fn(async () => ({ settings: {}, currency: "USD" })) },
     service: { findMany: vi.fn(async () => (o.services ?? [{ id: SVC, price: 10 }]).map(withTax)) },
     product: { findMany: vi.fn(async () => []) },
     appointment: { findFirst: vi.fn(), update: vi.fn() },
@@ -54,6 +55,7 @@ function fakeTx(o: TxOverrides = {}) {
       update: vi.fn(async () => ({})),
     },
     payment: {
+      findFirst: vi.fn(async () => null),
       create: vi.fn(async () => ({ id: "pay_1", paymentReference: "PAY-X" })),
     },
     productInventory: { findFirst: vi.fn(async () => null), update: vi.fn() },

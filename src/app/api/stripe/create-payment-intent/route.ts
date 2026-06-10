@@ -5,11 +5,14 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 const createPaymentIntentSchema = z.object({
-  amount: z.number().positive(),
+  // A client-supplied amount is NEVER trusted — the charge amount is derived
+  // server-side from the appointment's totalAmount, so appointmentId is required.
+  // (Accepted-but-ignored for backward compat with existing callers.)
+  amount: z.number().positive().optional(),
   email: z.string().email().optional(),
   name: z.string().optional(),
   phone: z.string().optional(),
-  appointmentId: z.string().uuid().optional(),
+  appointmentId: z.string().uuid(),
   items: z.unknown().optional(),
 })
 
@@ -37,7 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, name, phone, appointmentId, items } = parsed.data
-    let amount = parsed.data.amount
+    // Amount is always recomputed from the appointment below — the request value
+    // (if any) is ignored so a caller can never charge an arbitrary amount.
+    let amount = 0
     let clientId: string | null = null
 
     const business = await prisma.business.findFirst({
@@ -55,23 +60,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (appointmentId) {
-      const appointment = await prisma.appointment.findFirst({
-        where: { id: appointmentId, businessId: user.businessId },
-        select: {
-          id: true,
-          clientId: true,
-          totalAmount: true,
-        },
-      })
+    const appointment = await prisma.appointment.findFirst({
+      where: { id: appointmentId, businessId: user.businessId },
+      select: {
+        id: true,
+        clientId: true,
+        totalAmount: true,
+      },
+    })
 
-      if (!appointment) {
-        return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
-      }
-
-      amount = Number(appointment.totalAmount)
-      clientId = appointment.clientId
+    if (!appointment) {
+      return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
     }
+
+    amount = Number(appointment.totalAmount)
+    clientId = appointment.clientId
 
     if (!amount || amount < 0.5) {
       return NextResponse.json(

@@ -64,6 +64,7 @@ function fakeTx(o: TxOptions = {}) {
 
   const tx = {
     $executeRaw: vi.fn(),
+    business: { findUnique: vi.fn(async () => ({ settings: {}, currency: "USD" })) },
     service: {
       findMany: vi.fn(async () => [{ id: SVC, price: servicePrice, taxRate: null, isTaxable: true }]),
     },
@@ -96,6 +97,7 @@ function fakeTx(o: TxOptions = {}) {
       update: vi.fn(async () => ({})),
     },
     payment: {
+      findFirst: vi.fn(async () => null),
       create: vi.fn(async () => ({ id: "pay_1", paymentReference: "PAY-X" })),
     },
     productInventory: { findFirst: vi.fn(async () => null), update: vi.fn() },

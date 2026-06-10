@@ -38,6 +38,10 @@ const processPaymentSchema = z
         type: z.enum(["service", "product"]),
         id: z.string().uuid(),
         quantity: z.number().int().positive(),
+        // Optional staff attribution for walk-in service lines so commission is
+        // recorded for POS sales with no appointment behind them. Ignored for
+        // product lines and when appointmentId is set.
+        staffId: z.string().uuid().optional(),
       })
     ).default([]),
     // Ad-hoc "Quick Sale" lines: operator-named, operator-priced rows with no
@@ -81,7 +85,7 @@ const processPaymentSchema = z
 export async function processPayment(data: {
   clientId?: string
   appointmentId?: string
-  items: { type: "service" | "product"; id: string; quantity: number }[]
+  items: { type: "service" | "product"; id: string; quantity: number; staffId?: string }[]
   customItems?: { type: "custom"; name: string; unitPrice: number; quantity: number }[]
   discount: number
   tax: number
