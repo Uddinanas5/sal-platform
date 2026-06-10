@@ -28,6 +28,7 @@ export async function createPaymentIntent({
   connectedAccountId,
   applicationFeeAmount,
   metadata,
+  idempotencyKey,
 }: {
   amount: number // in cents
   currency?: string
@@ -35,27 +36,33 @@ export async function createPaymentIntent({
   connectedAccountId?: string
   applicationFeeAmount?: number
   metadata?: Record<string, string>
+  // Stripe idempotency key — a retry/double-submit with the same key returns the
+  // SAME PaymentIntent instead of creating (and potentially charging) a second.
+  idempotencyKey?: string
 }) {
   try {
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency,
-      customer: customerId,
-      automatic_payment_methods: {
-        enabled: true,
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount,
+        currency,
+        customer: customerId,
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        ...(connectedAccountId
+          ? {
+              transfer_data: {
+                destination: connectedAccountId,
+              },
+            }
+          : {}),
+        ...(applicationFeeAmount && applicationFeeAmount > 0
+          ? { application_fee_amount: applicationFeeAmount }
+          : {}),
+        metadata: metadata || {},
       },
-      ...(connectedAccountId
-        ? {
-            transfer_data: {
-              destination: connectedAccountId,
-            },
-          }
-        : {}),
-      ...(applicationFeeAmount && applicationFeeAmount > 0
-        ? { application_fee_amount: applicationFeeAmount }
-        : {}),
-      metadata: metadata || {},
-    })
+      idempotencyKey ? { idempotencyKey } : undefined,
+    )
 
     return {
       success: true,
