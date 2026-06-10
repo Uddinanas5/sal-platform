@@ -30,7 +30,7 @@ export async function registerBusiness(data: {
     const parsed = registerBusinessSchema.parse(data)
 
     // Rate limit: 3 registrations per email per hour
-    const rl = rateLimit(`register:${parsed.email.toLowerCase().trim()}`, 3, 60 * 60 * 1000)
+    const rl = await rateLimit(`register:${parsed.email.toLowerCase().trim()}`, 3, 60 * 60 * 1000)
     if (rl.limited) {
       return { success: false, error: "Too many attempts. Please try again later." }
     }

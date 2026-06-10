@@ -176,7 +176,7 @@ export async function submitPublicReview(
     }
 
     // Light abuse guard: cap submissions per token.
-    const rl = rateLimit(`review-submit:${token}`, 5, 60 * 60 * 1000)
+    const rl = await rateLimit(`review-submit:${token}`, 5, 60 * 60 * 1000)
     if (rl.limited) {
       return { success: false, error: "Too many attempts. Please try again later." }
     }

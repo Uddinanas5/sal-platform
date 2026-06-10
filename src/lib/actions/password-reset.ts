@@ -34,7 +34,7 @@ export async function requestPasswordReset(email: string): Promise<ActionResult>
     const parsed = requestPasswordResetSchema.parse({ email })
 
     // Rate limit: 3 reset requests per email per hour
-    const rl = rateLimit(`reset:${parsed.email.toLowerCase().trim()}`, 3, 60 * 60 * 1000)
+    const rl = await rateLimit(`reset:${parsed.email.toLowerCase().trim()}`, 3, 60 * 60 * 1000)
     if (rl.limited) {
       return { success: true } // Silent — don't reveal rate limiting to prevent enumeration
     }
@@ -93,7 +93,7 @@ export async function resetPassword(
 
     // Rate limit attempts per token so a leaked/intercepted token can't be used
     // for unlimited password-change attempts within its validity window.
-    const rl = rateLimit(`reset-password:${parsed.token}`, 5, 15 * 60 * 1000)
+    const rl = await rateLimit(`reset-password:${parsed.token}`, 5, 15 * 60 * 1000)
     if (rl.limited) {
       return { success: false, error: "Too many attempts. Please request a new reset link." }
     }

@@ -22,7 +22,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const email = (credentials.email as string).toLowerCase().trim()
 
         // Rate limit by email
-        const rl = rateLimit(`login:${email}`, 10, 15 * 60 * 1000) // 10 attempts per 15 min
+        const rl = await rateLimit(`login:${email}`, 10, 15 * 60 * 1000) // 10 attempts per 15 min
         if (rl.limited) return null
 
         const user = await prisma.user.findUnique({
