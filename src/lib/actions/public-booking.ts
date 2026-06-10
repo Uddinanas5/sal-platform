@@ -184,6 +184,9 @@ export async function createPublicBooking(data: {
       startTime: requestedStart,
       locationId: location.id,
       timezone: business.timezone,
+      // Use the SAME configured lead time the slot was offered under, so this
+      // re-check can't reject a near-term slot the UI legitimately showed.
+      minLeadTimeMinutes: leadMinutes,
     })
     if (!slotOk) {
       return { success: false, error: "That time isn't available. Please choose another slot." }

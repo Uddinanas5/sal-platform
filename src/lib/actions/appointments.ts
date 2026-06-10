@@ -638,6 +638,18 @@ export async function resizeAppointment(
     })
     if (!appointment) return { success: false, error: "Appointment not found" }
 
+    // Drag-to-resize only makes sense for a single-service appointment. For a
+    // multi-service appointment, resizing one block can't unambiguously
+    // redistribute the others — and the old code silently corrupted it (it
+    // overwrote totalDuration with one service's duration and moved only
+    // services[0], leaving the rest mistimed/overlapping). Refuse instead.
+    if (appointment.services.length > 1) {
+      return {
+        success: false,
+        error: "Can't resize a multi-service appointment by dragging. Open it to edit the services instead.",
+      }
+    }
+
     const startTime = appointment.startTime
     const newEndTime = new Date(startTime)
     newEndTime.setMinutes(newEndTime.getMinutes() + newDurationMinutes)

@@ -51,7 +51,6 @@ function fakeTx(o: TxOptions = {}) {
 
   const tx = {
     $executeRaw: vi.fn(),
-    business: { findUnique: vi.fn(async () => ({ settings: {}, currency: "USD" })) },
     // taxRate null + isTaxable true → server uses the flat TAX_RATE fallback,
     // matching the schema default (these tests don't assert tax-dependent totals).
     service: { findMany: vi.fn(async () => [{ id: SVC, price: finalPrice, taxRate: null, isTaxable: true }]) },
@@ -74,7 +73,7 @@ function fakeTx(o: TxOptions = {}) {
     staffService: { findMany: vi.fn(async () => staffServices) },
     commission: { create: vi.fn(async () => ({ id: "com_1" })) },
     loyaltyTransaction: { create: vi.fn(async () => ({ id: "loy_1" })) },
-    business: { findUnique: vi.fn(async () => ({ timezone: "UTC" })) },
+    business: { findUnique: vi.fn(async () => ({ timezone: "UTC", settings: {}, currency: "USD" })) },
     payrollPeriod: {
       // Mimic the resolver's findFirst(lte/gte) against the in-memory rows.
       findFirst: vi.fn(async () => periods.find((p) => p.status !== undefined) ?? null),

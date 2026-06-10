@@ -64,7 +64,6 @@ function fakeTx(o: TxOptions = {}) {
 
   const tx = {
     $executeRaw: vi.fn(),
-    business: { findUnique: vi.fn(async () => ({ settings: {}, currency: "USD" })) },
     service: {
       findMany: vi.fn(async () => [{ id: SVC, price: servicePrice, taxRate: null, isTaxable: true }]),
     },
@@ -104,7 +103,7 @@ function fakeTx(o: TxOptions = {}) {
     staffService: { findMany: vi.fn(async () => []) },
     commission: { create: vi.fn(async () => ({ id: "com_1" })) },
     loyaltyTransaction: { create: vi.fn(async () => ({ id: "loy_1" })) },
-    business: { findUnique: vi.fn(async () => ({ timezone: "UTC" })) },
+    business: { findUnique: vi.fn(async () => ({ timezone: "UTC", settings: {}, currency: "USD" })) },
     payrollPeriod: {
       findFirst: vi.fn(async () => periods.find((p) => p.status !== undefined) ?? null),
       create: vi.fn(async (args: { data: { periodStart: Date; periodEnd: Date; status: string } }) => {
