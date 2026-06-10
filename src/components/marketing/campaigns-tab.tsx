@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { createCampaign, sendCampaign, updateCampaign } from "@/lib/actions/marketing"
+import { formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -159,6 +160,9 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
     }
   }
 
+  // Open/click tracking is not implemented yet (openCount/clickCount are never
+  // incremented), so we don't surface an "Avg Open Rate" — showing it would be a
+  // fabricated metric. Recipients + sent counts are real.
   const statCards = [
     {
       label: "Active Campaigns",
@@ -171,8 +175,8 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
       icon: Send,
     },
     {
-      label: "Avg Open Rate",
-      value: `${stats.openRate.toFixed(1)}%`,
+      label: "Campaigns Sent",
+      value: stats.sent.toString(),
       icon: BarChart3,
     },
   ]
@@ -247,18 +251,20 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
                 <p className="text-xs text-muted-foreground">Message</p>
                 <p className="text-sm whitespace-pre-wrap bg-cream-100 rounded-lg p-3 mt-1">{viewCampaign.body}</p>
               </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
+              {/* Open/click tracking isn't implemented, so we only show metrics
+                  we can stand behind: recipients reached and when it was sent. */}
+              <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="bg-card border border-cream-200 rounded-lg p-3">
                   <p className="text-lg font-bold">{viewCampaign.recipientCount}</p>
                   <p className="text-xs text-muted-foreground">Recipients</p>
                 </div>
                 <div className="bg-card border border-cream-200 rounded-lg p-3">
-                  <p className="text-lg font-bold">{viewCampaign.openCount}</p>
-                  <p className="text-xs text-muted-foreground">Opens</p>
-                </div>
-                <div className="bg-card border border-cream-200 rounded-lg p-3">
-                  <p className="text-lg font-bold">{viewCampaign.clickCount}</p>
-                  <p className="text-xs text-muted-foreground">Clicks</p>
+                  <p className="text-lg font-bold">
+                    {viewCampaign.sentAt ? formatDate(viewCampaign.sentAt) : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {viewCampaign.sentAt ? "Sent" : "Not sent yet"}
+                  </p>
                 </div>
               </div>
             </div>

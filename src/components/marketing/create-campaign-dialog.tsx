@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Check, ChevronLeft, ChevronRight, Mail } from "lucide-react"
 import {
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { createCampaign } from "@/lib/actions/marketing"
+import { createCampaign, getCampaignAudienceCounts } from "@/lib/actions/marketing"
 
 interface CreateCampaignDialogProps {
   open: boolean
@@ -35,12 +35,16 @@ const steps = [
   "Review",
 ]
 
-const audienceOptions: { label: AudienceOption; count: number }[] = [
-  { label: "All Clients", count: 248 },
-  { label: "VIP Clients", count: 52 },
-  { label: "Active Clients", count: 180 },
-  { label: "Inactive Clients", count: 35 },
-  { label: "Custom", count: 0 },
+// Audience counts are loaded live per-business from getCampaignAudienceCounts
+// (consent-first, the same where-clauses the real sender uses). "Custom" sends
+// to all consented clients, so it is labelled honestly and shows no count.
+type AudienceCountKey = "all" | "vip" | "active" | "inactive"
+const audienceOptions: { label: AudienceOption; countKey: AudienceCountKey | null }[] = [
+  { label: "All Clients", countKey: "all" },
+  { label: "VIP Clients", countKey: "vip" },
+  { label: "Active Clients", countKey: "active" },
+  { label: "Inactive Clients", countKey: "inactive" },
+  { label: "Custom", countKey: null },
 ]
 
 export function CreateCampaignDialog({
@@ -57,6 +61,25 @@ export function CreateCampaignDialog({
   const [scheduleOption, setScheduleOption] = useState<ScheduleOption>("now")
   const [scheduleDate, setScheduleDate] = useState("")
   const [scheduleTime, setScheduleTime] = useState("")
+  const [audienceCounts, setAudienceCounts] = useState<
+    Record<AudienceCountKey, number> | null
+  >(null)
+
+  // Load real, consent-filtered audience counts when the dialog opens.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    getCampaignAudienceCounts().then((result) => {
+      if (cancelled) return
+      if (result.success) setAudienceCounts(result.data)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  const countForKey = (key: AudienceCountKey | null): number | null =>
+    key && audienceCounts ? audienceCounts[key] : null
 
   const resetForm = () => {
     setStep(0)
@@ -136,8 +159,9 @@ export function CreateCampaignDialog({
     handleClose(false)
   }
 
-  const selectedAudienceCount =
-    audienceOptions.find((a) => a.label === audience)?.count || 0
+  const selectedAudienceCount = countForKey(
+    audienceOptions.find((a) => a.label === audience)?.countKey ?? null
+  )
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -219,48 +243,63 @@ export function CreateCampaignDialog({
             <label className="text-sm font-medium text-foreground">
               Select Audience
             </label>
-            {audienceOptions.map((opt) => (
-              <button
-                key={opt.label}
-                onClick={() => setAudience(opt.label)}
-                className={cn(
-                  "w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between text-left",
-                  audience === opt.label
-                    ? "border-sal-500 bg-sal-50"
-                    : "border-cream-200 hover:border-cream-300"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
-                      audience === opt.label
-                        ? "border-sal-500 bg-sal-500"
-                        : "border-cream-300"
-                    )}
-                  >
-                    {audience === opt.label && (
-                      <Check className="w-3 h-3 text-white" />
-                    )}
+            {audienceOptions.map((opt) => {
+              const count = countForKey(opt.countKey)
+              return (
+                <button
+                  key={opt.label}
+                  onClick={() => setAudience(opt.label)}
+                  className={cn(
+                    "w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between text-left",
+                    audience === opt.label
+                      ? "border-sal-500 bg-sal-50"
+                      : "border-cream-200 hover:border-cream-300"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
+                        audience === opt.label
+                          ? "border-sal-500 bg-sal-500"
+                          : "border-cream-300"
+                      )}
+                    >
+                      {audience === opt.label && (
+                        <Check className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+                    <div>
+                      <span
+                        className={cn(
+                          "text-sm font-medium block",
+                          audience === opt.label
+                            ? "text-sal-700"
+                            : "text-foreground"
+                        )}
+                      >
+                        {opt.label}
+                      </span>
+                      {opt.countKey === null && (
+                        <span className="text-xs text-muted-foreground/70">
+                          Sends to all consented clients
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <span
-                    className={cn(
-                      "text-sm font-medium",
-                      audience === opt.label
-                        ? "text-sal-700"
-                        : "text-foreground"
-                    )}
-                  >
-                    {opt.label}
-                  </span>
-                </div>
-                {opt.count > 0 && (
-                  <span className="text-sm text-muted-foreground/70">
-                    {opt.count} clients
-                  </span>
-                )}
-              </button>
-            ))}
+                  {opt.countKey !== null && (
+                    <span className="text-sm text-muted-foreground/70">
+                      {count === null
+                        ? "…"
+                        : `${count} ${count === 1 ? "client" : "clients"}`}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+            <p className="text-xs text-muted-foreground/70 pt-1">
+              Counts reflect clients who have opted in to marketing email.
+            </p>
           </div>
         )}
 
@@ -397,7 +436,9 @@ export function CreateCampaignDialog({
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Audience</span>
                 <span className="text-sm font-medium text-foreground">
-                  {audience} ({selectedAudienceCount})
+                  {selectedAudienceCount === null
+                    ? audience
+                    : `${audience} (${selectedAudienceCount})`}
                 </span>
               </div>
               {subject && (

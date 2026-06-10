@@ -240,7 +240,7 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
     const serviceDetails = await Promise.all(
       services.map(async (svc: { serviceId: string; staffId: string; startTime: string }) => {
         const service = await prisma.service.findFirst({
-          where: { id: svc.serviceId, businessId },
+          where: { id: svc.serviceId, businessId, deletedAt: null },
           include: {
             staffServices: {
               where: {

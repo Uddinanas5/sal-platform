@@ -122,7 +122,7 @@ export async function POST(req: Request) {
   // Scope every entity lookup by caller's business — prevents cross-tenant
   // booking creation and frankenstein-mix (e.g. biz-A service + biz-B staff).
   const service = await prisma.service.findFirst({
-    where: { id: serviceId, businessId: ctx.businessId },
+    where: { id: serviceId, businessId: ctx.businessId, deletedAt: null },
   })
   if (!service) return ERRORS.NOT_FOUND("Service")
 

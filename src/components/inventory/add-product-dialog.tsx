@@ -105,9 +105,13 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
   function handleSubmit() {
     if (!validate()) return
 
-    toast.success("Product added successfully")
-    resetForm()
-    onOpenChange(false)
+    // NOTE: Product creation is not wired up yet. The createProduct server
+    // action requires a category UUID, but this dialog only has category
+    // *names* (derived from existing products) — there is no name→id mapping
+    // available here, so we can't honestly persist a product. Rather than show
+    // a fake success toast and silently drop the data, surface that it's not
+    // available yet.
+    toast.info("Adding products isn't available yet — coming soon")
   }
 
   function handleCancel() {
@@ -317,7 +321,9 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>Add Product</Button>
+          <Button onClick={handleSubmit} disabled title="Coming soon">
+            Add Product (Coming soon)
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -90,7 +90,10 @@ export async function createAppointment(data: {
     // silently drop a service the caller paid for. (A repeated id resolves to
     // the same DB row twice, which legitimately books that service twice.)
     const dbServices = await prisma.service.findMany({
-      where: { id: { in: requestedServiceIds }, businessId },
+      // deletedAt:null so a soft-deleted service can't be booked with its stale
+      // name/price/duration snapshotted into a new appointment (parity with the
+      // public booking + availability paths).
+      where: { id: { in: requestedServiceIds }, businessId, deletedAt: null },
     })
     const serviceById = new Map(dbServices.map((s) => [s.id, s]))
     const orderedServices = requestedServiceIds.map((id) => serviceById.get(id))

@@ -654,7 +654,7 @@ export function PaymentDialog({
                     className="flex-col gap-1.5 h-auto py-3"
                     onClick={() => {
                       const receiptEl = document.getElementById("receipt-print-area")
-                      if (!receiptEl) { toast.success("Receipt sent to printer"); return }
+                      if (!receiptEl) { toast.error("Could not prepare the receipt to print"); return }
                       const printWindow = window.open("", "_blank", "width=400,height=600")
                       if (!printWindow) { toast.error("Pop-up blocked"); return }
                       printWindow.document.write(
@@ -704,6 +704,27 @@ export function PaymentDialog({
                   Done
                 </Button>
               </motion.div>
+
+              {/* Always-mounted hidden receipt so the Print button has a DOM node
+                  to read on the success screen (the visible ReceiptView only
+                  renders in the mutually-exclusive showReceipt branch). */}
+              <div id="receipt-print-area" className="sr-only" aria-hidden>
+                <ReceiptView
+                  items={items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price }))}
+                  clientName={clientName}
+                  subtotal={subtotal}
+                  discount={discount}
+                  discountType={discountType}
+                  discountValue={discountValue}
+                  tax={tax}
+                  tip={tip}
+                  total={total}
+                  paymentMethod={paymentMethod}
+                  businessName={businessName}
+                  businessAddress={businessAddress}
+                  businessPhone={businessPhone}
+                />
+              </div>
             </motion.div>
           )}
 

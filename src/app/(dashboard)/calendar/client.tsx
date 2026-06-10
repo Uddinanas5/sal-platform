@@ -137,6 +137,20 @@ export function CalendarClient(props: CalendarClientProps) {
     }))
   )
 
+  // Re-sync local state when the server sends fresh appointments (e.g. after a
+  // router.refresh() following a create/reschedule/cancel). Without this, the
+  // useState initializer only runs once on mount, so server-side changes never
+  // appear until a hard reload. We mirror the initializer's date rehydration.
+  useEffect(() => {
+    setAppointments(
+      props.initialAppointments.map((a) => ({
+        ...a,
+        startTime: new Date(a.startTime),
+        endTime: new Date(a.endTime),
+      }))
+    )
+  }, [props.initialAppointments])
+
   // Status filter
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set())
 

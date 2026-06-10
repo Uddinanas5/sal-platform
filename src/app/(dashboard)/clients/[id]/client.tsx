@@ -140,7 +140,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
     const { updateClient } = await import("@/lib/actions/clients")
     const result = await updateClient(client.id, { tags: [...(client.tags || []), "Blocked"] })
     if (result.success) {
-      toast.success(`${client.name} has been blocked`)
+      toast.success(`${client.name} tagged as "Blocked" (note only — does not prevent booking)`)
       router.refresh()
     } else {
       toast.error(result.error)
@@ -270,7 +270,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleBlockClient}>
                         <Ban className="w-4 h-4 mr-2" />
-                        Block Client
+                        Tag as Blocked (note only)
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={handleDeleteClient}

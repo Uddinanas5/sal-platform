@@ -7,6 +7,11 @@ import { requireMinRole } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
+// Module-private sentinel so the guarded-decrement failure inside the stock
+// transaction can roll the tx back and surface a friendly message (a "use
+// server" file may only EXPORT async functions, so this class stays unexported).
+class RecordStockError extends Error {}
+
 const createProductSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
@@ -100,30 +105,53 @@ export async function adjustStock(
 
     const inventory = await prisma.productInventory.findFirst({
       where: { productId, product: { businessId } },
+      select: { id: true, locationId: true },
     })
     if (!inventory) return { success: false, error: "Product inventory not found" }
 
-    const newQty = inventory.quantity + adjustment
-    if (newQty < 0) return { success: false, error: "Stock cannot go below zero" }
-
-    await prisma.productInventory.update({
-      where: { id: inventory.id },
-      data: {
-        quantity: newQty,
-        lastRestockAt: adjustment > 0 ? new Date() : undefined,
-      },
-    })
-
-    await prisma.inventoryTransaction.create({
-      data: {
-        productId,
-        locationId: inventory.locationId,
-        type: adjustment > 0 ? "restock" : "adjustment",
-        quantityChange: adjustment,
-        quantityAfter: newQty,
-        notes: reason,
-      },
-    })
+    // Atomic read-modify-write in one transaction: a guarded `increment`
+    // (with a `quantity: { gte: -adjustment }` floor on decrements) prevents two
+    // concurrent adjustments — or a concurrent checkout decrement — from both
+    // reading the same quantity and clobbering each other (lost update / negative
+    // stock / ledger drift). The ledger row reads the post-write quantity inside
+    // the same tx so quantityAfter always reconciles.
+    try {
+      const newQty = await prisma.$transaction(async (tx) => {
+        const updated = await tx.productInventory.updateMany({
+          where: {
+            id: inventory.id,
+            ...(adjustment < 0 ? { quantity: { gte: -adjustment } } : {}),
+          },
+          data: {
+            quantity: { increment: adjustment },
+            ...(adjustment > 0 ? { lastRestockAt: new Date() } : {}),
+          },
+        })
+        if (updated.count === 0) {
+          throw new RecordStockError("Stock cannot go below zero")
+        }
+        const after = await tx.productInventory.findUnique({
+          where: { id: inventory.id },
+          select: { quantity: true },
+        })
+        const quantityAfter = after?.quantity ?? 0
+        await tx.inventoryTransaction.create({
+          data: {
+            productId,
+            locationId: inventory.locationId,
+            type: adjustment > 0 ? "restock" : "adjustment",
+            quantityChange: adjustment,
+            quantityAfter,
+            notes: reason,
+          },
+        })
+        return quantityAfter
+      })
+      void newQty
+    } catch (e) {
+      if (e instanceof RecordStockError) return { success: false, error: e.message }
+      throw e
+    }
 
     revalidatePath("/inventory")
     return { success: true, data: undefined }

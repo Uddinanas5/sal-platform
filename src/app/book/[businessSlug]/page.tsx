@@ -4,6 +4,7 @@ import { AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { BookingPageClient } from "./client"
 import { getPublicBookingSettings } from "@/lib/actions/booking-settings"
+import { getOnlinePresenceSettings } from "@/lib/actions/settings"
 import { getPublicBookingStaff } from "@/lib/queries/public-booking"
 import type { Metadata } from "next"
 
@@ -119,9 +120,9 @@ export default async function PublicBookingPage({
 
   // Fan out the remaining reads in parallel — they share the same DB, so any
   // infra failure across the lot collapses to one unavailable render.
-  let bookingSettings, primaryLocation, dbBusinessHours, dbServices, staff
+  let bookingSettings, primaryLocation, dbBusinessHours, dbServices, staff, onlinePresence
   try {
-    ;[bookingSettings, primaryLocation, dbBusinessHours, dbServices, staff] = await Promise.all([
+    ;[bookingSettings, primaryLocation, dbBusinessHours, dbServices, staff, onlinePresence] = await Promise.all([
       getPublicBookingSettings(business.id),
       prisma.location.findFirst({
         where: { businessId: business.id, isPrimary: true, deletedAt: null },
@@ -139,6 +140,7 @@ export default async function PublicBookingPage({
         orderBy: { sortOrder: "asc" },
       }),
       getPublicBookingStaff(business.id),
+      getOnlinePresenceSettings(business.id),
     ])
   } catch (error) {
     if (isConnectionError(error)) {
@@ -191,6 +193,7 @@ export default async function PublicBookingPage({
       businessHours={businessHours}
       maxAdvanceBooking={bookingSettings.maxAdvanceBooking}
       timezone={timezone}
+      socialLinks={onlinePresence.socialLinks}
     />
   )
 }

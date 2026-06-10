@@ -1,17 +1,13 @@
 "use client"
 
-import React, { useState } from "react"
+import React from "react"
 import { motion } from "framer-motion"
 import {
   Mail,
   MessageSquare,
   BellRing,
-  Save,
   Info,
 } from "lucide-react"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,7 +17,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { updateNotificationSettings } from "@/lib/actions/settings"
 import type { NotificationSettings } from "@/lib/actions/settings"
 
 function SettingRow({
@@ -94,13 +89,6 @@ See you next time!
 {salon_name} Team`,
 }
 
-const defaultSmsTemplates: NotificationSettings["smsTemplates"] = {
-  bookingConfirmation: `Hi {client_name}! Your {service_name} appointment is confirmed for {date} at {time} with {staff_name}. See you at {salon_name}!`,
-  appointmentReminder: `Reminder: {client_name}, you have a {service_name} appointment tomorrow at {time} with {staff_name} at {salon_name}. Reply C to cancel.`,
-  cancellationNotice: `Hi {client_name}, your {service_name} appointment on {date} at {time} has been cancelled. Visit us to rebook! - {salon_name}`,
-  followUp: `Hi {client_name}! Thanks for visiting {salon_name}. How was your {service_name}? We'd love your feedback! Reply to rate 1-5.`,
-}
-
 const defaultInternalAlerts: NotificationSettings["internalAlerts"] = {
   newBooking: true,
   cancellation: true,
@@ -113,38 +101,11 @@ interface NotificationsSettingsTabProps {
 }
 
 export function NotificationsSettingsTab({ initialSettings }: NotificationsSettingsTabProps) {
-  const [emailTemplates, setEmailTemplates] = useState(
-    initialSettings?.emailTemplates ?? defaultEmailTemplates
-  )
-  const smsTemplates = initialSettings?.smsTemplates ?? defaultSmsTemplates
-  const [internalAlerts, setInternalAlerts] = useState(
-    initialSettings?.internalAlerts ?? defaultInternalAlerts
-  )
-  const [isSaving, setIsSaving] = useState(false)
-
-  const handleSave = async () => {
-    setIsSaving(true)
-    const result = await updateNotificationSettings({
-      emailTemplates,
-      smsTemplates,
-      internalAlerts,
-    })
-    if (result.success) {
-      toast.success("Notification settings saved successfully")
-    } else {
-      toast.error(`Failed to save notification settings: ${result.error}`)
-    }
-    setIsSaving(false)
-  }
-
-  const mergeFields = [
-    "{client_name}",
-    "{service_name}",
-    "{date}",
-    "{time}",
-    "{staff_name}",
-    "{salon_name}",
-  ]
+  // Templates and internal alerts are read-only for now (see "coming soon"
+  // notices below). We display the current/default values without allowing
+  // edits, because no send path consumes settings-level customizations yet.
+  const emailTemplates = initialSettings?.emailTemplates ?? defaultEmailTemplates
+  const internalAlerts = initialSettings?.internalAlerts ?? defaultInternalAlerts
 
   return (
     <div className="grid gap-6 max-w-4xl">
@@ -160,25 +121,19 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
               Email Notifications
             </CardTitle>
             <CardDescription>
-              Customize email templates sent to your clients
+              Booking confirmations and cancellation emails are sent automatically using our standard templates.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-sal-50 border border-sal-200">
-              <Info className="w-4 h-4 text-sal-600 mt-0.5 shrink-0" />
-              <div className="text-sm text-sal-700">
-                <p className="font-medium mb-1">Available Merge Fields</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {mergeFields.map((field) => (
-                    <Badge
-                      key={field}
-                      variant="secondary"
-                      className="font-mono text-xs bg-white"
-                    >
-                      {field}
-                    </Badge>
-                  ))}
-                </div>
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <Info className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="text-sm text-amber-800">
+                <p className="font-medium mb-1">Custom email templates — coming soon</p>
+                <p>
+                  You&apos;ll be able to fully customize the wording of each client
+                  email here. For now, the system sends a polished default
+                  template for each event below.
+                </p>
               </div>
             </div>
 
@@ -190,14 +145,10 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
                 <AccordionContent>
                   <Textarea
                     value={emailTemplates.bookingConfirmation}
-                    onChange={(e) =>
-                      setEmailTemplates({
-                        ...emailTemplates,
-                        bookingConfirmation: e.target.value,
-                      })
-                    }
                     rows={10}
-                    className="font-mono text-sm"
+                    readOnly
+                    disabled
+                    className="font-mono text-sm opacity-70"
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -209,14 +160,10 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
                 <AccordionContent>
                   <Textarea
                     value={emailTemplates.appointmentReminder}
-                    onChange={(e) =>
-                      setEmailTemplates({
-                        ...emailTemplates,
-                        appointmentReminder: e.target.value,
-                      })
-                    }
                     rows={10}
-                    className="font-mono text-sm"
+                    readOnly
+                    disabled
+                    className="font-mono text-sm opacity-70"
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -228,14 +175,10 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
                 <AccordionContent>
                   <Textarea
                     value={emailTemplates.cancellationNotice}
-                    onChange={(e) =>
-                      setEmailTemplates({
-                        ...emailTemplates,
-                        cancellationNotice: e.target.value,
-                      })
-                    }
                     rows={10}
-                    className="font-mono text-sm"
+                    readOnly
+                    disabled
+                    className="font-mono text-sm opacity-70"
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -247,14 +190,10 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
                 <AccordionContent>
                   <Textarea
                     value={emailTemplates.followUp}
-                    onChange={(e) =>
-                      setEmailTemplates({
-                        ...emailTemplates,
-                        followUp: e.target.value,
-                      })
-                    }
                     rows={8}
-                    className="font-mono text-sm"
+                    readOnly
+                    disabled
+                    className="font-mono text-sm opacity-70"
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -304,60 +243,44 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-1">
+            <div className="flex items-start gap-2 p-3 mb-2 rounded-lg bg-amber-50 border border-amber-200">
+              <Info className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="text-sm text-amber-800">
+                <p className="font-medium mb-1">Coming soon</p>
+                <p>
+                  Configurable team alerts and the daily summary email are on the
+                  way. In the meantime, new bookings, payments and low-stock items
+                  show up live in your notification bell.
+                </p>
+              </div>
+            </div>
             <SettingRow
               label="New Booking Alert"
               description="Get notified when a new appointment is booked"
             >
-              <Switch
-                checked={internalAlerts.newBooking}
-                onCheckedChange={(v) =>
-                  setInternalAlerts({ ...internalAlerts, newBooking: v })
-                }
-              />
+              <Switch checked={internalAlerts.newBooking} disabled />
             </SettingRow>
             <SettingRow
               label="Cancellation Alert"
               description="Get notified when an appointment is cancelled"
             >
-              <Switch
-                checked={internalAlerts.cancellation}
-                onCheckedChange={(v) =>
-                  setInternalAlerts({ ...internalAlerts, cancellation: v })
-                }
-              />
+              <Switch checked={internalAlerts.cancellation} disabled />
             </SettingRow>
             <SettingRow
               label="Low Inventory Alert"
               description="Get notified when product inventory is running low"
             >
-              <Switch
-                checked={internalAlerts.lowInventory}
-                onCheckedChange={(v) =>
-                  setInternalAlerts({ ...internalAlerts, lowInventory: v })
-                }
-              />
+              <Switch checked={internalAlerts.lowInventory} disabled />
             </SettingRow>
             <SettingRow
               label="Daily Summary Email"
               description="Receive a daily summary of appointments and revenue"
             >
-              <Switch
-                checked={internalAlerts.dailySummary}
-                onCheckedChange={(v) =>
-                  setInternalAlerts({ ...internalAlerts, dailySummary: v })
-                }
-              />
+              <Switch checked={internalAlerts.dailySummary} disabled />
             </SettingRow>
           </CardContent>
         </Card>
       </motion.div>
-
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={isSaving}>
-          <Save className="w-4 h-4 mr-2" />
-          {isSaving ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
     </div>
   )
 }

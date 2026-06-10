@@ -486,6 +486,7 @@ export function ClientsClient(props: ClientsClientProps) {
   const [newClientNotes, setNewClientNotes] = useState("")
   const [newClientAllergies, setNewClientAllergies] = useState("")
   const [addClientErrors, setAddClientErrors] = useState<{ name?: string; email?: string }>({})
+  const [isAddingClient, setIsAddingClient] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null)
 
   // Sort state
@@ -542,7 +543,7 @@ export function ClientsClient(props: ClientsClientProps) {
       const matchesFilter =
         selectedFilter === "all" ||
         (selectedFilter === "vip" && client.tags?.includes("VIP")) ||
-        (selectedFilter === "new" && client.tags?.includes("New"))
+        (selectedFilter === "new" && client.totalVisits <= 1)
       return matchesSearch && matchesFilter
     })
 
@@ -604,7 +605,7 @@ export function ClientsClient(props: ClientsClientProps) {
             { label: "Total Clients", value: totalClients, icon: UserPlus },
             { label: "VIP Clients", value: vipClients, icon: Star },
             { label: "Total Revenue", value: formatCurrency(totalRevenue), icon: DollarSign },
-            { label: "Avg. per Client", value: formatCurrency(totalRevenue / totalClients), icon: DollarSign },
+            { label: "Avg. per Client", value: totalClients > 0 ? formatCurrency(totalRevenue / totalClients) : formatCurrency(0), icon: DollarSign },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -682,6 +683,7 @@ export function ClientsClient(props: ClientsClientProps) {
                 setNewClientEmail("")
                 setNewClientPhone("")
                 setNewClientNotes("")
+                setNewClientAllergies("")
                 setAddClientErrors({})
               }
             }}>
@@ -757,8 +759,9 @@ export function ClientsClient(props: ClientsClientProps) {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsAddClientOpen(false)}>Cancel</Button>
-                  <Button onClick={async () => {
+                  <Button variant="outline" onClick={() => setIsAddClientOpen(false)} disabled={isAddingClient}>Cancel</Button>
+                  <Button disabled={isAddingClient} onClick={async () => {
+                    if (isAddingClient) return
                     const errors: { name?: string; email?: string } = {}
                     if (!newClientName.trim()) errors.name = "Name is required"
                     if (!newClientEmail.trim()) {
@@ -773,28 +776,33 @@ export function ClientsClient(props: ClientsClientProps) {
                     const nameParts = newClientName.trim().split(" ")
                     const firstName = nameParts[0]
                     const lastName = nameParts.slice(1).join(" ") || ""
-                    const result = await createClient({
-                      firstName,
-                      lastName,
-                      email: newClientEmail.trim() || undefined,
-                      phone: newClientPhone.trim() || undefined,
-                      notes: newClientNotes.trim() || undefined,
-                      allergies: newClientAllergies.trim() || undefined,
-                    })
-                    if (result.success) {
-                      toast.success(`Client "${newClientName.trim()}" added successfully`)
-                      setIsAddClientOpen(false)
-                      setNewClientName("")
-                      setNewClientEmail("")
-                      setNewClientPhone("")
-                      setNewClientNotes("")
-                      setNewClientAllergies("")
-                      setAddClientErrors({})
-                      router.refresh()
-                    } else {
-                      toast.error(result.error)
+                    setIsAddingClient(true)
+                    try {
+                      const result = await createClient({
+                        firstName,
+                        lastName,
+                        email: newClientEmail.trim() || undefined,
+                        phone: newClientPhone.trim() || undefined,
+                        notes: newClientNotes.trim() || undefined,
+                        allergies: newClientAllergies.trim() || undefined,
+                      })
+                      if (result.success) {
+                        toast.success(`Client "${newClientName.trim()}" added successfully`)
+                        setIsAddClientOpen(false)
+                        setNewClientName("")
+                        setNewClientEmail("")
+                        setNewClientPhone("")
+                        setNewClientNotes("")
+                        setNewClientAllergies("")
+                        setAddClientErrors({})
+                        router.refresh()
+                      } else {
+                        toast.error(result.error)
+                      }
+                    } finally {
+                      setIsAddingClient(false)
                     }
-                  }}>Add Client</Button>
+                  }}>{isAddingClient ? "Adding..." : "Add Client"}</Button>
                 </div>
               </DialogContent>
             </Dialog>

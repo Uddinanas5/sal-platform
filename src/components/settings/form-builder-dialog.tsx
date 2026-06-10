@@ -400,10 +400,13 @@ export function FormBuilderDialog({
                     Form Settings
                   </Label>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between opacity-60">
                       <div className="space-y-0.5">
-                        <Label htmlFor="auto-send" className="cursor-pointer">
-                          Auto-send to clients
+                        <Label htmlFor="auto-send" className="cursor-not-allowed">
+                          Auto-send to clients{" "}
+                          <span className="text-xs text-muted-foreground font-normal">
+                            (Coming soon)
+                          </span>
                         </Label>
                         <p className="text-xs text-muted-foreground">
                           Automatically send this form when an appointment is booked
@@ -413,12 +416,16 @@ export function FormBuilderDialog({
                         id="auto-send"
                         checked={isAutoSend}
                         onCheckedChange={setIsAutoSend}
+                        disabled
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between opacity-60">
                       <div className="space-y-0.5">
-                        <Label htmlFor="required-form" className="cursor-pointer">
-                          Required before appointment
+                        <Label htmlFor="required-form" className="cursor-not-allowed">
+                          Required before appointment{" "}
+                          <span className="text-xs text-muted-foreground font-normal">
+                            (Coming soon)
+                          </span>
                         </Label>
                         <p className="text-xs text-muted-foreground">
                           Client must complete this form before their appointment
@@ -428,6 +435,7 @@ export function FormBuilderDialog({
                         id="required-form"
                         checked={isRequired}
                         onCheckedChange={setIsRequired}
+                        disabled
                       />
                     </div>
                   </div>

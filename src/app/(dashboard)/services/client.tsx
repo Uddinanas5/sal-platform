@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
 import {
@@ -88,15 +88,25 @@ function ServiceCard({
   index: number
   onClick: () => void
   onDelete: (service: Service) => void
-  onToggleActive: (serviceId: string, currentActive: boolean) => void
+  onToggleActive: (serviceId: string, currentActive: boolean) => Promise<boolean>
   readOnly?: boolean
 }) {
   const [isActive, setIsActive] = useState(service.isActive)
 
+  // Keep the optimistic local state in sync with the server-truthful prop after
+  // router.refresh() re-fetches services.
+  useEffect(() => {
+    setIsActive(service.isActive)
+  }, [service.isActive])
+
   const handleToggle = async () => {
-    const newActive = !isActive
+    const previous = isActive
+    const newActive = !previous
+    // Optimistic flip, then revert if the server action fails so the card never
+    // shows a state the database doesn't actually hold.
     setIsActive(newActive)
-    onToggleActive(service.id, isActive)
+    const ok = await onToggleActive(service.id, previous)
+    if (!ok) setIsActive(previous)
   }
 
   return (
@@ -255,13 +265,15 @@ export function ServicesClient(props: ServicesClientProps) {
     setSheetOpen(true)
   }
 
-  const handleToggleActive = async (serviceId: string, currentActive: boolean) => {
+  const handleToggleActive = async (serviceId: string, currentActive: boolean): Promise<boolean> => {
     const result = await toggleServiceActive(serviceId)
     if (result.success) {
       toast.success(`Service ${currentActive ? "deactivated" : "activated"}`)
       router.refresh()
+      return true
     } else {
       toast.error(result.error)
+      return false
     }
   }
 

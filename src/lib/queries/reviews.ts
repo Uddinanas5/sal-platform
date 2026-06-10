@@ -49,7 +49,9 @@ export async function getReviews(filter?: "all" | "needs-reply", businessId?: st
     date: r.createdAt,
     response: r.response || undefined,
     responseDate: r.respondedAt || undefined,
-    source: "Google" as const,
+    // All reviews originate from SAL's own signed review-token flow (the public
+    // review page), not Google/Yelp — there is no third-party integration.
+    source: "Website" as const,
     isPublished: r.isPublic,
   }))
 }

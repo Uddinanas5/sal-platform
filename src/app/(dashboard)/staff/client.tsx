@@ -70,7 +70,11 @@ interface StaffClientProps {
 }
 
 function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; index: number; onDelete: (staff: Staff) => void; allServices: Service[] }) {
-  const [isActive, setIsActive] = useState(staff.isActive)
+  // Active state is derived straight from props — there is no server action to
+  // persist an active/inactive toggle, so the Switch below is disabled
+  // ("Coming soon") rather than flipping local-only state that silently reverts
+  // on reload.
+  const isActive = staff.isActive
   const roleInfo = roleConfig[staff.role]
   const RoleIcon = roleInfo.icon
 
@@ -165,8 +169,8 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
                 </Badge>
               </div>
             </div>
-            <div onClick={(e) => e.preventDefault()}>
-              <Switch checked={isActive} onCheckedChange={setIsActive} />
+            <div onClick={(e) => e.preventDefault()} title="Activate/deactivate coming soon">
+              <Switch checked={isActive} disabled aria-label="Active (coming soon)" />
             </div>
           </div>
 
@@ -312,7 +316,7 @@ export function StaffClient(props: StaffClientProps) {
             { label: "Total Staff", value: totalStaff },
             { label: "Active Staff", value: activeStaff },
             { label: "Admins", value: props.initialStaff.filter((s) => s.role === "admin").length },
-            { label: "Avg. Services", value: Math.round(props.initialStaff.reduce((sum, s) => sum + s.services.length, 0) / totalStaff) },
+            { label: "Avg. Services", value: totalStaff > 0 ? Math.round(props.initialStaff.reduce((sum, s) => sum + s.services.length, 0) / totalStaff) : 0 },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}

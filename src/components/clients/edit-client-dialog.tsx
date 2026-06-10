@@ -31,11 +31,6 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
   const [name, setName] = useState(client.name)
   const [email, setEmail] = useState(client.email)
   const [phone, setPhone] = useState(client.phone)
-  const [dateOfBirth, setDateOfBirth] = useState(
-    client.dateOfBirth
-      ? client.dateOfBirth.toISOString().split("T")[0]
-      : ""
-  )
   const [notes, setNotes] = useState(client.notes || "")
   const [allergies, setAllergies] = useState(client.allergies || "")
   const [tags, setTags] = useState<string[]>(client.tags || [])
@@ -100,11 +95,6 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
     setName(client.name)
     setEmail(client.email)
     setPhone(client.phone)
-    setDateOfBirth(
-      client.dateOfBirth
-        ? client.dateOfBirth.toISOString().split("T")[0]
-        : ""
-    )
     setNotes(client.notes || "")
     setAllergies(client.allergies || "")
     setTags(client.tags || [])
@@ -148,15 +138,6 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone number"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Date of Birth</label>
-            <Input
-              type="date"
-              value={dateOfBirth}
-              onChange={(e) => setDateOfBirth(e.target.value)}
             />
           </div>
 

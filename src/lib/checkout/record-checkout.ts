@@ -596,12 +596,36 @@ export async function recordCheckout(
 
     const inv = await tx.productInventory.findFirst({
       where: { productId: item.id, product: { businessId } },
+      select: { id: true, locationId: true },
     })
     if (inv) {
-      await tx.productInventory.update({
-        where: { id: inv.id },
+      // Guarded atomic decrement with a zero floor: only decrement if enough
+      // stock remains, so concurrent sales can't drive quantity negative. Record
+      // an InventoryTransaction 'sale' row so the ledger keeps reconciling with
+      // ProductInventory.quantity (the whole point of the ledger).
+      const dec = await tx.productInventory.updateMany({
+        where: { id: inv.id, quantity: { gte: item.quantity } },
         data: { quantity: { decrement: item.quantity } },
       })
+      if (dec.count > 0) {
+        const after = await tx.productInventory.findUnique({
+          where: { id: inv.id },
+          select: { quantity: true },
+        })
+        await tx.inventoryTransaction.create({
+          data: {
+            productId: item.id,
+            locationId: inv.locationId,
+            type: "sale",
+            quantityChange: -item.quantity,
+            quantityAfter: after?.quantity ?? 0,
+            notes: `Sold at checkout (payment ${payment.paymentReference})`,
+          },
+        })
+      }
+      // If dec.count === 0 the product is out of stock; the sale still completes
+      // (service businesses routinely sell display/last items) but we don't push
+      // the counter negative or write a misleading ledger row.
     }
   }
 
