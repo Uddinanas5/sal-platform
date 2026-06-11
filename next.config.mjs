@@ -1,5 +1,6 @@
 import path from "path"
 import { fileURLToPath } from "url"
+import { withSentryConfig } from "@sentry/nextjs"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -56,7 +57,20 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ["@prisma/adapter-pg"],
+    // Required on Next 14.2 to load instrumentation.ts (Sentry init per runtime).
+    instrumentationHook: true,
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  org: "meetsalai",
+  project: "javascript-nextjs",
+  // Quiet build logs unless in CI; only uploads source maps when SENTRY_AUTH_TOKEN
+  // is present (otherwise it's skipped — errors still report, just less symbolicated).
+  silent: !process.env.CI,
+  // Same-origin tunnel so the strict CSP/adblockers don't drop client errors.
+  tunnelRoute: "/monitoring",
+  widenClientFileUpload: true,
+  // Don't fail the build if Sentry's source-map upload has no auth token.
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+})

@@ -39,6 +39,9 @@ const publicRoutes = [
   /^\/.well-known\/.*/,
   /^\/api\/oauth\/.*/,
   /^\/api\/v1\/.*/,
+  // Sentry tunnel (next.config tunnelRoute) — client error envelopes POST here
+  // same-origin so the strict CSP/adblockers don't drop them. Must stay public.
+  /^\/monitoring(\/.*)?$/,
   /^\/oauth\/authorize$/,
   // Stripe calls this server-to-server with no session — authenticated by signature verification in the route
   /^\/api\/stripe\/webhook$/,
