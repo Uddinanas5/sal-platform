@@ -21,6 +21,7 @@
     "check:invariants": "node scripts/check-invariants.mjs",
     "check:fake-success": "node scripts/check-fake-success.mjs",
     "test:all": "node scripts/test-all.mjs",
+    "test:golden": "tsx scripts/golden-path.mts",
     "trust": "node scripts/trust-report.mjs",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "stripe:trigger": "stripe trigger"
