@@ -46,7 +46,7 @@ export function StarRating({ rating, size = "md", showValue = false }: StarRatin
                   style={{ width: filled ? "100%" : "50%" }}
                 >
                   <Star
-                    className={cn(iconSize, "text-amber-400 fill-amber-400")}
+                    className={cn(iconSize, "text-amber-300 fill-amber-300")}
                   />
                 </div>
               )}

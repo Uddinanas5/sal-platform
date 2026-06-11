@@ -4,48 +4,78 @@
 
 @layer base {
   :root {
-    --background: 50 20% 96%;
-    --foreground: 160 30% 8%;
-    --card: 0 0% 100%;
-    --card-foreground: 160 30% 8%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 160 30% 8%;
-    --primary: 160 97% 30%;
+    /* ---- Frost theme (single theme — .dark mirrors these so a cached
+       `dark` class is a no-op) ---- */
+    --background: 162 65% 7%;
+    --foreground: 0 0% 100%;
+    --card: 160 28% 11%;
+    --card-foreground: 0 0% 100%;
+    --popover: 161 38% 9%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 163 94% 30%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 50 12% 93%;
-    --secondary-foreground: 160 30% 8%;
-    --muted: 50 12% 93%;
-    --muted-foreground: 160 5% 46%;
-    --accent: 50 12% 93%;
-    --accent-foreground: 160 30% 8%;
-    --destructive: 0 84% 60%;
+    --secondary: 160 24% 16%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 160 22% 15%;
+    --muted-foreground: 156 16% 77%;
+    --accent: 160 26% 19%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
-    --border: 50 10% 88%;
-    --input: 50 10% 88%;
-    --ring: 160 97% 30%;
+    --border: 0 0% 100% / 0.14;
+    --input: 0 0% 100% / 0.16;
+    --ring: 155 75% 61%;
     --radius: 0.75rem;
+
+    /* ---- Frost design tokens ---- */
+    --ink: #ffffff;
+    --ink-soft: rgba(255, 255, 255, 0.74);
+    --ink-faint: rgba(255, 255, 255, 0.48);
+    --mint: #4fe6a6;
+    --mint-rgb: 79 230 166;
+    --hairline: rgba(255, 255, 255, 0.14);
+    --hairline-top: rgba(255, 255, 255, 0.34);
+    --r-panel: 1.625rem;
+    --r-tile: 1.0625rem;
+
+    /* ---- Appointment status (rgb triplets for alpha composition) ---- */
+    --status-pending: 96 165 250;
+    --status-confirmed: 167 139 250;
+    --status-arrived: 251 191 36;
+    --status-progress: 79 230 166;
+    --status-completed: 255 255 255;
+    --status-cancelled: 248 113 113;
+    --status-noshow: 248 113 113;
+
+    /* ---- Chart palette (mirrored in chart-theme.ts) ---- */
+    --chart-1: #4fe6a6;
+    --chart-2: #7cd4fd;
+    --chart-3: #c4b5fd;
+    --chart-4: #fcd34d;
+    --chart-5: #fda4af;
+    --chart-6: #5eead4;
   }
 
   .dark {
-    --background: 160 30% 4%;
-    --foreground: 50 20% 98%;
-    --card: 160 25% 7%;
-    --card-foreground: 50 20% 98%;
-    --popover: 160 25% 7%;
-    --popover-foreground: 50 20% 98%;
-    --primary: 160 97% 30%;
+    --background: 162 65% 7%;
+    --foreground: 0 0% 100%;
+    --card: 160 28% 11%;
+    --card-foreground: 0 0% 100%;
+    --popover: 161 38% 9%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 163 94% 30%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 160 20% 14%;
-    --secondary-foreground: 50 20% 98%;
-    --muted: 160 20% 14%;
-    --muted-foreground: 160 8% 60%;
-    --accent: 160 20% 14%;
-    --accent-foreground: 50 20% 98%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 50 20% 98%;
-    --border: 160 20% 14%;
-    --input: 160 20% 14%;
-    --ring: 160 97% 30%;
+    --secondary: 160 24% 16%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 160 22% 15%;
+    --muted-foreground: 156 16% 77%;
+    --accent: 160 26% 19%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 100% / 0.14;
+    --input: 0 0% 100% / 0.16;
+    --ring: 155 75% 61%;
   }
 }
 
@@ -75,26 +105,175 @@
 }
 
 @layer components {
-  /* The dashboard canvas — a warm cream wash lifted with two barely-there
-     emerald light sources so content sits on atmosphere, not flat paint. */
+  /* ===== The environment — deep emerald room behind all glass.
+     Lives on a position:fixed pseudo-element (NOT background-attachment:fixed,
+     which is broken on iOS Safari). ===== */
+  .env-canvas,
   .app-canvas {
-    background-color: hsl(var(--background));
-    background-image:
-      radial-gradient(120% 80% at 100% 0%, rgba(5, 150, 105, 0.06), transparent 55%),
-      radial-gradient(90% 70% at 0% 0%, rgba(110, 231, 183, 0.07), transparent 50%);
-    background-attachment: fixed;
+    position: relative;
+    background-color: #062318; /* paint-before-gradient flash guard */
   }
-  .dark .app-canvas {
-    background-image:
-      radial-gradient(120% 80% at 100% 0%, rgba(5, 150, 105, 0.10), transparent 55%),
-      radial-gradient(90% 70% at 0% 0%, rgba(6, 95, 70, 0.18), transparent 50%);
+  .env-canvas::before,
+  .app-canvas::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(135% 120% at 50% 36%, transparent 44%, rgba(2, 17, 11, 0.55) 78%, rgba(1, 13, 8, 0.82) 100%),
+      linear-gradient(112deg, transparent 30%, rgba(178, 255, 219, 0.04) 41%, rgba(205, 255, 231, 0.075) 47%, rgba(178, 255, 219, 0.038) 54%, transparent 65%),
+      radial-gradient(58% 48% at 21% 10%, #2fa06f 0%, transparent 56%),
+      radial-gradient(46% 54% at 89% 20%, #35aa7b 0%, transparent 52%),
+      radial-gradient(38% 40% at 58% 6%, #4dbc8c 0%, transparent 46%),
+      radial-gradient(30% 26% at 42% 30%, #2a8f63 0%, transparent 60%),
+      radial-gradient(66% 64% at 76% 106%, #072d1d 0%, transparent 62%),
+      radial-gradient(52% 52% at 6% 92%, #052317 0%, transparent 56%),
+      linear-gradient(158deg, #1f7e58 0%, #0f5038 46%, #062318 100%);
+  }
+  /* Lighter static environment for public booking + auth (short pages,
+     conversion traffic — no fixed layer, no grain) */
+  .env-canvas-lite {
+    background:
+      radial-gradient(70% 50% at 50% 0%, #2fa06f 0%, transparent 60%),
+      linear-gradient(158deg, #1f7e58 0%, #0f5038 46%, #062318 100%);
+  }
+  /* Film grain — desktop only */
+  @media (min-width: 769px) {
+    .env-grain::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.05;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
   }
 
-  /* Frosted surface for sticky bars and floating panels */
+  /* ===== TIER 1: real frosted glass — bounded count per screen
+     (sidebar, header, cards, dialogs, sheets) ===== */
+  .glass-panel {
+    position: relative;
+    background:
+      radial-gradient(140% 90% at 12% -8%, rgba(255, 255, 255, 0.10), transparent 42%),
+      linear-gradient(152deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 42%, rgba(255, 255, 255, 0.025) 72%, rgba(255, 255, 255, 0.08) 100%);
+    backdrop-filter: blur(44px) saturate(180%);
+    -webkit-backdrop-filter: blur(44px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-top-color: var(--hairline-top);
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -22px 42px -30px rgba(1, 14, 8, 0.55),
+      0 24px 48px -24px rgba(0, 9, 5, 0.55),
+      0 8px 20px -12px rgba(0, 9, 5, 0.40);
+  }
+  /* Nested panels never double-blur (Card inside Dialog etc.) */
+  .glass-panel .glass-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.04) 60%, rgba(255, 255, 255, 0.07));
+  }
+  /* Capped blur for conversion-critical public pages */
+  .glass-panel-lite {
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass-panel {
+      background: rgba(12, 42, 30, 0.94);
+    }
+  }
+
+  /* Opt-in partial top-edge specular (don't put on overflow-hidden hosts) */
+  .glass-glint::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 14%;
+    width: 36%;
+    height: 1px;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.9;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92) 28%, rgba(255, 255, 255, 0.34) 56%, rgba(255, 255, 255, 0.70) 76%, transparent);
+    box-shadow: 0 0 9px rgba(255, 255, 255, 0.35);
+  }
+
+  /* ===== TIER 2: glass look WITHOUT backdrop-filter — unlimited count
+     (appointment blocks, rows, chips, chart frames) ===== */
+  .glass-tile {
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05) 56%, rgba(255, 255, 255, 0.085) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-top-color: rgba(255, 255, 255, 0.30);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.32),
+      inset 0 -10px 18px -14px rgba(1, 14, 8, 0.35),
+      0 8px 18px -12px rgba(0, 9, 5, 0.40);
+  }
+  .glass-pill {
+    border-radius: 9999px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+    border: 1px solid rgba(255, 255, 255, 0.17);
+    border-top-color: rgba(255, 255, 255, 0.32);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 4px 10px -6px rgba(0, 9, 5, 0.40);
+  }
+
+  /* ===== Portal'd menus: medium blur on a darker base for AA over
+     arbitrary content ===== */
+  .glass-popover {
+    background: rgba(10, 42, 30, 0.88);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-top-color: rgba(255, 255, 255, 0.30);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 18px 40px -18px rgba(0, 9, 5, 0.65);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .glass-popover {
+      background: rgba(9, 36, 26, 0.97);
+    }
+  }
+
+  /* Status LEDs + fading hairline divider */
+  .led {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.45);
+    box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.07);
+    flex-shrink: 0;
+  }
+  .led-mint {
+    background: var(--mint);
+    box-shadow: 0 0 0 2.5px rgba(var(--mint-rgb) / 0.16), 0 0 9px 1px rgba(var(--mint-rgb) / 0.75);
+  }
+  .hairline-fade {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(90deg, transparent, var(--hairline) 14%, var(--hairline) 86%, transparent);
+  }
+
+  /* Hero typography directly on the environment */
+  .hero-title {
+    font-family: var(--font-sora), var(--font-dm-sans), system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    text-shadow: 0 2px 34px rgba(0, 0, 0, 0.26);
+  }
+  .hero-sub {
+    color: var(--ink-soft);
+    text-shadow: 0 1px 18px rgba(0, 0, 0, 0.20);
+  }
+
+  /* Frosted surface for sticky bars (header restyles with zero TSX change) */
   .surface-glass {
-    background-color: hsl(var(--card) / 0.72);
-    backdrop-filter: saturate(180%) blur(12px);
-    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    background-color: rgba(8, 33, 24, 0.55);
+    backdrop-filter: saturate(170%) blur(28px);
+    -webkit-backdrop-filter: saturate(170%) blur(28px);
+    border-bottom: 1px solid var(--hairline);
   }
 }
 
@@ -109,19 +288,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-cream-300 rounded-full;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-cream-400;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  @apply bg-gray-700;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-600;
+  background: rgba(255, 255, 255, 0.28);
 }
 
 /* Calendar grid styles */
@@ -142,16 +314,16 @@
 
 .appointment-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 9, 5, 0.35);
 }
 
-/* Warm card glow on hover */
+/* Card glow on hover */
 .card-warm {
   transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
 }
 .card-warm:hover {
-  box-shadow: 0 2px 4px rgba(16, 64, 48, 0.04), 0 16px 40px -12px rgba(16, 64, 48, 0.18);
-  border-color: rgba(5, 150, 105, 0.22);
+  box-shadow: 0 2px 4px rgba(0, 9, 5, 0.25), 0 16px 40px -12px rgba(0, 9, 5, 0.50);
+  border-color: rgba(var(--mint-rgb) / 0.30);
 }
 
 /* Hide scrollbar utility */
@@ -161,6 +333,38 @@
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+/* Print: receipts + report exports must print light, not as black pages */
+@media print {
+  .env-canvas::before,
+  .app-canvas::before,
+  .env-grain::after {
+    display: none;
+  }
+  body,
+  .env-canvas,
+  .app-canvas,
+  .env-canvas-lite {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .glass-panel,
+  .glass-tile,
+  .glass-pill,
+  .glass-popover,
+  .surface-glass {
+    background: #fff !important;
+    border-color: #ddd !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: #000 !important;
+  }
+  * {
+    color: #000 !important;
+    text-shadow: none !important;
+  }
 }
 
 /* Mobile touch target improvements */
@@ -174,13 +378,13 @@
     min-height: 44px;
     min-width: 44px;
   }
-  
+
   /* Make navigation links more tappable */
   nav a,
   nav button {
     padding: 12px 16px;
   }
-  
+
   /* Larger form inputs on mobile */
   input,
   select,

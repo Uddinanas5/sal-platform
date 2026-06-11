@@ -105,7 +105,7 @@ const columns: ColumnDef<AppointmentRow>[] = [
       </Button>
     ),
     cell: ({ row }) => (
-      <span className="font-medium text-sm text-sal-600">
+      <span className="font-medium text-sm text-mint">
         {formatCurrency(row.getValue("price"))}
       </span>
     ),

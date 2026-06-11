@@ -122,28 +122,28 @@ export function StaffPerformanceTab({ staff, appointments, services, staffPerfor
       label: "Total Appointments",
       value: performance?.appointments ?? appointments.length,
       icon: CalendarDays,
-      color: "text-blue-600 dark:text-blue-400",
+      color: "text-blue-400",
       bg: "bg-blue-500/10",
     },
     {
       label: "Revenue Generated",
       value: formatCurrency(performance?.revenue ?? totalRevenue),
       icon: DollarSign,
-      color: "text-sal-600",
+      color: "text-mint",
       bg: "bg-sal-100",
     },
     {
       label: "Avg Rating",
       value: performance?.rating != null ? performance.rating : "—",
       icon: Star,
-      color: "text-amber-600 dark:text-amber-400",
+      color: "text-amber-400",
       bg: "bg-amber-500/10",
     },
     {
       label: "Commission Earned",
       value: formatCurrency(performance?.commission ?? commissionEarned),
       icon: TrendingUp,
-      color: "text-purple-600 dark:text-purple-400",
+      color: "text-purple-400",
       bg: "bg-purple-500/10",
     },
   ]
@@ -161,7 +161,7 @@ export function StaffPerformanceTab({ staff, appointments, services, staffPerfor
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card>
+              <Card variant="tile">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div

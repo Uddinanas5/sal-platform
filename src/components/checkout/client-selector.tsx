@@ -66,10 +66,10 @@ export function ClientSelector({
   if (clientId && clientName) {
     const selectedClient = clients.find((c) => c.id === clientId)
     return (
-      <div className="flex items-center gap-3 rounded-lg border bg-sal-50/50 p-3">
+      <div className="flex items-center gap-3 rounded-lg border bg-sal-50 p-3">
         <Avatar className="h-10 w-10">
           <AvatarImage src={selectedClient?.avatar} />
-          <AvatarFallback className="bg-sal-100 text-sal-700 text-sm font-medium">
+          <AvatarFallback className="bg-sal-100 text-mint-soft text-sm font-medium">
             {getInitials(clientName)}
           </AvatarFallback>
         </Avatar>
@@ -100,8 +100,8 @@ export function ClientSelector({
     <div ref={containerRef} className="relative">
       <div
         className={cn(
-          "flex items-center gap-2 rounded-lg border bg-background px-3 py-2 cursor-pointer transition-colors",
-          isOpen && "ring-2 ring-sal-500 border-sal-500"
+          "flex items-center gap-2 rounded-lg border bg-white/[0.06] px-3 py-2 cursor-pointer transition-colors",
+          isOpen && "ring-2 ring-mint/50 border-mint/50"
         )}
         onClick={() => setIsOpen(true)}
       >
@@ -134,7 +134,7 @@ export function ClientSelector({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-background shadow-lg"
+            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg glass-popover shadow-lg"
           >
             {filteredClients.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
@@ -145,7 +145,7 @@ export function ClientSelector({
                 {filteredClients.map((client) => (
                   <button
                     key={client.id}
-                    className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent"
+                    className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/[0.08]"
                     onClick={() => {
                       onSelectClient(client.id, client.name)
                       setIsOpen(false)
@@ -167,7 +167,7 @@ export function ClientSelector({
                       </p>
                     </div>
                     {client.tags && client.tags.includes("VIP") && (
-                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
                         VIP
                       </span>
                     )}

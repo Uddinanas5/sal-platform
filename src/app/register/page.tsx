@@ -79,8 +79,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream p-4">
-      <Card className="w-full max-w-md border-cream-200">
+    <div className="min-h-screen flex items-center justify-center env-canvas-lite p-4">
+      <Card className="w-full max-w-md glass-panel-lite">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-sal-500 rounded-2xl flex items-center justify-center">
             <svg viewBox="0 0 32 32" className="w-10 h-10 text-white" fill="currentColor">
@@ -154,12 +154,12 @@ export default function RegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="pr-10"
+                  className="pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-ink-faint hover:text-ink transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -179,19 +179,19 @@ export default function RegisterPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={8}
-                  className={`pr-10 ${confirmPassword && password !== confirmPassword ? "border-red-500" : ""}`}
+                  className={`pr-12 ${confirmPassword && password !== confirmPassword ? "border-red-400/60" : ""}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-ink-faint hover:text-ink transition-colors"
                   aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {confirmPassword && password !== confirmPassword && (
-                <p className="text-xs text-red-500">Passwords do not match</p>
+                <p className="text-xs text-red-300">Passwords do not match</p>
               )}
             </div>
 
@@ -204,18 +204,18 @@ export default function RegisterPage() {
               />
               <Label htmlFor="terms" className="text-sm font-normal leading-snug cursor-pointer">
                 I agree to the{" "}
-                <Link href="/terms" className="text-sal-600 hover:text-sal-700 underline">
+                <Link href="/terms" className="text-mint hover:text-mint-soft underline">
                   Terms of Service
                 </Link>{" "}
                 and{" "}
-                <Link href="/privacy" className="text-sal-600 hover:text-sal-700 underline">
+                <Link href="/privacy" className="text-mint hover:text-mint-soft underline">
                   Privacy Policy
                 </Link>
               </Label>
             </div>
 
             {error && (
-              <p className="text-sm text-red-500 text-center">{error}</p>
+              <p className="text-sm text-red-200 text-center bg-red-400/15 border border-red-400/25 p-2 rounded-lg" role="alert">{error}</p>
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>
@@ -227,7 +227,7 @@ export default function RegisterPage() {
             <span className="text-sm text-muted-foreground">Already have an account? </span>
             <Link
               href="/login"
-              className="text-sm text-sal-600 hover:text-sal-700 font-medium"
+              className="text-sm text-mint hover:text-mint-soft font-medium"
             >
               Sign in
             </Link>

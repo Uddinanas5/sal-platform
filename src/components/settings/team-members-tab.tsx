@@ -85,8 +85,8 @@ const roleIcon = {
 }
 
 const roleColor = {
-  owner: "text-amber-600",
-  admin: "text-red-600",
+  owner: "text-amber-400",
+  admin: "text-red-400",
   staff: "text-muted-foreground",
 }
 
@@ -170,7 +170,7 @@ export function TeamMembersTab({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-heading">
-            <UserPlus className="w-5 h-5 text-sal-500" />
+            <UserPlus className="w-5 h-5 text-mint-strong" />
             Invite Team Member
           </CardTitle>
           <CardDescription>
@@ -273,7 +273,7 @@ export function TeamMembersTab({
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="w-8 h-8">
-                            <AvatarFallback className="bg-sal-100 text-sal-700 text-xs">
+                            <AvatarFallback className="bg-sal-100 text-mint-soft text-xs">
                               {member.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
                             </AvatarFallback>
                           </Avatar>
@@ -319,7 +319,7 @@ export function TeamMembersTab({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                className="text-red-600 focus:text-red-600"
+                                className="text-red-400 focus:text-red-400"
                                 onClick={() => setMemberToRemove(member)}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
@@ -390,7 +390,7 @@ export function TeamMembersTab({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="w-8 h-8 text-muted-foreground hover:text-red-600"
+                            className="w-8 h-8 text-muted-foreground hover:text-red-400"
                             title="Revoke invitation"
                             onClick={() => handleRevoke(inv.id)}
                           >

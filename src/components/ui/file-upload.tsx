@@ -64,12 +64,12 @@ export function FileUpload({
         onClick={() => inputRef.current?.click()}
         className={cn(
           "flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors",
-          dragActive ? "border-sal-500 bg-sal-50" : "border-input hover:border-sal-300 hover:bg-sal-50/50"
+          dragActive ? "border-sal-500 bg-sal-50" : "border-input hover:border-sal-300 hover:bg-sal-50"
         )}
       >
-        <Upload className={cn("h-8 w-8 mb-2", dragActive ? "text-sal-500" : "text-muted-foreground")} />
+        <Upload className={cn("h-8 w-8 mb-2", dragActive ? "text-mint-strong" : "text-muted-foreground")} />
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-sal-600">Click to upload</span> or drag and drop
+          <span className="font-medium text-mint">Click to upload</span> or drag and drop
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           Max file size: {Math.round(maxSize / 1024 / 1024)}MB

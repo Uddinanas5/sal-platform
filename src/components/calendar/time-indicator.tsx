@@ -39,13 +39,13 @@ export function TimeIndicator({ zoom, startHour = 8 }: TimeIndicatorProps) {
     >
       <div className="relative flex items-center">
         {/* Time label at the left edge */}
-        <span className="absolute -top-[18px] left-0 text-[10px] font-semibold text-red-500 leading-none whitespace-nowrap select-none">
+        <span className="absolute -top-[18px] left-0 text-[10px] font-semibold text-mint leading-none whitespace-nowrap select-none">
           {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
         </span>
         {/* Circle on the left edge */}
-        <div className="absolute -left-[5px] w-[10px] h-[10px] rounded-full bg-red-500 shadow-sm" />
+        <div className="absolute -left-[4px] w-2 h-2 rounded-full bg-mint shadow-led-mint" />
         {/* Horizontal line */}
-        <div className="w-full h-[2px] bg-red-500 opacity-80" />
+        <div className="w-full h-[2px] bg-mint opacity-80" />
       </div>
     </div>
   )

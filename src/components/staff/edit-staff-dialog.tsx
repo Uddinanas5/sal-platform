@@ -62,7 +62,7 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Pencil className="w-4 h-4 text-sal-500" />
+            <Pencil className="w-4 h-4 text-mint-strong" />
             Edit Staff Member
           </DialogTitle>
           <DialogDescription>

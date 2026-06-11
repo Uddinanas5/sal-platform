@@ -32,12 +32,12 @@ export function CheckoutSummary({
   return (
     <div className="space-y-2 text-sm">
       <div className="flex items-center justify-between">
-        <span className="text-muted-foreground">Subtotal</span>
-        <span className="font-medium">{formatCurrency(subtotal)}</span>
+        <span className="text-ink-soft">Subtotal</span>
+        <span className="font-medium tabular-nums text-ink">{formatCurrency(subtotal)}</span>
       </div>
 
       {discount > 0 && (
-        <div className="flex items-center justify-between text-sal-600">
+        <div className="flex items-center justify-between text-mint">
           <span>
             Discount{" "}
             {discountType === "percentage"
@@ -49,29 +49,29 @@ export function CheckoutSummary({
       )}
 
       {loyaltyDiscount > 0 && (
-        <div className="flex items-center justify-between text-sal-600">
+        <div className="flex items-center justify-between text-mint">
           <span>Loyalty{loyaltyPoints > 0 ? ` (${loyaltyPoints.toLocaleString()} pts)` : ""}</span>
           <span>-{formatCurrency(loyaltyDiscount)}</span>
         </div>
       )}
 
       <div className="flex items-center justify-between">
-        <span className="text-muted-foreground">Tax ({(TAX_RATE * 100).toFixed(TAX_RATE * 100 % 1 === 0 ? 0 : 3)}%)</span>
-        <span className="font-medium">{formatCurrency(tax)}</span>
+        <span className="text-ink-soft">Tax ({(TAX_RATE * 100).toFixed(TAX_RATE * 100 % 1 === 0 ? 0 : 3)}%)</span>
+        <span className="font-medium tabular-nums text-ink">{formatCurrency(tax)}</span>
       </div>
 
       {tip > 0 && (
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Tip</span>
-          <span className="font-medium">{formatCurrency(tip)}</span>
+          <span className="text-ink-soft">Tip</span>
+          <span className="font-medium tabular-nums text-ink">{formatCurrency(tip)}</span>
         </div>
       )}
 
       <Separator className="my-2" />
 
       <div className="flex items-center justify-between">
-        <span className="text-base font-bold">Total</span>
-        <span className="text-lg font-bold text-sal-600">
+        <span className="text-base font-bold text-ink">Total</span>
+        <span className="text-lg font-bold tabular-nums text-ink">
           {formatCurrency(total)}
         </span>
       </div>

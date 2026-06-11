@@ -25,27 +25,27 @@ export default async function ReviewPage({ params }: { params: { token: string }
   const alreadyReviewed = appointment.reviews.length > 0
 
   return (
-    <main className="min-h-screen bg-cream-50 px-4 py-10 text-stone-950">
-      <div className="mx-auto w-full max-w-xl rounded-lg border border-cream-200 bg-white p-6 shadow-sm">
+    <main className="min-h-screen env-canvas-lite px-4 py-10">
+      <div className="mx-auto w-full max-w-xl glass-panel glass-panel-lite rounded-panel p-6">
         <div className="mb-6">
-          <p className="text-sm font-semibold uppercase tracking-wide text-sal-600">
+          <p className="text-sm font-semibold uppercase tracking-wide text-mint">
             {appointment.business.name}
           </p>
-          <h1 className="mt-2 font-heading text-2xl font-semibold">How was your visit?</h1>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
+          <h1 className="mt-2 font-heading text-2xl font-semibold text-ink">How was your visit?</h1>
+          <p className="mt-2 text-sm leading-6 text-ink-soft">
             {appointment.client?.firstName ? `Hi ${appointment.client.firstName}, ` : ""}
             thank you for booking {serviceName}. Your feedback helps the team improve.
           </p>
         </div>
 
         {alreadyReviewed ? (
-          <div className="rounded-lg border border-sal-100 bg-sal-50 p-5 text-sm text-sal-900">
+          <div className="rounded-lg border border-sal-100 bg-sal-50 p-5 text-sm text-ink">
             A review has already been submitted for this appointment. Thank you.
           </div>
         ) : appointment.status === "completed" ? (
           <ReviewForm token={params.token} />
         ) : (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+          <div className="rounded-lg border border-amber-400/25 bg-amber-400/15 p-5 text-sm text-amber-200">
             This review link will be available after the appointment is completed.
           </div>
         )}

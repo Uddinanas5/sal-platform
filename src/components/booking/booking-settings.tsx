@@ -40,7 +40,7 @@ export function BookingSettings({ businessSlug }: BookingSettingsProps) {
     <Card className="h-full">
       <CardHeader>
         <CardTitle className="text-lg font-heading flex items-center gap-2">
-          <Globe className="w-5 h-5 text-sal-500" />
+          <Globe className="w-5 h-5 text-mint-strong" />
           Booking Settings
         </CardTitle>
       </CardHeader>
@@ -54,7 +54,7 @@ export function BookingSettings({ businessSlug }: BookingSettingsProps) {
               </p>
               <div className="flex items-center gap-2">
                 <div
-                  className="flex-1 flex items-center gap-2 px-3 py-2 bg-card rounded-lg border border-cream-200 cursor-text select-all min-w-0"
+                  className="flex-1 flex items-center gap-2 px-3 py-2 bg-white/[0.06] rounded-lg border border-cream-200 cursor-text select-all min-w-0"
                   onClick={(e) => {
                     const el = e.currentTarget.querySelector("span")
                     if (el) {
@@ -79,7 +79,7 @@ export function BookingSettings({ businessSlug }: BookingSettingsProps) {
                 >
                   {copied ? (
                     <>
-                      <Check className="w-4 h-4 text-emerald-500" />
+                      <Check className="w-4 h-4 text-mint" />
                       <span className="text-xs">Copied</span>
                     </>
                   ) : (
@@ -94,7 +94,7 @@ export function BookingSettings({ businessSlug }: BookingSettingsProps) {
                 href={bookingUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-sal-600 hover:text-sal-700 transition-colors w-fit"
+                className="inline-flex items-center gap-1 text-xs text-mint hover:text-mint-soft transition-colors w-fit"
               >
                 <ExternalLink className="w-3 h-3" />
                 Open booking page

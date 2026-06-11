@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       {/* Breadcrumb */}
       <div className="h-12 bg-card/80 backdrop-blur-sm border-b border-cream-200 px-6 flex items-center">
         <div className="flex items-center gap-2">
@@ -16,14 +16,14 @@ export default function Loading() {
 
       <div className="p-6 space-y-6">
         {/* Staff Header Card with banner, avatar, info, buttons */}
-        <div className="bg-card rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
+        <div className="glass-panel rounded-panel overflow-hidden">
           {/* Color banner */}
           <Skeleton className="h-28 w-full rounded-none" />
 
           <div className="px-6 pb-6">
             <div className="flex flex-col sm:flex-row items-start gap-4 -mt-12">
               {/* Avatar */}
-              <Skeleton className="w-24 h-24 rounded-full ring-4 ring-white" />
+              <Skeleton className="w-24 h-24 rounded-full ring-4 ring-white/20" />
 
               <div className="flex-1 pt-2 sm:pt-14 w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -63,14 +63,14 @@ export default function Loading() {
 
         {/* Tabs */}
         <div className="space-y-6">
-          <div className="grid w-full grid-cols-4 max-w-lg bg-muted rounded-lg p-1">
+          <div className="grid w-full grid-cols-4 max-w-lg bg-white/[0.06] rounded-lg p-1">
             {["Performance", "Schedule", "Commission", "Time Off"].map((tab) => (
               <Skeleton key={tab} className="h-8 rounded-md" />
             ))}
           </div>
 
           {/* Tab content placeholder */}
-          <div className="bg-card border border-cream-200 rounded-xl p-6 space-y-4">
+          <div className="glass-panel rounded-panel p-6 space-y-4">
             <Skeleton className="h-5 w-36" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {Array.from({ length: 3 }).map((_, i) => (

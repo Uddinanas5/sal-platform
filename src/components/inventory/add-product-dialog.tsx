@@ -147,17 +147,17 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
           {/* Name */}
           <div className="grid gap-2">
             <Label htmlFor="product-name">
-              Product Name <span className="text-red-500">*</span>
+              Product Name <span className="text-red-400">*</span>
             </Label>
             <Input
               id="product-name"
               placeholder="e.g. Professional Shampoo"
               value={name}
               onChange={(e) => { setName(e.target.value); clearError("name") }}
-              className={cn(errors.name && "border-red-300 focus-visible:ring-red-400")}
+              className={cn(errors.name && "border-red-400/30 focus-visible:ring-red-400")}
             />
             {errors.name && (
-              <p className="text-xs text-red-500">{errors.name}</p>
+              <p className="text-xs text-red-400">{errors.name}</p>
             )}
           </div>
 
@@ -179,22 +179,22 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="product-sku">
-                SKU <span className="text-red-500">*</span>
+                SKU <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="product-sku"
                 placeholder="e.g. HC-007"
                 value={sku}
                 onChange={(e) => { setSku(e.target.value); clearError("sku") }}
-                className={cn(errors.sku && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.sku && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.sku && (
-                <p className="text-xs text-red-500">{errors.sku}</p>
+                <p className="text-xs text-red-400">{errors.sku}</p>
               )}
             </div>
             <div className="grid gap-2">
               <Label>
-                Category <span className="text-red-500">*</span>
+                Category <span className="text-red-400">*</span>
               </Label>
               {/* Combobox: pick an existing category or type a new one — the
                   server find-or-creates it, so a brand-new shop can still add
@@ -204,7 +204,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 value={category}
                 onChange={(e) => { setCategory(e.target.value); clearError("category") }}
                 placeholder="Select or type a category"
-                className={cn(errors.category && "border-red-300 focus:ring-red-400")}
+                className={cn(errors.category && "border-red-400/30 focus:ring-red-400")}
               />
               <datalist id="product-category-options">
                 {categories.map((cat) => (
@@ -212,7 +212,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 ))}
               </datalist>
               {errors.category && (
-                <p className="text-xs text-red-500">{errors.category}</p>
+                <p className="text-xs text-red-400">{errors.category}</p>
               )}
             </div>
           </div>
@@ -221,7 +221,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="product-cost" className="flex items-center gap-1">
-                Cost Price ($) <span className="text-red-500">*</span>
+                Cost Price ($) <span className="text-red-400">*</span>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -241,15 +241,15 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 placeholder="0.00"
                 value={costPrice}
                 onChange={(e) => { setCostPrice(e.target.value); clearError("costPrice") }}
-                className={cn(errors.costPrice && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.costPrice && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.costPrice && (
-                <p className="text-xs text-red-500">{errors.costPrice}</p>
+                <p className="text-xs text-red-400">{errors.costPrice}</p>
               )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="product-retail">
-                Retail Price ($) <span className="text-red-500">*</span>
+                Retail Price ($) <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="product-retail"
@@ -259,10 +259,10 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 placeholder="0.00"
                 value={retailPrice}
                 onChange={(e) => { setRetailPrice(e.target.value); clearError("retailPrice") }}
-                className={cn(errors.retailPrice && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.retailPrice && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.retailPrice && (
-                <p className="text-xs text-red-500">{errors.retailPrice}</p>
+                <p className="text-xs text-red-400">{errors.retailPrice}</p>
               )}
             </div>
           </div>
@@ -271,7 +271,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="product-stock">
-                Stock Level <span className="text-red-500">*</span>
+                Stock Level <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="product-stock"
@@ -280,15 +280,15 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 placeholder="0"
                 value={stockLevel}
                 onChange={(e) => { setStockLevel(e.target.value); clearError("stockLevel") }}
-                className={cn(errors.stockLevel && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.stockLevel && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.stockLevel && (
-                <p className="text-xs text-red-500">{errors.stockLevel}</p>
+                <p className="text-xs text-red-400">{errors.stockLevel}</p>
               )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="product-reorder" className="flex items-center gap-1">
-                Reorder Level <span className="text-red-500">*</span>
+                Reorder Level <span className="text-red-400">*</span>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -307,10 +307,10 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 placeholder="0"
                 value={reorderLevel}
                 onChange={(e) => { setReorderLevel(e.target.value); clearError("reorderLevel") }}
-                className={cn(errors.reorderLevel && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.reorderLevel && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.reorderLevel && (
-                <p className="text-xs text-red-500">{errors.reorderLevel}</p>
+                <p className="text-xs text-red-400">{errors.reorderLevel}</p>
               )}
             </div>
           </div>
@@ -329,7 +329,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {Object.keys(errors).length > 0 && (
-            <p className="text-xs text-red-500 mr-auto">
+            <p className="text-xs text-red-400 mr-auto">
               Please fix {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? "s" : ""} above
             </p>
           )}

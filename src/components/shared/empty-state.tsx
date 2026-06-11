@@ -26,7 +26,7 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.35, delay: 0.1, ease: "easeOut" }}
-        className="flex h-16 w-16 items-center justify-center rounded-full bg-sal-50 mb-4"
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-mint/10 text-mint mb-4"
       >
         {icon}
       </motion.div>
@@ -42,7 +42,7 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.28 }}
-        className="text-sm text-muted-foreground max-w-sm mb-6"
+        className="text-sm text-ink-soft max-w-sm mb-6"
       >
         {description}
       </motion.p>

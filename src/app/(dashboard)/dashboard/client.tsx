@@ -14,7 +14,6 @@ import {
   Clock,
   Star,
   ArrowRight,
-  Sparkles,
 } from "lucide-react"
 import { Header } from "@/components/dashboard/header"
 import { StatsCard } from "@/components/dashboard/stats-card"
@@ -103,83 +102,47 @@ export function DashboardClient(props: DashboardClientProps) {
       <Header title="Dashboard" subtitle={formattedDate} />
 
       <div className="p-6 space-y-6">
-        {/* Welcome Banner */}
+        {/* Hero — greeting set directly on the environment */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sal-500 via-sal-600 to-sal-800 p-7 text-white shadow-glow ring-1 ring-white/10"
+          className="px-1 pt-2 pb-1"
         >
-          {/* Layered mesh + grid for depth */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-60"
-            style={{
-              backgroundImage:
-                "radial-gradient(60% 120% at 85% -10%, rgba(110,231,183,0.35), transparent 60%), radial-gradient(40% 80% at 10% 110%, rgba(2,44,34,0.5), transparent 60%)",
-            }}
-          />
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.07]"
-            style={{
-              backgroundImage:
-                "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
-              backgroundSize: "32px 32px",
-            }}
-          />
-          <div className="relative z-10">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 ring-1 ring-inset ring-white/20 backdrop-blur-sm">
-              <Sparkles className="w-3.5 h-3.5 text-sal-100" />
-              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-sal-50">AI Insight</span>
-            </div>
-            <h2 className="text-[1.7rem] leading-tight font-heading font-bold mb-2 tracking-tight">{getGreeting()}, {firstName}!</h2>
-            <p className="text-sal-100 max-w-xl">
-              You have <span className="font-semibold text-white">{props.stats.todayAppointments} appointments</span> today.
-              Based on your booking trends, consider adjusting staffing for peak days.
-            </p>
+          <h2 className="hero-title text-4xl md:text-[2.75rem] leading-[1.05] text-white">
+            {getGreeting()}, {firstName} —{" "}
+            <span className="font-semibold text-ink-soft">here&apos;s your day.</span>
+          </h2>
+          <p className="hero-sub mt-4 text-base">
+            <span className="font-semibold text-white">{props.stats.todayAppointments} appointments</span> on the books
+            <span className="mx-2.5 text-ink-faint">·</span>
+            <span className="font-semibold text-white">{formatCurrency(props.stats.todayRevenue)}</span> taken today
+          </p>
 
-            {/* Daily Revenue Progress */}
+          {/* Daily target progress — slim, no panel */}
+          {dailyTarget !== null && (
             <div className="mt-4 max-w-md">
-              <div className="flex items-center justify-between text-sm mb-1.5">
-                <span className="text-sal-200">Today&apos;s Revenue</span>
-                <span className="font-semibold text-white">
-                  {dailyTarget !== null
-                    ? `${formatCurrency(props.stats.todayRevenue)} / ${formatCurrency(dailyTarget)} target`
-                    : formatCurrency(props.stats.todayRevenue)}
-                </span>
+              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((props.stats.todayRevenue / dailyTarget) * 100, 100)}%` }}
+                  transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+                  className="h-full bg-mint rounded-full"
+                />
               </div>
-              {dailyTarget !== null ? (
-                <>
-                  <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min((props.stats.todayRevenue / dailyTarget) * 100, 100)}%` }}
-                      transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-                      className="h-full bg-white/80 rounded-full"
-                    />
-                  </div>
-                  <p className="text-xs text-sal-200 mt-1">
-                    {Math.round((props.stats.todayRevenue / dailyTarget) * 100)}% of daily target
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs text-sal-200 mt-1">
-                  Set a daily target in settings
-                </p>
-              )}
+              <div className="mt-1.5 flex items-center justify-between text-xs">
+                <span className="text-ink-faint">
+                  {Math.round((props.stats.todayRevenue / dailyTarget) * 100)}% of {formatCurrency(dailyTarget)} target
+                </span>
+                <button
+                  onClick={() => router.push("/reports")}
+                  className="inline-flex items-center gap-1 text-mint hover:text-mint-soft transition-colors font-medium"
+                >
+                  View insights
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
             </div>
-
-            <Button
-              variant="secondary"
-              className="mt-4 bg-white/20 hover:bg-white/30 text-white border-white/20"
-              onClick={() => router.push("/reports")}
-            >
-              View Insights
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
-          {/* Decorative elements */}
-          <div className="pointer-events-none absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full blur-2xl -translate-y-1/3 translate-x-1/3 animate-float-slow" />
-          <div className="pointer-events-none absolute bottom-0 right-24 w-32 h-32 bg-sal-300/20 rounded-full blur-xl translate-y-1/2" />
-          <div className="pointer-events-none absolute -bottom-6 -left-6 w-28 h-28 bg-sal-400/20 rounded-full blur-lg" />
+          )}
         </motion.div>
 
         {/* Stats Grid */}
@@ -190,23 +153,23 @@ export function DashboardClient(props: DashboardClientProps) {
             change={todayVsYesterdayChange ?? undefined}
             changeLabel="vs yesterday"
             icon={DollarSign}
-            iconColor="text-sal-600"
+            iconColor="text-mint"
             iconBgColor="bg-sal-100"
             delay={0}
             href="/reports"
             sparklineData={props.revenueData.map((d) => d.revenue)}
-            sparklineColor="#059669"
+            sparklineColor="#4fe6a6"
           />
           <StatsCard
             title="Today's Appointments"
             value={props.stats.todayAppointments}
             icon={Calendar}
-            iconColor="text-sal-600"
+            iconColor="text-mint"
             iconBgColor="bg-sal-100"
             delay={0.1}
             href="/calendar"
             sparklineData={props.revenueData.map((d) => d.appointments)}
-            sparklineColor="#3b82f6"
+            sparklineColor="#7cd4fd"
           />
           <StatsCard
             title="Total Clients"
@@ -214,8 +177,8 @@ export function DashboardClient(props: DashboardClientProps) {
             change={props.stats.newClientsThisMonth}
             changeLabel="new this month"
             icon={Users}
-            iconColor="text-blue-600"
-            iconBgColor="bg-blue-100"
+            iconColor="text-blue-400"
+            iconBgColor="bg-blue-400/15"
             delay={0.2}
             href="/clients"
           />
@@ -223,8 +186,8 @@ export function DashboardClient(props: DashboardClientProps) {
             title="Average Rating"
             value={props.stats.averageRating}
             icon={Star}
-            iconColor="text-amber-600"
-            iconBgColor="bg-amber-100"
+            iconColor="text-amber-400"
+            iconBgColor="bg-amber-400/15"
             delay={0.3}
             href="/reviews"
           />
@@ -341,7 +304,7 @@ export function DashboardClient(props: DashboardClientProps) {
                   className="h-auto py-3 flex-col gap-1 border-cream-200 hover:bg-sal-50 hover:border-sal-200"
                   onClick={() => router.push("/calendar")}
                 >
-                  <Calendar className="w-5 h-5 text-sal-500" />
+                  <Calendar className="w-5 h-5 text-mint-strong" />
                   <span className="text-xs">New Booking</span>
                 </Button>
                 <Button
@@ -349,7 +312,7 @@ export function DashboardClient(props: DashboardClientProps) {
                   className="h-auto py-3 flex-col gap-1 border-cream-200 hover:bg-sal-50 hover:border-sal-200"
                   onClick={() => router.push("/clients")}
                 >
-                  <Users className="w-5 h-5 text-sal-500" />
+                  <Users className="w-5 h-5 text-mint-strong" />
                   <span className="text-xs">Add Client</span>
                 </Button>
                 <Button
@@ -357,7 +320,7 @@ export function DashboardClient(props: DashboardClientProps) {
                   className="h-auto py-3 flex-col gap-1 border-cream-200 hover:bg-sal-50 hover:border-sal-200"
                   onClick={() => router.push("/calendar")}
                 >
-                  <Clock className="w-5 h-5 text-sal-500" />
+                  <Clock className="w-5 h-5 text-mint-strong" />
                   <span className="text-xs">Block Time</span>
                 </Button>
                 <Button
@@ -365,7 +328,7 @@ export function DashboardClient(props: DashboardClientProps) {
                   className="h-auto py-3 flex-col gap-1 border-cream-200 hover:bg-sal-50 hover:border-sal-200"
                   onClick={() => router.push("/reports")}
                 >
-                  <TrendingUp className="w-5 h-5 text-sal-500" />
+                  <TrendingUp className="w-5 h-5 text-mint-strong" />
                   <span className="text-xs">View Reports</span>
                 </Button>
               </CardContent>
@@ -375,7 +338,7 @@ export function DashboardClient(props: DashboardClientProps) {
             <Card className="border-cream-200">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg font-heading">Recent Clients</CardTitle>
-                <Button variant="ghost" size="sm" className="text-sal-600" onClick={() => router.push("/clients")}>
+                <Button variant="ghost" size="sm" className="text-mint" onClick={() => router.push("/clients")}>
                   View All
                 </Button>
               </CardHeader>
@@ -391,7 +354,7 @@ export function DashboardClient(props: DashboardClientProps) {
                       >
                         <Avatar className="w-10 h-10">
                           <AvatarImage src={client.avatar} />
-                          <AvatarFallback className="bg-sal-100 text-sal-700 text-sm">
+                          <AvatarFallback className="bg-sal-100 text-mint-soft text-sm">
                             {client.name.split(" ").map((n) => n[0]).join("")}
                           </AvatarFallback>
                         </Avatar>

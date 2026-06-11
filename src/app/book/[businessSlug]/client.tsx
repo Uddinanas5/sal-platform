@@ -195,16 +195,16 @@ function StepIndicator({ currentStep }: { currentStep: BookingStep }) {
       {/* Mobile: compact bar */}
       <div className="sm:hidden">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-foreground">
+          <span className="text-sm font-medium text-ink">
             Step {currentStep} of 5
           </span>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-ink-soft">
             {STEPS[currentStep - 1].label}
           </span>
         </div>
-        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-sal-500 rounded-full"
+            className="h-full bg-mint rounded-full"
             initial={false}
             animate={{ width: `${(currentStep / 5) * 100}%` }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
@@ -228,10 +228,10 @@ function StepIndicator({ currentStep }: { currentStep: BookingStep }) {
                     w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300
                     ${
                       isCompleted
-                        ? "bg-sal-500 text-white"
+                        ? "bg-mint/15 border border-mint/60 text-mint"
                         : isActive
-                          ? "bg-sal-500 text-white ring-4 ring-sal-500/20"
-                          : "bg-muted text-muted-foreground"
+                          ? "bg-mint text-sal-950 shadow-led-mint"
+                          : "bg-white/10 border border-white/20 text-ink-faint"
                     }
                   `}
                 >
@@ -243,7 +243,7 @@ function StepIndicator({ currentStep }: { currentStep: BookingStep }) {
                 </div>
                 <span
                   className={`text-xs font-medium transition-colors ${
-                    isActive || isCompleted ? "text-foreground" : "text-muted-foreground"
+                    isActive || isCompleted ? "text-ink" : "text-ink-faint"
                   }`}
                 >
                   {step.label}
@@ -252,7 +252,7 @@ function StepIndicator({ currentStep }: { currentStep: BookingStep }) {
               {i < STEPS.length - 1 && (
                 <div
                   className={`w-12 lg:w-16 h-0.5 mx-1 mt-[-18px] transition-colors duration-300 ${
-                    stepNum < currentStep ? "bg-sal-500" : "bg-muted"
+                    stepNum < currentStep ? "bg-mint/60" : "bg-white/15"
                   }`}
                 />
               )}
@@ -293,10 +293,10 @@ function ServiceStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold font-heading text-foreground">
+        <h2 className="text-xl font-semibold font-heading text-ink">
           Select a service
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-ink-soft mt-1">
           Choose the service you&apos;d like to book
         </p>
       </div>
@@ -308,7 +308,7 @@ function ServiceStep({
               className="w-2.5 h-2.5 rounded-full"
               style={{ backgroundColor: CATEGORY_COLORS[cat] || "#6b7280" }}
             />
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+            <h3 className="text-sm font-semibold text-ink-soft uppercase tracking-wide">
               {cat}
             </h3>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
@@ -322,10 +322,11 @@ function ServiceStep({
               return (
                 <motion.div key={service.id} whileTap={{ scale: 0.98 }} layout>
                   <Card
-                    className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                    variant="tile"
+                    className={`cursor-pointer transition-all duration-200 ${
                       isSelected
-                        ? "ring-2 ring-sal-500 shadow-md shadow-sal-500/10"
-                        : "hover:border-sal-300 dark:hover:border-sal-700"
+                        ? "bg-none bg-mint/10 border-mint/60"
+                        : "hover:brightness-110"
                     }`}
                     onClick={() => onSelect(service)}
                   >
@@ -333,31 +334,31 @@ function ServiceStep({
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-foreground">
+                            <h4 className="font-medium text-ink">
                               {service.name}
                             </h4>
                             {isSelected && (
                               <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
-                                className="w-5 h-5 rounded-full bg-sal-500 flex items-center justify-center"
+                                className="w-5 h-5 rounded-full bg-mint flex items-center justify-center"
                               >
-                                <Check className="w-3 h-3 text-white" />
+                                <Check className="w-3 h-3 text-sal-950" />
                               </motion.div>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
+                          <p className="text-sm text-ink-soft mt-0.5 line-clamp-1">
                             {service.description}
                           </p>
                           <div className="flex items-center gap-3 mt-2">
-                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-1 text-xs text-ink-faint">
                               <Clock className="w-3 h-3" />
                               {fmtDuration(service.duration)}
                             </span>
                           </div>
                         </div>
                         <div className="text-right ml-4 shrink-0">
-                          <span className="text-lg font-semibold text-foreground font-heading">
+                          <span className="text-lg font-semibold text-ink font-heading">
                             {formatCurrency(service.price)}
                           </span>
                         </div>
@@ -400,12 +401,12 @@ function StaffStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold font-heading text-foreground">
+        <h2 className="text-xl font-semibold font-heading text-ink">
           Choose your stylist
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-ink-soft mt-1">
           Select a team member for your{" "}
-          <span className="font-medium text-foreground">{selectedService.name}</span>
+          <span className="font-medium text-ink">{selectedService.name}</span>
         </p>
       </div>
 
@@ -413,10 +414,11 @@ function StaffStep({
         {/* Any Available */}
         <motion.div whileTap={{ scale: 0.98 }}>
           <Card
-            className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+            variant="tile"
+            className={`cursor-pointer transition-all duration-200 ${
               selectedStaff === "any"
-                ? "ring-2 ring-sal-500 shadow-md shadow-sal-500/10"
-                : "hover:border-sal-300 dark:hover:border-sal-700"
+                ? "bg-none bg-mint/10 border-mint/60"
+                : "hover:brightness-110"
             }`}
             onClick={() => onSelect("any")}
           >
@@ -426,8 +428,8 @@ function StaffStep({
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-medium text-foreground">Any available</h4>
-                  <p className="text-sm text-muted-foreground">
+                  <h4 className="font-medium text-ink">Any available</h4>
+                  <p className="text-sm text-ink-soft">
                     We&apos;ll match you with the next available team member
                   </p>
                 </div>
@@ -435,9 +437,9 @@ function StaffStep({
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="w-6 h-6 rounded-full bg-sal-500 flex items-center justify-center"
+                    className="w-6 h-6 rounded-full bg-mint flex items-center justify-center"
                   >
-                    <Check className="w-3.5 h-3.5 text-white" />
+                    <Check className="w-3.5 h-3.5 text-sal-950" />
                   </motion.div>
                 )}
               </div>
@@ -456,10 +458,11 @@ function StaffStep({
           return (
             <motion.div key={member.id} whileTap={{ scale: 0.98 }}>
               <Card
-                className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                variant="tile"
+                className={`cursor-pointer transition-all duration-200 ${
                   isSelected
-                    ? "ring-2 ring-sal-500 shadow-md shadow-sal-500/10"
-                    : "hover:border-sal-300 dark:hover:border-sal-700"
+                    ? "bg-none bg-mint/10 border-mint/60"
+                    : "hover:brightness-110"
                 }`}
                 onClick={() => onSelect(member)}
               >
@@ -472,16 +475,16 @@ function StaffStep({
                       {initials}
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium text-foreground">{member.name}</h4>
-                      <p className="text-sm text-muted-foreground capitalize">{member.role}</p>
+                      <h4 className="font-medium text-ink">{member.name}</h4>
+                      <p className="text-sm text-ink-soft capitalize">{member.role}</p>
                     </div>
                     {isSelected && (
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="w-6 h-6 rounded-full bg-sal-500 flex items-center justify-center"
+                        className="w-6 h-6 rounded-full bg-mint flex items-center justify-center"
                       >
-                        <Check className="w-3.5 h-3.5 text-white" />
+                        <Check className="w-3.5 h-3.5 text-sal-950" />
                       </motion.div>
                     )}
                   </div>
@@ -492,7 +495,7 @@ function StaffStep({
         })}
 
         {availableStaff.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-ink-faint">
             <User className="w-10 h-10 mx-auto mb-2 opacity-40" />
             <p className="text-sm">No staff available for this service</p>
           </div>
@@ -670,32 +673,32 @@ function DateTimeStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold font-heading text-foreground">
+        <h2 className="text-xl font-semibold font-heading text-ink">
           Pick a date & time
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-ink-soft mt-1">
           Select your preferred appointment slot
         </p>
       </div>
 
       {/* Calendar */}
-      <Card>
+      <Card variant="tile">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={prevMonth}
               disabled={isPastMonth}
-              className="p-2 rounded-lg hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-lg text-ink-soft hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               aria-label="Previous month"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <h3 className="font-semibold text-foreground font-heading">
+            <h3 className="font-semibold text-ink font-heading">
               {MONTH_NAMES[viewMonth]} {viewYear}
             </h3>
             <button
               onClick={nextMonth}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-lg text-ink-soft hover:bg-white/10 transition-colors"
               aria-label="Next month"
             >
               <ChevronRight className="w-4 h-4" />
@@ -704,7 +707,7 @@ function DateTimeStep({
 
           <div className="grid grid-cols-7 mb-1">
             {DAY_LABELS.map((d) => (
-              <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">
+              <div key={d} className="text-center text-xs font-medium text-ink-faint py-2">
                 {d}
               </div>
             ))}
@@ -712,7 +715,7 @@ function DateTimeStep({
 
           <div className="grid grid-cols-7 gap-1">
             {calendarCells.map((day, idx) => {
-              if (day === null) return <div key={`empty-${idx}`} className="h-10" />
+              if (day === null) return <div key={`empty-${idx}`} className="h-11" />
 
               const cellDate = new Date(viewYear, viewMonth, day)
               cellDate.setHours(0, 0, 0, 0)
@@ -729,15 +732,15 @@ function DateTimeStep({
                   disabled={isDisabled}
                   onClick={() => onSelectDate(cellDate)}
                   className={`
-                    h-10 rounded-lg text-sm font-medium transition-all duration-200
+                    h-11 rounded-lg text-sm font-medium transition-all duration-200
                     ${
                       isSelected
-                        ? "bg-sal-500 text-white shadow-sm"
+                        ? "bg-sal-500 text-white shadow-glow-sm"
                         : isToday && !closed
-                          ? "bg-sal-500/10 text-sal-600 dark:text-sal-400 font-semibold"
+                          ? "bg-mint/10 text-mint font-semibold"
                           : isDisabled
-                            ? "text-muted-foreground/40 cursor-not-allowed"
-                            : "text-foreground hover:bg-muted"
+                            ? "text-white/25 cursor-not-allowed"
+                            : "text-ink hover:bg-white/10"
                     }
                   `}
                   aria-label={`${MONTH_NAMES[viewMonth]} ${day}`}
@@ -759,7 +762,7 @@ function DateTimeStep({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <h3 className="text-sm font-semibold text-foreground mb-3">
+            <h3 className="text-sm font-semibold text-ink mb-3">
               Available times for{" "}
               {formatSelectedDate(selectedDate, {
                 weekday: "long",
@@ -768,7 +771,7 @@ function DateTimeStep({
               })}
             </h3>
             {slotsLoading ? (
-              <div className="py-10 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <div className="py-10 flex items-center justify-center gap-2 text-sm text-ink-faint">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Loading available times…
               </div>
@@ -782,16 +785,16 @@ function DateTimeStep({
                     transition={{ duration: 0.3 }}
                     className="text-center space-y-4 py-4"
                   >
-                    <div className="w-14 h-14 rounded-full bg-sal-500/10 mx-auto flex items-center justify-center">
-                      <Bell className="w-7 h-7 text-sal-600 dark:text-sal-400" />
+                    <div className="w-14 h-14 rounded-full bg-mint/15 mx-auto flex items-center justify-center">
+                      <Bell className="w-7 h-7 text-mint" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-foreground text-base">
+                      <h4 className="font-semibold text-ink text-base">
                         You&apos;re on the waitlist!
                       </h4>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-ink-soft mt-1">
                         We&apos;ll notify you at{" "}
-                        <span className="font-medium text-foreground">{waitlistForm.email}</span>{" "}
+                        <span className="font-medium text-ink">{waitlistForm.email}</span>{" "}
                         when a slot opens up.
                       </p>
                     </div>
@@ -808,10 +811,10 @@ function DateTimeStep({
                     className="space-y-4"
                   >
                     <div className="text-center">
-                      <p className="text-sm font-medium text-foreground">
+                      <p className="text-sm font-medium text-ink">
                         No slots available for this date
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-ink-faint mt-0.5">
                         Fill in your details and we&apos;ll notify you when a spot opens up
                       </p>
                     </div>
@@ -828,7 +831,7 @@ function DateTimeStep({
                             preferredTime: e.target.value as WaitlistTimeRange,
                           }))
                         }
-                        className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        className="w-full h-11 rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ring focus:border-mint/60"
                       >
                         {WAITLIST_TIME_RANGES.map((r) => (
                           <option key={r.value} value={r.value}>
@@ -951,9 +954,9 @@ function DateTimeStep({
                   // Genuinely full for this date — the one case a waitlist can
                   // resolve. Offer to notify when a spot opens.
                   <div className="text-center space-y-3 py-4">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-ink-soft">
                       No available slots for{" "}
-                      <span className="font-medium text-foreground">
+                      <span className="font-medium text-ink">
                       {formatSelectedDate(selectedDate, {
                         weekday: "long",
                         month: "long",
@@ -962,7 +965,7 @@ function DateTimeStep({
                       </span>
                       .
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-ink-soft">
                       Would you like to be notified when a spot opens up?
                     </p>
                     <Button size="sm" onClick={onShowWaitlist} disabled={!serviceId}>
@@ -975,14 +978,14 @@ function DateTimeStep({
                   // staff, closed, or out of the booking window). Steer the
                   // client to another date instead of a dead-end waitlist.
                   <div className="text-center space-y-3 py-4">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-ink-soft">
                       {availabilityReason === "no_staff" || availabilityReason === "not_accepting"
                         ? "This service isn't bookable online right now."
                         : availabilityReason === "out_of_window"
                           ? "That date is outside the booking window."
                           : "No available slots for this date."}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-ink-soft">
                       Please try another date.
                     </p>
                     <Button variant="outline" size="sm" onClick={onTryAnotherDate}>
@@ -1001,11 +1004,11 @@ function DateTimeStep({
                         key={slot.start}
                         onClick={() => onSelectTime(slot)}
                         className={`
-                          py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-200 border
+                          min-h-[44px] py-2.5 px-3 rounded-tile text-sm font-medium transition-all duration-200
                           ${
                             isSelected
-                              ? "bg-sal-500 text-white border-sal-500 shadow-sm"
-                              : "border-input bg-background text-foreground hover:border-sal-400 hover:bg-sal-500/5"
+                              ? "border border-mint/60 bg-mint/15 text-white shadow-glow-sm"
+                              : "glass-tile text-ink-soft hover:brightness-110"
                           }
                         `}
                       >
@@ -1014,7 +1017,7 @@ function DateTimeStep({
                     )
                   })}
                 </div>
-                <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                <p className="text-xs text-ink-faint mt-3 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   All times shown in {tzAbbr}
                 </p>
@@ -1047,10 +1050,10 @@ function DetailsStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold font-heading text-foreground">
+        <h2 className="text-xl font-semibold font-heading text-ink">
           Your details
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-ink-soft mt-1">
           Enter your information to complete the booking
         </p>
       </div>
@@ -1176,74 +1179,74 @@ function ConfirmationStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold font-heading text-foreground">
+        <h2 className="text-xl font-semibold font-heading text-ink">
           Review & confirm
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-ink-soft mt-1">
           Please review your booking details
         </p>
       </div>
 
-      <Card>
+      <Card variant="tile">
         <CardContent className="p-5 space-y-4">
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-sal-500/10 flex items-center justify-center shrink-0 mt-0.5">
-              <Scissors className="w-4 h-4 text-sal-600 dark:text-sal-400" />
+            <div className="w-8 h-8 rounded-lg bg-mint/15 flex items-center justify-center shrink-0 mt-0.5">
+              <Scissors className="w-4 h-4 text-mint" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground">Service</p>
-              <p className="font-medium text-foreground">{service.name}</p>
+              <p className="text-xs text-ink-faint">Service</p>
+              <p className="font-medium text-ink">{service.name}</p>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-ink-faint">
                   {fmtDuration(service.duration)}
                 </span>
-                <span className="text-sm font-semibold text-foreground">
+                <span className="text-sm font-semibold text-ink">
                   {formatCurrency(service.price)}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-border" />
+          <div className="border-t border-white/10" />
 
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-sal-500/10 flex items-center justify-center shrink-0 mt-0.5">
-              <User className="w-4 h-4 text-sal-600 dark:text-sal-400" />
+            <div className="w-8 h-8 rounded-lg bg-mint/15 flex items-center justify-center shrink-0 mt-0.5">
+              <User className="w-4 h-4 text-mint" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Staff</p>
-              <p className="font-medium text-foreground">{staffName}</p>
+              <p className="text-xs text-ink-faint">Staff</p>
+              <p className="font-medium text-ink">{staffName}</p>
             </div>
           </div>
 
-          <div className="border-t border-border" />
+          <div className="border-t border-white/10" />
 
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-sal-500/10 flex items-center justify-center shrink-0 mt-0.5">
-              <CalendarIcon className="w-4 h-4 text-sal-600 dark:text-sal-400" />
+            <div className="w-8 h-8 rounded-lg bg-mint/15 flex items-center justify-center shrink-0 mt-0.5">
+              <CalendarIcon className="w-4 h-4 text-mint" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Date & Time</p>
-              <p className="font-medium text-foreground">{dateStr}</p>
-              <p className="text-sm text-muted-foreground">{timeStr} ({tzAbbr})</p>
+              <p className="text-xs text-ink-faint">Date & Time</p>
+              <p className="font-medium text-ink">{dateStr}</p>
+              <p className="text-sm text-ink-soft">{timeStr} ({tzAbbr})</p>
             </div>
           </div>
 
-          <div className="border-t border-border" />
+          <div className="border-t border-white/10" />
 
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-sal-500/10 flex items-center justify-center shrink-0 mt-0.5">
-              <Star className="w-4 h-4 text-sal-600 dark:text-sal-400" />
+            <div className="w-8 h-8 rounded-lg bg-mint/15 flex items-center justify-center shrink-0 mt-0.5">
+              <Star className="w-4 h-4 text-mint" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Your info</p>
-              <p className="font-medium text-foreground">
+              <p className="text-xs text-ink-faint">Your info</p>
+              <p className="font-medium text-ink">
                 {details.firstName} {details.lastName}
               </p>
-              <p className="text-sm text-muted-foreground">{details.email}</p>
-              <p className="text-sm text-muted-foreground">{details.phone}</p>
+              <p className="text-sm text-ink-soft">{details.email}</p>
+              <p className="text-sm text-ink-soft">{details.phone}</p>
               {details.notes && (
-                <p className="text-sm text-muted-foreground mt-1 italic">
+                <p className="text-sm text-ink-soft mt-1 italic">
                   &ldquo;{details.notes}&rdquo;
                 </p>
               )}
@@ -1252,13 +1255,13 @@ function ConfirmationStep({
         </CardContent>
       </Card>
 
-      <Card className="bg-sal-500/5 border-sal-500/20">
+      <Card variant="tile" className="bg-none bg-mint/10 border-mint/40">
         <CardContent className="p-4 flex items-center justify-between">
           <div>
-            <span className="font-medium text-foreground">Price</span>
-            <p className="text-xs text-muted-foreground">Tax calculated at checkout</p>
+            <span className="font-medium text-ink">Price</span>
+            <p className="text-xs text-ink-faint">Tax calculated at checkout</p>
           </div>
-          <span className="text-xl font-bold text-sal-600 dark:text-sal-400 font-heading">
+          <span className="text-xl font-bold text-mint font-heading">
             {formatCurrency(service.price)}
           </span>
         </CardContent>
@@ -1279,7 +1282,7 @@ function ConfirmationStep({
         )}
       </Button>
 
-      <p className="text-xs text-center text-muted-foreground">
+      <p className="text-xs text-center text-ink-faint">
         By confirming, you agree to the cancellation policy. You&apos;ll receive a
         confirmation email at {details.email}.
       </p>
@@ -1348,39 +1351,39 @@ function SuccessState({
         </motion.div>
 
         <div>
-          <h2 className="text-2xl font-bold font-heading text-foreground">
+          <h2 className="text-2xl font-bold font-heading text-ink">
             Booking confirmed!
           </h2>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-ink-soft mt-1">
             Your appointment has been booked successfully
           </p>
         </div>
 
-        <Card>
+        <Card variant="tile">
           <CardContent className="p-5 text-left space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Service</span>
-              <span className="font-medium text-foreground">{service.name}</span>
+              <span className="text-sm text-ink-faint">Service</span>
+              <span className="font-medium text-ink">{service.name}</span>
             </div>
-            <div className="border-t border-border" />
+            <div className="border-t border-white/10" />
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Staff</span>
-              <span className="font-medium text-foreground">{staffName}</span>
+              <span className="text-sm text-ink-faint">Staff</span>
+              <span className="font-medium text-ink">{staffName}</span>
             </div>
-            <div className="border-t border-border" />
+            <div className="border-t border-white/10" />
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Date</span>
-              <span className="font-medium text-foreground">{dateStr}</span>
+              <span className="text-sm text-ink-faint">Date</span>
+              <span className="font-medium text-ink">{dateStr}</span>
             </div>
-            <div className="border-t border-border" />
+            <div className="border-t border-white/10" />
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Time</span>
-              <span className="font-medium text-foreground">{timeStr} ({tzAbbr})</span>
+              <span className="text-sm text-ink-faint">Time</span>
+              <span className="font-medium text-ink">{timeStr} ({tzAbbr})</span>
             </div>
-            <div className="border-t border-border" />
+            <div className="border-t border-white/10" />
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Price</span>
-              <span className="font-semibold text-sal-600 dark:text-sal-400">
+              <span className="text-sm text-ink-faint">Price</span>
+              <span className="font-semibold text-mint">
                 {formatCurrency(service.price)}
               </span>
             </div>
@@ -1680,15 +1683,15 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen env-canvas-lite">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b border-border">
+      <header className="sticky top-0 z-30 bg-[rgba(10,42,30,0.88)] backdrop-blur border-b border-white/15">
         <div className="max-w-lg mx-auto px-4 py-4">
           <div className="flex items-center justify-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sal-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-sal-500 flex items-center justify-center shadow-glow-sm">
               <Scissors className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-lg font-semibold font-heading text-foreground">
+            <h1 className="text-lg font-semibold font-heading text-ink">
               Book with {businessName}
             </h1>
           </div>
@@ -1703,6 +1706,9 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
           </div>
         )}
 
+        {/* The single blurred panel on this screen — every surface inside is a
+            blur-free glass-tile / white-alpha tint. */}
+        <div className="glass-panel glass-panel-lite rounded-panel overflow-hidden p-4 sm:p-6">
         <AnimatePresence mode="wait" custom={direction}>
           {isSuccess ? (
             <motion.div
@@ -1795,14 +1801,15 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
         {/* Social links footer — saved via Settings → Online Presence */}
         {socialLinks &&
           (socialLinks.instagram ||
             socialLinks.facebook ||
             socialLinks.tiktok ||
             socialLinks.website) && (
-            <footer className="mt-10 pt-6 border-t border-border">
-              <p className="text-center text-xs text-muted-foreground mb-3">
+            <footer className="mt-10 pt-6 border-t border-white/10">
+              <p className="text-center text-xs text-ink-faint mb-3">
                 Follow {businessName}
               </p>
               <div className="flex items-center justify-center gap-3">
@@ -1812,7 +1819,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Instagram"
-                    className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                    className="flex items-center justify-center w-11 h-11 rounded-full glass-tile text-ink-soft hover:text-ink hover:brightness-110 transition-all"
                   >
                     <Instagram className="w-5 h-5" />
                   </a>
@@ -1823,7 +1830,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Facebook"
-                    className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                    className="flex items-center justify-center w-11 h-11 rounded-full glass-tile text-ink-soft hover:text-ink hover:brightness-110 transition-all"
                   >
                     <Facebook className="w-5 h-5" />
                   </a>
@@ -1834,7 +1841,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="TikTok"
-                    className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                    className="flex items-center justify-center w-11 h-11 rounded-full glass-tile text-ink-soft hover:text-ink hover:brightness-110 transition-all"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
@@ -1847,7 +1854,7 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Website"
-                    className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                    className="flex items-center justify-center w-11 h-11 rounded-full glass-tile text-ink-soft hover:text-ink hover:brightness-110 transition-all"
                   >
                     <Globe className="w-5 h-5" />
                   </a>
@@ -1859,16 +1866,16 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
 
       {/* Bottom nav bar */}
       {!isSuccess && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/80 backdrop-blur-lg border-t border-border">
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-[rgba(10,42,30,0.88)] backdrop-blur border-t border-white/15">
           <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
             {step > 1 && (
-              <Button variant="outline" onClick={goBack} className="flex-shrink-0">
+              <Button variant="outline" onClick={goBack} className="flex-shrink-0 h-11">
                 <ArrowLeft className="w-4 h-4 mr-1" />
                 Back
               </Button>
             )}
             {step < 5 && (
-              <Button className="flex-1" onClick={goNext} disabled={!canNext}>
+              <Button className="flex-1 h-11" onClick={goNext} disabled={!canNext}>
                 Continue
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>

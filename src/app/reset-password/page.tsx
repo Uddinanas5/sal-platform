@@ -27,8 +27,8 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="text-center space-y-4">
-        <div className="mx-auto w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center">
-          <AlertCircle className="w-6 h-6 text-red-600" />
+        <div className="mx-auto w-12 h-12 bg-red-400/15 border border-red-400/25 rounded-full flex items-center justify-center">
+          <AlertCircle className="w-6 h-6 text-red-300" />
         </div>
         <h2 className="text-lg font-semibold text-foreground">Invalid Reset Link</h2>
         <p className="text-sm text-muted-foreground">
@@ -74,8 +74,8 @@ function ResetPasswordForm() {
   if (success) {
     return (
       <div className="text-center space-y-4">
-        <div className="mx-auto w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
-          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+        <div className="mx-auto w-12 h-12 bg-emerald-400/15 border border-emerald-400/25 rounded-full flex items-center justify-center">
+          <CheckCircle2 className="w-6 h-6 text-emerald-400" />
         </div>
         <h2 className="text-lg font-semibold text-foreground">Password Reset Successful</h2>
         <p className="text-sm text-muted-foreground">
@@ -105,11 +105,12 @@ function ResetPasswordForm() {
             required
             minLength={8}
             autoFocus
+            className="pr-12"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-ink-faint hover:text-ink transition-colors"
             tabIndex={-1}
           >
             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -128,11 +129,12 @@ function ResetPasswordForm() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             minLength={8}
+            className="pr-12"
           />
           <button
             type="button"
             onClick={() => setShowConfirm(!showConfirm)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-ink-faint hover:text-ink transition-colors"
             tabIndex={-1}
           >
             {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -141,9 +143,9 @@ function ResetPasswordForm() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 p-3 bg-red-500/10 rounded-lg">
-          <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="flex items-start gap-2 p-3 bg-red-400/15 border border-red-400/25 rounded-lg">
+          <AlertCircle className="w-4 h-4 text-red-300 mt-0.5 shrink-0" />
+          <p className="text-sm text-red-200">{error}</p>
         </div>
       )}
 
@@ -154,7 +156,7 @@ function ResetPasswordForm() {
       <div className="text-center">
         <Link
           href="/forgot-password"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-sal-600 transition-colors"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-mint transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />
           Request a new reset link
@@ -166,8 +168,8 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream p-4">
-      <Card className="w-full max-w-md border-cream-200">
+    <div className="min-h-screen flex items-center justify-center env-canvas-lite p-4">
+      <Card className="w-full max-w-md glass-panel-lite">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-sal-500 rounded-2xl flex items-center justify-center">
             <svg viewBox="0 0 32 32" className="w-10 h-10 text-white" fill="currentColor">
@@ -187,7 +189,7 @@ export default function ResetPasswordPage() {
           <Suspense
             fallback={
               <div className="flex items-center justify-center py-8">
-                <div className="w-6 h-6 border-2 border-sal-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-6 h-6 border-2 border-mint border-t-transparent rounded-full animate-spin" />
               </div>
             }
           >

@@ -55,7 +55,7 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg font-heading flex items-center gap-2">
-          <Code2 className="w-5 h-5 text-sal-500" />
+          <Code2 className="w-5 h-5 text-mint-strong" />
           Embed Widget
         </CardTitle>
       </CardHeader>
@@ -64,14 +64,14 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">Inline Widget Code</p>
           <div className="relative">
-            <pre className="bg-foreground text-gray-100 p-4 rounded-lg text-xs overflow-x-auto leading-relaxed">
+            <pre className="bg-[rgba(2,17,11,0.6)] border border-white/10 text-mint-soft font-mono p-4 rounded-lg text-xs overflow-x-auto leading-relaxed">
               <code>{embedCode}</code>
             </pre>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleCopyEmbed}
-              className="absolute top-2 right-2 text-muted-foreground/70 hover:text-white hover:bg-foreground/80"
+              className="absolute top-2 right-2 text-muted-foreground/70 hover:text-white hover:bg-white/10"
             >
               <Copy className="w-4 h-4" />
             </Button>
@@ -82,14 +82,14 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">Popup Button Code</p>
           <div className="relative">
-            <pre className="bg-foreground text-gray-100 p-4 rounded-lg text-xs overflow-x-auto leading-relaxed">
+            <pre className="bg-[rgba(2,17,11,0.6)] border border-white/10 text-mint-soft font-mono p-4 rounded-lg text-xs overflow-x-auto leading-relaxed">
               <code>{buttonCode}</code>
             </pre>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleCopyButton}
-              className="absolute top-2 right-2 text-muted-foreground/70 hover:text-white hover:bg-foreground/80"
+              className="absolute top-2 right-2 text-muted-foreground/70 hover:text-white hover:bg-white/10"
             >
               <Copy className="w-4 h-4" />
             </Button>
@@ -99,14 +99,14 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">Fallback Link</p>
           <div className="relative">
-            <pre className="bg-foreground text-gray-100 p-4 rounded-lg text-xs overflow-x-auto leading-relaxed">
+            <pre className="bg-[rgba(2,17,11,0.6)] border border-white/10 text-mint-soft font-mono p-4 rounded-lg text-xs overflow-x-auto leading-relaxed">
               <code>{linkCode}</code>
             </pre>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleCopyLink}
-              className="absolute top-2 right-2 text-muted-foreground/70 hover:text-white hover:bg-foreground/80"
+              className="absolute top-2 right-2 text-muted-foreground/70 hover:text-white hover:bg-white/10"
             >
               <Copy className="w-4 h-4" />
             </Button>

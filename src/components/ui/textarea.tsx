@@ -48,7 +48,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
               charCount >= maxLength * 0.9
                 ? "text-destructive"
                 : charCount >= maxLength * 0.75
-                  ? "text-amber-600 dark:text-amber-400"
+                  ? "text-amber-400"
                   : "text-muted-foreground/50"
             )}
           >

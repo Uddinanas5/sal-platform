@@ -108,7 +108,7 @@ export function StaffServicesTab({
           >
             <Card>
               <CardContent className="p-4">
-                <h3 className="font-semibold text-foreground mb-3 text-sm uppercase tracking-wide text-muted-foreground">
+                <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                   {category}
                 </h3>
                 <div className="space-y-2">
@@ -125,8 +125,8 @@ export function StaffServicesTab({
                         className={cn(
                           "w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
                           isSelected
-                            ? "border-sal-600/40 bg-sal-50 dark:bg-sal-900/20"
-                            : "border-cream-200 bg-card hover:border-cream-300 hover:bg-cream-50"
+                            ? "border-mint/30 bg-sal-50"
+                            : "border-cream-200 bg-white/[0.04] hover:border-cream-300 hover:bg-white/[0.07]"
                         )}
                       >
                         {/* Checkbox indicator */}
@@ -134,8 +134,8 @@ export function StaffServicesTab({
                           className={cn(
                             "w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all",
                             isSelected
-                              ? "border-sal-600 bg-sal-600"
-                              : "border-cream-300 bg-white"
+                              ? "border-sal-500 bg-sal-500"
+                              : "border-cream-300 bg-transparent"
                           )}
                         >
                           {isSelected && (
@@ -176,7 +176,7 @@ export function StaffServicesTab({
                             className={cn(
                               "text-xs font-medium",
                               isSelected
-                                ? "bg-sal-100 text-sal-700 dark:bg-sal-900/40 dark:text-sal-300"
+                                ? "bg-none bg-sal-100 text-mint-soft"
                                 : ""
                             )}
                           >

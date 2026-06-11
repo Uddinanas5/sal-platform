@@ -72,11 +72,11 @@ export function LoyaltyRedeemSection({
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-sal-200 bg-sal-50/60 p-3">
+    <div className="space-y-2 rounded-lg border border-sal-200 bg-sal-50 p-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-sal-600" />
-          <p className="text-xs font-medium text-sal-700">Loyalty points</p>
+          <Sparkles className="h-3.5 w-3.5 text-mint" />
+          <p className="text-xs font-medium text-mint-soft">Loyalty points</p>
         </div>
         {loading ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
@@ -88,8 +88,8 @@ export function LoyaltyRedeemSection({
       </div>
 
       {redeemPoints > 0 ? (
-        <div className="flex items-center justify-between rounded-md bg-white/70 px-2.5 py-1.5">
-          <span className="text-xs text-sal-700">
+        <div className="flex items-center justify-between rounded-md bg-white/[0.08] px-2.5 py-1.5">
+          <span className="text-xs text-mint-soft">
             {redeemPoints.toLocaleString()} pts applied
             <span className="ml-1 font-semibold">-{formatCurrency(appliedAmount)}</span>
           </span>
@@ -125,7 +125,7 @@ export function LoyaltyRedeemSection({
           <button
             type="button"
             onClick={() => onSetRedeemPoints(cap)}
-            className="text-[11px] text-sal-600 underline hover:text-sal-700"
+            className="text-[11px] text-mint underline hover:text-mint-soft"
           >
             Use max ({cap.toLocaleString()} pts = {formatCurrency(dollarsForPoints(cap))})
           </button>

@@ -233,7 +233,7 @@ export function ServiceDetailSheet({
                 {/* Price & Duration */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-cream-100">
-                    <DollarSign className="w-5 h-5 text-sal-600" />
+                    <DollarSign className="w-5 h-5 text-mint" />
                     <div>
                       <p className="text-xs text-muted-foreground">Price</p>
                       <p className="font-semibold text-foreground">
@@ -242,7 +242,7 @@ export function ServiceDetailSheet({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-cream-100">
-                    <Clock className="w-5 h-5 text-sal-600" />
+                    <Clock className="w-5 h-5 text-mint" />
                     <div>
                       <p className="text-xs text-muted-foreground">Duration</p>
                       <p className="font-semibold text-foreground">
@@ -254,11 +254,11 @@ export function ServiceDetailSheet({
 
                 {/* Processing Time */}
                 {service.processingTime && (
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
-                    <Timer className="w-5 h-5 text-amber-600" />
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-400/10 border border-amber-400/30">
+                    <Timer className="w-5 h-5 text-amber-400" />
                     <div>
-                      <p className="text-xs text-amber-700">Processing Time</p>
-                      <p className="font-medium text-amber-900">
+                      <p className="text-xs text-amber-300">Processing Time</p>
+                      <p className="font-medium text-amber-200">
                         {formatDuration(service.processingTime)} additional wait
                       </p>
                     </div>
@@ -345,7 +345,7 @@ export function ServiceDetailSheet({
                         <p className="text-sm font-medium text-foreground">
                           {addon.name}
                         </p>
-                        <span className="font-semibold text-sal-600">
+                        <span className="font-semibold text-mint">
                           +{formatCurrency(addon.price)}
                         </span>
                       </motion.div>
@@ -417,7 +417,7 @@ export function ServiceDetailSheet({
                   </Button>
                   <Button
                     variant="outline"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
                     onClick={handleDelete}
                     disabled={isDeleting}
                   >

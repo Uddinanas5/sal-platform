@@ -24,17 +24,19 @@ const hourLabels = [
 ]
 
 function getHeatmapColor(value: number): string {
+  // Dark-frost ramp: denser slots get BRIGHTER mint (not darker emerald).
   if (value === 0) return "bg-cream-100"
   if (value <= 2) return "bg-sal-100"
   if (value <= 4) return "bg-sal-200"
-  if (value <= 6) return "bg-sal-400"
-  if (value <= 8) return "bg-sal-600"
-  return "bg-sal-800"
+  if (value <= 6) return "bg-sal-500"
+  if (value <= 8) return "bg-sal-400"
+  return "bg-mint"
 }
 
 function getHeatmapTextColor(value: number): string {
   if (value <= 4) return "text-foreground"
-  return "text-white"
+  if (value <= 6) return "text-white"
+  return "text-emerald-950"
 }
 
 export function AppointmentsTab({
@@ -43,7 +45,7 @@ export function AppointmentsTab({
   busiestTimesHeatmap,
 }: AppointmentsTabProps) {
   const completionData = [
-    { name: "Completed", value: appointmentCompletionRate.completed, color: "#059669" },
+    { name: "Completed", value: appointmentCompletionRate.completed, color: "#4fe6a6" },
     { name: "Cancelled", value: appointmentCompletionRate.cancelled, color: "#ef4444" },
     { name: "No Show", value: appointmentCompletionRate.noShow, color: "#f59e0b" },
     { name: "Rescheduled", value: appointmentCompletionRate.rescheduled, color: "#6366f1" },
@@ -64,7 +66,7 @@ export function AppointmentsTab({
           title="Appointments by Hour"
           description="Distribution throughout the day"
           height={300}
-          color="#059669"
+          color="#4fe6a6"
           className="border-cream-200"
         />
         <PieChartComponent
@@ -86,7 +88,7 @@ export function AppointmentsTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Busiest Times</CardTitle>
             <CardDescription>Heatmap of appointment density by day and hour</CardDescription>

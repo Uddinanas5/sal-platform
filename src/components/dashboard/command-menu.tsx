@@ -57,6 +57,11 @@ interface SearchData {
   staff: SearchStaff[]
 }
 
+// Frost micro-label styling for cmdk group headings (overrides the
+// muted-foreground default coming from ui/command.tsx).
+const groupHeadingClass =
+  "[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.18em] [&_[cmdk-group-heading]]:text-ink-faint"
+
 const pages = [
   { name: "Dashboard", href: "/dashboard", icon: Gauge },
   { name: "Calendar", href: "/calendar", icon: Calendar },
@@ -143,7 +148,7 @@ export function CommandMenu() {
         </CommandEmpty>
 
         {clients.length > 0 && (
-          <CommandGroup heading="Clients">
+          <CommandGroup heading="Clients" className={groupHeadingClass}>
             {clients.map((client) => (
               <CommandItem
                 key={client.id}
@@ -165,7 +170,7 @@ export function CommandMenu() {
         )}
 
         {services.length > 0 && (
-          <CommandGroup heading="Services">
+          <CommandGroup heading="Services" className={groupHeadingClass}>
             {services.map((service) => (
               <CommandItem
                 key={service.id}
@@ -187,7 +192,7 @@ export function CommandMenu() {
         )}
 
         {staff.length > 0 && (
-          <CommandGroup heading="Staff">
+          <CommandGroup heading="Staff" className={groupHeadingClass}>
             {staff.map((member) => (
               <CommandItem
                 key={member.id}
@@ -208,7 +213,7 @@ export function CommandMenu() {
           </CommandGroup>
         )}
 
-        <CommandGroup heading="Pages">
+        <CommandGroup heading="Pages" className={groupHeadingClass}>
           {pages.map((page) => (
             <CommandItem
               key={page.href}
@@ -226,7 +231,7 @@ export function CommandMenu() {
           ))}
         </CommandGroup>
 
-        <CommandGroup heading="Actions">
+        <CommandGroup heading="Actions" className={groupHeadingClass}>
           {actions.map((action) => (
             <CommandItem
               key={action.name}
@@ -243,7 +248,7 @@ export function CommandMenu() {
 
         <CommandSeparator />
 
-        <CommandGroup heading="Keyboard Shortcuts">
+        <CommandGroup heading="Keyboard Shortcuts" className={groupHeadingClass}>
           <CommandItem value="shortcut search" onSelect={() => setOpen(false)}>
             <Keyboard className="mr-2 h-4 w-4 text-muted-foreground/70" />
             <span>Search</span>
