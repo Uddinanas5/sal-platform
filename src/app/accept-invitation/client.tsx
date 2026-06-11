@@ -38,8 +38,8 @@ function ErrorCard({
   action?: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream p-4">
-      <Card className="w-full max-w-md border-cream-200">
+    <div className="min-h-screen flex items-center justify-center env-canvas-lite p-4">
+      <Card className="w-full max-w-md glass-panel-lite">
         <CardHeader className="text-center space-y-4">
           <Logo />
           <div className="flex justify-center">
@@ -133,8 +133,8 @@ export default function AcceptInvitationClient({ state }: Props) {
 
   if (!isNewUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-cream p-4">
-        <Card className="w-full max-w-md border-cream-200">
+      <div className="min-h-screen flex items-center justify-center env-canvas-lite p-4">
+        <Card className="w-full max-w-md glass-panel-lite">
           <CardHeader className="text-center space-y-4">
             <Logo />
             <div className="flex justify-center">
@@ -151,7 +151,7 @@ export default function AcceptInvitationClient({ state }: Props) {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-sal-50 border border-sal-200 rounded-lg p-4 space-y-2">
+            <div className="glass-tile rounded-tile p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <RoleIcon className="w-4 h-4 text-mint" />
                 <span className="text-sm font-medium text-ink">{roleLabel} at {businessName}</span>
@@ -199,8 +199,8 @@ export default function AcceptInvitationClient({ state }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream p-4">
-      <Card className="w-full max-w-md border-cream-200">
+    <div className="min-h-screen flex items-center justify-center env-canvas-lite p-4">
+      <Card className="w-full max-w-md glass-panel-lite">
         <CardHeader className="text-center space-y-4">
           <Logo />
           <div>
@@ -214,7 +214,7 @@ export default function AcceptInvitationClient({ state }: Props) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="bg-sal-50 border border-sal-200 rounded-lg p-3 flex items-center gap-2 mb-6">
+          <div className="glass-tile rounded-tile p-3 flex items-center gap-2 mb-6">
             <RoleIcon className="w-4 h-4 text-mint flex-shrink-0" />
             <div>
               <p className="text-sm font-medium text-ink">{businessName}</p>
@@ -235,12 +235,12 @@ export default function AcceptInvitationClient({ state }: Props) {
                     setPassword(e.target.value)
                     if (passwordError) setPasswordError("")
                   }}
-                  className={passwordError ? "border-red-500 pr-10" : "pr-10"}
+                  className={passwordError ? "border-red-400/60 pr-12" : "pr-12"}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-ink-faint hover:text-ink transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -259,12 +259,12 @@ export default function AcceptInvitationClient({ state }: Props) {
                   setConfirmPassword(e.target.value)
                   if (passwordError) setPasswordError("")
                 }}
-                className={passwordError ? "border-red-500" : ""}
+                className={passwordError ? "border-red-400/60" : ""}
               />
             </div>
 
             {passwordError && (
-              <p className="text-sm text-red-500" role="alert">{passwordError}</p>
+              <p className="text-sm text-red-300" role="alert">{passwordError}</p>
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>

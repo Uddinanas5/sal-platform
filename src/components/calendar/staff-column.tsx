@@ -231,12 +231,12 @@ export function StaffColumn({
         compact ? "min-w-[120px]" : "min-w-[180px]"
       )}
       style={{
-        backgroundColor: isDayOff && showWorkingHours ? "rgba(0,0,0,0.03)" : `${staff.color}08`,
+        backgroundColor: isDayOff && showWorkingHours ? "rgba(0,0,0,0.18)" : `${staff.color}08`,
       }}
     >
       {/* Staff header */}
       {showHeader && (
-        <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 bg-card/95 backdrop-blur-sm border-b border-cream-200 h-[52px]">
+        <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 bg-white/[0.06] backdrop-blur-sm border-b border-cream-200 h-[52px]">
           <Avatar className="h-7 w-7">
             <AvatarImage src={staff.avatar} />
             <AvatarFallback
@@ -270,8 +270,8 @@ export function StaffColumn({
             style={{
               top: 0,
               height: `${(workStart - startHour * 60) * pixelsPerMinute}px`,
-              background: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.03) 4px, rgba(0,0,0,0.03) 8px)",
-              borderBottom: "1px dashed rgba(0,0,0,0.1)",
+              background: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.15) 4px, rgba(0,0,0,0.15) 8px)",
+              borderBottom: "1px dashed rgba(255,255,255,0.12)",
             }}
           />
         )}
@@ -283,8 +283,8 @@ export function StaffColumn({
             style={{
               top: `${(workEnd - startHour * 60) * pixelsPerMinute}px`,
               height: `${(endHour * 60 - workEnd) * pixelsPerMinute}px`,
-              background: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.03) 4px, rgba(0,0,0,0.03) 8px)",
-              borderTop: "1px dashed rgba(0,0,0,0.1)",
+              background: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.15) 4px, rgba(0,0,0,0.15) 8px)",
+              borderTop: "1px dashed rgba(255,255,255,0.12)",
             }}
           />
         )}
@@ -294,11 +294,11 @@ export function StaffColumn({
           <div
             className="absolute inset-0 z-[1] pointer-events-none"
             style={{
-              background: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.04) 4px, rgba(0,0,0,0.04) 8px)",
+              background: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.16) 4px, rgba(0,0,0,0.16) 8px)",
             }}
           >
             <div className="flex items-center justify-center h-full">
-              <span className="text-xs font-medium text-muted-foreground/70 bg-card/80 px-2 py-1 rounded-md">
+              <span className="text-xs font-medium text-ink-soft bg-white/[0.08] border border-white/10 px-2 py-1 rounded-md">
                 Day Off
               </span>
             </div>

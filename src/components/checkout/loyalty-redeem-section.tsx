@@ -88,7 +88,7 @@ export function LoyaltyRedeemSection({
       </div>
 
       {redeemPoints > 0 ? (
-        <div className="flex items-center justify-between rounded-md bg-card/70 px-2.5 py-1.5">
+        <div className="flex items-center justify-between rounded-md bg-white/[0.08] px-2.5 py-1.5">
           <span className="text-xs text-mint-soft">
             {redeemPoints.toLocaleString()} pts applied
             <span className="ml-1 font-semibold">-{formatCurrency(appliedAmount)}</span>

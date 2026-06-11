@@ -43,7 +43,7 @@ export function PasswordStrength({ password, className }: PasswordStrengthProps)
               key={level}
               className={cn(
                 "h-1.5 flex-1 rounded-full transition-colors",
-                level <= strength.level ? strength.color : "bg-muted"
+                level <= strength.level ? strength.color : "bg-white/10"
               )}
             />
           ))}
@@ -51,10 +51,10 @@ export function PasswordStrength({ password, className }: PasswordStrengthProps)
         {strength.label && (
           <span className={cn(
             "text-xs font-medium",
-            strength.level === 1 && "text-red-500",
-            strength.level === 2 && "text-orange-500",
-            strength.level === 3 && "text-yellow-400",
-            strength.level === 4 && "text-green-500"
+            strength.level === 1 && "text-red-300",
+            strength.level === 2 && "text-orange-300",
+            strength.level === 3 && "text-yellow-300",
+            strength.level === 4 && "text-green-400"
           )}>
             {strength.label}
           </span>

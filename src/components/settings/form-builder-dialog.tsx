@@ -269,7 +269,7 @@ export function FormBuilderDialog({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: -20, height: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="border rounded-lg p-4 space-y-3 bg-muted/30"
+                        className="glass-tile rounded-tile p-4 space-y-3"
                       >
                         <div className="flex items-start gap-2">
                           <div className="mt-2.5 text-muted-foreground/40 cursor-grab" aria-label="Drag handle">
@@ -359,7 +359,7 @@ export function FormBuilderDialog({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-muted-foreground hover:text-red-500 mt-1 shrink-0"
+                            className="text-muted-foreground hover:text-red-400 mt-1 shrink-0"
                             onClick={() => removeField(field.id)}
                             aria-label="Remove field"
                           >
@@ -450,7 +450,7 @@ export function FormBuilderDialog({
           >
             <ScrollArea className="h-[55vh] pr-3">
               <div className="py-4">
-                <div className="border rounded-lg p-6 bg-background">
+                <div className="border border-white/10 rounded-lg p-6 bg-white/[0.04]">
                   {name && (
                     <div className="mb-6">
                       <h3 className="text-lg font-heading font-semibold">

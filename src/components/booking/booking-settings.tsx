@@ -54,7 +54,7 @@ export function BookingSettings({ businessSlug }: BookingSettingsProps) {
               </p>
               <div className="flex items-center gap-2">
                 <div
-                  className="flex-1 flex items-center gap-2 px-3 py-2 bg-card rounded-lg border border-cream-200 cursor-text select-all min-w-0"
+                  className="flex-1 flex items-center gap-2 px-3 py-2 bg-white/[0.06] rounded-lg border border-cream-200 cursor-text select-all min-w-0"
                   onClick={(e) => {
                     const el = e.currentTarget.querySelector("span")
                     if (el) {
@@ -79,7 +79,7 @@ export function BookingSettings({ businessSlug }: BookingSettingsProps) {
                 >
                   {copied ? (
                     <>
-                      <Check className="w-4 h-4 text-emerald-500" />
+                      <Check className="w-4 h-4 text-mint" />
                       <span className="text-xs">Copied</span>
                     </>
                   ) : (

@@ -77,7 +77,7 @@ export function ReviewSummary({ stats = defaultStats }: ReviewSummaryProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0 }}
       >
-        <Card className="border-cream-200 h-full">
+        <Card className="h-full">
           <CardContent className="p-6">
             <div className="flex items-center gap-6">
               <div className="text-center">
@@ -99,15 +99,14 @@ export function ReviewSummary({ stats = defaultStats }: ReviewSummaryProps) {
                       <span className="text-sm text-muted-foreground w-8 text-right">
                         {item.stars}
                       </span>
-                      <div className="h-2 flex-1 bg-cream-200 dark:bg-muted rounded-full overflow-hidden">
+                      <div className="h-2 flex-1 bg-white/10 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${pct}%` }}
                           transition={{ duration: 0.8, delay: 0.2 + index * 0.1, ease: "easeOut" }}
-                          className="h-full rounded-full"
-                          style={{
-                            backgroundColor: item.stars >= 4 ? "#059669" : item.stars === 3 ? "#f59e0b" : "#ef4444"
-                          }}
+                          className={`h-full rounded-full ${
+                            item.stars >= 4 ? "bg-mint" : item.stars === 3 ? "bg-amber-300" : "bg-red-400"
+                          }`}
                         />
                       </div>
                       <span className="text-sm text-muted-foreground w-6 text-right">
@@ -128,7 +127,7 @@ export function ReviewSummary({ stats = defaultStats }: ReviewSummaryProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-cream-200 h-full">
+        <Card className="h-full">
           <CardContent className="p-6 flex flex-col items-center justify-center h-full">
             <div className="p-3 rounded-xl bg-sal-100 mb-3">
               <MessageSquare className="w-6 h-6 text-mint" />
@@ -151,7 +150,7 @@ export function ReviewSummary({ stats = defaultStats }: ReviewSummaryProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Card className="border-cream-200 h-full">
+        <Card className="h-full">
           <CardContent className="p-6 flex flex-col items-center justify-center h-full">
             <div className="p-3 rounded-xl bg-sal-100 mb-3">
               <TrendingUp className="w-6 h-6 text-mint" />
@@ -168,7 +167,7 @@ export function ReviewSummary({ stats = defaultStats }: ReviewSummaryProps) {
               <path
                 d={sparklinePath}
                 fill="none"
-                stroke="#059669"
+                stroke="#4fe6a6"
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -185,7 +184,7 @@ export function ReviewSummary({ stats = defaultStats }: ReviewSummaryProps) {
                     cx={x}
                     cy={y}
                     r={3}
-                    fill="#059669"
+                    fill="#4fe6a6"
                   />
                 )
               })}

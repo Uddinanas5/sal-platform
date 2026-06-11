@@ -41,10 +41,10 @@ interface Reward {
 }
 
 const tiers = [
-  { name: "Bronze", minPoints: 0, maxPoints: 200, color: "bg-amber-700" },
-  { name: "Silver", minPoints: 200, maxPoints: 500, color: "bg-slate-400" },
-  { name: "Gold", minPoints: 500, maxPoints: 1000, color: "bg-yellow-500" },
-  { name: "Platinum", minPoints: 1000, maxPoints: Infinity, color: "bg-purple-500" },
+  { name: "Bronze", minPoints: 0, maxPoints: 200, color: "bg-amber-400/15 text-amber-300 border border-amber-400/25" },
+  { name: "Silver", minPoints: 200, maxPoints: 500, color: "bg-slate-400/15 text-slate-300 border border-slate-400/25" },
+  { name: "Gold", minPoints: 500, maxPoints: 1000, color: "bg-yellow-400/15 text-yellow-300 border border-yellow-400/25" },
+  { name: "Platinum", minPoints: 1000, maxPoints: Infinity, color: "bg-purple-400/15 text-purple-300 border border-purple-400/25" },
 ]
 
 const rewards: Reward[] = [
@@ -99,14 +99,14 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="border-cream-200 overflow-hidden">
+          <Card className="overflow-hidden">
             <div className="bg-gradient-to-br from-sal-500 to-sal-700 p-6 text-white">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Trophy className="w-5 h-5" />
                   <span className="text-sm font-medium opacity-90">Points Balance</span>
                 </div>
-                <Badge className={`${currentTier.color} text-white border-0`}>
+                <Badge className={currentTier.color}>
                   {currentTier.name}
                 </Badge>
               </div>
@@ -146,7 +146,7 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
         >
-          <Card className="border-cream-200 h-full">
+          <Card className="h-full">
             <CardHeader>
               <CardTitle className="text-lg font-heading flex items-center gap-2">
                 <Star className="w-4 h-4" />
@@ -162,13 +162,13 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
                     <div key={tier.name} className="flex items-center gap-3">
                       <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          isAchieved ? tier.color : "bg-cream-200"
+                          isAchieved ? tier.color : "bg-white/[0.06] border border-white/10"
                         }`}
                       >
                         {isAchieved ? (
-                          <Trophy className="w-4 h-4 text-white" />
+                          <Trophy className="w-4 h-4" />
                         ) : (
-                          <Trophy className="w-4 h-4 text-muted-foreground/70" />
+                          <Trophy className="w-4 h-4 text-ink-faint" />
                         )}
                       </div>
                       <div className="flex-1">
@@ -210,7 +210,7 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
           transition={{ delay: 0.2 }}
           className="lg:col-span-2"
         >
-          <Card className="border-cream-200">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg font-heading flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" />
@@ -291,7 +291,7 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
         >
-          <Card className="border-cream-200">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg font-heading flex items-center gap-2">
                 <Gift className="w-4 h-4" />

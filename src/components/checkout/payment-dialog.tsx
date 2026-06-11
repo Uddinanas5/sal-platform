@@ -339,9 +339,9 @@ export function PaymentDialog({
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       className={cn(
-                        "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:border-sal-300",
+                        "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:border-cream-300",
                         paymentMethod === "cash"
-                          ? "border-sal-500 bg-sal-50"
+                          ? "border-mint/50 bg-mint/10"
                           : "border-border"
                       )}
                       onClick={() => onSetPaymentMethod("cash")}
@@ -385,9 +385,9 @@ export function PaymentDialog({
                     <button
                       type="button"
                       className={cn(
-                        "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:border-sal-300",
+                        "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:border-cream-300",
                         paymentMethod === "gift_card"
-                          ? "border-sal-500 bg-sal-50"
+                          ? "border-mint/50 bg-mint/10"
                           : "border-border"
                       )}
                       onClick={() => onSetPaymentMethod("gift_card")}
@@ -491,8 +491,8 @@ export function PaymentDialog({
 
                     {/* Invalid / not-found / expired */}
                     {giftCardCheck.checked && !giftCardCheck.valid && (
-                      <div className="flex items-start gap-2 rounded-lg bg-red-500/10 p-3 text-sm dark:text-red-300">
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                      <div className="flex items-start gap-2 rounded-lg border border-red-400/25 bg-red-400/15 p-3 text-sm text-red-300">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
                         <span>{giftCardCheck.error}</span>
                       </div>
                     )}
@@ -502,10 +502,10 @@ export function PaymentDialog({
                     {giftCardCheck.checked && giftCardCheck.valid && (
                       <div
                         className={cn(
-                          "rounded-lg p-3 text-sm",
+                          "rounded-lg border p-3 text-sm",
                           giftCardCoversTotal
-                            ? "bg-sal-500/10 dark:text-sal-300"
-                            : "bg-amber-500/10 dark:text-amber-300"
+                            ? "border-sal-400/25 bg-sal-500/10 text-sal-300"
+                            : "border-amber-400/25 bg-amber-400/15 text-amber-300"
                         )}
                       >
                         <div className="flex items-center justify-between">
@@ -524,7 +524,7 @@ export function PaymentDialog({
                         )}
                         {!giftCardCoversTotal && (
                           <p className="mt-2 flex items-start gap-2 font-medium">
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
                             <span>
                               This card can&apos;t cover the full {formatCurrency(total)} total
                               (no partial payments yet). Please use cash instead.

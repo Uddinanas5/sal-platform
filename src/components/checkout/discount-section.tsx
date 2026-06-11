@@ -126,12 +126,12 @@ export function DiscountSection({
           >
             <div className="space-y-3 pt-3">
               {/* Type selector */}
-              <div className="flex rounded-lg border bg-muted p-1">
+              <div className="flex rounded-lg border bg-white/[0.04] p-1">
                 <button
                   className={cn(
                     "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
                     localType === "percentage"
-                      ? "bg-background text-foreground shadow-sm"
+                      ? "bg-white/[0.12] text-foreground shadow-sm"
                       : "text-muted-foreground"
                   )}
                   onClick={() => setLocalType("percentage")}
@@ -143,7 +143,7 @@ export function DiscountSection({
                   className={cn(
                     "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
                     localType === "fixed"
-                      ? "bg-background text-foreground shadow-sm"
+                      ? "bg-white/[0.12] text-foreground shadow-sm"
                       : "text-muted-foreground"
                   )}
                   onClick={() => setLocalType("fixed")}

@@ -57,9 +57,9 @@ import { deleteStaff, setStaffActive } from "@/lib/actions/staff"
 import { sendInvitation } from "@/lib/actions/invitations"
 
 const roleConfig = {
-  admin: { label: "Admin", icon: ShieldAlert, color: "text-red-400", bg: "bg-red-500/10" },
-  manager: { label: "Manager", icon: ShieldCheck, color: "text-blue-400", bg: "bg-blue-500/10" },
-  staff: { label: "Staff", icon: Shield, color: "text-muted-foreground", bg: "bg-cream-200 dark:bg-cream-200" },
+  admin: { label: "Admin", icon: ShieldAlert, color: "text-red-300", bg: "bg-red-400/15 border border-red-400/25" },
+  manager: { label: "Manager", icon: ShieldCheck, color: "text-blue-300", bg: "bg-blue-400/15 border border-blue-400/25" },
+  staff: { label: "Staff", icon: Shield, color: "text-ink-soft", bg: "bg-white/10 border border-white/15" },
 }
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -107,7 +107,7 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
         transition={{ delay: index * 0.1 }}
         whileHover={{ y: -2 }}
         className={cn(
-          "bg-card rounded-2xl border border-cream-200 shadow-sm hover:shadow-lg transition-all overflow-hidden card-warm cursor-pointer",
+          "glass-tile rounded-tile transition-all overflow-hidden card-warm cursor-pointer",
           !isActive && "opacity-60"
         )}
       >
@@ -119,7 +119,7 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
           }}
         >
           <div className="absolute -bottom-8 left-5">
-            <Avatar className="w-16 h-16 ring-4 ring-white">
+            <Avatar className="w-16 h-16 ring-4 ring-white/25">
               <AvatarImage src={staff.avatar} />
               <AvatarFallback
                 className="text-xl font-semibold"
@@ -134,7 +134,7 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-2 right-2 bg-card/50 hover:bg-card/80"
+                className="absolute top-2 right-2 bg-white/10 hover:bg-white/20"
                 onClick={(e) => e.preventDefault()}
                 aria-label="More options"
               >
@@ -179,7 +179,7 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
                 <h3 className="font-semibold text-lg text-foreground">{staff.name}</h3>
                 <Badge
                   variant="secondary"
-                  className={cn("text-xs", roleInfo.bg, roleInfo.color)}
+                  className={cn("text-xs bg-none", roleInfo.bg, roleInfo.color)}
                 >
                   <RoleIcon className="w-3 h-3 mr-1" />
                   {roleInfo.label}
@@ -240,7 +240,7 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
                       "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-medium transition-colors",
                       isWorking
                         ? "bg-sal-100 text-mint-soft"
-                        : "bg-cream-200 text-muted-foreground/70"
+                        : "bg-white/[0.06] text-ink-faint"
                     )}
                   >
                     {day.charAt(0).toUpperCase()}
@@ -328,7 +328,7 @@ export function StaffClient(props: StaffClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       <Header title="Staff" subtitle="Manage your team members" />
 
       <div className="p-6 space-y-6">
@@ -346,7 +346,7 @@ export function StaffClient(props: StaffClientProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
             >
-              <Card>
+              <Card variant="tile">
                 <CardContent className="p-4">
                   <p className="text-sm text-muted-foreground">{stat.label}</p>
                   <p className="text-2xl font-heading font-bold text-foreground mt-1">
@@ -419,7 +419,7 @@ export function StaffClient(props: StaffClientProps) {
                       }}
                     />
                     {addStaffErrors.firstName && (
-                      <p className="text-xs text-red-500">{addStaffErrors.firstName}</p>
+                      <p className="text-xs text-red-400">{addStaffErrors.firstName}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -433,7 +433,7 @@ export function StaffClient(props: StaffClientProps) {
                       }}
                     />
                     {addStaffErrors.lastName && (
-                      <p className="text-xs text-red-500">{addStaffErrors.lastName}</p>
+                      <p className="text-xs text-red-400">{addStaffErrors.lastName}</p>
                     )}
                   </div>
                 </div>
@@ -449,7 +449,7 @@ export function StaffClient(props: StaffClientProps) {
                     }}
                   />
                   {addStaffErrors.email && (
-                    <p className="text-xs text-red-500">{addStaffErrors.email}</p>
+                    <p className="text-xs text-red-400">{addStaffErrors.email}</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -506,13 +506,13 @@ export function StaffClient(props: StaffClientProps) {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-cream-200">
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">
+                    <th className="text-left py-3 px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                       Staff
                     </th>
                     {DAYS.map((day) => (
                       <th
                         key={day}
-                        className="text-center py-3 px-2 font-medium text-muted-foreground text-sm capitalize"
+                        className="text-center py-3 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint"
                       >
                         {day.slice(0, 3)}
                       </th>
@@ -521,7 +521,7 @@ export function StaffClient(props: StaffClientProps) {
                 </thead>
                 <tbody>
                   {props.initialStaff.map((staff) => (
-                    <tr key={staff.id} className="border-b border-cream-200 hover:bg-cream-100 transition-colors">
+                    <tr key={staff.id} className="border-b border-cream-200 hover:bg-white/[0.05] transition-colors">
                       <td className="py-3 px-4">
                         <Link
                           href={`/staff/${staff.id}`}
@@ -539,11 +539,11 @@ export function StaffClient(props: StaffClientProps) {
                         return (
                           <td key={day} className="py-3 px-2 text-center">
                             {hours ? (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-ink-soft">
                                 {hours.start}-{hours.end}
                               </span>
                             ) : (
-                              <span className="text-xs text-muted-foreground/70">Off</span>
+                              <span className="text-xs text-ink-faint">Off</span>
                             )}
                           </td>
                         )

@@ -16,7 +16,7 @@ export default function ServicesLoading() {
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="p-6">
+          <Card key={i} variant="tile" className="p-6">
             <div className="flex items-center justify-between mb-4">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-8 rounded-lg" />
@@ -37,7 +37,7 @@ export default function ServicesLoading() {
       {/* Service card grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 9 }).map((_, i) => (
-          <Card key={i} className="p-6">
+          <Card key={i} variant="tile" className="p-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-lg" />

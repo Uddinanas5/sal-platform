@@ -148,7 +148,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       {/* Breadcrumb navigation */}
       <div className="h-12 bg-card/80 backdrop-blur-sm border-b border-cream-200 px-6 flex items-center sticky top-0 z-30">
         <nav className="flex items-center gap-1 text-sm">
@@ -172,7 +172,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card className="border-cream-200">
+          <Card>
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 {/* Client Info */}
@@ -311,7 +311,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
             transition={{ delay: 0.15 }}
             className="flex items-start gap-3 p-4 bg-amber-400/10 border border-amber-400/30 rounded-xl"
           >
-            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-amber-300">Staff Alert</p>
               <p className="text-sm text-amber-300 mt-0.5">{client.notes}</p>
@@ -328,7 +328,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.05 }}
             >
-              <Card className="border-cream-200">
+              <Card variant="tile">
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className={`p-2.5 rounded-xl ${stat.color}`}>
                     <stat.icon className="w-4 h-4" />
@@ -352,7 +352,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
           transition={{ delay: 0.3 }}
         >
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="bg-card border border-cream-200">
+            <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="appointments">Appointments</TabsTrigger>
               <TabsTrigger value="purchases">Purchases</TabsTrigger>

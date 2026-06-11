@@ -412,7 +412,7 @@ export default function CheckoutClient({
   return (
     <div className="min-h-screen bg-cream">
       {/* Page header */}
-      <div className="border-b bg-card/80 backdrop-blur-sm px-4 py-4 lg:px-6">
+      <div className="surface-glass px-4 py-4 lg:px-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sal-100">
             <ShoppingCart className="h-5 w-5 text-mint" />
@@ -475,7 +475,7 @@ export default function CheckoutClient({
         </motion.div>
 
         {/* Sticky bottom bar to open cart */}
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card/95 dark:bg-card/95 backdrop-blur-sm px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-cream-200 bg-card/95 backdrop-blur-sm px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.35)]">
           <button
             onClick={() => setMobileCartOpen(true)}
             className="flex w-full items-center justify-between rounded-xl bg-sal-500 px-4 py-3 text-white shadow-lg transition-all active:scale-[0.98] hover:bg-sal-600"
@@ -484,7 +484,7 @@ export default function CheckoutClient({
               <div className="relative">
                 <ShoppingCart className="h-6 w-6" />
                 {cartSummary.itemCount > 0 && (
-                  <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-card px-1 text-[10px] font-bold text-mint">
+                  <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-emerald-700">
                     {cartSummary.itemCount}
                   </span>
                 )}
@@ -509,7 +509,7 @@ export default function CheckoutClient({
               <SheetDescription>Review and manage items in your cart</SheetDescription>
             </SheetHeader>
             {/* Drag handle indicator */}
-            <div className="sticky top-0 z-10 flex justify-center bg-background pb-2 pt-3">
+            <div className="sticky top-0 z-10 flex justify-center bg-transparent pb-2 pt-3">
               <div className="h-1.5 w-12 rounded-full bg-muted-foreground/20" />
             </div>
             <div className="px-4 pb-4">

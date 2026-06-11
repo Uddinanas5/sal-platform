@@ -192,7 +192,7 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
           >
-            <Card className="border-cream-200">
+            <Card variant="tile">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-sal-100">
                   <stat.icon className="w-5 h-5 text-mint" />
@@ -254,11 +254,11 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
               {/* Open/click tracking isn't implemented, so we only show metrics
                   we can stand behind: recipients reached and when it was sent. */}
               <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="bg-card border border-cream-200 rounded-lg p-3">
+                <div className="bg-white/[0.06] border border-white/10 rounded-lg p-3">
                   <p className="text-lg font-bold">{viewCampaign.recipientCount}</p>
                   <p className="text-xs text-muted-foreground">Recipients</p>
                 </div>
-                <div className="bg-card border border-cream-200 rounded-lg p-3">
+                <div className="bg-white/[0.06] border border-white/10 rounded-lg p-3">
                   <p className="text-lg font-bold">
                     {viewCampaign.sentAt ? formatDate(viewCampaign.sentAt) : "—"}
                   </p>

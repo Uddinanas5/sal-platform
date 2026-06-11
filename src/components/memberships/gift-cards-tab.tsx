@@ -181,7 +181,7 @@ export function GiftCardsTab({ giftCards = [], stats = { totalGiftCardsSold: 0, 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
           >
-            <Card>
+            <Card variant="tile">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div>

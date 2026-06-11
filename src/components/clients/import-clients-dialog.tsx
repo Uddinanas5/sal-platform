@@ -348,8 +348,8 @@ export function ImportClientsDialog({ open, onOpenChange }: ImportClientsDialogP
               </div>
               <div className="max-h-48 overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-card">
-                    <tr className="border-b border-cream-200 text-left text-xs text-muted-foreground">
+                  <thead className="sticky top-0 bg-[rgba(10,42,30,0.92)] backdrop-blur">
+                    <tr className="border-b border-cream-200 text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                       <th className="py-1.5 px-3 font-medium">Name</th>
                       <th className="py-1.5 px-3 font-medium">Phone</th>
                       <th className="py-1.5 px-3 font-medium">Email</th>

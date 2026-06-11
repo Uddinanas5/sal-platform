@@ -161,10 +161,10 @@ export function FormsSection({ templates: initialTemplates }: FormsSectionProps)
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -20, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className={`border rounded-lg p-4 transition-colors ${
+                      className={`glass-tile rounded-tile p-4 transition-colors ${
                         template.isActive
-                          ? "bg-background hover:bg-muted/30"
-                          : "bg-muted/50 opacity-60"
+                          ? "hover:bg-white/[0.06]"
+                          : "opacity-60"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -247,7 +247,7 @@ export function FormsSection({ templates: initialTemplates }: FormsSectionProps)
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                            className="h-8 w-8 text-muted-foreground hover:text-red-400"
                             onClick={() => setDeleteTarget(template)}
                             aria-label="Delete form"
                           >

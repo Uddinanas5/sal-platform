@@ -142,7 +142,7 @@ export function ServiceBundles({ bundles = [], services = [] }: ServiceBundlesPr
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="relative rounded-xl border border-cream-200 bg-card overflow-hidden hover:shadow-md transition-shadow group"
+                  className="relative glass-tile rounded-tile overflow-hidden hover:shadow-md transition-shadow group"
                 >
                   <div className="h-1.5" style={{ backgroundColor: color }} />
 
@@ -198,7 +198,7 @@ export function ServiceBundles({ bundles = [], services = [] }: ServiceBundlesPr
                           </span>
                         </div>
                         {savingsPercent > 0 && (
-                          <Badge variant="secondary" className="bg-green-400/15 text-green-300 text-xs">
+                          <Badge variant="secondary" className="bg-green-400/15 text-green-300 border border-green-400/25 text-xs">
                             Save {savingsPercent}%
                           </Badge>
                         )}

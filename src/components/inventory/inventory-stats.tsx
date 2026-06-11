@@ -62,12 +62,12 @@ export function InventoryStats({ products, categories }: InventoryStatsProps) {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-wrap items-center gap-3 text-sm"
       >
-        <span className="flex items-center gap-1.5 bg-sal-500/10 text-sal-300 px-3 py-1 rounded-full font-medium">
+        <span className="flex items-center gap-1.5 bg-sal-500/10 text-sal-300 border border-sal-400/25 px-3 py-1 rounded-full font-medium">
           <Package className="h-3.5 w-3.5" />
           {inStockPct}% in stock
         </span>
         {lowStockCount > 0 && (
-          <span className="flex items-center gap-1.5 bg-amber-500/10 text-amber-300 px-3 py-1 rounded-full font-medium">
+          <span className="flex items-center gap-1.5 bg-amber-400/15 text-amber-300 border border-amber-400/25 px-3 py-1 rounded-full font-medium">
             <AlertTriangle className="h-3.5 w-3.5" />
             {lowStockCount} low stock
           </span>
@@ -85,7 +85,7 @@ export function InventoryStats({ products, categories }: InventoryStatsProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
         >
-          <Card className="border-cream-200">
+          <Card variant="tile">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div

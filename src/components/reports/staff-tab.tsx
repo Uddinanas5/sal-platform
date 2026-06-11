@@ -83,7 +83,7 @@ export function StaffTab({ staffPerformance }: StaffTabProps) {
           data={staffPerformance}
           pageSize={10}
           showColumnToggle
-          className="border border-cream-200 rounded-lg bg-card p-4"
+          className="glass-panel rounded-panel p-4"
         />
       </motion.div>
 

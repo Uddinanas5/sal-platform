@@ -138,7 +138,7 @@ export function IssueGiftCardDialog({
                     "px-4 py-2 rounded-lg text-sm font-semibold border transition-all duration-200",
                     selectedPreset === preset && !isCustom
                       ? "bg-sal-500 text-white border-sal-500 shadow-md shadow-sal-500/20"
-                      : "bg-card text-muted-foreground border-cream-200 hover:border-sal-300"
+                      : "bg-white/[0.06] text-ink-soft border-cream-200 hover:border-sal-300"
                   )}
                 >
                   {formatCurrency(preset)}
@@ -150,7 +150,7 @@ export function IssueGiftCardDialog({
                   "px-4 py-2 rounded-lg text-sm font-semibold border transition-all duration-200",
                   isCustom
                     ? "bg-sal-500 text-white border-sal-500 shadow-md shadow-sal-500/20"
-                    : "bg-card text-muted-foreground border-cream-200 hover:border-sal-300"
+                    : "bg-white/[0.06] text-ink-soft border-cream-200 hover:border-sal-300"
                 )}
               >
                 Custom

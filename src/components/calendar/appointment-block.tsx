@@ -42,13 +42,13 @@ const STATUS_QUICK_ACTIONS: Record<string, QuickAction[]> = {
 export type ColorByMode = "status" | "staff" | "service"
 
 const STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  pending: { bg: "rgba(59, 130, 246, 0.12)", border: "#3b82f6", text: "#2563eb" },
-  confirmed: { bg: "rgba(139, 92, 246, 0.12)", border: "#8b5cf6", text: "#7c3aed" },
-  "checked-in": { bg: "rgba(245, 158, 11, 0.12)", border: "#f59e0b", text: "#d97706" },
-  "in-progress": { bg: "rgba(16, 185, 129, 0.12)", border: "#10b981", text: "#059669" },
-  completed: { bg: "rgba(107, 114, 128, 0.12)", border: "#6b7280", text: "#6b7280" },
-  "no-show": { bg: "rgba(239, 68, 68, 0.12)", border: "#ef4444", text: "#dc2626" },
-  cancelled: { bg: "rgba(252, 165, 165, 0.2)", border: "#fca5a5", text: "#dc2626" },
+  pending: { bg: "rgba(96,165,250,0.16)", border: "#60a5fa", text: "#a8cdfc" },
+  confirmed: { bg: "rgba(167,139,250,0.16)", border: "#a78bfa", text: "#cabbfd" },
+  "checked-in": { bg: "rgba(251,191,36,0.15)", border: "#fbbf24", text: "#fcd34d" },
+  "in-progress": { bg: "rgba(79,230,166,0.17)", border: "#4fe6a6", text: "#7ff0c4" },
+  completed: { bg: "rgba(255,255,255,0.08)", border: "rgba(255,255,255,0.35)", text: "rgba(255,255,255,0.62)" },
+  "no-show": { bg: "rgba(248,113,113,0.16)", border: "#f87171", text: "#fda4af" },
+  cancelled: { bg: "rgba(248,113,113,0.09)", border: "rgba(248,113,113,0.40)", text: "rgba(253,164,175,0.70)" },
 }
 
 function getBlockColors(
@@ -63,9 +63,9 @@ function getBlockColors(
 
   if (colorBy === "staff") {
     const staff = staffList.find((s) => s.id === appointment.staffId)
-    const color = staff?.color || "#6b7280"
+    const color = staff?.color || "#94a3b8"
     return {
-      bg: `${color}1A`,
+      bg: `${color}26`,
       border: color,
       text: color,
     }
@@ -73,9 +73,9 @@ function getBlockColors(
 
   // service
   const service = serviceList.find((s) => s.id === appointment.serviceId)
-  const color = service?.color || "#6b7280"
+  const color = service?.color || "#94a3b8"
   return {
-    bg: `${color}1A`,
+    bg: `${color}26`,
     border: color,
     text: color,
   }
@@ -231,7 +231,7 @@ export function AppointmentBlock({
         width: "200px",
         backgroundColor: colors.bg,
         borderLeftColor: colors.border,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
       }
     : {
         top: `${top}px`,
@@ -259,7 +259,7 @@ export function AppointmentBlock({
           ? undefined
           : {
               scale: 1.02,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
               zIndex: 20,
             }
       }
@@ -275,9 +275,9 @@ export function AppointmentBlock({
         asOverlay ? "relative" : "absolute",
         "rounded-md overflow-hidden border-l-[3px] px-1.5 py-1",
         isDraggable && !asOverlay ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
-        isDragging && "ring-2 ring-sal-500/40",
-        asOverlay && invalidDropTarget && "ring-2 ring-red-500 ring-offset-1 opacity-60",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sal-500 focus-visible:ring-offset-1"
+        isDragging && "ring-2 ring-mint/40",
+        asOverlay && invalidDropTarget && "ring-2 ring-red-400 opacity-60",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/60"
       )}
       style={overlayStyle}
       onClick={(e) => {
@@ -306,7 +306,7 @@ export function AppointmentBlock({
             <div
               onPointerDown={handleResizePointerDown}
               onClick={(e) => e.stopPropagation()}
-              className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize opacity-0 hover:opacity-100 transition-opacity bg-gradient-to-t from-black/15 to-transparent"
+              className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize opacity-0 hover:opacity-100 transition-opacity bg-gradient-to-t from-white/15 to-transparent"
               aria-hidden
             />
           )}
@@ -340,7 +340,7 @@ export function AppointmentBlock({
             <div
               onPointerDown={handleResizePointerDown}
               onClick={(e) => e.stopPropagation()}
-              className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize opacity-0 hover:opacity-100 transition-opacity bg-gradient-to-t from-black/15 to-transparent"
+              className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize opacity-0 hover:opacity-100 transition-opacity bg-gradient-to-t from-white/15 to-transparent"
               aria-hidden
             />
           )}
@@ -397,7 +397,7 @@ export function AppointmentBlock({
                         e.stopPropagation()
                         void handleQuickStatus(action.status, action.label)
                       }}
-                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sal-500"
+                      className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/[0.08] px-1.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-white/[0.15] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/60"
                     >
                       <Icon className="h-3 w-3" />
                       {action.label}

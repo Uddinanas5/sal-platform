@@ -7,9 +7,9 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-cream dark:bg-background">
+    <div className="min-h-screen env-canvas-lite">
       {/* Nav */}
-      <nav className="sticky top-0 z-30 bg-cream dark:bg-background/80 backdrop-blur-lg border-b border-cream-200 dark:border-border">
+      <nav className="sticky top-0 z-30 bg-[#08251a]/95 border-b border-white/10">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             href="/"
@@ -30,17 +30,18 @@ export default function PrivacyPage() {
       </nav>
 
       {/* Content */}
-      <main className="max-w-3xl mx-auto px-6 py-12 pb-24">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-12 pb-24">
+        <div className="glass-panel glass-panel-lite rounded-panel p-6 sm:p-10">
         <header className="mb-10">
-          <h1 className="text-3xl font-heading font-bold text-foreground">
+          <h1 className="text-3xl font-heading font-bold text-ink">
             Privacy Policy
           </h1>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-sm text-ink-faint mt-2">
             Last updated: February 20, 2026
           </p>
         </header>
 
-        <div className="space-y-8 text-sm leading-relaxed text-foreground/90">
+        <div className="space-y-8 text-sm leading-relaxed text-ink-soft">
           {/* 1. Information We Collect */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
@@ -176,7 +177,7 @@ export default function PrivacyPage() {
               To exercise any of these rights, contact us at{" "}
               <a
                 href="mailto:hello@salplatform.com"
-                className="text-sal-400 underline underline-offset-2 hover:text-mint-soft dark:hover:text-sal-300 transition-colors"
+                className="text-mint underline underline-offset-2 hover:text-mint-soft transition-colors"
               >
                 hello@salplatform.com
               </a>
@@ -237,13 +238,14 @@ export default function PrivacyPage() {
               contact us at{" "}
               <a
                 href="mailto:hello@salplatform.com"
-                className="text-sal-400 underline underline-offset-2 hover:text-mint-soft dark:hover:text-sal-300 transition-colors"
+                className="text-mint underline underline-offset-2 hover:text-mint-soft transition-colors"
               >
                 hello@salplatform.com
               </a>
               .
             </p>
           </section>
+        </div>
         </div>
       </main>
     </div>

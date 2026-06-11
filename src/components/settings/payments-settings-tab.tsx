@@ -45,15 +45,18 @@ function SettingRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between py-4 border-b last:border-b-0">
-      <div className="space-y-0.5">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
+    <>
+      <div className="flex items-center justify-between py-4">
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
+      <div aria-hidden className="hairline-fade last:hidden" />
+    </>
   )
 }
 
@@ -285,7 +288,7 @@ export function PaymentsSettingsTab({
 
             {enableTipping && (
               <>
-                <div className="py-4 border-b">
+                <div className="py-4">
                   <div className="space-y-3">
                     <Label className="text-sm font-medium">Suggested Tip Amounts</Label>
                     <div className="flex items-center gap-3">
@@ -309,6 +312,8 @@ export function PaymentsSettingsTab({
                     </div>
                   </div>
                 </div>
+
+                <div aria-hidden className="hairline-fade" />
 
                 <SettingRow
                   label="Allow Custom Tip"

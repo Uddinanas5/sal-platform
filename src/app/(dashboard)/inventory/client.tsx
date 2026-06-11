@@ -156,7 +156,7 @@ export function InventoryClient(props: InventoryClientProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="border-cream-200">
+          <Card>
             {/* Table Header */}
             <div className="p-6 pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -166,7 +166,7 @@ export function InventoryClient(props: InventoryClientProps) {
                     Products
                   </h2>
                   {showLowStockOnly && (
-                    <span className="text-xs bg-amber-400/15 text-amber-300 px-2 py-0.5 rounded-full font-medium">
+                    <span className="text-xs bg-amber-400/15 text-amber-300 border border-amber-400/25 px-2 py-0.5 rounded-full font-medium">
                       Low Stock Only
                     </span>
                   )}

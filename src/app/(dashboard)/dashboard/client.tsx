@@ -158,7 +158,7 @@ export function DashboardClient(props: DashboardClientProps) {
             delay={0}
             href="/reports"
             sparklineData={props.revenueData.map((d) => d.revenue)}
-            sparklineColor="#059669"
+            sparklineColor="#4fe6a6"
           />
           <StatsCard
             title="Today's Appointments"
@@ -169,7 +169,7 @@ export function DashboardClient(props: DashboardClientProps) {
             delay={0.1}
             href="/calendar"
             sparklineData={props.revenueData.map((d) => d.appointments)}
-            sparklineColor="#3b82f6"
+            sparklineColor="#7cd4fd"
           />
           <StatsCard
             title="Total Clients"

@@ -35,7 +35,7 @@ export function SupplierSection({ products }: SupplierSectionProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
-      <Card className="border-cream-200">
+      <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Truck className="w-5 h-5 text-mint" />
@@ -51,7 +51,7 @@ export function SupplierSection({ products }: SupplierSectionProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 * index }}
               >
-                <div className="flex items-center justify-between p-4 rounded-xl border border-cream-200 hover:border-sal-200 hover:bg-sal-50 transition-colors">
+                <div className="flex items-center justify-between p-4 glass-tile rounded-tile hover:border-cream-400 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-sal-100">
                       <Package className="w-5 h-5 text-mint" />

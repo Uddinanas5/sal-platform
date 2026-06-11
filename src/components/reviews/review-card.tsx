@@ -17,10 +17,10 @@ interface ReviewCardProps {
 }
 
 const sourceColors: Record<string, string> = {
-  Google: "bg-blue-500/10 text-blue-300",
-  Yelp: "bg-red-500/10 text-red-300",
-  Website: "bg-emerald-500/10 text-emerald-300",
-  App: "bg-purple-500/10 text-purple-300",
+  Google: "bg-blue-400/15 text-blue-300 border border-blue-400/25",
+  Yelp: "bg-red-400/15 text-red-300 border border-red-400/25",
+  Website: "bg-emerald-400/15 text-emerald-300 border border-emerald-400/25",
+  App: "bg-purple-400/15 text-purple-300 border border-purple-400/25",
 }
 
 export function ReviewCard({ review, index, onReply }: ReviewCardProps) {
@@ -29,7 +29,7 @@ export function ReviewCard({ review, index, onReply }: ReviewCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-card rounded-2xl p-5 border border-cream-200 shadow-sm hover:shadow-md transition-all card-warm"
+      className="glass-tile rounded-tile p-5 hover:shadow-md transition-all card-warm"
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">

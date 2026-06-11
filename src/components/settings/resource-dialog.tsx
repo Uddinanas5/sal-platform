@@ -187,8 +187,8 @@ export function ResourceDialog({
                   className={cn(
                     "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium transition-all duration-200",
                     form.type === option.value
-                      ? "bg-sal-500 text-white border-sal-500 shadow-md shadow-sal-500/20"
-                      : "bg-card text-muted-foreground border-cream-200 dark:border-cream-800 hover:border-sal-300"
+                      ? "bg-sal-500 text-white border-sal-500 shadow-glow-sm"
+                      : "glass-tile text-muted-foreground hover:border-white/30"
                   )}
                 >
                   <option.icon className="w-4 h-4" />
@@ -238,12 +238,12 @@ export function ResourceDialog({
               <p className="text-xs text-muted-foreground">
                 Select which services use this resource.
               </p>
-              <ScrollArea className="h-40 rounded-lg border border-cream-200 dark:border-cream-800 p-3">
+              <ScrollArea className="h-40 rounded-lg border border-cream-200 p-3">
                 <div className="space-y-2">
                   {services.map((service) => (
                     <label
                       key={service.id}
-                      className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-cream-100 dark:hover:bg-cream-900 cursor-pointer transition-colors"
+                      className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-white/[0.06] cursor-pointer transition-colors"
                     >
                       <Checkbox
                         checked={form.serviceIds.includes(service.id)}

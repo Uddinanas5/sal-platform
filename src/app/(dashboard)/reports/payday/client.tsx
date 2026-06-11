@@ -111,7 +111,7 @@ function PeriodPicker({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={selectValue} onValueChange={selectPeriod}>
-        <SelectTrigger className="h-9 w-[260px] border-cream-200 bg-card">
+        <SelectTrigger className="h-9 w-[260px] border-cream-200 bg-white/[0.04]">
           <SelectValue placeholder="Choose a pay period" />
         </SelectTrigger>
         <SelectContent>
@@ -168,14 +168,14 @@ function PeriodPicker({
 
 function StatusBadge({ status }: { status: PeriodOption["status"] | "pending" | "approved" | "paid" }) {
   const map: Record<string, string> = {
-    open: "bg-blue-500/10 text-blue-300",
-    closed: "bg-amber-500/10 text-amber-300",
-    paid: "bg-emerald-500/10 text-emerald-300",
-    pending: "bg-amber-500/10 text-amber-300",
-    approved: "bg-blue-500/10 text-blue-300",
+    open: "bg-blue-400/15 text-blue-300 border-blue-400/25",
+    closed: "bg-amber-400/15 text-amber-300 border-amber-400/25",
+    paid: "bg-emerald-400/15 text-emerald-300 border-emerald-400/25",
+    pending: "bg-amber-400/15 text-amber-300 border-amber-400/25",
+    approved: "bg-blue-400/15 text-blue-300 border-blue-400/25",
   }
   return (
-    <Badge className={cn("border-0 font-medium capitalize", map[status] ?? "bg-muted text-muted-foreground")}>
+    <Badge className={cn("border font-medium capitalize", map[status] ?? "bg-white/[0.08] text-muted-foreground border-cream-200")}>
       {status}
     </Badge>
   )
@@ -188,7 +188,7 @@ function BarberCard({
 }) {
   const [open, setOpen] = React.useState(false)
   return (
-    <Card className="overflow-hidden border-cream-200">
+    <Card variant="tile" className="overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -458,8 +458,8 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
 
         {/* Print-only title block */}
         <div className="hidden print:block">
-          <h1 className="text-xl font-bold">Payday Statement</h1>
-          <p className="text-sm text-ink-soft">Pay period: {periodLabel}</p>
+          <h1 className="text-xl font-bold text-black">Payday Statement</h1>
+          <p className="text-sm text-gray-700">Pay period: {periodLabel}</p>
         </div>
 
         {/* Summary cards */}
@@ -471,10 +471,10 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
             >
-              <Card className="border-cream-200">
+              <Card variant="tile">
                 <CardContent className="flex items-center justify-between p-5">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                       {card.title}
                     </p>
                     <p className="mt-1 text-2xl font-bold text-foreground">{card.value}</p>
@@ -488,7 +488,7 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
 
         {/* Honest "not yet tracked" notice — never fabricate tips / booth rent. */}
         {(notTracked.tips || notTracked.boothRent) && (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-400/25 bg-amber-400/15 p-4 text-sm text-amber-200">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-medium">Not yet tracked in these totals</p>
@@ -503,7 +503,7 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
 
         {/* Per-barber statements */}
         {barbers.length === 0 ? (
-          <Card className="border-cream-200">
+          <Card>
             <CardContent className="flex flex-col items-center justify-center gap-2 py-16 text-center">
               <Wallet className="h-10 w-10 text-muted-foreground/50" />
               <p className="font-medium text-foreground">No commissions in this period</p>

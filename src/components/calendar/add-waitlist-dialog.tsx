@@ -167,7 +167,7 @@ export function AddWaitlistDialog({
                 }}
               />
               {showClientDropdown && !clientId && (
-                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-cream-200 rounded-lg shadow-md max-h-[180px] overflow-y-auto">
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 glass-popover rounded-lg max-h-[180px] overflow-y-auto">
                   {filteredClients.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-3 px-3 text-center">
                       No clients found
@@ -183,7 +183,7 @@ export function AddWaitlistDialog({
                           setClientSearch("")
                           setShowClientDropdown(false)
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-cream-100 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-white/[0.08] transition-colors"
                       >
                         <span className="font-medium">{c.name}</span>
                         <span className="text-muted-foreground text-xs truncate">

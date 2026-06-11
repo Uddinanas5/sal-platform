@@ -39,28 +39,28 @@ interface CampaignCardProps {
 }
 
 const typeBadgeColors: Record<string, string> = {
-  email: "bg-blue-500/10 text-blue-300",
-  sms: "bg-emerald-500/10 text-emerald-300",
-  push: "bg-purple-500/10 text-purple-300",
-  both: "bg-amber-500/10 text-amber-300",
+  email: "bg-blue-400/15 text-blue-300 border border-blue-400/25",
+  sms: "bg-emerald-400/15 text-emerald-300 border border-emerald-400/25",
+  push: "bg-purple-400/15 text-purple-300 border border-purple-400/25",
+  both: "bg-amber-400/15 text-amber-300 border border-amber-400/25",
 }
 
 const statusDotColors: Record<string, string> = {
   draft: "bg-muted-foreground/40",
-  scheduled: "bg-blue-500",
-  active: "bg-emerald-500",
-  sent: "bg-emerald-500",
+  scheduled: "bg-blue-400",
+  active: "bg-emerald-400",
+  sent: "bg-emerald-400",
   completed: "bg-muted-foreground/40",
-  paused: "bg-amber-500",
+  paused: "bg-amber-400",
 }
 
 const statusBadgeColors: Record<string, string> = {
-  draft: "bg-cream-100 text-foreground dark:bg-muted",
-  scheduled: "bg-blue-500/10 text-blue-300",
-  active: "bg-emerald-500/10 text-emerald-300",
-  sent: "bg-emerald-500/10 text-emerald-300",
-  completed: "bg-cream-100 text-muted-foreground dark:bg-muted",
-  paused: "bg-amber-500/10 text-amber-300",
+  draft: "bg-white/10 text-ink-soft border border-white/15",
+  scheduled: "bg-blue-400/15 text-blue-300 border border-blue-400/25",
+  active: "bg-emerald-400/15 text-emerald-300 border border-emerald-400/25",
+  sent: "bg-emerald-400/15 text-emerald-300 border border-emerald-400/25",
+  completed: "bg-white/10 text-ink-soft border border-white/15",
+  paused: "bg-amber-400/15 text-amber-300 border border-amber-400/25",
 }
 
 export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate, onSend, sending }: CampaignCardProps) {
@@ -77,7 +77,7 @@ export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate, onS
       whileHover={{ y: -2 }}
       transition={{ delay: index * 0.05 }}
     >
-      <Card className="border-cream-200 hover:shadow-md transition-all relative overflow-hidden cursor-pointer">
+      <Card variant="tile" className="hover:shadow-md transition-all relative overflow-hidden cursor-pointer">
         {/* Status Dot */}
         <div className="absolute top-4 right-4">
           <span
@@ -121,7 +121,7 @@ export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate, onS
               so openCount/clickCount are always 0 — showing them as "Open Rate"
               would lie. Only the real Recipients count is shown. */}
           {campaign.recipientCount > 0 && (campaign.status === "sent" || campaign.status === "active" || campaign.status === "completed") && (
-            <div className="mb-3 p-3 rounded-lg bg-cream-50 text-center">
+            <div className="mb-3 p-3 rounded-lg bg-white/[0.06] text-center">
               <p className="text-sm font-semibold text-foreground">
                 {campaign.recipientCount.toLocaleString()}
               </p>

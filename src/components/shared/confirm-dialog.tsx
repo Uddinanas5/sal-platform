@@ -26,9 +26,9 @@ interface ConfirmDialogProps {
 
 const variantStyles: Record<string, string> = {
   destructive:
-    "bg-red-600 text-white hover:bg-red-700 focus:ring-red-600",
+    "bg-none bg-red-600 text-white hover:bg-red-700 focus:ring-red-600",
   warning:
-    "bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-500",
+    "bg-none bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-500",
   default: "",
 }
 

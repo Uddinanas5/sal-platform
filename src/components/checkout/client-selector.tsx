@@ -100,8 +100,8 @@ export function ClientSelector({
     <div ref={containerRef} className="relative">
       <div
         className={cn(
-          "flex items-center gap-2 rounded-lg border bg-background px-3 py-2 cursor-pointer transition-colors",
-          isOpen && "ring-2 ring-sal-500 border-sal-500"
+          "flex items-center gap-2 rounded-lg border bg-white/[0.06] px-3 py-2 cursor-pointer transition-colors",
+          isOpen && "ring-2 ring-mint/50 border-mint/50"
         )}
         onClick={() => setIsOpen(true)}
       >
@@ -134,7 +134,7 @@ export function ClientSelector({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-background shadow-lg"
+            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg glass-popover shadow-lg"
           >
             {filteredClients.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
@@ -145,7 +145,7 @@ export function ClientSelector({
                 {filteredClients.map((client) => (
                   <button
                     key={client.id}
-                    className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent"
+                    className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/[0.08]"
                     onClick={() => {
                       onSelectClient(client.id, client.name)
                       setIsOpen(false)

@@ -104,7 +104,7 @@ export function WeekView({
   return (
     <div className="flex flex-col h-full">
       {/* Day headers */}
-      <div className="flex border-b border-cream-200 bg-card shrink-0">
+      <div className="flex border-b border-cream-200 bg-white/[0.03] shrink-0">
         <div className="w-[72px] shrink-0 border-r border-cream-200" />
         <div className="flex flex-1">
           {days.map((day) => {
@@ -117,7 +117,7 @@ export function WeekView({
                 key={day.toISOString()}
                 className={cn(
                   "flex-1 text-center py-2.5 border-r border-cream-200 last:border-r-0",
-                  isToday && "bg-sal-50"
+                  isToday && "bg-mint/[0.05]"
                 )}
               >
                 <span
@@ -175,7 +175,7 @@ export function WeekView({
                   key={day.toISOString()}
                   className={cn(
                     "flex-1 relative border-r border-cream-200 last:border-r-0 min-w-[100px]",
-                    isToday && "bg-sal-50"
+                    isToday && "bg-mint/[0.05]"
                   )}
                   style={{ height: `${totalHeight}px` }}
                 >

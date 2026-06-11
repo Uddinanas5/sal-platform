@@ -180,7 +180,7 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
                   className={cn(
                     "p-3 rounded-lg border transition-colors",
                     isBusinessClosed
-                      ? "bg-red-400/10/50 border-red-400/30/50"
+                      ? "bg-red-400/10 border-red-400/25"
                       : day.isOff
                         ? "bg-cream-50 border-cream-200"
                         : "bg-cream-50 border-cream-200"
@@ -195,7 +195,7 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
                       </div>
                       <div className="flex items-center gap-2 flex-1">
                         <Building2 className="w-4 h-4 text-red-400" />
-                        <span className="text-sm text-red-500/80">Business closed</span>
+                        <span className="text-sm text-red-300">Business closed</span>
                       </div>
                     </div>
                   ) : (
@@ -247,8 +247,8 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
                         className={cn(
                           "h-7 px-2 text-xs gap-1",
                           day.hasBreak
-                            ? "bg-amber-500 hover:bg-amber-600 text-white"
-                            : "text-muted-foreground"
+                            ? "bg-none bg-amber-400/20 text-amber-200 border-amber-400/30 hover:bg-amber-400/30"
+                            : "text-ink-soft"
                         )}
                         onClick={() => handleBreakToggle(key)}
                       >
@@ -276,7 +276,7 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
                       transition={{ duration: 0.2 }}
                       className="flex items-center gap-3 mt-2 ml-24 pl-4 border-l-2 border-amber-400/30"
                     >
-                      <Coffee className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <Coffee className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                       <span className="text-xs text-amber-300 font-medium shrink-0">
                         Break
                       </span>

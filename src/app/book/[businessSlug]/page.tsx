@@ -36,16 +36,16 @@ function isConnectionError(error: unknown): boolean {
 
 function BookingUnavailable({ businessName }: { businessName?: string }) {
   return (
-    <div className="min-h-screen bg-cream flex items-center justify-center p-6">
-      <div className="max-w-md w-full text-center space-y-6">
+    <div className="min-h-screen env-canvas-lite flex items-center justify-center p-6">
+      <div className="max-w-md w-full glass-panel glass-panel-lite rounded-panel p-8 text-center space-y-6">
         <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-400/15 flex items-center justify-center">
           <AlertTriangle className="w-8 h-8 text-amber-400" />
         </div>
         <div>
-          <h2 className="text-xl font-heading font-bold text-foreground mb-2">
+          <h2 className="text-xl font-heading font-bold text-ink mb-2">
             Booking is temporarily unavailable
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-ink-soft">
             {businessName
               ? `We're having trouble loading the booking page for ${businessName}.`
               : "We're having trouble loading this booking page right now."}{" "}
@@ -54,7 +54,7 @@ function BookingUnavailable({ businessName }: { businessName?: string }) {
         </div>
         <Link
           href="/"
-          className="inline-flex items-center justify-center rounded-lg border border-sal-500 px-6 py-2.5 text-sm font-medium text-mint hover:bg-sal-50 transition-colors"
+          className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-white/25 bg-white/5 px-6 py-2.5 text-sm font-medium text-ink hover:bg-white/10 transition-colors"
         >
           Go home
         </Link>

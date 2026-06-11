@@ -29,15 +29,18 @@ function SettingRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between py-4 border-b last:border-b-0">
-      <div className="space-y-0.5">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
+    <>
+      <div className="flex items-center justify-between py-4">
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
+      <div aria-hidden className="hairline-fade last:hidden" />
+    </>
   )
 }
 

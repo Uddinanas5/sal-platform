@@ -68,9 +68,9 @@ const triggerDescriptions: Record<string, string> = {
 }
 
 const channelBadgeColors: Record<string, string> = {
-  email: "bg-blue-500/10 text-blue-300",
-  sms: "bg-emerald-500/10 text-emerald-300",
-  both: "bg-purple-500/10 text-purple-300",
+  email: "bg-blue-400/15 text-blue-300 border border-blue-400/25",
+  sms: "bg-emerald-400/15 text-emerald-300 border border-emerald-400/25",
+  both: "bg-purple-400/15 text-purple-300 border border-purple-400/25",
 }
 
 // Only these three triggers are actually evaluated by the daily automation
@@ -246,7 +246,7 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
           >
-            <Card className="border-cream-200 hover:shadow-md transition-all">
+            <Card variant="tile" className="hover:shadow-md transition-all">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4 flex-1 min-w-0">

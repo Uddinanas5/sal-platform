@@ -90,7 +90,7 @@ export function CartItemRow({
 
       {/* Price */}
       <div className="shrink-0 text-right">
-        <p className="text-sm font-semibold">
+        <p className="text-sm font-semibold tabular-nums text-ink">
           {formatCurrency(price * quantity)}
         </p>
         {quantity > 1 && (

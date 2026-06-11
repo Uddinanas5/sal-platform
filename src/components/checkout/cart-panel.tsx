@@ -138,7 +138,7 @@ export function CartPanel({
 
   return (
     <>
-      <div className="flex h-full flex-col rounded-xl border bg-card shadow-sm">
+      <div className="flex h-full flex-col glass-panel rounded-panel">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="flex items-center gap-2">
@@ -178,7 +178,7 @@ export function CartPanel({
         <div className="flex-1 min-h-0">
           {isEmpty ? (
             <div className="flex flex-col items-center justify-center py-12 px-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.06]">
                 <ShoppingCart className="h-7 w-7 text-muted-foreground/50" />
               </div>
               <p className="mt-3 text-sm font-medium text-muted-foreground">
@@ -247,8 +247,8 @@ export function CartPanel({
                       className={cn(
                         "flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all",
                         tip === preset
-                          ? "border-sal-500 bg-sal-50 text-mint-soft"
-                          : "border-border text-muted-foreground hover:border-sal-300"
+                          ? "border-mint/50 bg-mint/10 text-mint-soft"
+                          : "border-border text-muted-foreground hover:border-cream-300"
                       )}
                     >
                       ${preset}
@@ -268,8 +268,8 @@ export function CartPanel({
                     className={cn(
                       "flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all",
                       showCustomTip || (!tipPresets.includes(tip) && tip > 0)
-                        ? "border-sal-500 bg-sal-50 text-mint-soft"
-                        : "border-border text-muted-foreground hover:border-sal-300"
+                        ? "border-mint/50 bg-mint/10 text-mint-soft"
+                        : "border-border text-muted-foreground hover:border-cream-300"
                     )}
                   >
                     Custom
@@ -356,8 +356,8 @@ export function CartPanel({
                     className={cn(
                       "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all",
                       paymentMethod === "cash"
-                        ? "border-sal-500 bg-sal-50"
-                        : "border-border hover:border-sal-300"
+                        ? "border-mint/50 bg-mint/10"
+                        : "border-border hover:border-cream-300"
                     )}
                   >
                     <Banknote
@@ -401,8 +401,8 @@ export function CartPanel({
                     className={cn(
                       "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all",
                       paymentMethod === "gift_card"
-                        ? "border-sal-500 bg-sal-50"
-                        : "border-border hover:border-sal-300"
+                        ? "border-mint/50 bg-mint/10"
+                        : "border-border hover:border-cream-300"
                     )}
                   >
                     <Gift

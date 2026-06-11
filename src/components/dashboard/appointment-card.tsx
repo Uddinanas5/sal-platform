@@ -73,14 +73,14 @@ export function AppointmentCard({ appointment, variant = "detailed", index = 0 }
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: index * 0.05 }}
-        className="flex items-center gap-4 p-3 rounded-xl hover:bg-cream-100 transition-colors cursor-pointer group"
+        className="flex items-center gap-4 p-3 glass-tile rounded-tile hover:bg-white/[0.06] transition-colors cursor-pointer group"
       >
         <div className="flex-shrink-0 text-center w-12">
           <p className="text-sm font-semibold text-foreground">
             {formatTime(appointment.startTime)}
           </p>
         </div>
-        <div className="w-1 h-10 rounded-full bg-sal-400" />
+        <div className="led led-mint" />
         <Avatar className="w-10 h-10">
           <AvatarImage src={appointment.clientAvatar} />
           <AvatarFallback className="bg-sal-100 text-mint-soft text-sm">
@@ -131,7 +131,7 @@ export function AppointmentCard({ appointment, variant = "detailed", index = 0 }
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
       whileHover={{ scale: 1.01 }}
-      className="bg-card rounded-2xl p-5 border border-cream-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group"
+      className="glass-tile rounded-tile p-5 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group"
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">

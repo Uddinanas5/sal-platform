@@ -258,7 +258,7 @@ export function ServiceDetailSheet({
                     <Timer className="w-5 h-5 text-amber-400" />
                     <div>
                       <p className="text-xs text-amber-300">Processing Time</p>
-                      <p className="font-medium text-amber-900">
+                      <p className="font-medium text-amber-200">
                         {formatDuration(service.processingTime)} additional wait
                       </p>
                     </div>

@@ -132,15 +132,18 @@ function SettingRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between py-4 border-b last:border-b-0">
-      <div className="space-y-0.5">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
+    <>
+      <div className="flex items-center justify-between py-4">
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
+      <div aria-hidden className="hairline-fade last:hidden" />
+    </>
   )
 }
 
@@ -371,7 +374,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       <Header title="Settings" subtitle="Manage your business preferences" />
 
       <div className="p-6">
@@ -722,19 +725,19 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                       <>
                         <ul className="space-y-2 text-sm text-muted-foreground">
                           <li className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-mint" />
                             Complete done-for-you setup ($1,500 one-time)
                           </li>
                           <li className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-mint" />
                             Unlimited appointments &amp; staff
                           </li>
                           <li className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-mint" />
                             Online booking, payments, and reminders
                           </li>
                           <li className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-sal-500" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-mint" />
                             Priority support
                           </li>
                         </ul>

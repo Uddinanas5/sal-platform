@@ -19,13 +19,13 @@ import type { ColorByMode } from "./appointment-block"
 // --- Status dot colors (matching appointment-block.tsx patterns) ---
 
 const STATUS_DOT_COLORS: Record<string, string> = {
-  pending: "#3b82f6",
-  confirmed: "#8b5cf6",
-  "checked-in": "#f59e0b",
-  "in-progress": "#10b981",
-  completed: "#6b7280",
-  "no-show": "#ef4444",
-  cancelled: "#ef4444",
+  pending: "#60a5fa",
+  confirmed: "#a78bfa",
+  "checked-in": "#fbbf24",
+  "in-progress": "#4fe6a6",
+  completed: "rgba(255,255,255,0.35)",
+  "no-show": "#f87171",
+  cancelled: "rgba(248,113,113,0.40)",
 }
 
 const SERVICE_CATEGORY_COLORS: Record<string, string> = {
@@ -66,12 +66,12 @@ function getDotColor(
   serviceList: Service[]
 ): string {
   if (colorBy === "status") {
-    return STATUS_DOT_COLORS[appointment.status] || "#6b7280"
+    return STATUS_DOT_COLORS[appointment.status] || "rgba(255,255,255,0.35)"
   }
 
   if (colorBy === "staff") {
     const staff = staffList.find((s) => s.id === appointment.staffId)
-    return staff?.color || "#6b7280"
+    return staff?.color || "rgba(255,255,255,0.35)"
   }
 
   // colorBy === "service"
@@ -79,7 +79,7 @@ function getDotColor(
   if (service) {
     return hashCategoryToColor(service.category)
   }
-  return "#6b7280"
+  return "rgba(255,255,255,0.35)"
 }
 
 // --- Component ---
@@ -157,7 +157,7 @@ export function MonthView({
   return (
     <div className="flex flex-col h-full">
       {/* Day-of-week header */}
-      <div className="grid grid-cols-7 border-b border-cream-200 bg-card shrink-0">
+      <div className="grid grid-cols-7 border-b border-cream-200 bg-white/[0.03] shrink-0">
         {DAY_HEADERS.map((dayName, i) => (
           <div
             key={dayName}
@@ -204,7 +204,7 @@ export function MonthView({
                       className={cn(
                         "inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 text-xs sm:text-sm rounded-full",
                         isToday &&
-                          "ring-2 ring-sal-400 font-bold text-mint-soft bg-sal-50",
+                          "ring-2 ring-mint/60 font-bold text-mint-soft bg-mint/[0.08]",
                         !isToday && isCurrentMonth && "text-foreground",
                         !isToday && !isCurrentMonth && "text-muted-foreground/70"
                       )}
@@ -240,7 +240,7 @@ export function MonthView({
                       </div>
                       {overflowCount > 0 && (
                         <button
-                          className="text-[10px] text-mint font-medium leading-tight hover:text-ink hover:underline transition-colors"
+                          className="text-[10px] text-mint font-medium leading-tight hover:text-mint-soft hover:underline transition-colors"
                           onClick={(e) => {
                             e.stopPropagation()
                             onDayClick(day)

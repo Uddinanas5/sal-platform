@@ -141,13 +141,13 @@ export function ServiceProductBrowser({
       {/* Header with tab toggle */}
       <div className="space-y-4 pb-4">
         {/* Services / Products toggle */}
-        <div className="flex rounded-lg border bg-muted p-1">
+        <div className="flex rounded-lg border bg-white/[0.04] p-1">
           <button
             onClick={() => handleTabSwitch("services")}
             className={cn(
               "flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
               activeTab === "services"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-white/[0.12] text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -159,7 +159,7 @@ export function ServiceProductBrowser({
             className={cn(
               "flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
               activeTab === "products"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-white/[0.12] text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -193,8 +193,8 @@ export function ServiceProductBrowser({
                 className={cn(
                   "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
                   activeCategory === category
-                    ? "border-sal-500 bg-sal-50 text-mint-soft"
-                    : "border-border bg-background text-muted-foreground hover:border-sal-300 hover:text-foreground"
+                    ? "border-mint/50 bg-mint/10 text-mint-soft"
+                    : "border-border bg-white/[0.04] text-muted-foreground hover:border-cream-300 hover:text-foreground"
                 )}
               >
                 {category}
@@ -234,7 +234,7 @@ export function ServiceProductBrowser({
                       })
                     }
                     className={cn(
-                      "group relative flex w-full flex-col rounded-xl border-l-4 border border-border bg-card p-4 text-left shadow-sm transition-all hover:shadow-md hover:border-sal-200",
+                      "group relative flex w-full flex-col glass-tile rounded-tile border-l-4 p-4 text-left transition-all hover:border-cream-400",
                       serviceCategoryColors[service.category] ||
                         "border-l-gray-400"
                     )}
@@ -259,7 +259,7 @@ export function ServiceProductBrowser({
                         <Clock className="h-3 w-3" />
                         {formatDuration(service.duration)}
                       </div>
-                      <span className="text-sm font-bold text-mint">
+                      <span className="text-sm font-bold tabular-nums text-mint">
                         {formatCurrency(service.price)}
                       </span>
                     </div>
@@ -307,10 +307,10 @@ export function ServiceProductBrowser({
                       }
                       disabled={isOutOfStock}
                       className={cn(
-                        "group relative flex w-full flex-col rounded-xl border-l-4 border border-border bg-card p-4 text-left shadow-sm transition-all",
+                        "group relative flex w-full flex-col glass-tile rounded-tile border-l-4 p-4 text-left transition-all",
                         isOutOfStock
                           ? "cursor-not-allowed opacity-50"
-                          : "hover:shadow-md hover:border-sal-200",
+                          : "hover:border-cream-400",
                         productCategoryColors[product.category] ||
                           "border-l-gray-400"
                       )}
@@ -350,7 +350,7 @@ export function ServiceProductBrowser({
                             </span>
                           )}
                         </div>
-                        <span className="text-sm font-bold text-mint">
+                        <span className="text-sm font-bold tabular-nums text-mint">
                           {formatCurrency(product.retailPrice)}
                         </span>
                       </div>

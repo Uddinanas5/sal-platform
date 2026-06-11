@@ -202,7 +202,7 @@ function ReportsDateRangePicker({ className }: { className?: string }) {
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="flex items-center rounded-lg border border-cream-200 bg-card p-1 overflow-x-auto">
+      <div className="flex items-center rounded-lg border border-cream-200 bg-white/[0.04] p-1 overflow-x-auto">
         {presets.map((preset) => (
           <Button
             key={preset.value}
@@ -459,7 +459,7 @@ export function ReportsClient(props: ReportsClientProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="border-cream-200">
+                <Card variant="tile">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
@@ -471,7 +471,7 @@ export function ReportsClient(props: ReportsClientProps) {
                           {isPositive ? (
                             <TrendingUp className="w-3.5 h-3.5 text-mint-strong" />
                           ) : (
-                            <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+                            <TrendingDown className="w-3.5 h-3.5 text-red-400" />
                           )}
                           <span
                             className={cn(

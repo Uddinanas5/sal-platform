@@ -69,7 +69,7 @@ export function FormRenderer({
           <Label className="flex items-center gap-1">
             {field.label || "Untitled Field"}
             {field.required && (
-              <span className="text-red-500 text-xs">*</span>
+              <span className="text-red-400 text-xs">*</span>
             )}
           </Label>
 
@@ -202,7 +202,7 @@ export function FormRenderer({
           )}
 
           {field.type === "file" && (
-            <div className="border-2 border-dashed rounded-lg p-6 text-center text-muted-foreground hover:border-sal-500/50 transition-colors">
+            <div className="border-2 border-dashed border-white/15 rounded-lg p-6 text-center text-muted-foreground hover:border-mint/40 transition-colors">
               <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">
                 {preview ? "File upload area" : "Click or drag to upload a file"}
@@ -216,7 +216,7 @@ export function FormRenderer({
           )}
 
           {field.type === "signature" && (
-            <div className="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground hover:border-sal-500/50 transition-colors bg-muted/20">
+            <div className="border-2 border-dashed border-white/15 rounded-lg p-8 text-center text-muted-foreground hover:border-mint/40 transition-colors bg-white/[0.04]">
               <PenLine className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">
                 {preview ? "Signature capture area" : "Click to sign"}

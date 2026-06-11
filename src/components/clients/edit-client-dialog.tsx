@@ -170,7 +170,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
                   {tag}
                   <button
                     onClick={() => handleRemoveTag(tag)}
-                    className="ml-1 hover:text-red-500 transition-colors"
+                    className="ml-1 hover:text-red-300 transition-colors"
                   >
                     <X className="w-3 h-3" />
                   </button>

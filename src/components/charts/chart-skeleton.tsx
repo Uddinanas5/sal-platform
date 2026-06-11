@@ -17,12 +17,12 @@ export function ChartSkeleton({
     <Card className={cn("", className)}>
       {showTitle && (
         <CardHeader className="pb-2">
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-3.5 w-48 mt-1" />
+          <Skeleton className="h-5 w-32 bg-white/[0.08]" />
+          <Skeleton className="h-3.5 w-48 mt-1 bg-white/[0.08]" />
         </CardHeader>
       )}
       <CardContent>
-        <Skeleton className="w-full rounded-lg" style={{ height }} />
+        <Skeleton className="w-full rounded-lg bg-white/[0.08]" style={{ height }} />
       </CardContent>
     </Card>
   )

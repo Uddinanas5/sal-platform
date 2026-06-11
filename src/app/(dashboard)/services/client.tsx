@@ -115,7 +115,7 @@ function ServiceCard({
       transition={{ delay: index * 0.05 }}
       layout
       className={cn(
-        "bg-card rounded-2xl border border-cream-200 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden card-warm",
+        "glass-tile rounded-tile hover:shadow-md transition-all cursor-pointer overflow-hidden card-warm",
         !isActive && "opacity-60"
       )}
       onClick={onClick}
@@ -324,7 +324,7 @@ export function ServicesClient(props: ServicesClientProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
             >
-              <Card>
+              <Card variant="tile">
                 <CardContent className="p-4">
                   <p className="text-sm text-muted-foreground">{stat.label}</p>
                   <p className="text-2xl font-heading font-bold text-foreground mt-1">{stat.value}</p>

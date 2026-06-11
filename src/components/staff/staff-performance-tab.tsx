@@ -161,7 +161,7 @@ export function StaffPerformanceTab({ staff, appointments, services, staffPerfor
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card>
+              <Card variant="tile">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div

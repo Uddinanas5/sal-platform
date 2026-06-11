@@ -159,10 +159,10 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                     variants={cardVariants}
                   >
                     <div
-                      className={`relative rounded-xl border p-4 transition-all duration-200 hover:shadow-md ${
+                      className={`relative glass-tile rounded-tile p-4 transition-all duration-200 ${
                         resource.isActive
-                          ? "border-cream-200 dark:border-cream-800 bg-card"
-                          : "border-cream-200 dark:border-cream-800 bg-muted/40 opacity-70"
+                          ? "hover:bg-white/[0.06]"
+                          : "opacity-70"
                       }`}
                     >
                       {/* Header Row */}
@@ -171,8 +171,8 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                           <div
                             className={`flex items-center justify-center w-10 h-10 rounded-lg ${
                               resource.type === "room"
-                                ? "bg-blue-500/10 dark:bg-blue-500/15"
-                                : "bg-amber-500/10 dark:bg-amber-500/15"
+                                ? "bg-blue-400/15"
+                                : "bg-amber-400/15"
                             }`}
                           >
                             {resource.type === "room" ? (
@@ -201,8 +201,8 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                               variant="secondary"
                               className={`text-[10px] px-1.5 py-0 mt-0.5 ${
                                 resource.type === "room"
-                                  ? "bg-blue-500/10 text-blue-300"
-                                  : "bg-amber-500/10 text-amber-300"
+                                  ? "bg-blue-400/15 text-blue-300 border border-blue-400/25"
+                                  : "bg-amber-400/15 text-amber-300 border border-amber-400/25"
                               }`}
                             >
                               {resource.type === "room" ? "Room" : "Equipment"}
@@ -213,11 +213,7 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                         {/* Active Status Dot */}
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <div
-                            className={`w-2 h-2 rounded-full ${
-                              resource.isActive
-                                ? "bg-emerald-500"
-                                : "bg-gray-300 dark:bg-gray-600"
-                            }`}
+                            className={resource.isActive ? "led led-mint" : "led"}
                           />
                           <span className="text-[10px] text-muted-foreground">
                             {resource.isActive ? "Active" : "Inactive"}
@@ -246,7 +242,7 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center justify-between pt-3 border-t border-cream-200 dark:border-cream-800">
+                      <div className="flex items-center justify-between pt-3 border-t border-cream-200">
                         <Switch
                           checked={resource.isActive}
                           onCheckedChange={() => handleToggleActive(resource)}
@@ -266,7 +262,7 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                             variant="ghost"
                             size="sm"
                             onClick={() => setDeleteTarget(resource)}
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                            className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-400/10"
                             aria-label={`Delete ${resource.name}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />

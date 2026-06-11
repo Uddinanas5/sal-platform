@@ -89,8 +89,8 @@ export function MembershipsClient(props: MembershipsClientProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              whileHover={{ y: -2, boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}
-              className="bg-card rounded-2xl p-4 border border-cream-200 shadow-sm card-warm transition-shadow"
+              whileHover={{ y: -2, boxShadow: "0 4px 12px rgba(0, 9, 5, 0.35)" }}
+              className="glass-tile rounded-tile p-4 card-warm transition-shadow"
             >
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${stat.bg}`}>

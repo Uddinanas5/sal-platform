@@ -50,10 +50,10 @@ interface StaffTimeOffTabProps {
 }
 
 const typeConfig: Record<TimeOffRow["type"], { label: string; color: string }> = {
-  vacation: { label: "Vacation", color: "bg-blue-500/10 text-blue-300" },
-  sick: { label: "Sick Leave", color: "bg-amber-500/10 text-amber-300" },
-  personal: { label: "Personal", color: "bg-purple-500/10 text-purple-300" },
-  other: { label: "Other", color: "bg-gray-500/10 text-gray-300" },
+  vacation: { label: "Vacation", color: "bg-blue-400/15 text-blue-300 border border-blue-400/25" },
+  sick: { label: "Sick Leave", color: "bg-amber-400/15 text-amber-300 border border-amber-400/25" },
+  personal: { label: "Personal", color: "bg-purple-400/15 text-purple-300 border border-purple-400/25" },
+  other: { label: "Other", color: "bg-white/10 text-ink-soft border border-white/15" },
 }
 
 // Status keys match the real TimeOffStatus enum (pending/approved/rejected).
@@ -61,17 +61,17 @@ const statusConfig: Record<TimeOffRow["status"], { label: string; icon: typeof C
   approved: {
     label: "Approved",
     icon: CheckCircle,
-    color: "bg-green-500/10 text-green-300",
+    color: "bg-green-400/15 text-green-300 border border-green-400/25",
   },
   pending: {
     label: "Pending",
     icon: AlertCircle,
-    color: "bg-amber-500/10 text-amber-300",
+    color: "bg-amber-400/15 text-amber-300 border border-amber-400/25",
   },
   rejected: {
     label: "Denied",
     icon: XCircle,
-    color: "bg-red-500/10 text-red-300",
+    color: "bg-red-400/15 text-red-300 border border-red-400/25",
   },
 }
 
@@ -101,18 +101,18 @@ function TimeOffCard({
   const days = getDayCount(startDate, endDate)
 
   return (
-    <div className="flex items-start gap-3 p-3 rounded-lg border border-cream-200 bg-card">
+    <div className="flex items-start gap-3 p-3 glass-tile rounded-tile">
       <div className="w-10 h-10 rounded-lg bg-cream-100 flex items-center justify-center shrink-0">
         <Calendar className="w-5 h-5 text-muted-foreground" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="secondary" className={cn("text-xs", typeInfo.color)}>
+          <Badge variant="secondary" className={cn("text-xs bg-none", typeInfo.color)}>
             {typeInfo.label}
           </Badge>
           <Badge
             variant="secondary"
-            className={cn("text-xs", statusInfo.color)}
+            className={cn("text-xs bg-none", statusInfo.color)}
           >
             <StatusIcon className="w-3 h-3 mr-1" />
             {statusInfo.label}
@@ -263,7 +263,7 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card>
+          <Card variant="tile">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-400/15 flex items-center justify-center">
@@ -285,7 +285,7 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card>
+          <Card variant="tile">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-amber-400/15 flex items-center justify-center">
@@ -307,7 +307,7 @@ export function StaffTimeOffTab({ staff }: StaffTimeOffTabProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card>
+          <Card variant="tile">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-green-400/15 flex items-center justify-center">

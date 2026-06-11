@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       {/* Header skeleton */}
       <div className="h-16 bg-card/80 border-b border-cream-200 px-6 flex items-center">
         <div className="space-y-2">
@@ -17,7 +17,7 @@ export default function Loading() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="bg-card/80 border border-cream-200 rounded-xl p-5 space-y-3"
+              className="glass-tile rounded-tile p-5 space-y-3"
             >
               <Skeleton className="h-3 w-24" />
               <Skeleton className="h-7 w-20" />
@@ -28,11 +28,11 @@ export default function Loading() {
 
         {/* Chart area: 2/3 + 1/3 */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 bg-card/80 border border-cream-200 rounded-xl p-5 space-y-4">
+          <div className="col-span-2 glass-tile rounded-tile p-5 space-y-4">
             <Skeleton className="h-5 w-40" />
             <Skeleton className="h-[280px] w-full rounded-lg" />
           </div>
-          <div className="col-span-1 bg-card/80 border border-cream-200 rounded-xl p-5 space-y-4">
+          <div className="col-span-1 glass-tile rounded-tile p-5 space-y-4">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-[280px] w-full rounded-lg" />
           </div>
@@ -40,7 +40,7 @@ export default function Loading() {
 
         {/* Schedule area: 2/3 + sidebar 1/3 */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 bg-card/80 border border-cream-200 rounded-xl p-5 space-y-4">
+          <div className="col-span-2 glass-tile rounded-tile p-5 space-y-4">
             <Skeleton className="h-5 w-36" />
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4">
@@ -53,7 +53,7 @@ export default function Loading() {
               </div>
             ))}
           </div>
-          <div className="col-span-1 bg-card/80 border border-cream-200 rounded-xl p-5 space-y-4">
+          <div className="col-span-1 glass-tile rounded-tile p-5 space-y-4">
             <Skeleton className="h-5 w-28" />
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="space-y-2">

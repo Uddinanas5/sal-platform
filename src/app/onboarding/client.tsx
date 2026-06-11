@@ -341,9 +341,9 @@ function StepIndicator({ currentStep }: { currentStep: OnboardingStep }) {
             {STEPS[currentStep - 1].label}
           </span>
         </div>
-        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-sal-500 rounded-full"
+            className="h-full bg-mint rounded-full"
             initial={false}
             animate={{ width: `${(currentStep / 4) * 100}%` }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
@@ -364,10 +364,10 @@ function StepIndicator({ currentStep }: { currentStep: OnboardingStep }) {
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${
                   isActive
-                    ? "bg-sal-500 text-white shadow-md shadow-sal-500/20"
+                    ? "bg-mint text-emerald-950 shadow-md shadow-mint/20"
                     : isCompleted
-                    ? "bg-sal-500/10 text-sal-300"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-mint/15 text-mint"
+                    : "bg-white/5 text-ink-faint"
                 }`}
               >
                 {isCompleted ? (
@@ -380,7 +380,7 @@ function StepIndicator({ currentStep }: { currentStep: OnboardingStep }) {
               {i < STEPS.length - 1 && (
                 <div
                   className={`w-6 h-0.5 mx-1 rounded transition-colors duration-300 ${
-                    isCompleted ? "bg-sal-500" : "bg-muted"
+                    isCompleted ? "bg-mint" : "bg-white/10"
                   }`}
                 />
               )}
@@ -656,9 +656,9 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="min-h-screen bg-cream dark:bg-background">
+    <div className="min-h-screen env-canvas-lite">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-cream dark:bg-background/80 backdrop-blur-lg border-b border-cream-200 dark:border-border">
+      <header className="sticky top-0 z-30 bg-[#08251a]/95 border-b border-white/10">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg bg-sal-500 flex items-center justify-center">
@@ -696,7 +696,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                   </p>
                 </div>
 
-                <Card>
+                <Card className="glass-panel-lite">
                   <CardContent className="p-6 space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="businessName">Business name</Label>
@@ -809,15 +809,15 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                   </p>
                 </div>
 
-                <Card>
+                <Card className="glass-panel-lite">
                   <CardContent className="p-6 space-y-3">
                     {workingHours.map((day) => (
                       <div
                         key={day.dayOfWeek}
-                        className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                        className={`flex items-center gap-3 p-3 rounded-tile transition-colors ${
                           day.isWorking
-                            ? "bg-sal-500/5 dark:bg-sal-500/10"
-                            : "bg-muted/50"
+                            ? "bg-mint/10 border border-mint/20"
+                            : "bg-white/5 border border-white/10"
                         }`}
                       >
                         <Switch
@@ -845,7 +845,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                                 updateWorkingDay(day.dayOfWeek, "openTime", v)
                               }
                             >
-                              <SelectTrigger className="h-8 text-xs w-[110px]">
+                              <SelectTrigger className="h-11 text-sm w-[110px]">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -863,7 +863,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                                 updateWorkingDay(day.dayOfWeek, "closeTime", v)
                               }
                             >
-                              <SelectTrigger className="h-8 text-xs w-[110px]">
+                              <SelectTrigger className="h-11 text-sm w-[110px]">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -901,7 +901,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
 
                 {/* Template button */}
                 {services.length === 0 && (
-                  <Card className="border-dashed border-2 border-sal-500/30">
+                  <Card variant="tile" className="border-dashed border-2 border-mint/30">
                     <CardContent className="p-6 text-center">
                       <Sparkles className="w-8 h-8 text-mint-strong mx-auto mb-3" />
                       <h3 className="font-semibold text-foreground mb-1">
@@ -919,7 +919,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                 )}
 
                 {/* Quick-add form */}
-                <Card>
+                <Card className="glass-panel-lite">
                   <CardContent className="p-6">
                     <h3 className="text-sm font-medium text-foreground mb-3">
                       Add a service
@@ -934,7 +934,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                           value={newServiceName}
                           onChange={(e) => setNewServiceName(e.target.value)}
                           placeholder="e.g. Balayage"
-                          className="h-9"
+                          className="h-11"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault()
@@ -951,7 +951,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                           value={String(newServiceDuration)}
                           onValueChange={(v) => setNewServiceDuration(parseInt(v))}
                         >
-                          <SelectTrigger id="serviceDuration" className="h-9">
+                          <SelectTrigger id="serviceDuration" className="h-11">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -976,7 +976,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                             value={newServicePrice}
                             onChange={(e) => setNewServicePrice(e.target.value)}
                             placeholder="0.00"
-                            className="h-9"
+                            className="h-11"
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
                                 e.preventDefault()
@@ -988,7 +988,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                             type="button"
                             size="sm"
                             onClick={addService}
-                            className="h-9 px-3 shrink-0"
+                            className="h-11 px-4 shrink-0"
                           >
                             <Plus className="w-4 h-4" />
                           </Button>
@@ -1010,7 +1010,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                           variant="ghost"
                           size="sm"
                           onClick={useTemplate}
-                          className="text-xs gap-1 h-7"
+                          className="text-sm gap-1.5 h-11 px-3"
                         >
                           <Sparkles className="w-3 h-3" />
                           Use Template
@@ -1020,7 +1020,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
 
                     <div className="space-y-2">
                       {services.map((service) => (
-                        <Card key={service.id}>
+                        <Card key={service.id} variant="tile">
                           <CardContent className="p-4 flex items-center justify-between">
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-foreground truncate">
@@ -1035,7 +1035,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                               variant="ghost"
                               size="icon"
                               onClick={() => removeService(service.id)}
-                              className="shrink-0 text-muted-foreground hover:text-red-500"
+                              className="shrink-0 text-muted-foreground hover:text-red-400"
                               aria-label={`Remove ${service.name}`}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1092,12 +1092,12 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
                   >
-                    <Card>
+                    <Card className="glass-panel-lite">
                       <CardContent className="p-6">
                         <p className="text-sm text-muted-foreground mb-2">
                           Your booking link
                         </p>
-                        <div className="flex items-center gap-2 bg-muted rounded-lg p-3">
+                        <div className="flex items-center gap-2 bg-white/10 rounded-lg p-3">
                           <code className="text-sm text-foreground flex-1 truncate">
                             {typeof window !== "undefined"
                               ? `${window.location.origin}/book/${business.slug}`
@@ -1149,7 +1149,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
 
       {/* Bottom nav buttons (steps 1-3) */}
       {step < 4 && (
-        <div className="fixed bottom-0 inset-x-0 bg-cream dark:bg-background/80 backdrop-blur-lg border-t border-cream-200 dark:border-border z-20">
+        <div className="fixed bottom-0 inset-x-0 bg-[#08251a]/95 border-t border-white/10 z-20">
           <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
             <Button
               variant="ghost"

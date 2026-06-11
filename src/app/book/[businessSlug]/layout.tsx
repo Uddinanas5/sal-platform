@@ -6,7 +6,7 @@ export default function BookingLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen env-canvas-lite">
       {children}
       <Toaster />
     </div>

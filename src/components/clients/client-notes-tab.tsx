@@ -127,7 +127,7 @@ export function ClientNotesTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading flex items-center gap-2">
               <StickyNote className="w-4 h-4" />
@@ -222,7 +222,7 @@ export function ClientNotesTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading flex items-center gap-2">
               Notes

@@ -34,13 +34,13 @@ import type { Staff } from "@/data/mock-data"
 export type CalendarView = "day" | "3day" | "week" | "month"
 
 const STATUS_OPTIONS = [
-  { value: "pending", label: "Booked", color: "#3b82f6" },
-  { value: "confirmed", label: "Confirmed", color: "#8b5cf6" },
-  { value: "checked-in", label: "Arrived", color: "#f59e0b" },
-  { value: "in-progress", label: "Started", color: "#10b981" },
-  { value: "completed", label: "Completed", color: "#6b7280" },
-  { value: "no-show", label: "No Show", color: "#ef4444" },
-  { value: "cancelled", label: "Cancelled", color: "#ef4444" },
+  { value: "pending", label: "Booked", color: "#60a5fa" },
+  { value: "confirmed", label: "Confirmed", color: "#a78bfa" },
+  { value: "checked-in", label: "Arrived", color: "#fbbf24" },
+  { value: "in-progress", label: "Started", color: "#4fe6a6" },
+  { value: "completed", label: "Completed", color: "rgba(255,255,255,0.35)" },
+  { value: "no-show", label: "No Show", color: "#f87171" },
+  { value: "cancelled", label: "Cancelled", color: "rgba(248,113,113,0.40)" },
 ]
 
 interface CalendarHeaderProps {
@@ -107,7 +107,7 @@ export function CalendarHeader({
   }, [isToday])
 
   return (
-    <div className="flex flex-col gap-2 px-3 py-2.5 sm:px-4 sm:py-3 bg-card border-b border-cream-200">
+    <div className="flex flex-col gap-2 px-3 py-2.5 sm:px-4 sm:py-3 border-b border-cream-200">
       {/* Row 1: Navigation + Date */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -192,18 +192,18 @@ export function CalendarHeader({
       {/* Row 2: View toggles + Staff filter */}
       <div className="flex items-center justify-between gap-2">
         {/* View toggles */}
-        <div className="flex items-center gap-1 bg-cream-100 rounded-lg p-0.5 sm:p-1">
+        <div className="flex items-center gap-1 bg-white/[0.05] border border-white/[0.08] rounded-lg p-0.5 sm:p-1">
           {(["day", "3day", "week", "month"] as CalendarView[]).map((v) => (
             <Button
               key={v}
-              variant={view === v ? "default" : "ghost"}
+              variant="ghost"
               size="sm"
               onClick={() => onViewChange(v)}
               className={cn(
                 "h-7 sm:h-8 px-2.5 sm:px-4 text-xs sm:text-sm font-medium transition-all",
                 view === v
-                  ? "bg-background text-foreground shadow-sm hover:bg-background"
-                  : "text-muted-foreground hover:text-foreground hover:bg-transparent"
+                  ? "bg-white/[0.14] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] hover:bg-white/[0.14]"
+                  : "text-ink-soft hover:text-foreground hover:bg-white/[0.08]"
               )}
             >
               {v === "day" ? "Day" : v === "3day" ? "3-Day" : v === "week" ? "Week" : "Month"}
@@ -234,7 +234,7 @@ export function CalendarHeader({
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-52 p-2">
-                <p className="text-xs font-medium text-muted-foreground px-2 pb-2">Filter by status</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint px-2 pb-2">Filter by status</p>
                 {STATUS_OPTIONS.map((opt) => {
                   const isChecked = statusFilter?.has(opt.value) || false
                   return (
@@ -260,7 +260,7 @@ export function CalendarHeader({
                         {isChecked && <Check className="h-3 w-3 text-white" />}
                       </span>
                       <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        className="led"
                         style={{ backgroundColor: opt.color }}
                       />
                       {opt.label}

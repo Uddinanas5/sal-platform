@@ -150,13 +150,13 @@ export function getProductColumns({
         let label: string
 
         if (stock <= reorder / 2) {
-          colorClasses = "bg-red-500/10 text-red-300"
+          colorClasses = "bg-red-400/15 text-red-300 border border-red-400/25"
           label = "Critical"
         } else if (stock <= reorder) {
-          colorClasses = "bg-amber-500/10 text-amber-300"
+          colorClasses = "bg-amber-400/15 text-amber-300 border border-amber-400/25"
           label = "Low"
         } else {
-          colorClasses = "bg-emerald-500/10 text-emerald-300"
+          colorClasses = "bg-emerald-400/15 text-emerald-300 border border-emerald-400/25"
           label = "Good"
         }
 

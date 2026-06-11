@@ -427,7 +427,7 @@ export function CreateCampaignDialog({
                   variant="secondary"
                   className={cn(
                     "text-xs capitalize",
-                    "bg-blue-500/10 text-blue-300"
+                    "bg-blue-400/15 text-blue-300 border border-blue-400/25"
                   )}
                 >
                   {campaignType}
@@ -462,7 +462,7 @@ export function CreateCampaignDialog({
               <p className="text-xs text-muted-foreground mb-1">Message Preview</p>
               <p className="text-sm text-foreground">{content}</p>
             </div>
-            <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
+            <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3">
               <p className="text-xs text-amber-300">
                 This campaign will be saved to your campaigns list. No emails are
                 sent yet — open it there and click Send to email your clients.

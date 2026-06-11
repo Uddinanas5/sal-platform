@@ -22,9 +22,9 @@ export function PlanCard({ plan, index = 0, onEdit, onToggleActive, busy = false
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
-      whileHover={{ y: -4, boxShadow: "0 12px 40px rgba(0,0,0,0.08)" }}
+      whileHover={{ y: -4, boxShadow: "0 12px 40px rgba(0, 9, 5, 0.45)" }}
       className={cn(
-        "bg-card rounded-2xl border border-cream-200 shadow-sm overflow-hidden card-warm",
+        "glass-tile rounded-tile overflow-hidden card-warm",
         !plan.isActive && "opacity-60"
       )}
     >
@@ -40,7 +40,7 @@ export function PlanCard({ plan, index = 0, onEdit, onToggleActive, busy = false
                 {plan.name}
               </h3>
               {!plan.isActive && (
-                <Badge variant="secondary" className="bg-gray-500/10 text-gray-300 text-[10px]">
+                <Badge variant="secondary" className="bg-white/10 text-ink-soft border border-white/15 text-[10px]">
                   Inactive
                 </Badge>
               )}

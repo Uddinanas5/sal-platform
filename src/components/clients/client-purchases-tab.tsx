@@ -72,7 +72,7 @@ const columns: ColumnDef<PurchaseRow>[] = [
     cell: ({ row }) => {
       const discount = row.getValue("discount") as number
       return discount > 0 ? (
-        <span className="text-sm text-red-500">-{formatCurrency(discount)}</span>
+        <span className="text-sm text-red-400">-{formatCurrency(discount)}</span>
       ) : (
         <span className="text-sm text-muted-foreground/70">--</span>
       )
@@ -148,7 +148,7 @@ export function ClientPurchasesTab({ client }: ClientPurchasesTabProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
           >
-            <Card className="border-cream-200">
+            <Card variant="tile">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-sal-100">
                   <stat.icon className="w-5 h-5 text-mint" />
