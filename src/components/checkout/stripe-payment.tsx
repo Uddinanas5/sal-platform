@@ -85,7 +85,7 @@ function CheckoutForm({
       />
 
       {message && (
-        <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+        <div className="text-sm text-red-300 border border-red-400/25 bg-red-400/15 p-3 rounded-lg">
           {message}
         </div>
       )}
@@ -164,14 +164,14 @@ export function StripePayment({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-sal-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-mint-strong" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+      <div className="text-sm text-red-300 border border-red-400/25 bg-red-400/15 p-4 rounded-lg">
         {error}
       </div>
     )
@@ -191,11 +191,11 @@ export function StripePayment({
       options={{
         clientSecret,
         appearance: {
-          theme: "stripe",
+          theme: "night",
           variables: {
-            colorPrimary: "#059669",
-            colorBackground: "#ffffff",
-            colorText: "#1f2937",
+            colorPrimary: "#4fe6a6",
+            colorBackground: "#0c2a1e",
+            colorText: "#ffffff",
             colorDanger: "#ef4444",
             fontFamily: "DM Sans, system-ui, sans-serif",
             borderRadius: "8px",

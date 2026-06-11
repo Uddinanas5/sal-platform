@@ -104,22 +104,22 @@ const STATUS_CONFIG: Record<
   pending: {
     label: "Booked",
     variant: "default",
-    className: "bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15",
+    className: "bg-blue-500/10 text-blue-300 hover:bg-blue-500/15",
   },
   confirmed: {
     label: "Confirmed",
     variant: "default",
-    className: "bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/15",
+    className: "bg-purple-500/10 text-purple-300 hover:bg-purple-500/15",
   },
   "checked-in": {
     label: "Arrived",
     variant: "default",
-    className: "bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/15",
+    className: "bg-amber-500/10 text-amber-300 hover:bg-amber-500/15",
   },
   "in-progress": {
     label: "Started",
     variant: "default",
-    className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15",
+    className: "bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15",
   },
   completed: {
     label: "Completed",
@@ -132,7 +132,7 @@ const STATUS_CONFIG: Record<
   cancelled: {
     label: "Cancelled",
     variant: "default",
-    className: "bg-red-500/10 text-red-700 dark:text-red-300 hover:bg-red-500/15",
+    className: "bg-red-500/10 text-red-300 hover:bg-red-500/15",
   },
 }
 
@@ -352,7 +352,7 @@ export function AppointmentDetailSheet({
             {isSeriesMember && (
               <Badge
                 variant="outline"
-                className="w-fit gap-1 bg-sal-500/10 text-sal-700 dark:text-sal-300 border-sal-500/20"
+                className="w-fit gap-1 bg-sal-500/10 text-sal-300 border-sal-500/20"
               >
                 <Repeat className="h-3 w-3" />
                 {recurrenceLabel} · series
@@ -391,7 +391,7 @@ export function AppointmentDetailSheet({
                 )}
               </div>
               {client && (
-                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/client:text-sal-500 transition-colors shrink-0" />
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/client:text-mint-strong transition-colors shrink-0" />
               )}
             </div>
           </div>
@@ -599,7 +599,7 @@ export function AppointmentDetailSheet({
 
                 <Button
                   variant="outline"
-                  className="w-full justify-start gap-2 h-10 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                  className="w-full justify-start gap-2 h-10 text-amber-400 hover:text-amber-300 hover:bg-amber-400/10"
                   onClick={() => openCancel("no_show")}
                 >
                   <UserX className="h-4 w-4" />
@@ -608,7 +608,7 @@ export function AppointmentDetailSheet({
 
                 <Button
                   variant="outline"
-                  className="w-full justify-start gap-2 h-10 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className="w-full justify-start gap-2 h-10 text-red-400 hover:text-red-300 hover:bg-red-400/10"
                   onClick={() => openCancel("cancelled")}
                 >
                   <XCircle className="h-4 w-4" />
@@ -701,7 +701,7 @@ export function AppointmentDetailSheet({
             {isSeriesMember && cancelMode === "cancelled" && (
               <div className="space-y-1.5">
                 <label className="text-sm font-medium flex items-center gap-1.5">
-                  <Repeat className="h-3.5 w-3.5 text-sal-500" />
+                  <Repeat className="h-3.5 w-3.5 text-mint-strong" />
                   Apply to
                 </label>
                 <Select

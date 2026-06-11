@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 import { ReviewSummary } from "@/components/reviews/review-summary"
 import { ReviewCard } from "@/components/reviews/review-card"
 import { RespondDialog } from "@/components/reviews/respond-dialog"
@@ -156,9 +157,13 @@ export function ReviewsClient(props: ReviewsClientProps) {
           <div className="flex items-center gap-3">
             {/* Needs Response Toggle */}
             <Button
-              variant={needsResponseOnly ? "default" : "outline"}
+              variant="outline"
               size="sm"
-              className="gap-1.5"
+              className={cn(
+                "gap-1.5",
+                needsResponseOnly &&
+                  "bg-mint/15 text-mint border-mint/30 hover:bg-mint/20 hover:text-mint hover:border-mint/40"
+              )}
               onClick={() => setNeedsResponseOnly(!needsResponseOnly)}
             >
               <MessageCircle className="w-3.5 h-3.5" />
@@ -166,7 +171,10 @@ export function ReviewsClient(props: ReviewsClientProps) {
               {needsResponseCount > 0 && (
                 <Badge
                   variant={needsResponseOnly ? "secondary" : "default"}
-                  className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]"
+                  className={cn(
+                    "ml-1 h-5 min-w-[20px] px-1.5 text-[10px]",
+                    needsResponseOnly && "bg-mint/20 text-mint"
+                  )}
                 >
                   {needsResponseCount}
                 </Badge>
@@ -210,7 +218,7 @@ export function ReviewsClient(props: ReviewsClientProps) {
 
         {filteredReviews.length === 0 && (
           <EmptyState
-            icon={<Star className="w-8 h-8 text-sal-600" />}
+            icon={<Star className="w-8 h-8 text-mint" />}
             title="No reviews found"
             description="No reviews match your current filters. Try adjusting the source, rating, or sort options."
           />

@@ -73,7 +73,7 @@ export default function ReviewsLoading() {
       {/* Review cards */}
       <div className="space-y-4">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Card key={i} className="p-6">
+          <Card key={i} variant="tile" className="p-6">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />

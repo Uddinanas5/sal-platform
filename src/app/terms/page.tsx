@@ -12,15 +12,15 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-cream dark:bg-background">
+    <div className="min-h-screen env-canvas-lite">
       {/* Nav */}
-      <nav className="sticky top-0 z-30 bg-cream/80 dark:bg-background/80 backdrop-blur-lg border-b border-cream-200 dark:border-border">
+      <nav className="sticky top-0 z-30 bg-[#08251a]/95 border-b border-white/10">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2 text-foreground hover:text-sal-600 transition-colors"
+            className="flex items-center gap-2 text-foreground hover:text-mint transition-colors"
           >
-            <svg viewBox="0 0 32 32" className="w-7 h-7 text-sal-500" fill="currentColor">
+            <svg viewBox="0 0 32 32" className="w-7 h-7 text-mint-strong" fill="currentColor">
               <path d="M16 4c-2.5 0-4.5 1.2-5.8 3.1C8.9 8.9 8 11.3 8 14c0 3.5 1.5 6.5 4 8.5V26a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-3.5c2.5-2 4-5 4-8.5 0-2.7-.9-5.1-2.2-6.9C20.5 5.2 18.5 4 16 4z" />
             </svg>
             <span className="font-heading font-semibold text-lg">SAL</span>
@@ -35,17 +35,18 @@ export default function TermsPage() {
       </nav>
 
       {/* Content */}
-      <main className="max-w-3xl mx-auto px-6 py-12 pb-24">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-12 pb-24">
+        <div className="glass-panel glass-panel-lite rounded-panel p-6 sm:p-10">
         <header className="mb-10">
-          <h1 className="text-3xl font-heading font-bold text-foreground">
+          <h1 className="text-3xl font-heading font-bold text-ink">
             Terms of Service
           </h1>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-sm text-ink-faint mt-2">
             Last updated: February 20, 2026
           </p>
         </header>
 
-        <div className="space-y-8 text-sm leading-relaxed text-foreground/90">
+        <div className="space-y-8 text-sm leading-relaxed text-ink-soft">
           {/* 1. Acceptance of Terms */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
@@ -163,7 +164,7 @@ export default function TermsPage() {
               Your use of the Platform is also governed by our{" "}
               <Link
                 href="/privacy"
-                className="text-sal-600 dark:text-sal-400 underline underline-offset-2 hover:text-sal-700 dark:hover:text-sal-300 transition-colors"
+                className="text-mint underline underline-offset-2 hover:text-mint-soft transition-colors"
               >
                 Privacy Policy
               </Link>
@@ -226,13 +227,14 @@ export default function TermsPage() {
               If you have any questions about these Terms, please contact us at{" "}
               <a
                 href="mailto:hello@salplatform.com"
-                className="text-sal-600 dark:text-sal-400 underline underline-offset-2 hover:text-sal-700 dark:hover:text-sal-300 transition-colors"
+                className="text-mint underline underline-offset-2 hover:text-mint-soft transition-colors"
               >
                 hello@salplatform.com
               </a>
               .
             </p>
           </section>
+        </div>
         </div>
       </main>
     </div>

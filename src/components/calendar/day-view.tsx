@@ -53,7 +53,7 @@ export function DayView({
   return (
     <div className="flex flex-col h-full">
       {/* Staff headers - sticky row above the scrollable area */}
-      <div className="flex border-b border-cream-200 bg-card shrink-0">
+      <div className="flex border-b border-cream-200 bg-white/[0.03] shrink-0">
         {/* Empty cell above time column */}
         <div className="w-[72px] shrink-0 border-r border-cream-200" />
         {/* Staff header cells */}
@@ -71,7 +71,7 @@ export function DayView({
               <div
                 key={s.id}
                 className="flex items-center gap-2 px-3 py-2 border-r border-cream-200 last:border-r-0 min-w-[180px] flex-1"
-                style={{ backgroundColor: isDayOff ? "rgba(0,0,0,0.03)" : `${s.color}08` }}
+                style={{ backgroundColor: isDayOff ? "rgba(0,0,0,0.18)" : `${s.color}08` }}
               >
                 <div
                   className={cn(

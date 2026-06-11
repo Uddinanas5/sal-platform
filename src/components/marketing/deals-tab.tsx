@@ -56,12 +56,12 @@ interface DealItem {
 }
 
 const typeBadgeColors: Record<string, string> = {
-  percentage: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  fixed_amount: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  fixed: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  free_service: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
-  bogo: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
-  bundle: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  percentage: "bg-blue-400/15 text-blue-300 border border-blue-400/25",
+  fixed_amount: "bg-emerald-400/15 text-emerald-300 border border-emerald-400/25",
+  fixed: "bg-emerald-400/15 text-emerald-300 border border-emerald-400/25",
+  free_service: "bg-purple-400/15 text-purple-300 border border-purple-400/25",
+  bogo: "bg-purple-400/15 text-purple-300 border border-purple-400/25",
+  bundle: "bg-amber-400/15 text-amber-300 border border-amber-400/25",
 }
 
 function formatDealValue(deal: DealItem): string {
@@ -180,8 +180,8 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
       {/* Honesty note: deals/promo codes are tracked here but are not yet wired
           into checkout or booking, so creating one does not discount anything
           for clients today. */}
-      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
-        <p className="text-xs text-amber-800 dark:text-amber-300">
+      <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3">
+        <p className="text-xs text-amber-300">
           Promo-code redemption is coming soon. You can create and organize deals
           here, but codes do not yet apply a discount at checkout or booking.
         </p>
@@ -190,7 +190,7 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
       {/* Deals Grid */}
       {deals.length === 0 ? (
         <EmptyState
-          icon={<Tag className="w-7 h-7 text-sal-600" />}
+          icon={<Tag className="w-7 h-7 text-mint" />}
           title="No deals yet"
           description="Create promotional deals to attract new clients."
         />
@@ -203,7 +203,7 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <Card className="border-cream-200 hover:shadow-md transition-all">
+              <Card variant="tile" className="hover:shadow-md transition-all">
                 <CardContent className="p-5">
                   {/* Header */}
                   <div className="flex items-start justify-between mb-3">
@@ -227,7 +227,7 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
                   </div>
 
                   {/* Value Display */}
-                  <div className="text-2xl font-heading font-bold text-sal-600 mb-2">
+                  <div className="text-2xl font-heading font-bold text-mint mb-2">
                     {formatDealValue(deal)}
                   </div>
 

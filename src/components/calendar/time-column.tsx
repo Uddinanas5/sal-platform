@@ -32,7 +32,7 @@ export function TimeColumn({
   }
 
   return (
-    <div className="flex flex-col shrink-0 w-[72px] border-r border-cream-200 bg-cream-50/50">
+    <div className="flex flex-col shrink-0 w-[72px] border-r border-cream-200 bg-cream-50">
       {slots.map((slot) => (
         <div
           key={`${slot.hour}-${slot.minute}`}

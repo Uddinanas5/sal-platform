@@ -31,7 +31,7 @@ export function Header({ title, subtitle }: HeaderProps) {
   const { toggleMobileSidebar } = useMobileSidebar()
 
   return (
-    <header className="h-16 surface-glass border-b border-cream-200/70 px-6 flex items-center justify-between sticky top-0 z-30">
+    <header className="h-16 surface-glass px-6 flex items-center justify-between sticky top-0 z-30">
       {/* Left - Hamburger (mobile) + Title */}
       <div className="flex items-center gap-3">
         {toggleMobileSidebar && (
@@ -92,7 +92,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
           <Input
             placeholder="Search clients, services..."
-            className="w-64 pl-9 rounded-full bg-cream-100/70 border-cream-200 transition-all focus:bg-white focus:w-72 focus:border-sal-200"
+            className="w-64 pl-9 rounded-full bg-cream-100 border-cream-200 transition-all focus:bg-white/15 focus:w-72 focus:border-sal-200"
             readOnly
             onClick={() => {
               document.dispatchEvent(
@@ -127,7 +127,7 @@ export function Header({ title, subtitle }: HeaderProps) {
             <Button variant="ghost" className="flex items-center gap-2 px-2">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={session?.user?.image || undefined} />
-                <AvatarFallback className="bg-sal-100 text-sal-700 text-sm">
+                <AvatarFallback className="bg-sal-100 text-mint-soft text-sm">
                   {session?.user?.name
                     ? session.user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
                     : "U"}
@@ -155,7 +155,7 @@ export function Header({ title, subtitle }: HeaderProps) {
               Help & Support
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })} className="text-red-600">
+            <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })} className="text-red-400">
               <LogOut className="mr-2 h-4 w-4" />
               Log Out
             </DropdownMenuItem>

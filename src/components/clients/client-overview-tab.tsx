@@ -114,14 +114,14 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading">Contact Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-sal-50">
-                <Mail className="w-4 h-4 text-sal-600" />
+                <Mail className="w-4 h-4 text-mint" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Email</p>
@@ -131,7 +131,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
             <Separator />
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-sal-50">
-                <Phone className="w-4 h-4 text-sal-600" />
+                <Phone className="w-4 h-4 text-mint" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Phone</p>
@@ -141,7 +141,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
             <Separator />
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-sal-50">
-                <Calendar className="w-4 h-4 text-sal-600" />
+                <Calendar className="w-4 h-4 text-mint" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Date of Birth</p>
@@ -153,7 +153,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
             <Separator />
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-sal-50">
-                <Clock className="w-4 h-4 text-sal-600" />
+                <Clock className="w-4 h-4 text-mint" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Member Since</p>
@@ -170,7 +170,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.12 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading flex items-center gap-2">
               <Wallet className="w-4 h-4" />
@@ -180,7 +180,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Balance</span>
-              <span className="text-2xl font-heading font-bold text-sal-600">
+              <span className="text-2xl font-heading font-bold text-mint">
                 {formatCurrency(client.walletBalance || 0)}
               </span>
             </div>
@@ -218,7 +218,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading flex items-center gap-2">
               <Tag className="w-4 h-4" />
@@ -236,7 +236,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
                   {tag}
                   <button
                     onClick={() => handleRemoveTag(tag)}
-                    className="ml-1 hover:text-red-500 transition-colors"
+                    className="ml-1 hover:text-red-300 transition-colors"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -268,7 +268,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading">Recent Appointments</CardTitle>
           </CardHeader>
@@ -290,7 +290,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
                       <Badge className={getStatusColor(appt.status)}>
                         {appt.status}
                       </Badge>
-                      <span className="text-sm font-medium text-sal-600">
+                      <span className="text-sm font-medium text-mint">
                         {formatCurrency(appt.price)}
                       </span>
                     </div>
@@ -312,7 +312,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading">Recent Purchases</CardTitle>
           </CardHeader>
@@ -331,7 +331,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
         transition={{ delay: 0.3 }}
         className="lg:col-span-2"
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading">Notes</CardTitle>
           </CardHeader>

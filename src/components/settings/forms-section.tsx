@@ -113,7 +113,7 @@ export function FormsSection({ templates: initialTemplates }: FormsSectionProps)
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2 font-heading">
-                  <FileText className="w-5 h-5 text-sal-500" />
+                  <FileText className="w-5 h-5 text-mint-strong" />
                   Client Forms
                 </CardTitle>
                 <CardDescription>
@@ -161,10 +161,10 @@ export function FormsSection({ templates: initialTemplates }: FormsSectionProps)
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -20, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className={`border rounded-lg p-4 transition-colors ${
+                      className={`glass-tile rounded-tile p-4 transition-colors ${
                         template.isActive
-                          ? "bg-background hover:bg-muted/30"
-                          : "bg-muted/50 opacity-60"
+                          ? "hover:bg-white/[0.06]"
+                          : "opacity-60"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -239,7 +239,7 @@ export function FormsSection({ templates: initialTemplates }: FormsSectionProps)
                             }
                           >
                             {template.isActive ? (
-                              <ToggleRight className="w-3.5 h-3.5 text-sal-500" />
+                              <ToggleRight className="w-3.5 h-3.5 text-mint-strong" />
                             ) : (
                               <ToggleLeft className="w-3.5 h-3.5" />
                             )}
@@ -247,7 +247,7 @@ export function FormsSection({ templates: initialTemplates }: FormsSectionProps)
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                            className="h-8 w-8 text-muted-foreground hover:text-red-400"
                             onClick={() => setDeleteTarget(template)}
                             aria-label="Delete form"
                           >

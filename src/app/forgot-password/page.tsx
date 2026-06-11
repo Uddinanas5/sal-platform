@@ -32,8 +32,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream p-4">
-      <Card className="w-full max-w-md border-cream-200">
+    <div className="min-h-screen flex items-center justify-center env-canvas-lite p-4">
+      <Card className="w-full max-w-md glass-panel-lite">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-sal-500 rounded-2xl flex items-center justify-center">
             <svg viewBox="0 0 32 32" className="w-10 h-10 text-white" fill="currentColor">
@@ -54,8 +54,8 @@ export default function ForgotPasswordPage() {
         <CardContent>
           {sent ? (
             <div className="text-center space-y-4">
-              <div className="mx-auto w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+              <div className="mx-auto w-12 h-12 bg-emerald-400/15 border border-emerald-400/25 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 If an account exists with <strong className="text-foreground">{email}</strong>,
@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
                   Try a different email
                 </Button>
                 <Link href="/login" className="block">
-                  <Button variant="ghost" className="w-full text-sal-600">
+                  <Button variant="ghost" className="w-full text-mint">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Sign In
                   </Button>
@@ -101,7 +101,7 @@ export default function ForgotPasswordPage() {
               </div>
 
               {error && (
-                <p className="text-sm text-red-500 text-center">{error}</p>
+                <p className="text-sm text-red-200 text-center bg-red-400/15 border border-red-400/25 p-2 rounded-lg" role="alert">{error}</p>
               )}
 
               <Button type="submit" className="w-full" disabled={loading}>
@@ -111,7 +111,7 @@ export default function ForgotPasswordPage() {
               <div className="text-center">
                 <Link
                   href="/login"
-                  className="inline-flex items-center text-sm text-muted-foreground hover:text-sal-600 transition-colors"
+                  className="inline-flex items-center text-sm text-muted-foreground hover:text-mint transition-colors"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 mr-1" />
                   Back to Sign In

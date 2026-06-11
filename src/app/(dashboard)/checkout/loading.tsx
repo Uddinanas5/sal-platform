@@ -2,9 +2,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       {/* Header skeleton */}
-      <div className="h-16 bg-white/80 border-b border-cream-200 px-6 flex items-center">
+      <div className="h-16 surface-glass px-6 flex items-center">
         <div className="space-y-2">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="h-3 w-48" />
@@ -33,7 +33,7 @@ export default function Loading() {
               {Array.from({ length: 9 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white/80 border border-cream-200 rounded-xl p-4 space-y-3"
+                  className="glass-tile rounded-tile p-4 space-y-3"
                 >
                   <Skeleton className="h-28 w-full rounded-lg" />
                   <Skeleton className="h-4 w-3/4" />
@@ -48,7 +48,7 @@ export default function Loading() {
 
           {/* Right: Cart panel (40%) */}
           <div className="w-[40%]">
-            <div className="bg-white/80 border border-cream-200 rounded-xl p-5 space-y-4 sticky top-6">
+            <div className="glass-panel rounded-panel p-5 space-y-4 sticky top-6">
               <Skeleton className="h-6 w-28" />
 
               {/* Cart items */}

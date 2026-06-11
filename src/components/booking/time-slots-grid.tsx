@@ -43,14 +43,14 @@ export function TimeSlotsGrid({ onSelectTime, selectedTime }: TimeSlotsGridProps
             onClick={() => handleSelect(time)}
             disabled={isUnavailable}
             className={cn(
-              "px-2 py-2 text-xs rounded-lg border font-medium transition-all duration-200",
+              "px-2 py-2 text-xs rounded-tile font-medium transition-all duration-200",
               isUnavailable &&
-                "bg-cream-50 text-muted-foreground/70 border-cream-100 cursor-not-allowed line-through",
+                "border border-white/10 bg-white/[0.04] text-white/30 cursor-not-allowed line-through",
               !isUnavailable &&
                 !isSelected &&
-                "bg-card text-sal-700 border-sal-200 hover:bg-sal-50 hover:border-sal-400 cursor-pointer",
+                "glass-tile text-ink-soft hover:brightness-110 cursor-pointer",
               isSelected &&
-                "bg-sal-500 text-white border-sal-500 shadow-md shadow-sal-500/20"
+                "border border-mint/60 bg-mint/15 text-white shadow-glow-sm"
             )}
           >
             {time}

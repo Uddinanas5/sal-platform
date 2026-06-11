@@ -472,7 +472,7 @@ export function NewAppointmentDialog({
                         )}
                       </div>
                       {selectedClient?.id === client.id && (
-                        <Check className="h-4 w-4 text-sal-500 shrink-0" />
+                        <Check className="h-4 w-4 text-mint-strong shrink-0" />
                       )}
                     </button>
                   ))}
@@ -564,7 +564,7 @@ export function NewAppointmentDialog({
 
               {/* Live combined total bar — sums every selected service. */}
               {selectedServices.length > 0 && (
-                <div className="rounded-lg bg-sal-50 dark:bg-sal-500/10 ring-1 ring-sal-200 dark:ring-sal-500/20 px-3 py-2.5">
+                <div className="rounded-lg bg-sal-500/10 ring-1 ring-sal-200 dark:ring-sal-500/20 px-3 py-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-foreground">
                       {selectedServices.length} service
@@ -575,7 +575,7 @@ export function NewAppointmentDialog({
                         <Clock className="h-3 w-3" />
                         {formatDuration(combinedDuration)}
                       </span>
-                      <span className="text-sm font-bold text-sal-600">
+                      <span className="text-sm font-bold text-mint">
                         {formatCurrency(combinedPrice)}
                       </span>
                     </div>
@@ -664,9 +664,9 @@ export function NewAppointmentDialog({
                             <span className={cn(
                               "flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full",
                               apptCount === 0
-                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                                ? "bg-emerald-500/10 text-emerald-400"
                                 : apptCount >= 5
-                                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                  ? "bg-amber-500/10 text-amber-400"
                                   : "bg-cream-100 dark:bg-muted text-muted-foreground"
                             )}>
                               <CalendarDays className="h-2.5 w-2.5" />
@@ -679,7 +679,7 @@ export function NewAppointmentDialog({
                             </span>
                           )}
                           {selectedStaff?.id === s.id && (
-                            <Check className="h-4 w-4 text-sal-500" />
+                            <Check className="h-4 w-4 text-mint-strong" />
                           )}
                         </div>
                       </button>
@@ -826,7 +826,7 @@ export function NewAppointmentDialog({
                     <span className="text-xs text-muted-foreground">
                       {selectedServices.length > 1 ? "Total Price" : "Price"}
                     </span>
-                    <span className="text-sm font-bold text-sal-600">
+                    <span className="text-sm font-bold text-mint">
                       {selectedServices.length > 0
                         ? formatCurrency(combinedPrice)
                         : ""}
@@ -853,7 +853,7 @@ export function NewAppointmentDialog({
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Repeat className="h-4 w-4 text-sal-500" />
+                          <Repeat className="h-4 w-4 text-mint-strong" />
                           <span className="text-sm font-medium text-foreground">Recurring</span>
                         </div>
                         <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
@@ -924,7 +924,7 @@ export function NewAppointmentDialog({
                               occurrence. If the user picked a combo, say so
                               honestly: only the first service repeats. */}
                           {selectedServices.length > 1 && (
-                            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                            <p className="text-[11px] text-amber-400">
                               Only the first service ({selectedServices[0].name}) repeats in a
                               series. The other {selectedServices.length - 1} won&apos;t be added to
                               each occurrence.

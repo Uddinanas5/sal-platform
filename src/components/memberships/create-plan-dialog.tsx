@@ -239,7 +239,7 @@ export function CreatePlanDialog({ open, onOpenChange, plan, onSaved }: CreatePl
                     <span className="text-sm text-foreground">{feature}</span>
                     <button
                       onClick={() => handleRemoveFeature(index)}
-                      className="text-muted-foreground/70 hover:text-red-500 transition-colors"
+                      className="text-muted-foreground/70 hover:text-red-400 transition-colors"
                       aria-label={`Remove ${feature}`}
                     >
                       <X className="w-3.5 h-3.5" />

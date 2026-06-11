@@ -111,7 +111,7 @@ function PeriodPicker({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={selectValue} onValueChange={selectPeriod}>
-        <SelectTrigger className="h-9 w-[260px] border-cream-200 bg-card">
+        <SelectTrigger className="h-9 w-[260px] border-cream-200 bg-white/[0.04]">
           <SelectValue placeholder="Choose a pay period" />
         </SelectTrigger>
         <SelectContent>
@@ -168,14 +168,14 @@ function PeriodPicker({
 
 function StatusBadge({ status }: { status: PeriodOption["status"] | "pending" | "approved" | "paid" }) {
   const map: Record<string, string> = {
-    open: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-    closed: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    paid: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    pending: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    approved: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+    open: "bg-blue-400/15 text-blue-300 border-blue-400/25",
+    closed: "bg-amber-400/15 text-amber-300 border-amber-400/25",
+    paid: "bg-emerald-400/15 text-emerald-300 border-emerald-400/25",
+    pending: "bg-amber-400/15 text-amber-300 border-amber-400/25",
+    approved: "bg-blue-400/15 text-blue-300 border-blue-400/25",
   }
   return (
-    <Badge className={cn("border-0 font-medium capitalize", map[status] ?? "bg-muted text-muted-foreground")}>
+    <Badge className={cn("border font-medium capitalize", map[status] ?? "bg-white/[0.08] text-muted-foreground border-cream-200")}>
       {status}
     </Badge>
   )
@@ -188,15 +188,15 @@ function BarberCard({
 }) {
   const [open, setOpen] = React.useState(false)
   return (
-    <Card className="overflow-hidden border-cream-200">
+    <Card variant="tile" className="overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-cream-100/60"
+        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-cream-100"
       >
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sal-500/10 text-sm font-semibold text-sal-700 dark:text-sal-300">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sal-500/10 text-sm font-semibold text-sal-300">
             {barber.name
               .split(" ")
               .map((p) => p[0])
@@ -233,7 +233,7 @@ function BarberCard({
       </button>
 
       {open && (
-        <CardContent className="border-t border-cream-200 bg-cream-50/40 p-0">
+        <CardContent className="border-t border-cream-200 bg-cream-50 p-0">
           {barber.lineItems.length === 0 ? (
             <p className="px-5 py-6 text-center text-sm text-muted-foreground">
               No commissioned services in this period.
@@ -254,7 +254,7 @@ function BarberCard({
                 </thead>
                 <tbody>
                   {barber.lineItems.map((li) => (
-                    <tr key={li.commissionId} className="border-b border-cream-200/60 last:border-0">
+                    <tr key={li.commissionId} className="border-b border-cream-200 last:border-0">
                       <td className="whitespace-nowrap px-5 py-2 text-muted-foreground">
                         {fmtDayTime(li.date)}
                       </td>
@@ -285,7 +285,7 @@ function BarberCard({
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-cream-100/60 font-semibold text-foreground">
+                  <tr className="bg-cream-100 font-semibold text-foreground">
                     <td className="px-5 py-2.5" colSpan={3}>
                       Subtotal — {barber.name}
                     </td>
@@ -401,25 +401,25 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
       title: "Total to pay",
       value: formatCurrency(totals.totalToPay),
       icon: Wallet,
-      tone: "text-emerald-600 dark:text-emerald-400",
+      tone: "text-emerald-400",
     },
     {
       title: "Barbers paid",
       value: String(totals.barberCount),
       icon: Users,
-      tone: "text-sal-600 dark:text-sal-400",
+      tone: "text-sal-400",
     },
     {
       title: "Commissioned services",
       value: String(totals.commissionedServices),
       icon: Scissors,
-      tone: "text-blue-600 dark:text-blue-400",
+      tone: "text-blue-400",
     },
     {
       title: "Gross service revenue",
       value: formatCurrency(totals.grossServiceRevenue),
       icon: DollarSign,
-      tone: "text-amber-600 dark:text-amber-400",
+      tone: "text-amber-400",
     },
   ]
 
@@ -458,8 +458,8 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
 
         {/* Print-only title block */}
         <div className="hidden print:block">
-          <h1 className="text-xl font-bold">Payday Statement</h1>
-          <p className="text-sm text-gray-600">Pay period: {periodLabel}</p>
+          <h1 className="text-xl font-bold text-black">Payday Statement</h1>
+          <p className="text-sm text-gray-700">Pay period: {periodLabel}</p>
         </div>
 
         {/* Summary cards */}
@@ -471,10 +471,10 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
             >
-              <Card className="border-cream-200">
+              <Card variant="tile">
                 <CardContent className="flex items-center justify-between p-5">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                       {card.title}
                     </p>
                     <p className="mt-1 text-2xl font-bold text-foreground">{card.value}</p>
@@ -488,11 +488,11 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
 
         {/* Honest "not yet tracked" notice — never fabricate tips / booth rent. */}
         {(notTracked.tips || notTracked.boothRent) && (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-400/25 bg-amber-400/15 p-4 text-sm text-amber-200">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-medium">Not yet tracked in these totals</p>
-              <p className="mt-0.5 text-amber-800 dark:text-amber-300/90">
+              <p className="mt-0.5 text-amber-300/90">
                 {notTracked.tips && "Tips are recorded at the sale level but aren't attributed to an individual barber yet. "}
                 {notTracked.boothRent && "Booth rent isn't modeled in the system yet. "}
                 These are deliberately excluded so the &ldquo;to pay&rdquo; figure reflects only real, recorded commission — not an estimate.
@@ -503,7 +503,7 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
 
         {/* Per-barber statements */}
         {barbers.length === 0 ? (
-          <Card className="border-cream-200">
+          <Card>
             <CardContent className="flex flex-col items-center justify-center gap-2 py-16 text-center">
               <Wallet className="h-10 w-10 text-muted-foreground/50" />
               <p className="font-medium text-foreground">No commissions in this period</p>

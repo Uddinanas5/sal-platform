@@ -103,7 +103,7 @@ export function ServiceBundles({ bundles = [], services = [] }: ServiceBundlesPr
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Package className="w-5 h-5 text-sal-600" />
+            <Package className="w-5 h-5 text-mint" />
             <CardTitle className="text-lg font-heading">
               Service Bundles
             </CardTitle>
@@ -142,7 +142,7 @@ export function ServiceBundles({ bundles = [], services = [] }: ServiceBundlesPr
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="relative rounded-xl border border-cream-200 bg-card overflow-hidden hover:shadow-md transition-shadow group"
+                  className="relative glass-tile rounded-tile overflow-hidden hover:shadow-md transition-shadow group"
                 >
                   <div className="h-1.5" style={{ backgroundColor: color }} />
 
@@ -177,7 +177,7 @@ export function ServiceBundles({ bundles = [], services = [] }: ServiceBundlesPr
                       {bundleServices.map((svc, i) => (
                         <div key={i} className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-1.5">
-                            <Check className="w-3.5 h-3.5 text-sal-500" />
+                            <Check className="w-3.5 h-3.5 text-mint-strong" />
                             <span className="text-foreground">{svc.name}</span>
                           </div>
                           <span className="text-muted-foreground/70 line-through text-xs">
@@ -198,13 +198,13 @@ export function ServiceBundles({ bundles = [], services = [] }: ServiceBundlesPr
                           </span>
                         </div>
                         {savingsPercent > 0 && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                          <Badge variant="secondary" className="bg-green-400/15 text-green-300 border border-green-400/25 text-xs">
                             Save {savingsPercent}%
                           </Badge>
                         )}
                       </div>
                       {savings > 0 && (
-                        <p className="text-xs text-sal-600 font-medium mt-1">
+                        <p className="text-xs text-mint font-medium mt-1">
                           You save {formatCurrency(savings)}
                         </p>
                       )}
@@ -245,12 +245,12 @@ export function ServiceBundles({ bundles = [], services = [] }: ServiceBundlesPr
                     onClick={() => toggleService(svc.id)}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedServiceIds.includes(svc.id)
-                        ? "bg-sal-50 border border-sal-200 text-sal-700"
+                        ? "bg-sal-50 border border-sal-200 text-mint-soft"
                         : "hover:bg-cream-100 text-foreground"
                     }`}
                   >
                     <span className="flex items-center gap-2">
-                      {selectedServiceIds.includes(svc.id) && <Check className="w-3.5 h-3.5 text-sal-500" />}
+                      {selectedServiceIds.includes(svc.id) && <Check className="w-3.5 h-3.5 text-mint-strong" />}
                       {svc.name}
                     </span>
                     <span className="text-muted-foreground">{formatCurrency(svc.price)}</span>
@@ -276,7 +276,7 @@ export function ServiceBundles({ bundles = [], services = [] }: ServiceBundlesPr
                 />
               </div>
               {bundlePrice && originalTotal > 0 && (
-                <p className="text-xs text-sal-600 font-medium">
+                <p className="text-xs text-mint font-medium">
                   {Math.round((1 - parseFloat(bundlePrice) / originalTotal) * 100)}% discount
                 </p>
               )}

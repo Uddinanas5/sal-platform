@@ -38,7 +38,7 @@ export function DateRangePicker({ className }: DateRangePickerProps) {
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="flex items-center rounded-lg border border-cream-200 bg-card p-1 overflow-x-auto">
+      <div className="flex items-center rounded-lg border border-cream-200 bg-white/[0.04] p-1 overflow-x-auto">
         {presets.map((preset) => (
           <Button
             key={preset.value}

@@ -35,7 +35,7 @@ function WeekDroppableSlot({ id, className, style, onClick }: WeekDroppableSlotP
   return (
     <div
       ref={setNodeRef}
-      className={cn(className, isOver && "bg-sal-100/60 ring-1 ring-sal-400/40")}
+      className={cn(className, isOver && "bg-sal-100 ring-1 ring-sal-400/40")}
       style={style}
       onClick={onClick}
     />
@@ -104,7 +104,7 @@ export function WeekView({
   return (
     <div className="flex flex-col h-full">
       {/* Day headers */}
-      <div className="flex border-b border-cream-200 bg-card shrink-0">
+      <div className="flex border-b border-cream-200 bg-white/[0.03] shrink-0">
         <div className="w-[72px] shrink-0 border-r border-cream-200" />
         <div className="flex flex-1">
           {days.map((day) => {
@@ -117,13 +117,13 @@ export function WeekView({
                 key={day.toISOString()}
                 className={cn(
                   "flex-1 text-center py-2.5 border-r border-cream-200 last:border-r-0",
-                  isToday && "bg-sal-50/40"
+                  isToday && "bg-mint/[0.05]"
                 )}
               >
                 <span
                   className={cn(
                     "text-[11px] font-medium uppercase block",
-                    isToday ? "text-sal-600" : "text-muted-foreground"
+                    isToday ? "text-mint" : "text-muted-foreground"
                   )}
                 >
                   {format(day, "EEE")}
@@ -132,7 +132,7 @@ export function WeekView({
                   <span
                     className={cn(
                       "text-lg font-heading font-semibold",
-                      isToday ? "text-sal-700" : "text-foreground"
+                      isToday ? "text-mint-soft" : "text-foreground"
                     )}
                   >
                     {format(day, "d")}
@@ -175,7 +175,7 @@ export function WeekView({
                   key={day.toISOString()}
                   className={cn(
                     "flex-1 relative border-r border-cream-200 last:border-r-0 min-w-[100px]",
-                    isToday && "bg-sal-50/20"
+                    isToday && "bg-mint/[0.05]"
                   )}
                   style={{ height: `${totalHeight}px` }}
                 >
@@ -185,7 +185,7 @@ export function WeekView({
                       key={`${slot.hour}-${slot.minute}`}
                       id={buildWeekSlotId(day, slot.hour, slot.minute)}
                       className={cn(
-                        "absolute left-0 right-0 border-b cursor-pointer hover:bg-sal-50/30 transition-colors",
+                        "absolute left-0 right-0 border-b cursor-pointer hover:bg-sal-50 transition-colors",
                         slot.minute === 0 ? "border-cream-200" : "border-cream-100"
                       )}
                       style={{

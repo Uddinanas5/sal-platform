@@ -205,21 +205,21 @@ export function MembershipsTab({ members = [], stats = { totalMembers: 0, active
             value: stats.totalMembers,
             icon: Users,
             iconBg: "bg-blue-500/10",
-            iconColor: "text-blue-600",
+            iconColor: "text-blue-400",
           },
           {
             label: "Active Members",
             value: stats.activeMembers,
             icon: UserCheck,
             iconBg: "bg-emerald-500/10",
-            iconColor: "text-emerald-600",
+            iconColor: "text-emerald-400",
           },
           {
             label: "Monthly Revenue (MRR)",
             value: formatCurrency(stats.mrr),
             icon: DollarSign,
             iconBg: "bg-amber-500/10",
-            iconColor: "text-amber-600",
+            iconColor: "text-amber-400",
           },
         ].map((stat, i) => (
           <motion.div
@@ -228,7 +228,7 @@ export function MembershipsTab({ members = [], stats = { totalMembers: 0, active
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
           >
-            <Card>
+            <Card variant="tile">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div>
@@ -356,7 +356,7 @@ export function MembershipsTab({ members = [], stats = { totalMembers: 0, active
             </div>
             {table.getRowModel().rows.length === 0 && (
               <EmptyState
-                icon={<Users className="w-7 h-7 text-sal-600" />}
+                icon={<Users className="w-7 h-7 text-mint" />}
                 title="No members found"
                 description="When clients subscribe to membership plans, they'll appear here."
               />

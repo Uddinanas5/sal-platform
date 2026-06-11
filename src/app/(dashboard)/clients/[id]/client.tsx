@@ -86,31 +86,31 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
       label: "Total Spent",
       value: formatCurrency(client.totalSpent),
       icon: DollarSign,
-      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+      color: "bg-emerald-500/10 text-emerald-400",
     },
     {
       label: "Total Visits",
       value: client.totalVisits.toString(),
       icon: Calendar,
-      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+      color: "bg-blue-500/10 text-blue-400",
     },
     {
       label: "Loyalty Points",
       value: (client.loyaltyPoints || 0).toLocaleString(),
       icon: Star,
-      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+      color: "bg-amber-500/10 text-amber-400",
     },
     {
       label: "Wallet Balance",
       value: formatCurrency(client.walletBalance || 0),
       icon: Wallet,
-      color: "bg-sal-100 text-sal-600",
+      color: "bg-sal-100 text-mint",
     },
     {
       label: "Last Visit",
       value: client.lastVisit ? formatRelativeDate(new Date(client.lastVisit)) : "N/A",
       icon: Clock,
-      color: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+      color: "bg-purple-500/10 text-purple-400",
     },
   ]
 
@@ -148,7 +148,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       {/* Breadcrumb navigation */}
       <div className="h-12 bg-card/80 backdrop-blur-sm border-b border-cream-200 px-6 flex items-center sticky top-0 z-30">
         <nav className="flex items-center gap-1 text-sm">
@@ -172,7 +172,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card className="border-cream-200">
+          <Card>
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 {/* Client Info */}
@@ -189,7 +189,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
                         {client.name}
                       </h1>
                       {client.totalVisits <= 1 && (
-                        <Badge className="bg-sal-100 text-sal-700 hover:bg-sal-100 text-[10px] px-1.5 py-0 font-semibold flex items-center gap-0.5">
+                        <Badge className="bg-sal-100 text-mint-soft hover:bg-sal-100 text-[10px] px-1.5 py-0 font-semibold flex items-center gap-0.5">
                           <Sparkles className="w-3 h-3" />
                           NEW
                         </Badge>
@@ -221,7 +221,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
                     {/* Last cut note — read-only at-a-glance ("last time: #2 fade") */}
                     {lastCutNote && (
                       <div className="flex items-start gap-1.5 mt-2 text-xs text-muted-foreground max-w-md">
-                        <Scissors className="w-3.5 h-3.5 shrink-0 mt-0.5 text-sal-500" />
+                        <Scissors className="w-3.5 h-3.5 shrink-0 mt-0.5 text-mint-strong" />
                         <span>
                           <span className="font-medium text-foreground">Last cut:</span>{" "}
                           <span className="line-clamp-1">{lastCutNote.body}</span>
@@ -274,7 +274,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={handleDeleteClient}
-                        className="text-red-600 focus:text-red-600"
+                        className="text-red-400 focus:text-red-400"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete Client
@@ -293,12 +293,12 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="flex items-start gap-3 p-4 bg-red-50 border border-red-300 rounded-xl"
+            className="flex items-start gap-3 p-4 bg-red-400/10 border border-red-400/30 rounded-xl"
           >
-            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-red-800">Allergies / Medical Alert</p>
-              <p className="text-sm text-red-700 mt-0.5 whitespace-pre-wrap">{client.allergies}</p>
+              <p className="text-sm font-semibold text-red-300">Allergies / Medical Alert</p>
+              <p className="text-sm text-red-300 mt-0.5 whitespace-pre-wrap">{client.allergies}</p>
             </div>
           </motion.div>
         )}
@@ -309,12 +309,12 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl"
+            className="flex items-start gap-3 p-4 bg-amber-400/10 border border-amber-400/30 rounded-xl"
           >
-            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-amber-800">Staff Alert</p>
-              <p className="text-sm text-amber-700 mt-0.5">{client.notes}</p>
+              <p className="text-sm font-semibold text-amber-300">Staff Alert</p>
+              <p className="text-sm text-amber-300 mt-0.5">{client.notes}</p>
             </div>
           </motion.div>
         )}
@@ -328,7 +328,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.05 }}
             >
-              <Card className="border-cream-200">
+              <Card variant="tile">
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className={`p-2.5 rounded-xl ${stat.color}`}>
                     <stat.icon className="w-4 h-4" />
@@ -352,7 +352,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
           transition={{ delay: 0.3 }}
         >
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="bg-card border border-cream-200">
+            <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="appointments">Appointments</TabsTrigger>
               <TabsTrigger value="purchases">Purchases</TabsTrigger>

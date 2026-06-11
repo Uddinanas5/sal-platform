@@ -37,15 +37,18 @@ function SettingRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between py-4 border-b last:border-b-0">
-      <div className="space-y-0.5">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
+    <>
+      <div className="flex items-center justify-between py-4">
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
+      <div aria-hidden className="hairline-fade last:hidden" />
+    </>
   )
 }
 
@@ -117,7 +120,7 @@ export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps)
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <CalendarClock className="w-5 h-5 text-sal-500" />
+              <CalendarClock className="w-5 h-5 text-mint-strong" />
               Booking Rules
             </CardTitle>
             <CardDescription>
@@ -214,7 +217,7 @@ export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps)
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Banknote className="w-5 h-5 text-sal-500" />
+              <Banknote className="w-5 h-5 text-mint-strong" />
               Deposit Settings
             </CardTitle>
             <CardDescription>
@@ -234,7 +237,7 @@ export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps)
 
             {requireDeposit && (
               <>
-                <div className="py-4 border-b">
+                <div className="py-4">
                   <div className="space-y-3">
                     <Label className="text-sm font-medium">Deposit Amount</Label>
                     <div className="flex items-center gap-3">
@@ -264,6 +267,8 @@ export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps)
                     </div>
                   </div>
                 </div>
+
+                <div aria-hidden className="hairline-fade" />
 
                 <div className="py-4">
                   <div className="space-y-3">
@@ -297,7 +302,7 @@ export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps)
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <FileText className="w-5 h-5 text-sal-500" />
+              <FileText className="w-5 h-5 text-mint-strong" />
               Booking Form
             </CardTitle>
             <CardDescription>
@@ -361,14 +366,14 @@ export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps)
                   {customQuestions.map((question, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 rounded-lg bg-cream-50 border border-cream-200"
+                      className="flex items-center justify-between p-3 glass-tile rounded-tile"
                     >
                       <span className="text-sm">{question}</span>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeQuestion(index)}
-                        className="h-8 w-8 p-0 text-muted-foreground/70 hover:text-red-500"
+                        className="h-8 w-8 p-0 text-muted-foreground/70 hover:text-red-400"
                       >
                         <X className="w-4 h-4" />
                       </Button>
