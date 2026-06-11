@@ -57,7 +57,9 @@ const wallClockNY = (instant: Date) =>
     timeZone: NY,
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    // hourCycle "h23" (not hour12: false) — on some ICU builds (e.g. CI Linux)
+    // hour12: false resolves to "h24", rendering midnight as "24:30".
+    hourCycle: "h23",
   }).format(instant)
 
 // ===========================================================================
