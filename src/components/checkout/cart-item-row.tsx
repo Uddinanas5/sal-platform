@@ -52,8 +52,8 @@ export function CartItemRow({
           type === "service"
             ? "bg-sal-50 text-mint"
             : type === "product"
-              ? "bg-amber-500/10 text-amber-600"
-              : "bg-sky-500/10 text-sky-600"
+              ? "bg-amber-500/10 text-amber-400"
+              : "bg-sky-500/10 text-sky-400"
         )}
       >
         {type === "service" ? (
@@ -74,7 +74,7 @@ export function CartItemRow({
             onChange={(e) => onSetStaff(id, e.target.value || undefined)}
             className={cn(
               "mt-1 w-full max-w-[160px] rounded-md border bg-transparent px-1.5 py-0.5 text-xs",
-              staffId ? "border-border text-foreground" : "border-amber-400/60 text-amber-600"
+              staffId ? "border-border text-foreground" : "border-amber-400/60 text-amber-400"
             )}
             aria-label="Assign staff for commission"
           >

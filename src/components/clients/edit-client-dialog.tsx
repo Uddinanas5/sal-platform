@@ -198,7 +198,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-1.5 text-red-700">
+            <label className="text-sm font-medium flex items-center gap-1.5 text-red-300">
               <AlertTriangle className="w-3.5 h-3.5" />
               Allergies / Medical Alerts
             </label>
@@ -209,7 +209,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
               rows={2}
               maxLength={500}
               showCounter
-              className="border-red-200 focus-visible:ring-red-300"
+              className="border-red-400/30 focus-visible:ring-red-300"
             />
           </div>
 

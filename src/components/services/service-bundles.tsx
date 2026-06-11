@@ -198,7 +198,7 @@ export function ServiceBundles({ bundles = [], services = [] }: ServiceBundlesPr
                           </span>
                         </div>
                         {savingsPercent > 0 && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                          <Badge variant="secondary" className="bg-green-400/15 text-green-300 text-xs">
                             Save {savingsPercent}%
                           </Badge>
                         )}

@@ -85,7 +85,7 @@ function CheckoutForm({
       />
 
       {message && (
-        <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+        <div className="text-sm text-red-500 bg-red-400/10 dark:bg-red-900/20 p-3 rounded-lg">
           {message}
         </div>
       )}
@@ -171,7 +171,7 @@ export function StripePayment({
 
   if (error) {
     return (
-      <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+      <div className="text-sm text-red-500 bg-red-400/10 dark:bg-red-900/20 p-4 rounded-lg">
         {error}
       </div>
     )

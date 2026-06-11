@@ -20,8 +20,8 @@ export default function ManageBookingError({
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center p-6">
       <div className="max-w-md w-full text-center space-y-6">
-        <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center">
-          <AlertTriangle className="w-8 h-8 text-amber-600" />
+        <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-400/15 flex items-center justify-center">
+          <AlertTriangle className="w-8 h-8 text-amber-400" />
         </div>
         <div>
           <h2 className="text-xl font-heading font-bold text-foreground mb-2">

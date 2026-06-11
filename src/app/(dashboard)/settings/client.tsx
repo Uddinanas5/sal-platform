@@ -843,9 +843,9 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <Card className="border-red-200">
+                <Card className="border-red-400/30">
                   <CardHeader>
-                    <CardTitle className="text-red-600 font-heading">Danger Zone</CardTitle>
+                    <CardTitle className="text-red-400 font-heading">Danger Zone</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <DeleteAccountSection role={role} businessName={businessName} />

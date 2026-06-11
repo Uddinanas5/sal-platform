@@ -269,7 +269,7 @@ export function ClientNotesTab({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-red-600"
+                            className="h-7 w-7 text-muted-foreground hover:text-red-400"
                             onClick={() => handleDelete(note.id)}
                             disabled={isPending && deletingId === note.id}
                             aria-label="Delete note"

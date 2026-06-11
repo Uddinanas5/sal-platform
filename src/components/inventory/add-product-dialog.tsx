@@ -154,7 +154,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
               placeholder="e.g. Professional Shampoo"
               value={name}
               onChange={(e) => { setName(e.target.value); clearError("name") }}
-              className={cn(errors.name && "border-red-300 focus-visible:ring-red-400")}
+              className={cn(errors.name && "border-red-400/30 focus-visible:ring-red-400")}
             />
             {errors.name && (
               <p className="text-xs text-red-500">{errors.name}</p>
@@ -186,7 +186,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 placeholder="e.g. HC-007"
                 value={sku}
                 onChange={(e) => { setSku(e.target.value); clearError("sku") }}
-                className={cn(errors.sku && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.sku && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.sku && (
                 <p className="text-xs text-red-500">{errors.sku}</p>
@@ -204,7 +204,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 value={category}
                 onChange={(e) => { setCategory(e.target.value); clearError("category") }}
                 placeholder="Select or type a category"
-                className={cn(errors.category && "border-red-300 focus:ring-red-400")}
+                className={cn(errors.category && "border-red-400/30 focus:ring-red-400")}
               />
               <datalist id="product-category-options">
                 {categories.map((cat) => (
@@ -241,7 +241,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 placeholder="0.00"
                 value={costPrice}
                 onChange={(e) => { setCostPrice(e.target.value); clearError("costPrice") }}
-                className={cn(errors.costPrice && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.costPrice && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.costPrice && (
                 <p className="text-xs text-red-500">{errors.costPrice}</p>
@@ -259,7 +259,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 placeholder="0.00"
                 value={retailPrice}
                 onChange={(e) => { setRetailPrice(e.target.value); clearError("retailPrice") }}
-                className={cn(errors.retailPrice && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.retailPrice && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.retailPrice && (
                 <p className="text-xs text-red-500">{errors.retailPrice}</p>
@@ -280,7 +280,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 placeholder="0"
                 value={stockLevel}
                 onChange={(e) => { setStockLevel(e.target.value); clearError("stockLevel") }}
-                className={cn(errors.stockLevel && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.stockLevel && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.stockLevel && (
                 <p className="text-xs text-red-500">{errors.stockLevel}</p>
@@ -307,7 +307,7 @@ export function AddProductDialog({ open, onOpenChange, categories }: AddProductD
                 placeholder="0"
                 value={reorderLevel}
                 onChange={(e) => { setReorderLevel(e.target.value); clearError("reorderLevel") }}
-                className={cn(errors.reorderLevel && "border-red-300 focus-visible:ring-red-400")}
+                className={cn(errors.reorderLevel && "border-red-400/30 focus-visible:ring-red-400")}
               />
               {errors.reorderLevel && (
                 <p className="text-xs text-red-500">{errors.reorderLevel}</p>

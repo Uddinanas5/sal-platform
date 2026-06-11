@@ -22,18 +22,18 @@ export function LowStockAlert({ lowStockCount, onViewLowStock }: LowStockAlertPr
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 p-4"
+        className="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-400/30 p-4"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-200/60">
-              <AlertTriangle className="w-5 h-5 text-amber-700" />
+              <AlertTriangle className="w-5 h-5 text-amber-300" />
             </div>
             <div>
               <p className="text-sm font-semibold text-amber-900">
                 Low Stock Warning
               </p>
-              <p className="text-sm text-amber-700">
+              <p className="text-sm text-amber-300">
                 {count} product{count !== 1 ? "s are" : " is"} running low on
                 stock
               </p>
@@ -44,7 +44,7 @@ export function LowStockAlert({ lowStockCount, onViewLowStock }: LowStockAlertPr
               variant="outline"
               size="sm"
               onClick={onViewLowStock}
-              className="border-amber-300 bg-amber-200/50 text-amber-900 hover:bg-amber-200 hover:text-amber-900"
+              className="border-amber-400/30 bg-amber-200/50 text-amber-900 hover:bg-amber-200 hover:text-amber-900"
             >
               View Low Stock
             </Button>
@@ -52,7 +52,7 @@ export function LowStockAlert({ lowStockCount, onViewLowStock }: LowStockAlertPr
               variant="ghost"
               size="icon"
               onClick={() => setDismissed(true)}
-              className="h-8 w-8 text-amber-600 hover:text-amber-900 hover:bg-amber-200/50"
+              className="h-8 w-8 text-amber-400 hover:text-amber-900 hover:bg-amber-200/50"
             >
               <X className="w-4 h-4" />
             </Button>

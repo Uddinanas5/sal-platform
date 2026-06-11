@@ -34,13 +34,13 @@ const roleConfig = {
   admin: {
     label: "Admin",
     icon: ShieldAlert,
-    color: "text-red-600",
+    color: "text-red-400",
     bg: "bg-red-500/10",
   },
   manager: {
     label: "Manager",
     icon: ShieldCheck,
-    color: "text-blue-600",
+    color: "text-blue-400",
     bg: "bg-blue-500/10",
   },
   staff: {

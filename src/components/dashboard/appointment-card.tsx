@@ -167,7 +167,7 @@ export function AppointmentCard({ appointment, variant = "detailed", index = 0 }
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="text-red-600 focus:text-red-600"
+              className="text-red-400 focus:text-red-400"
               disabled={isCancelling || currentStatus === "cancelled"}
               onSelect={(e) => {
                 e.preventDefault()

@@ -180,7 +180,7 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
                   className={cn(
                     "p-3 rounded-lg border transition-colors",
                     isBusinessClosed
-                      ? "bg-red-50/50 border-red-200/50"
+                      ? "bg-red-400/10/50 border-red-400/30/50"
                       : day.isOff
                         ? "bg-cream-50 border-cream-200"
                         : "bg-cream-50 border-cream-200"
@@ -274,10 +274,10 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="flex items-center gap-3 mt-2 ml-24 pl-4 border-l-2 border-amber-300"
+                      className="flex items-center gap-3 mt-2 ml-24 pl-4 border-l-2 border-amber-400/30"
                     >
                       <Coffee className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span className="text-xs text-amber-700 font-medium shrink-0">
+                      <span className="text-xs text-amber-300 font-medium shrink-0">
                         Break
                       </span>
                       <TimePicker
@@ -338,7 +338,7 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
                     <span className="w-10 text-xs font-medium text-muted-foreground/70">
                       {short}
                     </span>
-                    <div className={cn("flex-1 h-8 rounded-lg flex items-center justify-center", isBusinessClosed ? "bg-red-50" : "bg-cream-100")}>
+                    <div className={cn("flex-1 h-8 rounded-lg flex items-center justify-center", isBusinessClosed ? "bg-red-400/10" : "bg-cream-100")}>
                       <span className={cn("text-xs", isBusinessClosed ? "text-red-400" : "text-muted-foreground/70")}>
                         {isBusinessClosed ? "Closed" : "Day Off"}
                       </span>
@@ -417,7 +417,7 @@ export function StaffScheduleTab({ staff, closedDays = [] }: StaffScheduleTabPro
                         }}
                       >
                         <div className="flex items-center justify-center h-full">
-                          <Coffee className="w-3 h-3 text-amber-700 opacity-70" />
+                          <Coffee className="w-3 h-3 text-amber-300 opacity-70" />
                         </div>
                       </motion.div>
                     )}

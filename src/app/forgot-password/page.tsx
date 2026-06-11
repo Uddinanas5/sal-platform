@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="text-center space-y-4">
               <div className="mx-auto w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 If an account exists with <strong className="text-foreground">{email}</strong>,

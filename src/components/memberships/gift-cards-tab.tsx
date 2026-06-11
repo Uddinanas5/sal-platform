@@ -165,14 +165,14 @@ export function GiftCardsTab({ giftCards = [], stats = { totalGiftCardsSold: 0, 
             value: stats.totalGiftCardsSold,
             icon: Gift,
             iconBg: "bg-purple-500/10",
-            iconColor: "text-purple-600",
+            iconColor: "text-purple-400",
           },
           {
             label: "Outstanding Balance",
             value: formatCurrency(stats.outstandingGiftCardBalance),
             icon: DollarSign,
             iconBg: "bg-emerald-500/10",
-            iconColor: "text-emerald-600",
+            iconColor: "text-emerald-400",
           },
         ].map((stat, i) => (
           <motion.div

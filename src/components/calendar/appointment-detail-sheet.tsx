@@ -599,7 +599,7 @@ export function AppointmentDetailSheet({
 
                 <Button
                   variant="outline"
-                  className="w-full justify-start gap-2 h-10 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                  className="w-full justify-start gap-2 h-10 text-amber-400 hover:text-amber-300 hover:bg-amber-400/10"
                   onClick={() => openCancel("no_show")}
                 >
                   <UserX className="h-4 w-4" />
@@ -608,7 +608,7 @@ export function AppointmentDetailSheet({
 
                 <Button
                   variant="outline"
-                  className="w-full justify-start gap-2 h-10 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className="w-full justify-start gap-2 h-10 text-red-400 hover:text-red-300 hover:bg-red-400/10"
                   onClick={() => openCancel("cancelled")}
                 >
                   <XCircle className="h-4 w-4" />

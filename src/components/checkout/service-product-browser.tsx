@@ -339,7 +339,7 @@ export function ServiceProductBrowser({
                               Out of Stock
                             </Badge>
                           ) : isLowStock ? (
-                            <span className="flex items-center gap-1 text-[10px] text-amber-600">
+                            <span className="flex items-center gap-1 text-[10px] text-amber-400">
                               <AlertTriangle className="h-3 w-3" />
                               {product.stockLevel} left
                             </span>

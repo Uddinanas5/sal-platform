@@ -151,7 +151,7 @@ function ClientCard({
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="text-red-600 focus:text-red-600"
+                className="text-red-400 focus:text-red-400"
                 onClick={() => onDelete(client)}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -448,7 +448,7 @@ function ClientTable({
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-red-600 focus:text-red-600"
+                      className="text-red-400 focus:text-red-400"
                       onClick={() => onDelete(client)}
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
@@ -739,14 +739,14 @@ export function ClientsClient(props: ClientsClientProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-red-700">
+                    <label className="text-sm font-medium text-red-300">
                       Allergies / Medical Alerts
                     </label>
                     <Input
                       placeholder="e.g. PPD, latex, fragrance"
                       value={newClientAllergies}
                       onChange={(e) => setNewClientAllergies(e.target.value)}
-                      className="border-red-200 focus-visible:ring-red-300"
+                      className="border-red-400/30 focus-visible:ring-red-300"
                     />
                   </div>
                   <div className="space-y-2">

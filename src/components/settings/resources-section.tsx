@@ -266,7 +266,7 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                             variant="ghost"
                             size="sm"
                             onClick={() => setDeleteTarget(resource)}
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-400 hover:bg-red-500/10"
                             aria-label={`Delete ${resource.name}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />

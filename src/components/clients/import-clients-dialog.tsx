@@ -379,7 +379,7 @@ export function ImportClientsDialog({ open, onOpenChange }: ImportClientsDialogP
           )}
 
           {rawText.trim() && validRows.length === 0 && (
-            <div className="flex items-center gap-2 text-sm text-amber-600">
+            <div className="flex items-center gap-2 text-sm text-amber-400">
               <AlertTriangle className="w-4 h-4" />
               No importable rows found. Make sure each row has a name, phone, or email.
             </div>

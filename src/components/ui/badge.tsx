@@ -12,14 +12,14 @@ const badgeVariants = cva(
         secondary:
           "glass-pill text-white/85 border-0",
         destructive:
-          "bg-red-400/15 text-red-200 border border-red-300/25",
+          "bg-red-400/15 text-red-200 border border-red-400/30/25",
         outline: "border-white/20 text-white/80",
         success:
-          "bg-emerald-400/15 text-emerald-200 border border-emerald-300/25",
+          "bg-emerald-400/15 text-emerald-200 border border-emerald-400/30/25",
         warning:
-          "bg-amber-400/15 text-amber-200 border border-amber-300/25",
+          "bg-amber-400/15 text-amber-200 border border-amber-400/30/25",
         info:
-          "bg-sky-400/15 text-sky-200 border border-sky-300/25",
+          "bg-sky-400/15 text-sky-200 border border-sky-400/30/25",
       },
     },
     defaultVariants: {

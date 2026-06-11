@@ -245,11 +245,11 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
                               }`}
                             >
                               {isEarn ? (
-                                <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+                                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
                               ) : isRedeem ? (
-                                <ArrowDownRight className="w-4 h-4 text-red-600" />
+                                <ArrowDownRight className="w-4 h-4 text-red-400" />
                               ) : (
-                                <Gift className="w-4 h-4 text-amber-600" />
+                                <Gift className="w-4 h-4 text-amber-400" />
                               )}
                             </div>
                             <div>
@@ -262,9 +262,9 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
                           <span
                             className={`text-sm font-semibold ${
                               entry.points > 0
-                                ? "text-emerald-600"
+                                ? "text-emerald-400"
                                 : entry.points < 0
-                                ? "text-red-600"
+                                ? "text-red-400"
                                 : "text-muted-foreground"
                             }`}
                           >

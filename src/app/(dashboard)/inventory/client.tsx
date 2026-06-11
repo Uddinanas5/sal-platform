@@ -166,7 +166,7 @@ export function InventoryClient(props: InventoryClientProps) {
                     Products
                   </h2>
                   {showLowStockOnly && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                    <span className="text-xs bg-amber-400/15 text-amber-300 px-2 py-0.5 rounded-full font-medium">
                       Low Stock Only
                     </span>
                   )}

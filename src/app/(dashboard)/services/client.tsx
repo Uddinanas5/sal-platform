@@ -176,7 +176,7 @@ function ServiceCard({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="text-red-600 focus:text-red-600"
+                  className="text-red-400 focus:text-red-400"
                   onClick={() => onDelete(service)}
                 >
                   <Trash2 className="w-4 h-4 mr-2" />

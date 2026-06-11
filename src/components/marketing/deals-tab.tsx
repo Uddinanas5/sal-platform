@@ -180,7 +180,7 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
       {/* Honesty note: deals/promo codes are tracked here but are not yet wired
           into checkout or booking, so creating one does not discount anything
           for clients today. */}
-      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
+      <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
         <p className="text-xs text-amber-300">
           Promo-code redemption is coming soon. You can create and organize deals
           here, but codes do not yet apply a discount at checkout or booking.

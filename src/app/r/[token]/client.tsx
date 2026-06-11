@@ -63,20 +63,20 @@ export function ReviewCaptureClient({
             <div className="text-center">
               {thankedRating !== null && thankedRating <= 3 ? (
                 <>
-                  <Heart className="mx-auto h-12 w-12 text-emerald-600" aria-hidden />
-                  <h1 className="mt-4 text-xl font-bold text-gray-900">
+                  <Heart className="mx-auto h-12 w-12 text-emerald-400" aria-hidden />
+                  <h1 className="mt-4 text-xl font-bold text-ink">
                     Thank you for the honest feedback
                   </h1>
-                  <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+                  <p className="mt-2 text-sm text-ink-soft leading-relaxed">
                     We&rsquo;ve shared your comments privately with {businessName} so they can
                     make things right. We appreciate you taking the time.
                   </p>
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" aria-hidden />
-                  <h1 className="mt-4 text-xl font-bold text-gray-900">Thank you!</h1>
-                  <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+                  <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-400" aria-hidden />
+                  <h1 className="mt-4 text-xl font-bold text-ink">Thank you!</h1>
+                  <p className="mt-2 text-sm text-ink-soft leading-relaxed">
                     Your review helps {businessName} and other clients. We appreciate you.
                   </p>
                 </>
@@ -84,10 +84,10 @@ export function ReviewCaptureClient({
             </div>
           ) : (
             <>
-              <h1 className="text-center text-xl font-bold text-gray-900">
+              <h1 className="text-center text-xl font-bold text-ink">
                 How was your visit, {clientFirstName}?
               </h1>
-              <p className="mt-2 text-center text-sm text-gray-600">
+              <p className="mt-2 text-center text-sm text-ink-soft">
                 Tap to rate your experience at {businessName}.
               </p>
 
@@ -130,12 +130,12 @@ export function ReviewCaptureClient({
                   onChange={(e) => setComment(e.target.value.slice(0, 2000))}
                   placeholder="Tell us more (optional)…"
                   rows={4}
-                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
 
               {error && (
-                <p className="mt-3 text-center text-sm text-red-600" role="alert">
+                <p className="mt-3 text-center text-sm text-red-400" role="alert">
                   {error}
                 </p>
               )}

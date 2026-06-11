@@ -53,7 +53,7 @@ export function PasswordStrength({ password, className }: PasswordStrengthProps)
             "text-xs font-medium",
             strength.level === 1 && "text-red-500",
             strength.level === 2 && "text-orange-500",
-            strength.level === 3 && "text-yellow-600",
+            strength.level === 3 && "text-yellow-400",
             strength.level === 4 && "text-green-500"
           )}>
             {strength.label}
@@ -70,7 +70,7 @@ export function PasswordStrength({ password, className }: PasswordStrengthProps)
             ) : (
               <X className="h-3 w-3 text-muted-foreground" />
             )}
-            <span className={req.met ? "text-green-600" : "text-muted-foreground"}>
+            <span className={req.met ? "text-green-400" : "text-muted-foreground"}>
               {req.label}
             </span>
           </li>

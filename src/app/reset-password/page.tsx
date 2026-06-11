@@ -28,7 +28,7 @@ function ResetPasswordForm() {
     return (
       <div className="text-center space-y-4">
         <div className="mx-auto w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center">
-          <AlertCircle className="w-6 h-6 text-red-600" />
+          <AlertCircle className="w-6 h-6 text-red-400" />
         </div>
         <h2 className="text-lg font-semibold text-foreground">Invalid Reset Link</h2>
         <p className="text-sm text-muted-foreground">
@@ -75,7 +75,7 @@ function ResetPasswordForm() {
     return (
       <div className="text-center space-y-4">
         <div className="mx-auto w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
-          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+          <CheckCircle2 className="w-6 h-6 text-emerald-400" />
         </div>
         <h2 className="text-lg font-semibold text-foreground">Password Reset Successful</h2>
         <p className="text-sm text-muted-foreground">
@@ -142,8 +142,8 @@ function ResetPasswordForm() {
 
       {error && (
         <div className="flex items-start gap-2 p-3 bg-red-500/10 rounded-lg">
-          <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
-          <p className="text-sm text-red-600">{error}</p>
+          <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 

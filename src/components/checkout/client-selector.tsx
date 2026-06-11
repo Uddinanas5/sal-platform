@@ -167,7 +167,7 @@ export function ClientSelector({
                       </p>
                     </div>
                     {client.tags && client.tags.includes("VIP") && (
-                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
                         VIP
                       </span>
                     )}

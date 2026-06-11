@@ -122,10 +122,10 @@ export function StockAdjustmentDialog({
 
   const stockStatusColor =
     product.stockLevel <= product.reorderLevel / 2
-      ? "text-red-600"
+      ? "text-red-400"
       : product.stockLevel <= product.reorderLevel
-        ? "text-amber-600"
-        : "text-emerald-600"
+        ? "text-amber-400"
+        : "text-emerald-400"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -173,19 +173,19 @@ export function StockAdjustmentDialog({
               <SelectContent>
                 <SelectItem value="add">
                   <span className="flex items-center gap-2">
-                    <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                    <Plus className="w-3.5 h-3.5 text-emerald-400" />
                     Add Stock
                   </span>
                 </SelectItem>
                 <SelectItem value="remove">
                   <span className="flex items-center gap-2">
-                    <Minus className="w-3.5 h-3.5 text-red-600" />
+                    <Minus className="w-3.5 h-3.5 text-red-400" />
                     Remove Stock
                   </span>
                 </SelectItem>
                 <SelectItem value="set">
                   <span className="flex items-center gap-2">
-                    <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                    <RotateCcw className="w-3.5 h-3.5 text-blue-400" />
                     Set Level
                   </span>
                 </SelectItem>
@@ -227,17 +227,17 @@ export function StockAdjustmentDialog({
                 className={cn(
                   "text-2xl font-bold",
                   newStockLevel <= (product.reorderLevel / 2)
-                    ? "text-red-600"
+                    ? "text-red-400"
                     : newStockLevel <= product.reorderLevel
-                      ? "text-amber-600"
-                      : "text-emerald-600"
+                      ? "text-amber-400"
+                      : "text-emerald-400"
                 )}
               >
                 {quantity ? newStockLevel : "--"}
               </span>
             </div>
             {quantity && newStockLevel <= product.reorderLevel && (
-              <p className="text-xs text-amber-600 mt-1">
+              <p className="text-xs text-amber-400 mt-1">
                 Below reorder level ({product.reorderLevel})
               </p>
             )}

@@ -162,7 +162,7 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="text-red-600 focus:text-red-600"
+                className="text-red-400 focus:text-red-400"
                 onClick={() => onDelete(staff)}
               >
                 <Trash2 className="w-4 h-4 mr-2" />

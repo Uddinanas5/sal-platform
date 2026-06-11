@@ -459,7 +459,7 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
         {/* Print-only title block */}
         <div className="hidden print:block">
           <h1 className="text-xl font-bold">Payday Statement</h1>
-          <p className="text-sm text-gray-600">Pay period: {periodLabel}</p>
+          <p className="text-sm text-ink-soft">Pay period: {periodLabel}</p>
         </div>
 
         {/* Summary cards */}
@@ -488,7 +488,7 @@ export function PaydayClient({ statement, periods, selectedPeriodId }: PaydayCli
 
         {/* Honest "not yet tracked" notice — never fabricate tips / booth rent. */}
         {(notTracked.tips || notTracked.boothRent) && (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-medium">Not yet tracked in these totals</p>

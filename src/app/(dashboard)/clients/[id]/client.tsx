@@ -274,7 +274,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={handleDeleteClient}
-                        className="text-red-600 focus:text-red-600"
+                        className="text-red-400 focus:text-red-400"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete Client
@@ -293,12 +293,12 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="flex items-start gap-3 p-4 bg-red-50 border border-red-300 rounded-xl"
+            className="flex items-start gap-3 p-4 bg-red-400/10 border border-red-400/30 rounded-xl"
           >
-            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-red-800">Allergies / Medical Alert</p>
-              <p className="text-sm text-red-700 mt-0.5 whitespace-pre-wrap">{client.allergies}</p>
+              <p className="text-sm font-semibold text-red-300">Allergies / Medical Alert</p>
+              <p className="text-sm text-red-300 mt-0.5 whitespace-pre-wrap">{client.allergies}</p>
             </div>
           </motion.div>
         )}
@@ -309,12 +309,12 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl"
+            className="flex items-start gap-3 p-4 bg-amber-400/10 border border-amber-400/30 rounded-xl"
           >
             <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-amber-800">Staff Alert</p>
-              <p className="text-sm text-amber-700 mt-0.5">{client.notes}</p>
+              <p className="text-sm font-semibold text-amber-300">Staff Alert</p>
+              <p className="text-sm text-amber-300 mt-0.5">{client.notes}</p>
             </div>
           </motion.div>
         )}

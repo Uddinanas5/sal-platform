@@ -45,7 +45,7 @@ export default async function ReviewPage({ params }: { params: { token: string }
         ) : appointment.status === "completed" ? (
           <ReviewForm token={params.token} />
         ) : (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+          <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-5 text-sm text-amber-900">
             This review link will be available after the appointment is completed.
           </div>
         )}

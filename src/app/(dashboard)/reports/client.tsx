@@ -476,7 +476,7 @@ export function ReportsClient(props: ReportsClientProps) {
                           <span
                             className={cn(
                               "text-sm font-medium",
-                              isPositive ? "text-mint" : "text-red-600"
+                              isPositive ? "text-mint" : "text-red-400"
                             )}
                           >
                             {isPositive ? "+" : ""}
