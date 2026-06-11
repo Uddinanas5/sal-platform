@@ -57,10 +57,8 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  icons: {
-    icon: "/logos/sal-icon.svg",
-    apple: "/logos/sal-icon.svg",
-  },
+  // Favicons are handled by Next.js file conventions:
+  // src/app/favicon.ico, src/app/icon.svg, src/app/apple-icon.png
 };
 
 export const viewport: Viewport = {
