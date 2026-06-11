@@ -49,7 +49,7 @@ export function CategoryOverview({ services }: CategoryOverviewProps) {
             const avgPrice =
               categoryServices.reduce((sum, s) => sum + s.price, 0) /
               categoryServices.length
-            const color = categoryColors[category] ?? "#6b7280"
+            const color = categoryColors[category] ?? "#9ca3af"
             const revenue = categoryRevenueContribution[category] ?? 0
 
             return (

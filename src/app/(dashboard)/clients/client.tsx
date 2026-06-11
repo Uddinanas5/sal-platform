@@ -89,7 +89,7 @@ function ClientCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
       whileHover={{ y: -2 }}
-      className="group relative bg-card rounded-2xl p-5 border border-cream-200 shadow-sm hover:shadow-md transition-all cursor-pointer card-warm"
+      className="group relative glass-tile rounded-tile p-5 transition-all cursor-pointer card-warm"
     >
       {/* Selection checkbox */}
       <div
@@ -116,7 +116,7 @@ function ClientCard({
               <div className="flex items-center gap-1.5">
                 <h3 className="font-semibold text-foreground">{client.name}</h3>
                 {client.totalVisits <= 1 && (
-                  <Badge className="bg-sal-100 text-sal-700 hover:bg-sal-100 text-[9px] px-1 py-0 font-semibold">
+                  <Badge className="bg-sal-100 text-mint-soft hover:bg-sal-100 text-[9px] px-1 py-0 font-semibold">
                     NEW
                   </Badge>
                 )}
@@ -151,7 +151,7 @@ function ClientCard({
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="text-red-600 focus:text-red-600"
+                className="text-red-400 focus:text-red-400"
                 onClick={() => onDelete(client)}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -209,7 +209,7 @@ function ClientCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs flex-1 border-sal-200 text-sal-600 hover:bg-sal-50"
+              className="h-7 text-xs flex-1 border-sal-200 text-mint hover:bg-sal-50"
               onClick={(e) => {
                 e.preventDefault()
                 cardRouter.push("/calendar")
@@ -270,14 +270,14 @@ function SortHeader({
   return (
     <button
       onClick={() => onSort(column)}
-      className="flex items-center gap-1 text-left py-3 px-4 font-medium text-muted-foreground text-sm hover:text-foreground transition-colors group"
+      className="flex items-center gap-1 text-left py-3 px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint hover:text-foreground transition-colors group"
     >
       {label}
       {isActive ? (
         direction === "asc" ? (
-          <ArrowUp className="w-3.5 h-3.5 text-sal-600" />
+          <ArrowUp className="w-3.5 h-3.5 text-mint" />
         ) : (
-          <ArrowDown className="w-3.5 h-3.5 text-sal-600" />
+          <ArrowDown className="w-3.5 h-3.5 text-mint" />
         )
       ) : (
         <ArrowUpDown className="w-3.5 h-3.5 opacity-0 group-hover:opacity-50 transition-opacity" />
@@ -318,7 +318,7 @@ function ClientTable({
               <SortHeader label="Client" column="name" activeColumn={sortColumn} direction={sortDirection} onSort={onSort} />
             </th>
             {visibleColumns.has("contact") && (
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">
+              <th className="text-left py-3 px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                 Contact
               </th>
             )}
@@ -338,7 +338,7 @@ function ClientTable({
               </th>
             )}
             {visibleColumns.has("tags") && (
-              <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">
+              <th className="text-left py-3 px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                 Tags
               </th>
             )}
@@ -352,8 +352,8 @@ function ClientTable({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: index * 0.03 }}
-              className={`border-b border-cream-200 hover:bg-cream-100 cursor-pointer transition-colors ${
-                selectedIds.has(client.id) ? "bg-sal-50/50" : ""
+              className={`border-b border-cream-200 hover:bg-white/[0.05] cursor-pointer transition-colors ${
+                selectedIds.has(client.id) ? "bg-sal-50" : ""
               }`}
               onClick={() => router.push(`/clients/${client.id}`)}
             >
@@ -367,7 +367,7 @@ function ClientTable({
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
                     <AvatarImage src={client.avatar} />
-                    <AvatarFallback className="bg-sal-100 text-sal-700 text-sm">
+                    <AvatarFallback className="bg-sal-100 text-mint-soft text-sm">
                       {client.name.split(" ").map((n) => n[0]).join("")}
                     </AvatarFallback>
                   </Avatar>
@@ -377,11 +377,11 @@ function ClientTable({
               {visibleColumns.has("contact") && (
                 <td className="py-4 px-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1.5 text-sm text-ink-soft">
                       <Mail className="w-3.5 h-3.5" />
                       {client.email}
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1.5 text-sm text-ink-soft">
                       <Phone className="w-3.5 h-3.5" />
                       {client.phone}
                     </div>
@@ -390,18 +390,18 @@ function ClientTable({
               )}
               {visibleColumns.has("visits") && (
                 <td className="py-4 px-4">
-                  <span className="font-medium">{client.totalVisits}</span>
+                  <span className="font-medium text-foreground">{client.totalVisits}</span>
                 </td>
               )}
               {visibleColumns.has("spent") && (
                 <td className="py-4 px-4">
-                  <span className="font-medium text-sal-600">
+                  <span className="font-medium text-mint">
                     {formatCurrency(client.totalSpent)}
                   </span>
                 </td>
               )}
               {visibleColumns.has("lastVisit") && (
-                <td className="py-4 px-4 text-muted-foreground">
+                <td className="py-4 px-4 text-ink-soft">
                   {client.lastVisit ? formatDate(new Date(client.lastVisit)) : "\u2014"}
                 </td>
               )}
@@ -448,7 +448,7 @@ function ClientTable({
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-red-600 focus:text-red-600"
+                      className="text-red-400 focus:text-red-400"
                       onClick={() => onDelete(client)}
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
@@ -592,7 +592,7 @@ export function ClientsClient(props: ClientsClientProps) {
   const selectedCount = selectedIds.size
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       <Header
         title="Clients"
         subtitle={`${totalClients} total clients`}
@@ -613,10 +613,10 @@ export function ClientsClient(props: ClientsClientProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
             >
-              <Card className="border-cream-200">
+              <Card variant="tile">
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-sal-100">
-                    <stat.icon className="w-5 h-5 text-sal-600" />
+                    <stat.icon className="w-5 h-5 text-mint" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -712,7 +712,7 @@ export function ClientsClient(props: ClientsClientProps) {
                       }}
                     />
                     {addClientErrors.name && (
-                      <p className="text-xs text-red-500">{addClientErrors.name}</p>
+                      <p className="text-xs text-red-400">{addClientErrors.name}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -727,7 +727,7 @@ export function ClientsClient(props: ClientsClientProps) {
                       }}
                     />
                     {addClientErrors.email && (
-                      <p className="text-xs text-red-500">{addClientErrors.email}</p>
+                      <p className="text-xs text-red-400">{addClientErrors.email}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -739,14 +739,14 @@ export function ClientsClient(props: ClientsClientProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-red-700">
+                    <label className="text-sm font-medium text-red-300">
                       Allergies / Medical Alerts
                     </label>
                     <Input
                       placeholder="e.g. PPD, latex, fragrance"
                       value={newClientAllergies}
                       onChange={(e) => setNewClientAllergies(e.target.value)}
-                      className="border-red-200 focus-visible:ring-red-300"
+                      className="border-red-400/30 focus-visible:ring-red-300"
                     />
                   </div>
                   <div className="space-y-2">
@@ -862,7 +862,7 @@ export function ClientsClient(props: ClientsClientProps) {
             ))}
           </div>
         ) : (
-          <Card className="border-cream-200">
+          <Card>
             <ClientTable
               clients={filteredClients}
               onDelete={setDeleteTarget}
@@ -879,7 +879,7 @@ export function ClientsClient(props: ClientsClientProps) {
 
         {filteredClients.length === 0 && (
           <EmptyState
-            icon={<Users className="w-8 h-8 text-sal-600" />}
+            icon={<Users className="w-8 h-8 text-mint" />}
             title="No clients found"
             description="No clients match your current search or filter. Try adjusting your criteria or add a new client."
             action={{
@@ -900,19 +900,19 @@ export function ClientsClient(props: ClientsClientProps) {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
           >
-            <div className="flex items-center gap-2 sm:gap-3 bg-foreground text-white rounded-xl px-3 sm:px-5 py-2.5 sm:py-3 shadow-2xl shadow-gray-900/30">
+            <div className="flex items-center gap-2 sm:gap-3 bg-[rgba(10,42,30,0.88)] backdrop-blur border border-white/15 text-white rounded-xl px-3 sm:px-5 py-2.5 sm:py-3 shadow-2xl shadow-black/40">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <CheckSquare className="w-4 h-4 text-sal-400" />
+                <CheckSquare className="w-4 h-4 text-mint" />
                 <span className="text-xs sm:text-sm font-medium">
                   {selectedCount}
                   <span className="hidden sm:inline"> selected</span>
                 </span>
               </div>
-              <div className="w-px h-5 bg-foreground/80" />
+              <div className="w-px h-5 bg-white/15" />
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 sm:h-7 text-xs text-gray-300 hover:text-white hover:bg-foreground px-2 sm:px-3"
+                className="h-8 sm:h-7 text-xs text-ink-soft hover:text-white hover:bg-white/10 px-2 sm:px-3"
                 onClick={() => {
                   const selectedClients = filteredClients.filter((c) => selectedIds.has(c.id))
                   const emails = selectedClients.map((c) => c.email).filter(Boolean).join(",")
@@ -931,7 +931,7 @@ export function ClientsClient(props: ClientsClientProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 sm:h-7 text-xs text-gray-300 hover:text-white hover:bg-foreground px-2 sm:px-3"
+                className="h-8 sm:h-7 text-xs text-ink-soft hover:text-white hover:bg-white/10 px-2 sm:px-3"
                 onClick={async () => {
                   const { updateClient } = await import("@/lib/actions/clients")
                   let tagged = 0
@@ -953,7 +953,7 @@ export function ClientsClient(props: ClientsClientProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 sm:h-7 text-xs text-gray-300 hover:text-white hover:bg-foreground px-2 sm:px-3"
+                className="h-8 sm:h-7 text-xs text-ink-soft hover:text-white hover:bg-white/10 px-2 sm:px-3"
                 onClick={() => {
                   exportToCsv(
                     "clients-selected-export",
@@ -979,17 +979,17 @@ export function ClientsClient(props: ClientsClientProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 sm:h-7 text-xs text-red-400 hover:text-red-300 hover:bg-foreground px-2 sm:px-3"
+                className="h-8 sm:h-7 text-xs text-red-400 hover:text-red-300 hover:bg-white/10 px-2 sm:px-3"
                 onClick={() => setBulkDeleteOpen(true)}
               >
                 <Trash2 className="w-3.5 h-3.5 sm:mr-1" />
                 <span className="hidden sm:inline">Delete</span>
               </Button>
-              <div className="w-px h-5 bg-foreground/80" />
+              <div className="w-px h-5 bg-white/15" />
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 sm:h-7 sm:w-7 text-muted-foreground/70 hover:text-white hover:bg-foreground"
+                className="h-8 w-8 sm:h-7 sm:w-7 text-ink-faint hover:text-white hover:bg-white/10"
                 onClick={() => setSelectedIds(new Set())}
                 aria-label="Clear selection"
               >

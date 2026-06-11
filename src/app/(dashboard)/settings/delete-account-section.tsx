@@ -70,7 +70,7 @@ export function DeleteAccountSection({ role, businessName }: DeleteAccountSectio
       <Dialog open={open} onOpenChange={(o) => !isSubmitting && setOpen(o)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
+            <DialogTitle className="flex items-center gap-2 text-red-400">
               <AlertTriangle className="w-5 h-5" />
               Delete Account
             </DialogTitle>

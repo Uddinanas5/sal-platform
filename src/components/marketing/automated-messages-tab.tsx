@@ -68,9 +68,9 @@ const triggerDescriptions: Record<string, string> = {
 }
 
 const channelBadgeColors: Record<string, string> = {
-  email: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  sms: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  both: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
+  email: "bg-blue-400/15 text-blue-300 border border-blue-400/25",
+  sms: "bg-emerald-400/15 text-emerald-300 border border-emerald-400/25",
+  both: "bg-purple-400/15 text-purple-300 border border-purple-400/25",
 }
 
 // Only these three triggers are actually evaluated by the daily automation
@@ -107,7 +107,7 @@ function highlightMergeFields(text: string): React.ReactNode[] {
       return (
         <span
           key={i}
-          className="px-1 py-0.5 rounded bg-sal-100 text-sal-700 text-xs font-mono font-medium"
+          className="px-1 py-0.5 rounded bg-sal-100 text-mint-soft text-xs font-mono font-medium"
         >
           {part}
         </span>
@@ -246,16 +246,16 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
           >
-            <Card className="border-cream-200 hover:shadow-md transition-all">
+            <Card variant="tile" className="hover:shadow-md transition-all">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     {/* Icon */}
                     <div className="p-2.5 rounded-xl bg-sal-100 shrink-0">
                       {message.channel === "email" ? (
-                        <Mail className="w-4 h-4 text-sal-600" />
+                        <Mail className="w-4 h-4 text-mint" />
                       ) : (
-                        <MessageSquare className="w-4 h-4 text-sal-600" />
+                        <MessageSquare className="w-4 h-4 text-mint" />
                       )}
                     </div>
 
@@ -433,9 +433,9 @@ export function AutomatedMessagesTab({ messages: initialMessages }: AutomatedMes
                     />
                     <p className="text-xs text-muted-foreground">
                       Merge fields like{" "}
-                      <span className="px-1 py-0.5 rounded bg-sal-100 text-sal-700 text-xs font-mono">{"{firstName}"}</span>{" "}
+                      <span className="px-1 py-0.5 rounded bg-sal-100 text-mint-soft text-xs font-mono">{"{firstName}"}</span>{" "}
                       and{" "}
-                      <span className="px-1 py-0.5 rounded bg-sal-100 text-sal-700 text-xs font-mono">{"{businessName}"}</span>{" "}
+                      <span className="px-1 py-0.5 rounded bg-sal-100 text-mint-soft text-xs font-mono">{"{businessName}"}</span>{" "}
                       are replaced for each client.
                     </p>
                   </div>

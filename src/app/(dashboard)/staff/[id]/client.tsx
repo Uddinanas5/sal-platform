@@ -34,20 +34,20 @@ const roleConfig = {
   admin: {
     label: "Admin",
     icon: ShieldAlert,
-    color: "text-red-600",
-    bg: "bg-red-500/10",
+    color: "text-red-300",
+    bg: "bg-red-400/15 border border-red-400/25",
   },
   manager: {
     label: "Manager",
     icon: ShieldCheck,
-    color: "text-blue-600",
-    bg: "bg-blue-500/10",
+    color: "text-blue-300",
+    bg: "bg-blue-400/15 border border-blue-400/25",
   },
   staff: {
     label: "Staff",
     icon: Shield,
-    color: "text-muted-foreground",
-    bg: "bg-cream-200",
+    color: "text-ink-soft",
+    bg: "bg-white/10 border border-white/15",
   },
 }
 
@@ -81,7 +81,7 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
   )
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       {/* Breadcrumb navigation */}
       <div className="h-12 bg-card/80 backdrop-blur-sm border-b border-cream-200 px-6 flex items-center sticky top-0 z-30">
         <nav className="flex items-center gap-1 text-sm">
@@ -105,7 +105,7 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-card rounded-2xl border border-cream-200 shadow-sm overflow-hidden"
+          className="glass-panel rounded-panel overflow-hidden"
         >
           {/* Banner */}
           <div
@@ -118,7 +118,7 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
           <div className="px-6 pb-6">
             <div className="flex flex-col sm:flex-row items-start gap-4 -mt-12">
               {/* Avatar */}
-              <Avatar className="w-24 h-24 ring-4 ring-white shadow-lg">
+              <Avatar className="w-24 h-24 ring-4 ring-white/25 shadow-lg">
                 <AvatarImage src={staff.avatar} />
                 <AvatarFallback
                   className="text-2xl font-semibold"
@@ -141,7 +141,7 @@ export function StaffDetailClient(props: StaffDetailClientProps) {
                       <Badge
                         variant="secondary"
                         className={cn(
-                          "text-xs",
+                          "text-xs bg-none",
                           roleInfo.bg,
                           roleInfo.color
                         )}

@@ -64,7 +64,7 @@ export function RevenueTab({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card className="border-cream-200">
+              <Card variant="tile">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
@@ -72,14 +72,14 @@ export function RevenueTab({
                       <p className="text-2xl font-heading font-bold text-foreground">
                         {card.format(card.value)}
                       </p>
-                      <div className="flex items-center gap-1 text-sm text-sal-600">
+                      <div className="flex items-center gap-1 text-sm text-mint">
                         <ArrowUpRight className="w-3.5 h-3.5" />
                         <span className="font-medium">+{card.growth}%</span>
                         <span className="text-muted-foreground/70">vs last month</span>
                       </div>
                     </div>
                     <div className="p-3 rounded-xl bg-sal-100">
-                      <Icon className="w-5 h-5 text-sal-600" />
+                      <Icon className="w-5 h-5 text-mint" />
                     </div>
                   </div>
                 </CardContent>
@@ -102,7 +102,7 @@ export function RevenueTab({
           title="Revenue Trend"
           description="Monthly revenue over the last 6 months"
           height={320}
-          color="#059669"
+          color="#4fe6a6"
           gradientId="revenueTabGradient"
           formatValue={(v) => formatCurrency(v)}
           className="border-cream-200"

@@ -202,7 +202,7 @@ function ReportsDateRangePicker({ className }: { className?: string }) {
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="flex items-center rounded-lg border border-cream-200 bg-card p-1 overflow-x-auto">
+      <div className="flex items-center rounded-lg border border-cream-200 bg-white/[0.04] p-1 overflow-x-auto">
         {presets.map((preset) => (
           <Button
             key={preset.value}
@@ -285,7 +285,7 @@ export function ReportsClient(props: ReportsClientProps) {
       growth: summary.revenueGrowth,
       icon: DollarSign,
       iconBg: "bg-sal-100",
-      iconColor: "text-sal-600",
+      iconColor: "text-mint",
     },
     {
       title: "Appointments",
@@ -293,7 +293,7 @@ export function ReportsClient(props: ReportsClientProps) {
       growth: summary.appointmentGrowth,
       icon: Calendar,
       iconBg: "bg-blue-500/10",
-      iconColor: "text-blue-600 dark:text-blue-400",
+      iconColor: "text-blue-400",
     },
     {
       title: "Avg Ticket",
@@ -301,7 +301,7 @@ export function ReportsClient(props: ReportsClientProps) {
       growth: summary.ticketGrowth,
       icon: Receipt,
       iconBg: "bg-purple-500/10",
-      iconColor: "text-purple-600 dark:text-purple-400",
+      iconColor: "text-purple-400",
     },
     {
       title: "New Clients",
@@ -309,7 +309,7 @@ export function ReportsClient(props: ReportsClientProps) {
       growth: summary.clientGrowth,
       icon: UserPlus,
       iconBg: "bg-amber-500/10",
-      iconColor: "text-amber-600 dark:text-amber-400",
+      iconColor: "text-amber-400",
     },
   ]
 
@@ -459,7 +459,7 @@ export function ReportsClient(props: ReportsClientProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="border-cream-200">
+                <Card variant="tile">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
@@ -469,14 +469,14 @@ export function ReportsClient(props: ReportsClientProps) {
                         </p>
                         <div className="flex items-center gap-1">
                           {isPositive ? (
-                            <TrendingUp className="w-3.5 h-3.5 text-sal-500" />
+                            <TrendingUp className="w-3.5 h-3.5 text-mint-strong" />
                           ) : (
-                            <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+                            <TrendingDown className="w-3.5 h-3.5 text-red-400" />
                           )}
                           <span
                             className={cn(
                               "text-sm font-medium",
-                              isPositive ? "text-sal-600" : "text-red-600"
+                              isPositive ? "text-mint" : "text-red-400"
                             )}
                           >
                             {isPositive ? "+" : ""}

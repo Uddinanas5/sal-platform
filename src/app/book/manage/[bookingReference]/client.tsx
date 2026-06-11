@@ -161,14 +161,14 @@ function getStatusConfig(status: string): {
       return {
         label: "Checked In",
         variant: "info" as "outline",
-        className: "border-transparent bg-blue-500/10 text-blue-700",
+        className: "border-transparent bg-blue-500/10 text-blue-300",
         icon: <CheckCircle2 className="h-3.5 w-3.5" />,
       }
     case "in_progress":
       return {
         label: "In Progress",
         variant: "info" as "outline",
-        className: "border-transparent bg-blue-500/10 text-blue-700",
+        className: "border-transparent bg-blue-500/10 text-blue-300",
         icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
       }
     case "no_show":
@@ -225,26 +225,26 @@ function CancelDialog({ booking, onClose, onCancelled }: CancelDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md glass-popover rounded-panel shadow-2xl">
         <div className="p-6">
           <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-              <XCircle className="h-5 w-5 text-red-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-400/15">
+              <XCircle className="h-5 w-5 text-red-400" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Cancel Appointment</h2>
-              <p className="text-sm text-gray-500">This action cannot be undone.</p>
+              <h2 className="text-lg font-semibold text-ink">Cancel Appointment</h2>
+              <p className="text-sm text-ink-faint">This action cannot be undone.</p>
             </div>
           </div>
 
-          <div className="mb-4 rounded-lg bg-gray-50 p-4 text-sm text-gray-700">
+          <div className="mb-4 glass-tile rounded-tile p-4 text-sm text-ink-soft">
             <p className="font-medium">{booking.services[0]?.name ?? "Appointment"}</p>
-            <p className="mt-1 text-gray-500">{formatDateTime(booking.startTime, booking.businessTimezone)}</p>
+            <p className="mt-1 text-ink-faint">{formatDateTime(booking.startTime, booking.businessTimezone)}</p>
           </div>
 
           <div className="mb-4">
-            <Label htmlFor="cancel-email" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <Label htmlFor="cancel-email" className="mb-1.5 block text-sm font-medium text-ink-soft">
               Confirm your email address
             </Label>
             <Input
@@ -257,13 +257,13 @@ function CancelDialog({ booking, onClose, onCancelled }: CancelDialogProps) {
               className="w-full"
               disabled={isLoading}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-ink-faint">
               Enter the email address used when booking to verify your identity.
             </p>
           </div>
 
           {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-400/10 px-3 py-2 text-sm text-red-300">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
@@ -272,7 +272,7 @@ function CancelDialog({ booking, onClose, onCancelled }: CancelDialogProps) {
           <div className="flex gap-3">
             <Button
               variant="outline"
-              className="flex-1"
+              className="h-11 flex-1"
               onClick={onClose}
               disabled={isLoading}
             >
@@ -280,7 +280,7 @@ function CancelDialog({ booking, onClose, onCancelled }: CancelDialogProps) {
             </Button>
             <Button
               variant="destructive"
-              className="flex-1"
+              className="h-11 flex-1"
               onClick={handleCancel}
               disabled={isLoading}
             >
@@ -444,15 +444,15 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
   }).format(firstOfMonth)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
-        <div className="flex items-start gap-3 border-b p-6 pb-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-            <Calendar className="h-5 w-5 text-emerald-600" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden glass-popover rounded-panel shadow-2xl">
+        <div className="flex items-start gap-3 border-b border-white/10 p-6 pb-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint/15">
+            <Calendar className="h-5 w-5 text-mint" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Reschedule Appointment</h2>
-            <p className="text-sm text-gray-500">Pick a new date and time.</p>
+            <h2 className="text-lg font-semibold text-ink">Reschedule Appointment</h2>
+            <p className="text-sm text-ink-faint">Pick a new date and time.</p>
           </div>
         </div>
 
@@ -461,7 +461,7 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
           <div className="mb-5">
             <Label
               htmlFor="reschedule-email"
-              className="mb-1.5 block text-sm font-medium text-gray-700"
+              className="mb-1.5 block text-sm font-medium text-ink-soft"
             >
               Confirm your email address
             </Label>
@@ -474,7 +474,7 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
               className="w-full"
               disabled={isSubmitting}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-ink-faint">
               Enter the email used when booking to verify your identity.
             </p>
           </div>
@@ -482,25 +482,25 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
           {/* Month calendar */}
           <div className="mb-5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Choose a date</span>
+              <span className="text-sm font-medium text-ink-soft">Choose a date</span>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={prevMonth}
                   disabled={atMinMonth}
                   aria-label="Previous month"
-                  className="rounded-md p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                  className="flex h-11 w-11 items-center justify-center rounded-md text-ink-faint hover:bg-white/[0.08] disabled:opacity-30"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span className="min-w-[120px] text-center text-sm font-medium text-gray-900">
+                <span className="min-w-[120px] text-center text-sm font-medium text-ink">
                   {monthLabel}
                 </span>
                 <button
                   type="button"
                   onClick={nextMonth}
                   aria-label="Next month"
-                  className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
+                  className="flex h-11 w-11 items-center justify-center rounded-md text-ink-faint hover:bg-white/[0.08]"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -508,7 +508,7 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
             </div>
             <div className="grid grid-cols-7 gap-1 text-center">
               {WEEKDAYS.map((w) => (
-                <div key={w} className="py-1 text-xs font-medium text-gray-400">
+                <div key={w} className="py-1 text-xs font-medium text-ink-faint">
                   {w}
                 </div>
               ))}
@@ -524,9 +524,9 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
                     onClick={() => setSelectedDate(d)}
                     className={cn(
                       "aspect-square rounded-md text-sm transition-colors",
-                      isPast && "cursor-not-allowed text-gray-300",
-                      !isPast && !isSelected && "text-gray-700 hover:bg-emerald-50",
-                      isSelected && "bg-emerald-600 font-semibold text-white",
+                      isPast && "cursor-not-allowed text-white/25",
+                      !isPast && !isSelected && "text-ink-soft hover:bg-mint/10",
+                      isSelected && "bg-sal-500 font-semibold text-white shadow-glow-sm",
                     )}
                   >
                     {d.getDate()}
@@ -539,16 +539,16 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
           {/* Time slots */}
           {selectedDate && (
             <div className="mb-2">
-              <span className="mb-2 block text-sm font-medium text-gray-700">
+              <span className="mb-2 block text-sm font-medium text-ink-soft">
                 Available times
               </span>
               {slotsLoading ? (
-                <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-500">
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-ink-faint">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading times...
                 </div>
               ) : slots.length === 0 ? (
-                <div className="rounded-lg bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
+                <div className="glass-tile rounded-tile px-3 py-4 text-center text-sm text-ink-faint">
                   No open times on this date. Try another day.
                 </div>
               ) : (
@@ -562,10 +562,10 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
                         disabled={isSubmitting}
                         onClick={() => setSelectedSlot(slot)}
                         className={cn(
-                          "rounded-lg border px-2 py-2 text-sm transition-colors",
+                          "min-h-[44px] rounded-tile px-2 py-2 text-sm transition-all",
                           isSelected
-                            ? "border-emerald-600 bg-emerald-600 font-semibold text-white"
-                            : "border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50",
+                            ? "border border-mint/60 bg-mint/15 font-semibold text-white shadow-glow-sm"
+                            : "glass-tile text-ink-soft hover:brightness-110",
                         )}
                       >
                         {slot.startTime}
@@ -578,19 +578,19 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
           )}
 
           {error && (
-            <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-400/10 px-3 py-2 text-sm text-red-300">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
         </div>
 
-        <div className="flex gap-3 border-t p-6 pt-4">
-          <Button variant="outline" className="flex-1" onClick={onClose} disabled={isSubmitting}>
+        <div className="flex gap-3 border-t border-white/10 p-6 pt-4">
+          <Button variant="outline" className="h-11 flex-1" onClick={onClose} disabled={isSubmitting}>
             Keep Current Time
           </Button>
           <Button
-            className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700"
+            className="h-11 flex-1"
             onClick={handleConfirm}
             disabled={isSubmitting || !selectedSlot}
           >
@@ -652,21 +652,21 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
     .join(", ")
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen env-canvas-lite">
       {/* Header */}
-      <div className="border-b bg-white">
+      <div className="border-b border-white/10 bg-white/[0.04]">
         <div className="mx-auto max-w-2xl px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sal-500 shadow-glow-sm">
                 <span className="text-sm font-bold text-white">S</span>
               </div>
-              <span className="text-base font-semibold text-gray-900">{booking.businessName}</span>
+              <span className="text-base font-semibold text-ink">{booking.businessName}</span>
             </div>
             {booking.businessSlug && (
               <Link
                 href={`/book/${booking.businessSlug}`}
-                className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700"
+                className="flex min-h-[44px] items-center gap-1 px-2 text-sm text-mint hover:text-mint-soft"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Book Again
@@ -678,9 +678,12 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
 
       {/* Main Content */}
       <div className="mx-auto max-w-2xl px-4 py-8">
+        {/* The single blurred panel on this screen — cards inside are
+            blur-free glass tiles. */}
+        <div className="glass-panel glass-panel-lite rounded-panel p-5 sm:p-7">
         {/* Title + Status */}
         <div className="mb-6">
-          <h1 className="mb-2 text-2xl font-bold text-gray-900">Your Appointment</h1>
+          <h1 className="mb-2 text-2xl font-bold text-ink">Your Appointment</h1>
           <div className="flex flex-wrap items-center gap-3">
             <Badge
               variant={statusConfig.variant as "success" | "destructive" | "warning" | "secondary" | "outline"}
@@ -692,7 +695,7 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
               {statusConfig.icon}
               {statusConfig.label}
             </Badge>
-            <span className="font-mono text-sm font-medium text-emerald-600">
+            <span className="font-mono text-sm font-medium text-mint">
               {booking.bookingReference}
             </span>
           </div>
@@ -700,11 +703,11 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
 
         {/* State Messages */}
         {isCancelled && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl bg-red-50 p-4">
-            <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+          <div className="mb-6 flex items-start gap-3 rounded-tile border border-red-400/20 bg-red-400/10 p-4">
+            <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
             <div>
-              <p className="font-medium text-red-900">This appointment has been cancelled.</p>
-              <p className="mt-1 text-sm text-red-700">
+              <p className="font-medium text-red-200">This appointment has been cancelled.</p>
+              <p className="mt-1 text-sm text-red-300">
                 If you&apos;d like to book again, visit our{" "}
                 {booking.businessSlug ? (
                   <Link
@@ -723,11 +726,11 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
         )}
 
         {isPast && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl bg-gray-100 p-4">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-gray-600" />
+          <div className="mb-6 flex items-start gap-3 glass-tile rounded-tile p-4">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-ink-soft" />
             <div>
-              <p className="font-medium text-gray-900">This appointment has already taken place.</p>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="font-medium text-ink">This appointment has already taken place.</p>
+              <p className="mt-1 text-sm text-ink-soft">
                 Thank you for visiting {booking.businessName}!
               </p>
             </div>
@@ -735,11 +738,11 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
         )}
 
         {isNoShow && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl bg-amber-50 p-4">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div className="mb-6 flex items-start gap-3 rounded-tile border border-amber-400/20 bg-amber-400/10 p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
             <div>
-              <p className="font-medium text-amber-900">This appointment was marked as a no-show.</p>
-              <p className="mt-1 text-sm text-amber-700">
+              <p className="font-medium text-amber-200">This appointment was marked as a no-show.</p>
+              <p className="mt-1 text-sm text-amber-300">
                 Please contact {booking.businessName} if you have any questions.
               </p>
             </div>
@@ -747,10 +750,10 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
         )}
 
         {/* Service Details Card */}
-        <Card className="mb-4">
+        <Card variant="tile" className="mb-4">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Scissors className="h-4 w-4 text-emerald-600" />
+              <Scissors className="h-4 w-4 text-mint" />
               Service Details
             </CardTitle>
           </CardHeader>
@@ -759,8 +762,8 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
               <div key={i} className={cn(i > 0 && "border-t pt-4")}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-gray-900">{svc.name}</p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                    <p className="font-semibold text-ink">{svc.name}</p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-faint">
                       <span className="flex items-center gap-1">
                         <User className="h-3.5 w-3.5" />
                         {svc.staffName}
@@ -771,7 +774,7 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
                       </span>
                     </div>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold text-gray-900">
+                  <span className="shrink-0 text-sm font-semibold text-ink">
                     {formatCurrency(svc.price)}
                   </span>
                 </div>
@@ -780,8 +783,8 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
 
             {booking.services.length > 1 && (
               <div className="flex items-center justify-between border-t pt-3">
-                <span className="text-sm font-medium text-gray-700">Total</span>
-                <span className="font-semibold text-gray-900">
+                <span className="text-sm font-medium text-ink-soft">Total</span>
+                <span className="font-semibold text-ink">
                   {formatCurrency(booking.totalAmount)}
                 </span>
               </div>
@@ -790,21 +793,21 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
         </Card>
 
         {/* Date & Time Card */}
-        <Card className="mb-4">
+        <Card variant="tile" className="mb-4">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Calendar className="h-4 w-4 text-emerald-600" />
+              <Calendar className="h-4 w-4 text-mint" />
               Date &amp; Time
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
-              <span className="text-gray-700">{formatDateOnly(startTime, booking.businessTimezone)}</span>
+              <Calendar className="h-4 w-4 shrink-0 text-ink-faint" />
+              <span className="text-ink-soft">{formatDateOnly(startTime, booking.businessTimezone)}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4 shrink-0 text-gray-400" />
-              <span className="text-gray-700">
+              <Clock className="h-4 w-4 shrink-0 text-ink-faint" />
+              <span className="text-ink-soft">
                 {formatTimeOnly(startTime, booking.businessTimezone)} &ndash; {formatTimeOnly(endTime, booking.businessTimezone)}
               </span>
             </div>
@@ -813,19 +816,19 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
 
         {/* Location Card */}
         {(booking.locationName || locationLine) && (
-          <Card className="mb-4">
+          <Card variant="tile" className="mb-4">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <MapPin className="h-4 w-4 text-emerald-600" />
+                <MapPin className="h-4 w-4 text-mint" />
                 Location
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
               {booking.locationName && (
-                <p className="text-sm font-medium text-gray-900">{booking.locationName}</p>
+                <p className="text-sm font-medium text-ink">{booking.locationName}</p>
               )}
               {locationLine && (
-                <p className="text-sm text-gray-500">{locationLine}</p>
+                <p className="text-sm text-ink-faint">{locationLine}</p>
               )}
             </CardContent>
           </Card>
@@ -833,10 +836,10 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
 
         {/* Contact Card */}
         {(booking.businessPhone || booking.businessEmail) && (
-          <Card className="mb-6">
+          <Card variant="tile" className="mb-6">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <Phone className="h-4 w-4 text-emerald-600" />
+                <Phone className="h-4 w-4 text-mint" />
                 Contact {booking.businessName}
               </CardTitle>
             </CardHeader>
@@ -844,7 +847,7 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
               {booking.businessPhone && (
                 <a
                   href={`tel:${booking.businessPhone}`}
-                  className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700"
+                  className="flex min-h-[44px] items-center gap-2 text-sm text-mint hover:text-mint-soft"
                 >
                   <Phone className="h-4 w-4 shrink-0" />
                   {booking.businessPhone}
@@ -853,7 +856,7 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
               {booking.businessEmail && (
                 <a
                   href={`mailto:${booking.businessEmail}`}
-                  className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700"
+                  className="flex min-h-[44px] items-center gap-2 text-sm text-mint hover:text-mint-soft"
                 >
                   <Mail className="h-4 w-4 shrink-0" />
                   {booking.businessEmail}
@@ -865,12 +868,12 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
 
         {/* Notes */}
         {booking.notes && (
-          <Card className="mb-6">
+          <Card variant="tile" className="mb-6">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Notes</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600">{booking.notes}</p>
+              <p className="text-sm text-ink-soft">{booking.notes}</p>
             </CardContent>
           </Card>
         )}
@@ -882,7 +885,7 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
             {booking.serviceId && booking.locationId && (
               <Button
                 variant="outline"
-                className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                className="h-11 w-full border-mint/40 text-mint hover:bg-mint/10 hover:text-mint"
                 onClick={() => setShowRescheduleDialog(true)}
               >
                 <Calendar className="mr-2 h-4 w-4" />
@@ -893,7 +896,7 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
             {/* Cancel */}
             <Button
               variant="outline"
-              className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="h-11 w-full border-red-400/30 text-red-400 hover:bg-red-400/10 hover:text-red-300"
               onClick={() => setShowCancelDialog(true)}
             >
               <XCircle className="mr-2 h-4 w-4" />
@@ -901,6 +904,7 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
             </Button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Cancel Dialog Overlay */}

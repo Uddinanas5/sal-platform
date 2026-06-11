@@ -62,8 +62,8 @@ export function OAuthConsentClient({
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream p-4">
-      <Card className="w-full max-w-md border-cream-200">
+    <div className="min-h-screen flex items-center justify-center env-canvas-lite p-4">
+      <Card className="w-full max-w-md glass-panel-lite">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-sal-500 rounded-2xl flex items-center justify-center">
             <svg viewBox="0 0 32 32" className="w-10 h-10 text-white" fill="currentColor">
@@ -80,7 +80,7 @@ export function OAuthConsentClient({
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="rounded-lg bg-cream-50 border border-cream-200 p-4">
+          <div className="glass-tile rounded-tile p-4">
             <p className="text-sm font-medium text-foreground mb-2">
               This will allow {clientName} to:
             </p>
@@ -88,7 +88,7 @@ export function OAuthConsentClient({
               {scope.split(" ").map((s) => (
                 <li key={s} className="flex items-start gap-2 text-sm text-muted-foreground">
                   <svg
-                    className="w-4 h-4 text-sal-600 mt-0.5 flex-shrink-0"
+                    className="w-4 h-4 text-mint mt-0.5 flex-shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -107,7 +107,7 @@ export function OAuthConsentClient({
           </div>
 
           {error && (
-            <p className="text-sm text-red-500 text-center bg-red-50 p-2 rounded-lg" role="alert">
+            <p className="text-sm text-red-200 text-center bg-red-400/15 border border-red-400/25 p-2 rounded-lg" role="alert">
               {error}
             </p>
           )}

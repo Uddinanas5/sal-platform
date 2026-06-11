@@ -18,8 +18,8 @@ export default function RootError({
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center p-6">
       <div className="max-w-md w-full text-center space-y-6">
-        <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center">
-          <AlertTriangle className="w-8 h-8 text-amber-600" />
+        <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-400/15 flex items-center justify-center">
+          <AlertTriangle className="w-8 h-8 text-amber-400" />
         </div>
         <div>
           <h2 className="text-xl font-heading font-bold text-foreground mb-2">
@@ -39,7 +39,7 @@ export default function RootError({
           </button>
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-lg border border-sal-500 px-6 py-2.5 text-sm font-medium text-sal-600 hover:bg-sal-50 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg border border-sal-500 px-6 py-2.5 text-sm font-medium text-mint hover:bg-sal-50 transition-colors"
           >
             Go home
           </Link>

@@ -115,7 +115,7 @@ function ServiceCard({
       transition={{ delay: index * 0.05 }}
       layout
       className={cn(
-        "bg-card rounded-2xl border border-cream-200 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden card-warm",
+        "glass-tile rounded-tile hover:shadow-md transition-all cursor-pointer overflow-hidden card-warm",
         !isActive && "opacity-60"
       )}
       onClick={onClick}
@@ -176,7 +176,7 @@ function ServiceCard({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="text-red-600 focus:text-red-600"
+                  className="text-red-400 focus:text-red-400"
                   onClick={() => onDelete(service)}
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
@@ -206,7 +206,7 @@ function ServiceCard({
               onClick={(e) => e.stopPropagation()}
             >
               {isActive ? (
-                <Eye className="w-4 h-4 text-sal-500" />
+                <Eye className="w-4 h-4 text-mint-strong" />
               ) : (
                 <EyeOff className="w-4 h-4 text-muted-foreground/70" />
               )}
@@ -324,7 +324,7 @@ export function ServicesClient(props: ServicesClientProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
             >
-              <Card>
+              <Card variant="tile">
                 <CardContent className="p-4">
                   <p className="text-sm text-muted-foreground">{stat.label}</p>
                   <p className="text-2xl font-heading font-bold text-foreground mt-1">{stat.value}</p>
@@ -408,7 +408,7 @@ export function ServicesClient(props: ServicesClientProps) {
 
         {filteredServices.length === 0 && (
           <EmptyState
-            icon={<Scissors className="w-8 h-8 text-sal-600" />}
+            icon={<Scissors className="w-8 h-8 text-mint" />}
             title="No services found"
             description="No services match your current search or category. Try adjusting your filters or create a new service."
             action={

@@ -118,7 +118,7 @@ export function DataTable<TData, TValue>({
       {/* Bulk action bar */}
       {enableRowSelection && selectedCount > 0 && bulkActions.length > 0 && (
         <div className="flex items-center gap-3 rounded-lg bg-sal-50 border border-sal-200 px-4 py-2.5 animate-in fade-in slide-in-from-top-2">
-          <span className="text-sm font-medium text-sal-700">
+          <span className="text-sm font-medium text-mint-soft">
             {selectedCount} selected
           </span>
           <div className="h-4 w-px bg-sal-200" />

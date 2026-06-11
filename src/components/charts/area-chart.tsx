@@ -12,6 +12,13 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import {
+  CHART_GRID,
+  CHART_TICK,
+  CHART_TOOLTIP_STYLE,
+  CHART_TOOLTIP_ITEM,
+  CHART_TOOLTIP_LABEL,
+} from "./chart-theme"
 
 interface AreaChartProps {
   data: Record<string, unknown>[]
@@ -35,7 +42,7 @@ export function AreaChartComponent({
   description,
   height = 300,
   className,
-  color = "#059669",
+  color = "#4fe6a6",
   gradientId = "colorGradient",
   showGrid = true,
   formatValue,
@@ -53,30 +60,28 @@ export function AreaChartComponent({
           <RechartsAreaChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
+                <stop offset="5%" stopColor={color} stopOpacity={0.35} />
+                <stop offset="95%" stopColor={color} stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e2e0d5" vertical={false} />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />}
             <XAxis
               dataKey={xAxisKey}
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 12, fill: "#888" }}
+              tick={CHART_TICK}
             />
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 12, fill: "#888" }}
+              tick={CHART_TICK}
               tickFormatter={formatValue}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: "white",
-                border: "1px solid #e2e0d5",
-                borderRadius: "8px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-              }}
+              cursor={{ fill: "rgba(255,255,255,0.06)" }}
+              contentStyle={CHART_TOOLTIP_STYLE}
+              itemStyle={CHART_TOOLTIP_ITEM}
+              labelStyle={CHART_TOOLTIP_LABEL}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               formatter={(value: any) => [formatValue ? formatValue(value) : value, dataKey]}
             />

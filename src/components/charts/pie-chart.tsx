@@ -11,8 +11,12 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-
-const SAL_COLORS = ["#059669", "#34d399", "#047857", "#6ee7b7", "#10b981", "#a7f3d0", "#f97316", "#8b5cf6"]
+import {
+  CHART_COLORS,
+  CHART_TOOLTIP_STYLE,
+  CHART_TOOLTIP_ITEM,
+  CHART_TOOLTIP_LABEL,
+} from "./chart-theme"
 
 interface PieChartProps {
   data: { name: string; value: number; color?: string }[]
@@ -58,16 +62,13 @@ export function PieChartComponent({
               dataKey="value"
             >
               {data.map((entry, index) => (
-                <Cell key={index} fill={entry.color || SAL_COLORS[index % SAL_COLORS.length]} />
+                <Cell key={index} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
               ))}
             </Pie>
             <Tooltip
-              contentStyle={{
-                backgroundColor: "white",
-                border: "1px solid #e2e0d5",
-                borderRadius: "8px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
+              itemStyle={CHART_TOOLTIP_ITEM}
+              labelStyle={CHART_TOOLTIP_LABEL}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               formatter={(value: any) => [formatValue ? formatValue(value) : value]}
             />

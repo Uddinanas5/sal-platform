@@ -78,8 +78,8 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream p-4">
-      <Card className="w-full max-w-md border-cream-200">
+    <div className="min-h-screen flex items-center justify-center env-canvas-lite p-4">
+      <Card className="w-full max-w-md glass-panel-lite">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-sal-500 rounded-2xl flex items-center justify-center">
             <svg viewBox="0 0 32 32" className="w-10 h-10 text-white" fill="currentColor">
@@ -93,8 +93,8 @@ function LoginForm() {
         </CardHeader>
         <CardContent>
           {isInvited && (
-            <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-sal-50 border border-sal-200 text-sal-800">
-              <CheckCircle2 className="w-4 h-4 text-sal-600 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-emerald-400/15 border border-emerald-400/25 text-emerald-200">
+              <CheckCircle2 className="w-4 h-4 text-mint flex-shrink-0" />
               <p className="text-sm">Account created! Sign in with your new credentials.</p>
             </div>
           )}
@@ -110,12 +110,12 @@ function LoginForm() {
                   setEmail(e.target.value)
                   if (emailError) setEmailError("")
                 }}
-                className={emailError ? "border-red-500 focus-visible:ring-red-500" : ""}
+                className={emailError ? "border-red-400/60 focus-visible:ring-red-400" : ""}
                 aria-invalid={!!emailError}
                 aria-describedby={emailError ? "email-error" : undefined}
               />
               {emailError && (
-                <p id="email-error" className="text-sm text-red-500" role="alert">{emailError}</p>
+                <p id="email-error" className="text-sm text-red-300" role="alert">{emailError}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -130,32 +130,32 @@ function LoginForm() {
                     setPassword(e.target.value)
                     if (passwordError) setPasswordError("")
                   }}
-                  className={passwordError ? "border-red-500 focus-visible:ring-red-500 pr-10" : "pr-10"}
+                  className={passwordError ? "border-red-400/60 focus-visible:ring-red-400 pr-12" : "pr-12"}
                   aria-invalid={!!passwordError}
                   aria-describedby={passwordError ? "password-error" : undefined}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-ink-faint hover:text-ink transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {passwordError && (
-                <p id="password-error" className="text-sm text-red-500" role="alert">{passwordError}</p>
+                <p id="password-error" className="text-sm text-red-300" role="alert">{passwordError}</p>
               )}
             </div>
 
             {error && (
-              <p className="text-sm text-red-500 text-center bg-red-50 p-2 rounded-lg" role="alert">{error}</p>
+              <p className="text-sm text-red-200 text-center bg-red-400/15 border border-red-400/25 p-2 rounded-lg" role="alert">{error}</p>
             )}
 
             <div className="text-right">
               <Link
                 href="/forgot-password"
-                className="text-sm text-sal-600 hover:text-sal-700"
+                className="text-sm text-mint hover:text-mint-soft"
               >
                 Forgot password?
               </Link>
@@ -170,7 +170,7 @@ function LoginForm() {
             <span className="text-sm text-muted-foreground">Don&apos;t have an account? </span>
             <Link
               href="/register"
-              className="text-sm text-sal-600 hover:text-sal-700 font-medium"
+              className="text-sm text-mint hover:text-mint-soft font-medium"
             >
               Create an account
             </Link>

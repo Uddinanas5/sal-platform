@@ -13,6 +13,13 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import {
+  CHART_GRID,
+  CHART_TICK,
+  CHART_TOOLTIP_STYLE,
+  CHART_TOOLTIP_ITEM,
+  CHART_TOOLTIP_LABEL,
+} from "./chart-theme"
 
 interface LineChartProps {
   data: Record<string, unknown>[]
@@ -50,26 +57,23 @@ export function LineChartComponent({
       <CardContent>
         <ResponsiveContainer width="100%" height={height}>
           <RechartsLineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e2e0d5" vertical={false} />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />}
             <XAxis
               dataKey={xAxisKey}
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 12, fill: "#888" }}
+              tick={CHART_TICK}
             />
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 12, fill: "#888" }}
+              tick={CHART_TICK}
               tickFormatter={formatValue}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: "white",
-                border: "1px solid #e2e0d5",
-                borderRadius: "8px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
+              itemStyle={CHART_TOOLTIP_ITEM}
+              labelStyle={CHART_TOOLTIP_LABEL}
             />
             {showLegend && <Legend />}
             {lines.map((line) => (

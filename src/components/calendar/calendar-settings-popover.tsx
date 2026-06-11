@@ -65,11 +65,11 @@ export function CalendarSettingsPopover({
           <div className="space-y-2.5">
             <div className="flex items-center gap-2">
               <Palette className="h-3.5 w-3.5 text-muted-foreground/70" />
-              <span className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                 Color by
               </span>
             </div>
-            <div className="flex items-center gap-1 bg-cream-100 rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-white/[0.05] border border-white/[0.08] rounded-lg p-1">
               {colorOptions.map((opt) => (
                 <button
                   key={opt.value}
@@ -77,8 +77,8 @@ export function CalendarSettingsPopover({
                   className={cn(
                     "flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
                     colorBy === opt.value
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-white/[0.14] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+                      : "text-ink-soft hover:text-foreground hover:bg-white/[0.08]"
                   )}
                 >
                   {opt.label}
@@ -90,25 +90,25 @@ export function CalendarSettingsPopover({
           {/* Status color legend */}
           {colorBy === "status" && (
             <div className="space-y-2">
-              <span className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                 Status Colors
               </span>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                 {[
-                  { label: "Booked", color: "#3b82f6" },
-                  { label: "Confirmed", color: "#8b5cf6" },
-                  { label: "Arrived", color: "#f59e0b" },
-                  { label: "Started", color: "#10b981" },
-                  { label: "Completed", color: "#6b7280" },
-                  { label: "No Show", color: "#ef4444" },
-                  { label: "Cancelled", color: "#fca5a5" },
+                  { label: "Booked", color: "#60a5fa" },
+                  { label: "Confirmed", color: "#a78bfa" },
+                  { label: "Arrived", color: "#fbbf24" },
+                  { label: "Started", color: "#4fe6a6" },
+                  { label: "Completed", color: "rgba(255,255,255,0.35)" },
+                  { label: "No Show", color: "#f87171" },
+                  { label: "Cancelled", color: "rgba(248,113,113,0.40)" },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-2">
                     <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      className="led"
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="text-xs text-muted-foreground">{item.label}</span>
+                    <span className="text-xs text-ink-soft">{item.label}</span>
                   </div>
                 ))}
               </div>
@@ -120,7 +120,7 @@ export function CalendarSettingsPopover({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ZoomIn className="h-3.5 w-3.5 text-muted-foreground/70" />
-                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                   Zoom
                 </span>
               </div>
@@ -148,7 +148,7 @@ export function CalendarSettingsPopover({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground/70" />
-                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                   Working Hours
                 </span>
               </div>

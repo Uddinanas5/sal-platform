@@ -156,17 +156,17 @@ export function InventoryClient(props: InventoryClientProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="border-cream-200">
+          <Card>
             {/* Table Header */}
             <div className="p-6 pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <Package className="w-5 h-5 text-sal-600" />
+                  <Package className="w-5 h-5 text-mint" />
                   <h2 className="text-lg font-heading font-semibold text-foreground">
                     Products
                   </h2>
                   {showLowStockOnly && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                    <span className="text-xs bg-amber-400/15 text-amber-300 border border-amber-400/25 px-2 py-0.5 rounded-full font-medium">
                       Low Stock Only
                     </span>
                   )}
@@ -217,7 +217,7 @@ export function InventoryClient(props: InventoryClientProps) {
                     placeholder="Search products by name..."
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
-                    className="pl-9 bg-cream-50 border-cream-200 focus:bg-white"
+                    className="pl-9 bg-cream-50 border-cream-200 focus:bg-white/15"
                   />
                 </div>
                 <Select

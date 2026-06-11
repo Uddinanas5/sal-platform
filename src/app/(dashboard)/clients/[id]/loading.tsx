@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       {/* Breadcrumb */}
       <div className="h-12 bg-card/80 backdrop-blur-sm border-b border-cream-200 px-6 flex items-center">
         <div className="flex items-center gap-2">
@@ -16,7 +16,7 @@ export default function Loading() {
 
       <div className="p-6 space-y-6">
         {/* Header Card with avatar, name, contact, and action buttons */}
-        <div className="bg-card border border-cream-200 rounded-xl p-6">
+        <div className="glass-tile rounded-tile p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-5">
               <Skeleton className="w-20 h-20 rounded-full" />
@@ -46,7 +46,7 @@ export default function Loading() {
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="bg-card border border-cream-200 rounded-xl p-4 flex items-center gap-3"
+              className="glass-tile rounded-tile p-4 flex items-center gap-3"
             >
               <Skeleton className="h-10 w-10 rounded-xl" />
               <div className="space-y-1">
@@ -59,14 +59,14 @@ export default function Loading() {
 
         {/* Tabs */}
         <div className="space-y-6">
-          <div className="bg-card border border-cream-200 rounded-lg p-1 flex items-center gap-1 w-fit">
+          <div className="glass-tile rounded-lg p-1 flex items-center gap-1 w-fit">
             {["Overview", "Appointments", "Purchases", "Notes & Files", "Loyalty"].map((tab) => (
               <Skeleton key={tab} className="h-8 w-24 rounded-md" />
             ))}
           </div>
 
           {/* Tab content placeholder */}
-          <div className="bg-card border border-cream-200 rounded-xl p-6 space-y-4">
+          <div className="glass-tile rounded-tile p-6 space-y-4">
             <Skeleton className="h-5 w-36" />
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (

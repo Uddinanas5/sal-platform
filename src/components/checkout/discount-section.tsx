@@ -60,18 +60,18 @@ export function DiscountSection({
   // If there's an active discount, show the applied state
   if (discount > 0) {
     return (
-      <div className="rounded-lg border border-sal-200 bg-sal-50/50 p-3">
+      <div className="rounded-lg border border-sal-200 bg-sal-50 p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Tag className="h-4 w-4 text-sal-600" />
-            <span className="text-sm font-medium text-sal-700">
+            <Tag className="h-4 w-4 text-mint" />
+            <span className="text-sm font-medium text-mint-soft">
               {discountType === "percentage"
                 ? `${discountValue}% off`
                 : `${formatCurrency(discountValue)} off`}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-sal-600">
+            <span className="text-sm font-semibold text-mint">
               -{formatCurrency(discount)}
             </span>
             <Button
@@ -126,12 +126,12 @@ export function DiscountSection({
           >
             <div className="space-y-3 pt-3">
               {/* Type selector */}
-              <div className="flex rounded-lg border bg-muted p-1">
+              <div className="flex rounded-lg border bg-white/[0.04] p-1">
                 <button
                   className={cn(
                     "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
                     localType === "percentage"
-                      ? "bg-background text-foreground shadow-sm"
+                      ? "bg-white/[0.12] text-foreground shadow-sm"
                       : "text-muted-foreground"
                   )}
                   onClick={() => setLocalType("percentage")}
@@ -143,7 +143,7 @@ export function DiscountSection({
                   className={cn(
                     "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
                     localType === "fixed"
-                      ? "bg-background text-foreground shadow-sm"
+                      ? "bg-white/[0.12] text-foreground shadow-sm"
                       : "text-muted-foreground"
                   )}
                   onClick={() => setLocalType("fixed")}

@@ -127,7 +127,7 @@ export function ClientNotesTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading flex items-center gap-2">
               <StickyNote className="w-4 h-4" />
@@ -222,7 +222,7 @@ export function ClientNotesTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
       >
-        <Card className="border-cream-200">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading flex items-center gap-2">
               Notes
@@ -251,7 +251,7 @@ export function ClientNotesTab({
                     key={note.id}
                     className="flex gap-3 pb-4 border-b border-cream-200 last:border-0 last:pb-0"
                   >
-                    <div className="w-8 h-8 shrink-0 rounded-full bg-sal-100 text-sal-700 text-xs font-semibold flex items-center justify-center">
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-sal-100 text-mint-soft text-xs font-semibold flex items-center justify-center">
                       {note.authorName ? getInitials(note.authorName) : "–"}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -269,7 +269,7 @@ export function ClientNotesTab({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-red-600"
+                            className="h-7 w-7 text-muted-foreground hover:text-red-400"
                             onClick={() => handleDelete(note.id)}
                             disabled={isPending && deletingId === note.id}
                             aria-label="Delete note"

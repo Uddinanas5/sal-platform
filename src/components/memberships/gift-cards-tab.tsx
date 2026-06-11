@@ -165,14 +165,14 @@ export function GiftCardsTab({ giftCards = [], stats = { totalGiftCardsSold: 0, 
             value: stats.totalGiftCardsSold,
             icon: Gift,
             iconBg: "bg-purple-500/10",
-            iconColor: "text-purple-600",
+            iconColor: "text-purple-400",
           },
           {
             label: "Outstanding Balance",
             value: formatCurrency(stats.outstandingGiftCardBalance),
             icon: DollarSign,
             iconBg: "bg-emerald-500/10",
-            iconColor: "text-emerald-600",
+            iconColor: "text-emerald-400",
           },
         ].map((stat, i) => (
           <motion.div
@@ -181,7 +181,7 @@ export function GiftCardsTab({ giftCards = [], stats = { totalGiftCardsSold: 0, 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
           >
-            <Card>
+            <Card variant="tile">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div>
@@ -274,7 +274,7 @@ export function GiftCardsTab({ giftCards = [], stats = { totalGiftCardsSold: 0, 
           </div>
           {table.getRowModel().rows.length === 0 && (
             <EmptyState
-              icon={<Gift className="w-7 h-7 text-sal-600" />}
+              icon={<Gift className="w-7 h-7 text-mint" />}
               title="No gift cards found"
               description="Issue gift cards to clients for a convenient payment option."
             />

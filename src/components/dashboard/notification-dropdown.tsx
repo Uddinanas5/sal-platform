@@ -41,12 +41,12 @@ const notificationIcons: Record<Notification["type"], React.ElementType> = {
 }
 
 const notificationColors: Record<Notification["type"], string> = {
-  booking: "text-blue-500 bg-blue-500/10",
-  payment: "text-emerald-500 bg-emerald-500/10",
-  review: "text-amber-500 bg-amber-500/10",
-  cancellation: "text-red-500 bg-red-500/10",
-  inventory: "text-orange-500 bg-orange-500/10",
-  schedule: "text-purple-500 bg-purple-500/10",
+  booking: "text-blue-300 bg-blue-400/15",
+  payment: "text-emerald-300 bg-emerald-400/15",
+  review: "text-amber-300 bg-amber-400/15",
+  cancellation: "text-red-300 bg-red-400/15",
+  inventory: "text-orange-300 bg-orange-400/15",
+  schedule: "text-purple-300 bg-purple-400/15",
 }
 
 const notificationRoutes: Record<Notification["type"], string> = {
@@ -130,7 +130,7 @@ export function NotificationDropdown() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-auto px-2 py-1 text-xs text-sal-600 hover:text-sal-700"
+              className="h-auto px-2 py-1 text-xs text-mint hover:text-mint-soft"
               onClick={markAllRead}
             >
               Mark all read
@@ -159,8 +159,8 @@ export function NotificationDropdown() {
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
                   className={cn(
-                    "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-cream-50",
-                    !notification.read && "bg-sal-50/50"
+                    "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.06]",
+                    !notification.read && "bg-sal-50"
                   )}
                 >
                   <div
@@ -177,7 +177,7 @@ export function NotificationDropdown() {
                         {notification.title}
                       </p>
                       {!notification.read && (
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sal-500" />
+                        <span className="led led-mint" />
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
@@ -198,7 +198,7 @@ export function NotificationDropdown() {
             <div className="p-2">
               <Button
                 variant="ghost"
-                className="w-full text-sm text-sal-600 hover:text-sal-700 hover:bg-sal-50"
+                className="w-full text-sm text-mint hover:text-mint-soft hover:bg-sal-50"
                 onClick={markAllRead}
                 disabled={unreadCount === 0}
               >

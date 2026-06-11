@@ -31,7 +31,6 @@ const shortcutGroups = [
   {
     label: "General",
     shortcuts: [
-      { keys: ["D"], description: "Toggle dark mode" },
       { keys: ["Esc"], description: "Close dialog / panel" },
     ],
   },

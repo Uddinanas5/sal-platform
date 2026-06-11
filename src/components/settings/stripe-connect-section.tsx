@@ -91,7 +91,7 @@ export function StripeConnectSection({
   const getStatusBadge = () => {
     if (isConnected) {
       return (
-        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+        <Badge className="bg-green-400/15 text-green-300 border-green-400/25 hover:bg-green-400/15">
           <CheckCircle2 className="w-3 h-3 mr-1" />
           Connected
         </Badge>
@@ -99,7 +99,7 @@ export function StripeConnectSection({
     }
     if (isPending) {
       return (
-        <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+        <Badge className="bg-yellow-400/15 text-yellow-300 border-yellow-400/25 hover:bg-yellow-400/15">
           <Loader2 className="w-3 h-3 mr-1 animate-spin" />
           Pending Verification
         </Badge>
@@ -107,7 +107,7 @@ export function StripeConnectSection({
     }
     if (isRestricted) {
       return (
-        <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+        <Badge className="bg-red-400/15 text-red-300 border-red-400/25 hover:bg-red-400/15">
           <AlertCircle className="w-3 h-3 mr-1" />
           Action Required
         </Badge>
@@ -149,8 +149,8 @@ export function StripeConnectSection({
             // Not connected - show connect CTA
             <div className="space-y-6">
               <div className="grid md:grid-cols-3 gap-4">
-                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
-                  <Shield className="w-5 h-5 text-sal-500 mt-0.5" />
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-white/[0.06]">
+                  <Shield className="w-5 h-5 text-mint-strong mt-0.5" />
                   <div>
                     <p className="font-medium text-sm">Secure Payments</p>
                     <p className="text-xs text-muted-foreground">
@@ -158,8 +158,8 @@ export function StripeConnectSection({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
-                  <Zap className="w-5 h-5 text-sal-500 mt-0.5" />
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-white/[0.06]">
+                  <Zap className="w-5 h-5 text-mint-strong mt-0.5" />
                   <div>
                     <p className="font-medium text-sm">Fast Payouts</p>
                     <p className="text-xs text-muted-foreground">
@@ -167,8 +167,8 @@ export function StripeConnectSection({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
-                  <Wallet className="w-5 h-5 text-sal-500 mt-0.5" />
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-white/[0.06]">
+                  <Wallet className="w-5 h-5 text-mint-strong mt-0.5" />
                   <div>
                     <p className="font-medium text-sm">All Payment Types</p>
                     <p className="text-xs text-muted-foreground">
@@ -178,7 +178,7 @@ export function StripeConnectSection({
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border rounded-lg bg-card">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 glass-tile rounded-tile">
                 <div>
                   <p className="font-medium">Ready to accept payments?</p>
                   <p className="text-sm text-muted-foreground">
@@ -188,7 +188,7 @@ export function StripeConnectSection({
                 <Button
                   onClick={handleConnect}
                   disabled={isConnecting}
-                  className="bg-sal-500 hover:bg-sal-600 text-white shrink-0"
+                  className="shrink-0"
                 >
                   {isConnecting ? (
                     <>
@@ -219,14 +219,14 @@ export function StripeConnectSection({
           ) : isConnected ? (
             // Connected - show status and dashboard link
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50/50 border-green-200">
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-green-400/10 border-green-400/25">
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-8 h-8 text-green-600" />
+                  <CheckCircle2 className="w-8 h-8 text-green-400" />
                   <div>
-                    <p className="font-medium text-green-900">
+                    <p className="font-medium text-green-200">
                       Payments are active
                     </p>
-                    <p className="text-sm text-green-700">
+                    <p className="text-sm text-green-300">
                       You can accept card payments from clients
                     </p>
                   </div>
@@ -249,13 +249,13 @@ export function StripeConnectSection({
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 rounded-lg border bg-muted/30">
+                <div className="p-3 rounded-lg border border-white/10 bg-white/[0.06]">
                   <p className="text-xs text-muted-foreground">Account ID</p>
                   <p className="text-sm font-mono">{stripeAccountId}</p>
                 </div>
-                <div className="p-3 rounded-lg border bg-muted/30">
+                <div className="p-3 rounded-lg border border-white/10 bg-white/[0.06]">
                   <p className="text-xs text-muted-foreground">Status</p>
-                  <p className="text-sm font-medium text-green-600">Active</p>
+                  <p className="text-sm font-medium text-green-400">Active</p>
                 </div>
               </div>
             </div>
@@ -263,15 +263,15 @@ export function StripeConnectSection({
             // Pending or restricted - show action required
             <div className="space-y-4">
               <div className={`flex items-center justify-between p-4 border rounded-lg ${
-                isPending ? "bg-yellow-50/50 border-yellow-200" : "bg-red-50/50 border-red-200"
+                isPending ? "bg-yellow-400/10 border-yellow-400/25" : "bg-red-400/10 border-red-400/25"
               }`}>
                 <div className="flex items-center gap-3">
-                  <AlertCircle className={`w-8 h-8 ${isPending ? "text-yellow-600" : "text-red-600"}`} />
+                  <AlertCircle className={`w-8 h-8 ${isPending ? "text-yellow-400" : "text-red-400"}`} />
                   <div>
-                    <p className={`font-medium ${isPending ? "text-yellow-900" : "text-red-900"}`}>
+                    <p className={`font-medium ${isPending ? "text-yellow-200" : "text-red-200"}`}>
                       {isPending ? "Verification in progress" : "Action required"}
                     </p>
-                    <p className={`text-sm ${isPending ? "text-yellow-700" : "text-red-700"}`}>
+                    <p className={`text-sm ${isPending ? "text-yellow-300" : "text-red-300"}`}>
                       {isPending
                         ? "Your payment setup is being reviewed"
                         : "Please complete the required information"}
@@ -281,7 +281,7 @@ export function StripeConnectSection({
                 <Button
                   onClick={handleConnect}
                   disabled={isConnecting}
-                  className={isPending ? "bg-yellow-600 hover:bg-yellow-700" : "bg-red-600 hover:bg-red-700"}
+                  className={isPending ? "bg-none bg-yellow-600 hover:bg-yellow-700" : "bg-none bg-red-600 hover:bg-red-700"}
                 >
                   {isConnecting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

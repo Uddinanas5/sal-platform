@@ -18,7 +18,7 @@ interface BookingClientProps {
 
 export function BookingClient({ services, staff, businessSlug, businessName }: BookingClientProps) {
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen">
       <Header
         title="Online Booking"
         subtitle="Configure your online booking page and widget"
@@ -46,7 +46,7 @@ export function BookingClient({ services, staff, businessSlug, businessName }: B
             className="flex flex-col items-center"
           >
             <div className="sticky top-24">
-              <p className="text-sm font-semibold text-muted-foreground text-center mb-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint text-center mb-4">
                 Live Preview
               </p>
               <BookingPreview services={services} staff={staff} businessName={businessName} />

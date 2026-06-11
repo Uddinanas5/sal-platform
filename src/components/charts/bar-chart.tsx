@@ -13,8 +13,14 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-
-const SAL_COLORS = ["#059669", "#34d399", "#047857", "#6ee7b7", "#10b981", "#a7f3d0"]
+import {
+  CHART_COLORS,
+  CHART_GRID,
+  CHART_TICK,
+  CHART_TOOLTIP_STYLE,
+  CHART_TOOLTIP_ITEM,
+  CHART_TOOLTIP_LABEL,
+} from "./chart-theme"
 
 interface BarChartProps {
   data: Record<string, unknown>[]
@@ -45,7 +51,7 @@ export function BarChartComponent({
   showGrid = true,
   formatValue,
 }: BarChartProps) {
-  const barColors = colors || (color ? [color] : SAL_COLORS)
+  const barColors = colors || (color ? [color] : CHART_COLORS)
 
   return (
     <Card className={cn("", className)}>
@@ -62,29 +68,27 @@ export function BarChartComponent({
             layout={layout === "vertical" ? "vertical" : "horizontal"}
             margin={{ top: 5, right: 10, left: 10, bottom: 0 }}
           >
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e2e0d5" vertical={layout !== "vertical"} horizontal={layout === "vertical" || true} />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={layout !== "vertical"} horizontal={layout === "vertical" || true} />}
             {layout === "vertical" ? (
               <>
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#888" }} tickFormatter={formatValue} />
-                <YAxis type="category" dataKey={xAxisKey} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#888" }} width={100} />
+                <XAxis type="number" axisLine={false} tickLine={false} tick={CHART_TICK} tickFormatter={formatValue} />
+                <YAxis type="category" dataKey={xAxisKey} axisLine={false} tickLine={false} tick={CHART_TICK} width={100} />
               </>
             ) : (
               <>
-                <XAxis dataKey={xAxisKey} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#888" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#888" }} tickFormatter={formatValue} />
+                <XAxis dataKey={xAxisKey} axisLine={false} tickLine={false} tick={CHART_TICK} />
+                <YAxis axisLine={false} tickLine={false} tick={CHART_TICK} tickFormatter={formatValue} />
               </>
             )}
             <Tooltip
-              contentStyle={{
-                backgroundColor: "white",
-                border: "1px solid #e2e0d5",
-                borderRadius: "8px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-              }}
+              cursor={{ fill: "rgba(255,255,255,0.06)" }}
+              contentStyle={CHART_TOOLTIP_STYLE}
+              itemStyle={CHART_TOOLTIP_ITEM}
+              labelStyle={CHART_TOOLTIP_LABEL}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               formatter={(value: any) => [formatValue ? formatValue(value) : value, dataKey]}
             />
-            <Bar dataKey={dataKey} radius={[4, 4, 0, 0]} maxBarSize={50}>
+            <Bar dataKey={dataKey} radius={[7, 7, 0, 0]} maxBarSize={50}>
               {data.map((_, index) => (
                 <Cell key={index} fill={barColors[index % barColors.length]} />
               ))}

@@ -200,11 +200,11 @@ export function WaitlistPanel({
               transition={{ type: "spring", damping: 26, stiffness: 300 }}
               className={cn(
                 "fixed right-0 top-0 bottom-0 z-50 flex flex-col",
-                "w-full sm:w-[380px] bg-background border-l border-cream-200 dark:border-muted shadow-2xl"
+                "w-full sm:w-[380px] bg-background border-l border-cream-200 shadow-2xl"
               )}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200 dark:border-muted bg-card shrink-0">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200 bg-white/[0.04] shrink-0">
                 <div className="flex items-center gap-2.5">
                   <h2 className="text-base font-heading font-semibold text-foreground">
                     Waitlist
@@ -238,7 +238,7 @@ export function WaitlistPanel({
 
               {/* Summary counts */}
               {entries.length > 0 && (
-                <div className="flex items-center gap-4 px-5 py-2 bg-cream-50 dark:bg-muted/30 border-b border-cream-100 dark:border-muted text-xs text-muted-foreground shrink-0">
+                <div className="flex items-center gap-4 px-5 py-2 bg-cream-50 border-b border-cream-100 text-xs text-muted-foreground shrink-0">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-amber-400" />
                     {waitingCount} waiting
@@ -255,7 +255,7 @@ export function WaitlistPanel({
                 <div className="px-4 py-3">
                   {entries.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <div className="w-12 h-12 rounded-full bg-cream-100 dark:bg-muted flex items-center justify-center mb-3">
+                      <div className="w-12 h-12 rounded-full bg-cream-100 flex items-center justify-center mb-3">
                         <ListX className="h-6 w-6 text-muted-foreground/50" />
                       </div>
                       <p className="text-sm font-medium text-foreground">
@@ -302,7 +302,7 @@ export function WaitlistPanel({
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, x: 40, scale: 0.95 }}
                               transition={{ duration: 0.2 }}
-                              className="group relative rounded-xl border border-cream-200 dark:border-muted bg-card p-3.5 hover:shadow-sm transition-shadow"
+                              className="group relative glass-tile rounded-tile p-3.5 transition-shadow"
                             >
                               {/* Top row: client + status */}
                               <div className="flex items-start justify-between gap-2 mb-2">
@@ -368,7 +368,7 @@ export function WaitlistPanel({
                                   </p>
                                 )}
                                 {entry.status === "notified" && entry.notifiedAt && (
-                                  <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">
+                                  <p className="text-[10px] text-sky-300 mt-0.5">
                                     Notified{" "}
                                     {formatDistanceToNow(new Date(entry.notifiedAt), {
                                       addSuffix: true,

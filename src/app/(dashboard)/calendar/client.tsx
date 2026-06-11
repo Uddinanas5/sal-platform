@@ -471,7 +471,7 @@ export function CalendarClient(props: CalendarClientProps) {
 
       <div className="flex-1 flex flex-col p-4 gap-4">
         {/* Calendar header with controls */}
-        <Card className="overflow-hidden border-cream-200 shadow-sm">
+        <Card className="overflow-hidden">
           <CalendarHeader
             currentDate={selectedDate}
             view={view}
@@ -497,7 +497,7 @@ export function CalendarClient(props: CalendarClientProps) {
             onStatusFilterChange={setStatusFilter}
           />
           {/* Waitlist + block-time quick-access bar */}
-          <div className="flex items-center justify-between px-3 py-1.5 sm:px-4 sm:py-2 bg-cream-50 dark:bg-muted/30 border-t border-cream-200">
+          <div className="flex items-center justify-between px-3 py-1.5 sm:px-4 sm:py-2 bg-cream-50 border-t border-cream-200">
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
@@ -508,7 +508,7 @@ export function CalendarClient(props: CalendarClientProps) {
                 <ListChecks className="h-3.5 w-3.5" />
                 Waitlist
                 {(props.waitlistEntries?.length ?? 0) > 0 && (
-                  <span className="bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center font-semibold">
+                  <span className="bg-amber-400/15 text-amber-300 border border-amber-400/25 text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center font-semibold">
                     {props.waitlistEntries?.length}
                   </span>
                 )}
@@ -527,7 +527,7 @@ export function CalendarClient(props: CalendarClientProps) {
         </Card>
 
         {/* Calendar grid */}
-        <Card className="flex-1 overflow-hidden border-cream-200 shadow-sm flex flex-col min-h-[600px]">
+        <Card className="flex-1 overflow-hidden flex flex-col min-h-[600px]">
           <DndContext
             sensors={sensors}
             onDragStart={handleDragStart}
@@ -555,8 +555,8 @@ export function CalendarClient(props: CalendarClientProps) {
                     className={cn(
                       "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 transition-all",
                       mobileStaffIndex === i
-                        ? "bg-card text-foreground shadow-sm border border-cream-200"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "bg-white/[0.14] text-white border border-white/15"
+                        : "text-ink-soft hover:text-foreground hover:bg-white/[0.08]"
                     )}
                   >
                     <div

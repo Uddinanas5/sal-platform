@@ -59,28 +59,28 @@ export function MembershipsClient(props: MembershipsClientProps) {
               label: "Total Members",
               value: stats.totalMembers,
               icon: Users,
-              color: "text-blue-600",
+              color: "text-blue-400",
               bg: "bg-blue-500/10",
             },
             {
               label: "Active Members",
               value: stats.activeMembers,
               icon: CreditCard,
-              color: "text-emerald-600",
+              color: "text-emerald-400",
               bg: "bg-emerald-500/10",
             },
             {
               label: "Monthly Revenue",
               value: formatCurrency(stats.mrr),
               icon: DollarSign,
-              color: "text-amber-600",
+              color: "text-amber-400",
               bg: "bg-amber-500/10",
             },
             {
               label: "Churn Rate",
               value: `${stats.churnRate}%`,
               icon: TrendingDown,
-              color: "text-red-600",
+              color: "text-red-400",
               bg: "bg-red-500/10",
             },
           ].map((stat, i) => (
@@ -89,8 +89,8 @@ export function MembershipsClient(props: MembershipsClientProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              whileHover={{ y: -2, boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}
-              className="bg-card rounded-2xl p-4 border border-cream-200 shadow-sm card-warm transition-shadow"
+              whileHover={{ y: -2, boxShadow: "0 4px 12px rgba(0, 9, 5, 0.35)" }}
+              className="glass-tile rounded-tile p-4 card-warm transition-shadow"
             >
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${stat.bg}`}>
