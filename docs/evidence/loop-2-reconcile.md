@@ -56,6 +56,18 @@ one-line, behavior-preserving test-helper change. No production code uses `hour1
 (verified by grep across `src/`, `tests/`, `scripts/`). Re-verified locally under default
 TZ and `TZ=Pacific/Kiritimati` (11/11 pass).
 
+## Pre-existing Vercel preview failure found and fixed (not caused by the merge)
+
+Preview deployments for this branch (and #39, which carries the same commits) were
+failing in ~5s with `ERR_PNPM_OUTDATED_LOCKFILE` (`pnpm install` exit 1, buildStep).
+Root cause: harden added dependencies (`@sentry/nextjs`, `@upstash/ratelimit`,
+`@upstash/redis`, `pino`) and updated `package-lock.json` but never regenerated
+`pnpm-lock.yaml` — and Vercel installs with pnpm (frozen lockfile). main and the frost
+branch deployed fine because they don't carry the new deps. Fix:
+`pnpm install --lockfile-only`, then validated with `pnpm install --frozen-lockfile
+--lockfile-only` in a clean dir. This failure predates the merge (previews were red 16h+
+before it).
+
 ## Notes for humans
 
 - PR #39 (`loop/golden-path`) branched off harden and targets main; it should pick up
