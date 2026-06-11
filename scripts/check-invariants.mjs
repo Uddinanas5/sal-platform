@@ -18,6 +18,7 @@ import { join } from "node:path"
 // id · plain-English label · why it matters · test-file substrings that prove it
 const INVARIANTS = [
   { id: "no-cross-tenant-read", label: "One salon can't see another's data", why: "A cross-tenant leak ends the business", match: ["cross-tenant/", "group-a-tenant-authz", "group-security-access-control", "staff-cross-tenant", "v1-services-cross-tenant", "memberships-queries-scoping", "visit-notes-cross-tenant", "reports-staff-cross-tenant", "ownership-assert-refs"] },
+  { id: "tenant-guard-fail-closed", label: "A forgotten tenant filter is caught, not leaked", why: "The fail-closed backstop for cross-tenant queries", match: ["tenant-guard"] },
   { id: "no-double-booking", label: "Two clients can't take the same slot", why: "Double-booking is the core booking failure", match: ["booking-safety-waitlist", "group-c-booking-limits", "group-oversell"] },
   { id: "money-server-authoritative", label: "Prices/tax come from the server, not the browser", why: "A client must never set their own price", match: ["checkout-price-tampering"] },
   { id: "checkout-records-commission", label: "Every sale records staff commission/payroll", why: "Silent $0 payroll is a real past bug", match: ["checkout-commission"] },
