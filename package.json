@@ -15,6 +15,7 @@
     "check:transactions": "node scripts/check-transaction-side-effects.mjs",
     "check:db": "node scripts/db-health-check.mjs",
     "check:orphans": "node scripts/orphan-sweep.mjs",
+    "check:restore": "node scripts/verify-restore.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:tz": "TZ=UTC vitest run && TZ=America/New_York vitest run",
