@@ -14,12 +14,16 @@
     "check:migrations": "node scripts/check-migrations.mjs",
     "check:transactions": "node scripts/check-transaction-side-effects.mjs",
     "check:db": "node scripts/db-health-check.mjs",
+    "check:orphans": "node scripts/orphan-sweep.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:tz": "TZ=UTC vitest run && TZ=America/New_York vitest run",
     "check:invariants": "node scripts/check-invariants.mjs",
     "check:fake-success": "node scripts/check-fake-success.mjs",
-    "trust": "node scripts/trust-report.mjs"
+    "test:all": "node scripts/test-all.mjs",
+    "trust": "node scripts/trust-report.mjs",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
+    "stripe:trigger": "stripe trigger"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
