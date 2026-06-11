@@ -1,13 +1,13 @@
 # SAL Trust Board
 
-**Overall: 🟢 HEALTHY** · generated 2026-06-11 06:01 UTC · run `npm run trust` to refresh.
+**Overall: 🟢 HEALTHY** · generated 2026-06-11 07:19 UTC · run `npm run trust` to refresh.
 
 > How to read this: 🟢 = proven safe by an automatic test. 🔴 = needs attention.
 > You do not need to read code — read this board.
 
 ## The numbers
-- **Tests:** 498/498 passing
-- **Business rules proven (invariants):** 13/13 green
+- **Tests:** 527/527 passing
+- **Business rules proven (invariants):** 14/14 green
 - **Possible "fake button" candidates to review:** 6 (a watchlist, not necessarily bugs)
 - **Error monitoring (Sentry):** 🟢 wired
 - **Abuse protection (rate limiting):** 🟢 wired
@@ -26,6 +26,7 @@
 | 🟢 | Times are right in the salon's timezone | 3 test file(s) pass |
 | 🟢 | No session = no data, no writes | 1 test file(s) pass |
 | 🟢 | Error reports never leak client data/secrets | 1 test file(s) pass |
+| 🟢 | Logs never leak secrets/PII | 1 test file(s) pass |
 | 🟢 | A slow email never breaks a booking/checkout | 1 test file(s) pass |
 | 🟢 | Login/booking are rate-limited (abuse protection) | 1 test file(s) pass |
 

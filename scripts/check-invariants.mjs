@@ -28,6 +28,7 @@ const INVARIANTS = [
   { id: "timezone-correct", label: "Times are right in the salon's timezone", why: "A UTC bug once shifted a salon by 4-5h", match: ["scheduling-timezone", "availability-timezone", "timezone-write-paths"] },
   { id: "auth-denies-unauthed", label: "No session = no data, no writes", why: "Auth boundary must hold on the server", match: ["session-expiry-denies"] },
   { id: "no-pii-to-sentry", label: "Error reports never leak client data/secrets", why: "Observability must not become a data leak", match: ["sentry-scrub"] },
+  { id: "logs-never-leak", label: "Logs never leak secrets/PII", why: "Structured logs must redact tokens/emails/cards", match: ["structured-logging"] },
   { id: "email-never-breaks-request", label: "A slow email never breaks a booking/checkout", why: "Email is best-effort, must not throw", match: ["email-resilience"] },
   { id: "rate-limit-enforced", label: "Login/booking are rate-limited (abuse protection)", why: "Brute-force + spam protection", match: ["rate-limit"] },
 ]

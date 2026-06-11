@@ -10,7 +10,13 @@ import { STAFF_BLOCKED_ROUTES, STAFF_LIST_BLOCKED_ROUTES } from "@/lib/permissio
 function continueWithPathname(req: NextRequest): Response {
   const requestHeaders = new Headers(req.headers)
   requestHeaders.set("x-pathname", req.nextUrl.pathname)
-  return NextResponse.next({ request: { headers: requestHeaders } })
+  // Stamp a request id (reuse an upstream one if present) so structured logs +
+  // the response can be correlated for a single request.
+  const requestId = req.headers.get("x-request-id") || crypto.randomUUID()
+  requestHeaders.set("x-request-id", requestId)
+  const res = NextResponse.next({ request: { headers: requestHeaders } })
+  res.headers.set("x-request-id", requestId)
+  return res
 }
 
 const { auth } = NextAuth(authConfig)
