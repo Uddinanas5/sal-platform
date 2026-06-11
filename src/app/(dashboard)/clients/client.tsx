@@ -116,7 +116,7 @@ function ClientCard({
               <div className="flex items-center gap-1.5">
                 <h3 className="font-semibold text-foreground">{client.name}</h3>
                 {client.totalVisits <= 1 && (
-                  <Badge className="bg-sal-100 text-sal-700 hover:bg-sal-100 text-[9px] px-1 py-0 font-semibold">
+                  <Badge className="bg-sal-100 text-mint-soft hover:bg-sal-100 text-[9px] px-1 py-0 font-semibold">
                     NEW
                   </Badge>
                 )}
@@ -209,7 +209,7 @@ function ClientCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs flex-1 border-sal-200 text-sal-600 hover:bg-sal-50"
+              className="h-7 text-xs flex-1 border-sal-200 text-mint hover:bg-sal-50"
               onClick={(e) => {
                 e.preventDefault()
                 cardRouter.push("/calendar")
@@ -275,9 +275,9 @@ function SortHeader({
       {label}
       {isActive ? (
         direction === "asc" ? (
-          <ArrowUp className="w-3.5 h-3.5 text-sal-600" />
+          <ArrowUp className="w-3.5 h-3.5 text-mint" />
         ) : (
-          <ArrowDown className="w-3.5 h-3.5 text-sal-600" />
+          <ArrowDown className="w-3.5 h-3.5 text-mint" />
         )
       ) : (
         <ArrowUpDown className="w-3.5 h-3.5 opacity-0 group-hover:opacity-50 transition-opacity" />
@@ -353,7 +353,7 @@ function ClientTable({
               animate={{ opacity: 1 }}
               transition={{ delay: index * 0.03 }}
               className={`border-b border-cream-200 hover:bg-cream-100 cursor-pointer transition-colors ${
-                selectedIds.has(client.id) ? "bg-sal-50/50" : ""
+                selectedIds.has(client.id) ? "bg-sal-50" : ""
               }`}
               onClick={() => router.push(`/clients/${client.id}`)}
             >
@@ -367,7 +367,7 @@ function ClientTable({
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
                     <AvatarImage src={client.avatar} />
-                    <AvatarFallback className="bg-sal-100 text-sal-700 text-sm">
+                    <AvatarFallback className="bg-sal-100 text-mint-soft text-sm">
                       {client.name.split(" ").map((n) => n[0]).join("")}
                     </AvatarFallback>
                   </Avatar>
@@ -395,7 +395,7 @@ function ClientTable({
               )}
               {visibleColumns.has("spent") && (
                 <td className="py-4 px-4">
-                  <span className="font-medium text-sal-600">
+                  <span className="font-medium text-mint">
                     {formatCurrency(client.totalSpent)}
                   </span>
                 </td>
@@ -616,7 +616,7 @@ export function ClientsClient(props: ClientsClientProps) {
               <Card className="border-cream-200">
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-sal-100">
-                    <stat.icon className="w-5 h-5 text-sal-600" />
+                    <stat.icon className="w-5 h-5 text-mint" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -879,7 +879,7 @@ export function ClientsClient(props: ClientsClientProps) {
 
         {filteredClients.length === 0 && (
           <EmptyState
-            icon={<Users className="w-8 h-8 text-sal-600" />}
+            icon={<Users className="w-8 h-8 text-mint" />}
             title="No clients found"
             description="No clients match your current search or filter. Try adjusting your criteria or add a new client."
             action={{

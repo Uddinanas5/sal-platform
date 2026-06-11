@@ -368,7 +368,7 @@ export function WaitlistPanel({
                                   </p>
                                 )}
                                 {entry.status === "notified" && entry.notifiedAt && (
-                                  <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">
+                                  <p className="text-[10px] text-blue-400 mt-0.5">
                                     Notified{" "}
                                     {formatDistanceToNow(new Date(entry.notifiedAt), {
                                       addSuffix: true,

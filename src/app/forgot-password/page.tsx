@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
                   Try a different email
                 </Button>
                 <Link href="/login" className="block">
-                  <Button variant="ghost" className="w-full text-sal-600">
+                  <Button variant="ghost" className="w-full text-mint">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Sign In
                   </Button>
@@ -111,7 +111,7 @@ export default function ForgotPasswordPage() {
               <div className="text-center">
                 <Link
                   href="/login"
-                  className="inline-flex items-center text-sm text-muted-foreground hover:text-sal-600 transition-colors"
+                  className="inline-flex items-center text-sm text-muted-foreground hover:text-mint transition-colors"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 mr-1" />
                   Back to Sign In

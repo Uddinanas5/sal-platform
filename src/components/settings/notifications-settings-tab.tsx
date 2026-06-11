@@ -117,7 +117,7 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Mail className="w-5 h-5 text-sal-500" />
+              <Mail className="w-5 h-5 text-mint-strong" />
               Email Notifications
             </CardTitle>
             <CardDescription>
@@ -211,7 +211,7 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <MessageSquare className="w-5 h-5 text-sal-500" />
+              <MessageSquare className="w-5 h-5 text-mint-strong" />
               SMS Notifications
             </CardTitle>
             <CardDescription>
@@ -235,7 +235,7 @@ export function NotificationsSettingsTab({ initialSettings }: NotificationsSetti
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <BellRing className="w-5 h-5 text-sal-500" />
+              <BellRing className="w-5 h-5 text-mint-strong" />
               Internal Alerts
             </CardTitle>
             <CardDescription>

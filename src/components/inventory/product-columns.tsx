@@ -150,13 +150,13 @@ export function getProductColumns({
         let label: string
 
         if (stock <= reorder / 2) {
-          colorClasses = "bg-red-500/10 text-red-700 dark:text-red-300"
+          colorClasses = "bg-red-500/10 text-red-300"
           label = "Critical"
         } else if (stock <= reorder) {
-          colorClasses = "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+          colorClasses = "bg-amber-500/10 text-amber-300"
           label = "Low"
         } else {
-          colorClasses = "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+          colorClasses = "bg-emerald-500/10 text-emerald-300"
           label = "Good"
         }
 
@@ -226,7 +226,7 @@ export function getProductColumns({
               variant="ghost"
               size="sm"
               onClick={() => onAdjustStock(product)}
-              className="h-8 text-xs gap-1 text-muted-foreground hover:text-sal-700"
+              className="h-8 text-xs gap-1 text-muted-foreground hover:text-mint-soft"
             >
               <PackagePlus className="w-3.5 h-3.5" />
               Adjust Stock
@@ -235,7 +235,7 @@ export function getProductColumns({
               variant="ghost"
               size="icon"
               onClick={() => onEditProduct(product)}
-              className="h-8 w-8 text-muted-foreground hover:text-sal-700"
+              className="h-8 w-8 text-muted-foreground hover:text-mint-soft"
               aria-label="Edit product"
             >
               <Pencil className="w-3.5 h-3.5" />

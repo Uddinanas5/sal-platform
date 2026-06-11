@@ -146,9 +146,9 @@ export function ResourceDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {form.type === "room" ? (
-              <DoorOpen className="w-5 h-5 text-sal-500" />
+              <DoorOpen className="w-5 h-5 text-mint-strong" />
             ) : (
-              <Wrench className="w-5 h-5 text-sal-500" />
+              <Wrench className="w-5 h-5 text-mint-strong" />
             )}
             {isEditing ? "Edit Resource" : "Add Resource"}
           </DialogTitle>

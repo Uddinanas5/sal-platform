@@ -54,7 +54,7 @@ function BookingUnavailable({ businessName }: { businessName?: string }) {
         </div>
         <Link
           href="/"
-          className="inline-flex items-center justify-center rounded-lg border border-sal-500 px-6 py-2.5 text-sm font-medium text-sal-600 hover:bg-sal-50 transition-colors"
+          className="inline-flex items-center justify-center rounded-lg border border-sal-500 px-6 py-2.5 text-sm font-medium text-mint hover:bg-sal-50 transition-colors"
         >
           Go home
         </Link>

@@ -133,11 +133,11 @@ export function CalendarHeader({
                 variant="ghost"
                 className="gap-1.5 font-heading font-semibold text-foreground text-sm sm:text-base hover:bg-cream-100 px-1.5 sm:px-2 min-w-0"
               >
-                <CalendarDays className="h-4 w-4 text-sal-500 shrink-0" />
+                <CalendarDays className="h-4 w-4 text-mint-strong shrink-0" />
                 <span className="hidden sm:inline truncate">{dateLabelFull}</span>
                 <span className="sm:hidden truncate">{dateLabelShort}</span>
                 {isToday && currentTime && (
-                  <span className="text-xs font-normal text-sal-600 bg-sal-50 rounded-md px-1.5 py-0.5 ml-1 shrink-0">
+                  <span className="text-xs font-normal text-mint bg-sal-50 rounded-md px-1.5 py-0.5 ml-1 shrink-0">
                     {currentTime}
                   </span>
                 )}
@@ -221,7 +221,7 @@ export function CalendarHeader({
                   size="sm"
                   className={cn(
                     "h-8 sm:h-9 text-xs sm:text-sm gap-1.5",
-                    statusFilter && statusFilter.size > 0 && "border-sal-300 bg-sal-50 text-sal-700"
+                    statusFilter && statusFilter.size > 0 && "border-sal-300 bg-sal-50 text-mint-soft"
                   )}
                 >
                   <Filter className="h-3.5 w-3.5" />
@@ -270,7 +270,7 @@ export function CalendarHeader({
                 {statusFilter && statusFilter.size > 0 && (
                   <button
                     onClick={() => onStatusFilterChange(new Set())}
-                    className="w-full text-xs text-sal-600 hover:text-sal-800 mt-2 py-1"
+                    className="w-full text-xs text-mint hover:text-ink mt-2 py-1"
                   >
                     Clear all filters
                   </button>

@@ -52,7 +52,7 @@ export function QuickSaleButton({ onAddQuickSale }: QuickSaleButtonProps) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-sal-500" />
+              <Zap className="h-5 w-5 text-mint-strong" />
               Quick Sale
             </DialogTitle>
             <DialogDescription>

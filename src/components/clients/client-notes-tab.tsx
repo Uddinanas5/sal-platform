@@ -251,7 +251,7 @@ export function ClientNotesTab({
                     key={note.id}
                     className="flex gap-3 pb-4 border-b border-cream-200 last:border-0 last:pb-0"
                   >
-                    <div className="w-8 h-8 shrink-0 rounded-full bg-sal-100 text-sal-700 text-xs font-semibold flex items-center justify-center">
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-sal-100 text-mint-soft text-xs font-semibold flex items-center justify-center">
                       {note.authorName ? getInitials(note.authorName) : "–"}
                     </div>
                     <div className="flex-1 min-w-0">

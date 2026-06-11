@@ -93,8 +93,8 @@ function LoginForm() {
         </CardHeader>
         <CardContent>
           {isInvited && (
-            <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-sal-50 border border-sal-200 text-sal-800">
-              <CheckCircle2 className="w-4 h-4 text-sal-600 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-sal-50 border border-sal-200 text-ink">
+              <CheckCircle2 className="w-4 h-4 text-mint flex-shrink-0" />
               <p className="text-sm">Account created! Sign in with your new credentials.</p>
             </div>
           )}
@@ -155,7 +155,7 @@ function LoginForm() {
             <div className="text-right">
               <Link
                 href="/forgot-password"
-                className="text-sm text-sal-600 hover:text-sal-700"
+                className="text-sm text-mint hover:text-mint-soft"
               >
                 Forgot password?
               </Link>
@@ -170,7 +170,7 @@ function LoginForm() {
             <span className="text-sm text-muted-foreground">Don&apos;t have an account? </span>
             <Link
               href="/register"
-              className="text-sm text-sal-600 hover:text-sal-700 font-medium"
+              className="text-sm text-mint hover:text-mint-soft font-medium"
             >
               Create an account
             </Link>

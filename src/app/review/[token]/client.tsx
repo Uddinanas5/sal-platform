@@ -35,7 +35,7 @@ export function ReviewForm({ token }: ReviewFormProps) {
 
   if (submitted) {
     return (
-      <div className="rounded-lg border border-sal-100 bg-sal-50 p-5 text-sm text-sal-900">
+      <div className="rounded-lg border border-sal-100 bg-sal-50 p-5 text-sm text-ink">
         {message}
       </div>
     )

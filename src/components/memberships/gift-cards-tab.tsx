@@ -274,7 +274,7 @@ export function GiftCardsTab({ giftCards = [], stats = { totalGiftCardsSold: 0, 
           </div>
           {table.getRowModel().rows.length === 0 && (
             <EmptyState
-              icon={<Gift className="w-7 h-7 text-sal-600" />}
+              icon={<Gift className="w-7 h-7 text-mint" />}
               title="No gift cards found"
               description="Issue gift cards to clients for a convenient payment option."
             />

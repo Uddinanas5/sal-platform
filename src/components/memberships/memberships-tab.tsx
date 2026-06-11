@@ -356,7 +356,7 @@ export function MembershipsTab({ members = [], stats = { totalMembers: 0, active
             </div>
             {table.getRowModel().rows.length === 0 && (
               <EmptyState
-                icon={<Users className="w-7 h-7 text-sal-600" />}
+                icon={<Users className="w-7 h-7 text-mint" />}
                 title="No members found"
                 description="When clients subscribe to membership plans, they'll appear here."
               />

@@ -142,7 +142,7 @@ export function StockAdjustmentDialog({
         {/* Product Info */}
         <div className="flex items-center gap-3 p-3 rounded-lg bg-cream-50 border border-cream-200">
           <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-sal-100">
-            <Package className="w-5 h-5 text-sal-600" />
+            <Package className="w-5 h-5 text-mint" />
           </div>
           <div className="flex-1">
             <p className="font-medium text-foreground">{product.name}</p>

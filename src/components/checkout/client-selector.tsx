@@ -66,10 +66,10 @@ export function ClientSelector({
   if (clientId && clientName) {
     const selectedClient = clients.find((c) => c.id === clientId)
     return (
-      <div className="flex items-center gap-3 rounded-lg border bg-sal-50/50 p-3">
+      <div className="flex items-center gap-3 rounded-lg border bg-sal-50 p-3">
         <Avatar className="h-10 w-10">
           <AvatarImage src={selectedClient?.avatar} />
-          <AvatarFallback className="bg-sal-100 text-sal-700 text-sm font-medium">
+          <AvatarFallback className="bg-sal-100 text-mint-soft text-sm font-medium">
             {getInitials(clientName)}
           </AvatarFallback>
         </Avatar>

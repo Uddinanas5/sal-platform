@@ -204,7 +204,7 @@ export function MonthView({
                       className={cn(
                         "inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 text-xs sm:text-sm rounded-full",
                         isToday &&
-                          "ring-2 ring-sal-400 font-bold text-sal-700 bg-sal-50",
+                          "ring-2 ring-sal-400 font-bold text-mint-soft bg-sal-50",
                         !isToday && isCurrentMonth && "text-foreground",
                         !isToday && !isCurrentMonth && "text-muted-foreground/70"
                       )}
@@ -240,7 +240,7 @@ export function MonthView({
                       </div>
                       {overflowCount > 0 && (
                         <button
-                          className="text-[10px] text-sal-600 font-medium leading-tight hover:text-sal-800 hover:underline transition-colors"
+                          className="text-[10px] text-mint font-medium leading-tight hover:text-ink hover:underline transition-colors"
                           onClick={(e) => {
                             e.stopPropagation()
                             onDayClick(day)

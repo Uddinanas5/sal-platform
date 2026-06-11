@@ -4,7 +4,7 @@ export default function Loading() {
   return (
     <div className="min-h-screen bg-cream">
       {/* Header skeleton */}
-      <div className="h-16 bg-white/80 border-b border-cream-200 px-6 flex items-center">
+      <div className="h-16 bg-card/80 border-b border-cream-200 px-6 flex items-center">
         <div className="space-y-2">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="h-3 w-48" />
@@ -13,7 +13,7 @@ export default function Loading() {
 
       <div className="p-6 space-y-6">
         {/* Alert bar */}
-        <div className="bg-white/80 border border-cream-200 rounded-xl p-4 flex items-center gap-3">
+        <div className="bg-card/80 border border-cream-200 rounded-xl p-4 flex items-center gap-3">
           <Skeleton className="h-5 w-5 rounded-full" />
           <Skeleton className="h-4 w-72" />
           <div className="flex-1" />
@@ -21,7 +21,7 @@ export default function Loading() {
         </div>
 
         {/* Filter bar */}
-        <div className="bg-white/80 border border-cream-200 rounded-xl p-4 flex items-center gap-4">
+        <div className="bg-card/80 border border-cream-200 rounded-xl p-4 flex items-center gap-4">
           <Skeleton className="h-9 w-64 rounded-md" />
           <Skeleton className="h-9 w-36 rounded-md" />
           <Skeleton className="h-9 w-36 rounded-md" />
@@ -30,7 +30,7 @@ export default function Loading() {
         </div>
 
         {/* Table */}
-        <div className="bg-white/80 border border-cream-200 rounded-xl overflow-hidden">
+        <div className="bg-card/80 border border-cream-200 rounded-xl overflow-hidden">
           {/* Table header */}
           <div className="border-b border-cream-200 px-5 py-3 flex items-center gap-4">
             <Skeleton className="h-4 w-8" />

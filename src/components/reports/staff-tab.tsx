@@ -63,7 +63,7 @@ const columns: ColumnDef<StaffMember>[] = [
     accessorKey: "commission",
     header: "Commission",
     cell: ({ row }) => (
-      <div className="text-sal-600 font-medium">
+      <div className="text-mint font-medium">
         {formatCurrency(row.getValue("commission"))}
       </div>
     ),

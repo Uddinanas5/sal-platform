@@ -366,7 +366,7 @@ function StepIndicator({ currentStep }: { currentStep: OnboardingStep }) {
                   isActive
                     ? "bg-sal-500 text-white shadow-md shadow-sal-500/20"
                     : isCompleted
-                    ? "bg-sal-500/10 text-sal-700 dark:text-sal-300"
+                    ? "bg-sal-500/10 text-sal-300"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
@@ -658,7 +658,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
   return (
     <div className="min-h-screen bg-cream dark:bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-cream/80 dark:bg-background/80 backdrop-blur-lg border-b border-cream-200 dark:border-border">
+      <header className="sticky top-0 z-30 bg-cream dark:bg-background/80 backdrop-blur-lg border-b border-cream-200 dark:border-border">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg bg-sal-500 flex items-center justify-center">
@@ -903,7 +903,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
                 {services.length === 0 && (
                   <Card className="border-dashed border-2 border-sal-500/30">
                     <CardContent className="p-6 text-center">
-                      <Sparkles className="w-8 h-8 text-sal-500 mx-auto mb-3" />
+                      <Sparkles className="w-8 h-8 text-mint-strong mx-auto mb-3" />
                       <h3 className="font-semibold text-foreground mb-1">
                         Start with a template
                       </h3>
@@ -1149,7 +1149,7 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
 
       {/* Bottom nav buttons (steps 1-3) */}
       {step < 4 && (
-        <div className="fixed bottom-0 inset-x-0 bg-cream/80 dark:bg-background/80 backdrop-blur-lg border-t border-cream-200 dark:border-border z-20">
+        <div className="fixed bottom-0 inset-x-0 bg-cream dark:bg-background/80 backdrop-blur-lg border-t border-cream-200 dark:border-border z-20">
           <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
             <Button
               variant="ghost"

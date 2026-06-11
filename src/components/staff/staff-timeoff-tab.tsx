@@ -50,10 +50,10 @@ interface StaffTimeOffTabProps {
 }
 
 const typeConfig: Record<TimeOffRow["type"], { label: string; color: string }> = {
-  vacation: { label: "Vacation", color: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
-  sick: { label: "Sick Leave", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
-  personal: { label: "Personal", color: "bg-purple-500/10 text-purple-700 dark:text-purple-300" },
-  other: { label: "Other", color: "bg-gray-500/10 text-gray-700 dark:text-gray-300" },
+  vacation: { label: "Vacation", color: "bg-blue-500/10 text-blue-300" },
+  sick: { label: "Sick Leave", color: "bg-amber-500/10 text-amber-300" },
+  personal: { label: "Personal", color: "bg-purple-500/10 text-purple-300" },
+  other: { label: "Other", color: "bg-gray-500/10 text-gray-300" },
 }
 
 // Status keys match the real TimeOffStatus enum (pending/approved/rejected).
@@ -61,17 +61,17 @@ const statusConfig: Record<TimeOffRow["status"], { label: string; icon: typeof C
   approved: {
     label: "Approved",
     icon: CheckCircle,
-    color: "bg-green-500/10 text-green-700 dark:text-green-300",
+    color: "bg-green-500/10 text-green-300",
   },
   pending: {
     label: "Pending",
     icon: AlertCircle,
-    color: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    color: "bg-amber-500/10 text-amber-300",
   },
   rejected: {
     label: "Denied",
     icon: XCircle,
-    color: "bg-red-500/10 text-red-700 dark:text-red-300",
+    color: "bg-red-500/10 text-red-300",
   },
 }
 

@@ -131,7 +131,7 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-sm text-sal-600">
+                <div className="flex items-center gap-2 text-sm text-mint">
                   <Sparkles className="w-4 h-4" />
                   <span className="font-medium">You have reached the highest tier!</span>
                 </div>
@@ -175,7 +175,7 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
                         <div className="flex items-center gap-2">
                           <span
                             className={`text-sm font-medium ${
-                              isCurrentTier ? "text-sal-600" : isAchieved ? "text-foreground" : "text-muted-foreground/70"
+                              isCurrentTier ? "text-mint" : isAchieved ? "text-foreground" : "text-muted-foreground/70"
                             }`}
                           >
                             {tier.name}
@@ -311,7 +311,7 @@ export function ClientLoyaltyTab({ loyaltyPoints, transactions }: ClientLoyaltyT
                       key={reward.id}
                       className={`p-3 rounded-lg border transition-colors ${
                         hasEnough
-                          ? "border-sal-200 bg-sal-50/50"
+                          ? "border-sal-200 bg-sal-50"
                           : "border-cream-200 bg-cream-50 opacity-60"
                       }`}
                     >

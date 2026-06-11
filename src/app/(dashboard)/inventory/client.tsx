@@ -161,7 +161,7 @@ export function InventoryClient(props: InventoryClientProps) {
             <div className="p-6 pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <Package className="w-5 h-5 text-sal-600" />
+                  <Package className="w-5 h-5 text-mint" />
                   <h2 className="text-lg font-heading font-semibold text-foreground">
                     Products
                   </h2>
@@ -217,7 +217,7 @@ export function InventoryClient(props: InventoryClientProps) {
                     placeholder="Search products by name..."
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
-                    className="pl-9 bg-cream-50 border-cream-200 focus:bg-white"
+                    className="pl-9 bg-cream-50 border-cream-200 focus:bg-white/15"
                   />
                 </div>
                 <Select

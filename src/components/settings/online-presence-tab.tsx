@@ -181,7 +181,7 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Globe className="w-5 h-5 text-sal-500" />
+              <Globe className="w-5 h-5 text-mint-strong" />
               Booking Page
             </CardTitle>
             <CardDescription>
@@ -249,7 +249,7 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <QrCode className="w-5 h-5 text-sal-500" />
+              <QrCode className="w-5 h-5 text-mint-strong" />
               QR Code
             </CardTitle>
             <CardDescription>
@@ -258,7 +258,7 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
           </CardHeader>
           <CardContent>
             <div className="flex items-start gap-8">
-              <div className="p-4 bg-white rounded-xl border-2 border-cream-200 shadow-sm">
+              <div className="p-4 bg-card rounded-xl border-2 border-cream-200 shadow-sm">
                 <QrCodePlaceholder />
               </div>
               <div className="space-y-4 flex-1">
@@ -300,7 +300,7 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Code2 className="w-5 h-5 text-sal-500" />
+              <Code2 className="w-5 h-5 text-mint-strong" />
               Widget Embed
             </CardTitle>
             <CardDescription>
@@ -388,7 +388,7 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Share2 className="w-5 h-5 text-sal-500" />
+              <Share2 className="w-5 h-5 text-mint-strong" />
               Social Links
             </CardTitle>
             <CardDescription>

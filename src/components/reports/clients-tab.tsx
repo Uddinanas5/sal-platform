@@ -87,13 +87,13 @@ export function ClientsTab({
         <Card className="border-cream-200">
           <CardContent className="p-6 flex flex-col items-center justify-center h-full">
             <div className="p-4 rounded-full bg-sal-100 mb-4">
-              <UserCheck className="w-8 h-8 text-sal-600" />
+              <UserCheck className="w-8 h-8 text-mint" />
             </div>
             <p className="text-sm text-muted-foreground font-medium mb-1">Retention Rate</p>
             <p className="text-4xl font-heading font-bold text-foreground">
               {retentionRate}%
             </p>
-            <div className="flex items-center gap-1 mt-2 text-sm text-sal-600">
+            <div className="flex items-center gap-1 mt-2 text-sm text-mint">
               <ArrowUpRight className="w-3.5 h-3.5" />
               <span className="font-medium">+2.3%</span>
               <span className="text-muted-foreground/70">vs last month</span>

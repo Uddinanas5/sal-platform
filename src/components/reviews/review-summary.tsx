@@ -131,7 +131,7 @@ export function ReviewSummary({ stats = defaultStats }: ReviewSummaryProps) {
         <Card className="border-cream-200 h-full">
           <CardContent className="p-6 flex flex-col items-center justify-center h-full">
             <div className="p-3 rounded-xl bg-sal-100 mb-3">
-              <MessageSquare className="w-6 h-6 text-sal-600" />
+              <MessageSquare className="w-6 h-6 text-mint" />
             </div>
             <p className="text-4xl font-heading font-bold text-foreground">
               {responseRate}%
@@ -154,7 +154,7 @@ export function ReviewSummary({ stats = defaultStats }: ReviewSummaryProps) {
         <Card className="border-cream-200 h-full">
           <CardContent className="p-6 flex flex-col items-center justify-center h-full">
             <div className="p-3 rounded-xl bg-sal-100 mb-3">
-              <TrendingUp className="w-6 h-6 text-sal-600" />
+              <TrendingUp className="w-6 h-6 text-mint" />
             </div>
             <p className="text-sm font-medium text-foreground mb-3">
               Rating Trend

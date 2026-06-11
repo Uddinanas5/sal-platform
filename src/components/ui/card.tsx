@@ -1,16 +1,29 @@
 import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
+
+// NOTE: glass-panel / glass-tile are custom classes that supply their own
+// background — tailwind-merge cannot dedupe them. Callers overriding the
+// background must also pass `bg-none` alongside their bg-* class.
+const cardVariants = cva("text-card-foreground", {
+  variants: {
+    variant: {
+      panel: "glass-panel rounded-panel",
+      tile: "glass-tile rounded-tile",
+    },
+  },
+  defaultVariants: {
+    variant: "panel",
+  },
+})
 
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof cardVariants>
+>(({ className, variant, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn(
-      "rounded-2xl border border-cream-200/80 bg-card text-card-foreground shadow-card",
-      className
-    )}
+    className={cn(cardVariants({ variant }), className)}
     {...props}
   />
 ))

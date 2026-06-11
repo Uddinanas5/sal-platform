@@ -60,18 +60,18 @@ export function DiscountSection({
   // If there's an active discount, show the applied state
   if (discount > 0) {
     return (
-      <div className="rounded-lg border border-sal-200 bg-sal-50/50 p-3">
+      <div className="rounded-lg border border-sal-200 bg-sal-50 p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Tag className="h-4 w-4 text-sal-600" />
-            <span className="text-sm font-medium text-sal-700">
+            <Tag className="h-4 w-4 text-mint" />
+            <span className="text-sm font-medium text-mint-soft">
               {discountType === "percentage"
                 ? `${discountValue}% off`
                 : `${formatCurrency(discountValue)} off`}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-sal-600">
+            <span className="text-sm font-semibold text-mint">
               -{formatCurrency(discount)}
             </span>
             <Button

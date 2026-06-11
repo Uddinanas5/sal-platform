@@ -39,10 +39,10 @@ interface CampaignCardProps {
 }
 
 const typeBadgeColors: Record<string, string> = {
-  email: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  sms: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  push: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
-  both: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  email: "bg-blue-500/10 text-blue-300",
+  sms: "bg-emerald-500/10 text-emerald-300",
+  push: "bg-purple-500/10 text-purple-300",
+  both: "bg-amber-500/10 text-amber-300",
 }
 
 const statusDotColors: Record<string, string> = {
@@ -56,11 +56,11 @@ const statusDotColors: Record<string, string> = {
 
 const statusBadgeColors: Record<string, string> = {
   draft: "bg-cream-100 text-foreground dark:bg-muted",
-  scheduled: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  sent: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  scheduled: "bg-blue-500/10 text-blue-300",
+  active: "bg-emerald-500/10 text-emerald-300",
+  sent: "bg-emerald-500/10 text-emerald-300",
   completed: "bg-cream-100 text-muted-foreground dark:bg-muted",
-  paused: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  paused: "bg-amber-500/10 text-amber-300",
 }
 
 export function CampaignCard({ campaign, index, onView, onEdit, onDuplicate, onSend, sending }: CampaignCardProps) {

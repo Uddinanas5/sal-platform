@@ -117,7 +117,7 @@ export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps)
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <CalendarClock className="w-5 h-5 text-sal-500" />
+              <CalendarClock className="w-5 h-5 text-mint-strong" />
               Booking Rules
             </CardTitle>
             <CardDescription>
@@ -214,7 +214,7 @@ export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps)
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Banknote className="w-5 h-5 text-sal-500" />
+              <Banknote className="w-5 h-5 text-mint-strong" />
               Deposit Settings
             </CardTitle>
             <CardDescription>
@@ -297,7 +297,7 @@ export function BookingSettingsTab({ initialSettings }: BookingSettingsTabProps)
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <FileText className="w-5 h-5 text-sal-500" />
+              <FileText className="w-5 h-5 text-mint-strong" />
               Booking Form
             </CardTitle>
             <CardDescription>

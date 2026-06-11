@@ -37,7 +37,7 @@ function useCountUp(target: number, duration = 1000, delay = 0) {
 }
 
 // Lightweight inline sparkline using SVG
-function Sparkline({ data, color = "#059669", className }: { data: number[]; color?: string; className?: string }) {
+function Sparkline({ data, color = "#4fe6a6", className }: { data: number[]; color?: string; className?: string }) {
   if (data.length < 2) return null
   const min = Math.min(...data)
   const max = Math.max(...data)
@@ -96,7 +96,7 @@ export function StatsCard({
   change,
   changeLabel,
   icon: Icon,
-  iconColor = "text-sal-600",
+  iconColor = "text-mint",
   iconBgColor = "bg-sal-100",
   delay = 0,
   href,
@@ -128,18 +128,18 @@ export function StatsCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4 }}
-      whileHover={{ y: -4, boxShadow: "0 2px 4px rgba(16, 64, 48, 0.04), 0 18px 44px -12px rgba(16, 64, 48, 0.22)" }}
+      whileHover={{ y: -4, boxShadow: "0 4px 8px rgba(0, 9, 5, 0.25), 0 26px 52px -16px rgba(0, 9, 5, 0.55)" }}
       onClick={href ? () => router.push(href) : undefined}
       className={cn(
-        "group relative overflow-hidden bg-card rounded-2xl p-6 border border-cream-200/80 shadow-card card-warm transition-shadow",
+        "group relative overflow-hidden glass-panel rounded-panel p-6 card-warm transition-shadow",
         href && "cursor-pointer"
       )}
     >
       {/* Soft brand wash that warms on hover */}
-      <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-sal-100/40 blur-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-mint/15 blur-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       <div className="relative z-10 flex items-start justify-between" ref={countRef}>
         <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">{title}</p>
+          <p className="inline-flex items-center glass-pill px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">{title}</p>
           <motion.p
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -158,9 +158,9 @@ export function StatsCard({
               <span
                 className={cn(
                   "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
-                  isPositive && "bg-sal-100 text-sal-700",
-                  isNegative && "bg-red-100 text-red-700",
-                  !isPositive && !isNegative && "bg-cream-200 text-muted-foreground"
+                  isPositive && "bg-mint/15 text-mint",
+                  isNegative && "bg-red-400/15 text-red-300",
+                  !isPositive && !isNegative && "bg-white/10 text-ink-soft"
                 )}
               >
                 {isPositive && <TrendingUp className="w-3 h-3" />}
@@ -180,7 +180,7 @@ export function StatsCard({
             animate={{ scale: 1, rotate: 0 }}
             transition={{ delay: delay + 0.1, type: "spring", stiffness: 200 }}
             className={cn(
-              "p-3 rounded-2xl ring-1 ring-inset ring-black/5 shadow-inset-hi transition-transform duration-300 group-hover:scale-105",
+              "p-3 rounded-2xl ring-1 ring-inset ring-white/10 shadow-inset-hi transition-transform duration-300 group-hover:scale-105",
               iconBgColor
             )}
           >
@@ -192,7 +192,7 @@ export function StatsCard({
               animate={{ opacity: 1 }}
               transition={{ delay: delay + 0.6 }}
             >
-              <Sparkline data={sparklineData} color={sparklineColor || "#059669"} />
+              <Sparkline data={sparklineData} color={sparklineColor || "#4fe6a6"} />
             </motion.div>
           )}
         </div>

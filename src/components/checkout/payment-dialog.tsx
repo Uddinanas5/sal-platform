@@ -350,7 +350,7 @@ export function PaymentDialog({
                         className={cn(
                           "h-6 w-6",
                           paymentMethod === "cash"
-                            ? "text-sal-600"
+                            ? "text-mint"
                             : "text-muted-foreground"
                         )}
                       />
@@ -358,7 +358,7 @@ export function PaymentDialog({
                         className={cn(
                           "text-xs font-medium",
                           paymentMethod === "cash"
-                            ? "text-sal-700"
+                            ? "text-mint-soft"
                             : "text-muted-foreground"
                         )}
                       >
@@ -396,7 +396,7 @@ export function PaymentDialog({
                         className={cn(
                           "h-6 w-6",
                           paymentMethod === "gift_card"
-                            ? "text-sal-600"
+                            ? "text-mint"
                             : "text-muted-foreground"
                         )}
                       />
@@ -404,7 +404,7 @@ export function PaymentDialog({
                         className={cn(
                           "text-xs font-medium",
                           paymentMethod === "gift_card"
-                            ? "text-sal-700"
+                            ? "text-mint-soft"
                             : "text-muted-foreground"
                         )}
                       >
@@ -444,7 +444,7 @@ export function PaymentDialog({
                         <p className="text-sm text-muted-foreground">
                           Change Due
                         </p>
-                        <p className="text-2xl font-bold text-sal-600">
+                        <p className="text-2xl font-bold text-mint">
                           {formatCurrency(changeDue)}
                         </p>
                       </div>
@@ -575,7 +575,7 @@ export function PaymentDialog({
                   ease: "linear",
                 }}
               >
-                <Loader2 className="h-12 w-12 text-sal-500" />
+                <Loader2 className="h-12 w-12 text-mint-strong" />
               </motion.div>
               <p className="mt-4 text-lg font-medium">
                 Processing payment...
@@ -611,7 +611,7 @@ export function PaymentDialog({
                 }}
                 className="flex h-20 w-20 items-center justify-center rounded-full bg-sal-100"
               >
-                <Check className="h-10 w-10 text-sal-600" strokeWidth={3} />
+                <Check className="h-10 w-10 text-mint" strokeWidth={3} />
               </motion.div>
 
               <motion.div
@@ -620,7 +620,7 @@ export function PaymentDialog({
                 transition={{ delay: 0.3 }}
                 className="mt-4 text-center"
               >
-                <h3 className="text-xl font-bold text-sal-700">
+                <h3 className="text-xl font-bold text-mint-soft">
                   Payment Complete
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -632,7 +632,7 @@ export function PaymentDialog({
                       : "Gift Card"}
                 </p>
                 {paymentMethod === "cash" && changeDue > 0 && (
-                  <p className="mt-1 text-sm font-medium text-sal-600">
+                  <p className="mt-1 text-sm font-medium text-mint">
                     Change: {formatCurrency(changeDue)}
                   </p>
                 )}

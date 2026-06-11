@@ -48,7 +48,7 @@ export function TimeSlotsGrid({ onSelectTime, selectedTime }: TimeSlotsGridProps
                 "bg-cream-50 text-muted-foreground/70 border-cream-100 cursor-not-allowed line-through",
               !isUnavailable &&
                 !isSelected &&
-                "bg-card text-sal-700 border-sal-200 hover:bg-sal-50 hover:border-sal-400 cursor-pointer",
+                "bg-card text-mint-soft border-sal-200 hover:bg-sal-50 hover:border-sal-400 cursor-pointer",
               isSelected &&
                 "bg-sal-500 text-white border-sal-500 shadow-md shadow-sal-500/20"
             )}

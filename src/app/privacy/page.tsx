@@ -9,13 +9,13 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-cream dark:bg-background">
       {/* Nav */}
-      <nav className="sticky top-0 z-30 bg-cream/80 dark:bg-background/80 backdrop-blur-lg border-b border-cream-200 dark:border-border">
+      <nav className="sticky top-0 z-30 bg-cream dark:bg-background/80 backdrop-blur-lg border-b border-cream-200 dark:border-border">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2 text-foreground hover:text-sal-600 transition-colors"
+            className="flex items-center gap-2 text-foreground hover:text-mint transition-colors"
           >
-            <svg viewBox="0 0 32 32" className="w-7 h-7 text-sal-500" fill="currentColor">
+            <svg viewBox="0 0 32 32" className="w-7 h-7 text-mint-strong" fill="currentColor">
               <path d="M16 4c-2.5 0-4.5 1.2-5.8 3.1C8.9 8.9 8 11.3 8 14c0 3.5 1.5 6.5 4 8.5V26a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-3.5c2.5-2 4-5 4-8.5 0-2.7-.9-5.1-2.2-6.9C20.5 5.2 18.5 4 16 4z" />
             </svg>
             <span className="font-heading font-semibold text-lg">SAL</span>
@@ -176,7 +176,7 @@ export default function PrivacyPage() {
               To exercise any of these rights, contact us at{" "}
               <a
                 href="mailto:hello@salplatform.com"
-                className="text-sal-600 dark:text-sal-400 underline underline-offset-2 hover:text-sal-700 dark:hover:text-sal-300 transition-colors"
+                className="text-sal-400 underline underline-offset-2 hover:text-mint-soft dark:hover:text-sal-300 transition-colors"
               >
                 hello@salplatform.com
               </a>
@@ -237,7 +237,7 @@ export default function PrivacyPage() {
               contact us at{" "}
               <a
                 href="mailto:hello@salplatform.com"
-                className="text-sal-600 dark:text-sal-400 underline underline-offset-2 hover:text-sal-700 dark:hover:text-sal-300 transition-colors"
+                className="text-sal-400 underline underline-offset-2 hover:text-mint-soft dark:hover:text-sal-300 transition-colors"
               >
                 hello@salplatform.com
               </a>

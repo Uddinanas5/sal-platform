@@ -285,7 +285,7 @@ export function ReportsClient(props: ReportsClientProps) {
       growth: summary.revenueGrowth,
       icon: DollarSign,
       iconBg: "bg-sal-100",
-      iconColor: "text-sal-600",
+      iconColor: "text-mint",
     },
     {
       title: "Appointments",
@@ -293,7 +293,7 @@ export function ReportsClient(props: ReportsClientProps) {
       growth: summary.appointmentGrowth,
       icon: Calendar,
       iconBg: "bg-blue-500/10",
-      iconColor: "text-blue-600 dark:text-blue-400",
+      iconColor: "text-blue-400",
     },
     {
       title: "Avg Ticket",
@@ -301,7 +301,7 @@ export function ReportsClient(props: ReportsClientProps) {
       growth: summary.ticketGrowth,
       icon: Receipt,
       iconBg: "bg-purple-500/10",
-      iconColor: "text-purple-600 dark:text-purple-400",
+      iconColor: "text-purple-400",
     },
     {
       title: "New Clients",
@@ -309,7 +309,7 @@ export function ReportsClient(props: ReportsClientProps) {
       growth: summary.clientGrowth,
       icon: UserPlus,
       iconBg: "bg-amber-500/10",
-      iconColor: "text-amber-600 dark:text-amber-400",
+      iconColor: "text-amber-400",
     },
   ]
 
@@ -469,14 +469,14 @@ export function ReportsClient(props: ReportsClientProps) {
                         </p>
                         <div className="flex items-center gap-1">
                           {isPositive ? (
-                            <TrendingUp className="w-3.5 h-3.5 text-sal-500" />
+                            <TrendingUp className="w-3.5 h-3.5 text-mint-strong" />
                           ) : (
                             <TrendingDown className="w-3.5 h-3.5 text-red-500" />
                           )}
                           <span
                             className={cn(
                               "text-sm font-medium",
-                              isPositive ? "text-sal-600" : "text-red-600"
+                              isPositive ? "text-mint" : "text-red-600"
                             )}
                           >
                             {isPositive ? "+" : ""}

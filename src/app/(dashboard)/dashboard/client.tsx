@@ -127,11 +127,11 @@ export function DashboardClient(props: DashboardClientProps) {
           />
           <div className="relative z-10">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 ring-1 ring-inset ring-white/20 backdrop-blur-sm">
-              <Sparkles className="w-3.5 h-3.5 text-sal-100" />
-              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-sal-50">AI Insight</span>
+              <Sparkles className="w-3.5 h-3.5 text-mint-soft" />
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-mint-soft">AI Insight</span>
             </div>
             <h2 className="text-[1.7rem] leading-tight font-heading font-bold mb-2 tracking-tight">{getGreeting()}, {firstName}!</h2>
-            <p className="text-sal-100 max-w-xl">
+            <p className="text-mint-soft max-w-xl">
               You have <span className="font-semibold text-white">{props.stats.todayAppointments} appointments</span> today.
               Based on your booking trends, consider adjusting staffing for peak days.
             </p>
@@ -139,7 +139,7 @@ export function DashboardClient(props: DashboardClientProps) {
             {/* Daily Revenue Progress */}
             <div className="mt-4 max-w-md">
               <div className="flex items-center justify-between text-sm mb-1.5">
-                <span className="text-sal-200">Today&apos;s Revenue</span>
+                <span className="text-mint-soft">Today&apos;s Revenue</span>
                 <span className="font-semibold text-white">
                   {dailyTarget !== null
                     ? `${formatCurrency(props.stats.todayRevenue)} / ${formatCurrency(dailyTarget)} target`
@@ -153,15 +153,15 @@ export function DashboardClient(props: DashboardClientProps) {
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min((props.stats.todayRevenue / dailyTarget) * 100, 100)}%` }}
                       transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-                      className="h-full bg-white/80 rounded-full"
+                      className="h-full bg-card/80 rounded-full"
                     />
                   </div>
-                  <p className="text-xs text-sal-200 mt-1">
+                  <p className="text-xs text-mint-soft mt-1">
                     {Math.round((props.stats.todayRevenue / dailyTarget) * 100)}% of daily target
                   </p>
                 </>
               ) : (
-                <p className="text-xs text-sal-200 mt-1">
+                <p className="text-xs text-mint-soft mt-1">
                   Set a daily target in settings
                 </p>
               )}
@@ -190,7 +190,7 @@ export function DashboardClient(props: DashboardClientProps) {
             change={todayVsYesterdayChange ?? undefined}
             changeLabel="vs yesterday"
             icon={DollarSign}
-            iconColor="text-sal-600"
+            iconColor="text-mint"
             iconBgColor="bg-sal-100"
             delay={0}
             href="/reports"
@@ -201,7 +201,7 @@ export function DashboardClient(props: DashboardClientProps) {
             title="Today's Appointments"
             value={props.stats.todayAppointments}
             icon={Calendar}
-            iconColor="text-sal-600"
+            iconColor="text-mint"
             iconBgColor="bg-sal-100"
             delay={0.1}
             href="/calendar"
@@ -341,7 +341,7 @@ export function DashboardClient(props: DashboardClientProps) {
                   className="h-auto py-3 flex-col gap-1 border-cream-200 hover:bg-sal-50 hover:border-sal-200"
                   onClick={() => router.push("/calendar")}
                 >
-                  <Calendar className="w-5 h-5 text-sal-500" />
+                  <Calendar className="w-5 h-5 text-mint-strong" />
                   <span className="text-xs">New Booking</span>
                 </Button>
                 <Button
@@ -349,7 +349,7 @@ export function DashboardClient(props: DashboardClientProps) {
                   className="h-auto py-3 flex-col gap-1 border-cream-200 hover:bg-sal-50 hover:border-sal-200"
                   onClick={() => router.push("/clients")}
                 >
-                  <Users className="w-5 h-5 text-sal-500" />
+                  <Users className="w-5 h-5 text-mint-strong" />
                   <span className="text-xs">Add Client</span>
                 </Button>
                 <Button
@@ -357,7 +357,7 @@ export function DashboardClient(props: DashboardClientProps) {
                   className="h-auto py-3 flex-col gap-1 border-cream-200 hover:bg-sal-50 hover:border-sal-200"
                   onClick={() => router.push("/calendar")}
                 >
-                  <Clock className="w-5 h-5 text-sal-500" />
+                  <Clock className="w-5 h-5 text-mint-strong" />
                   <span className="text-xs">Block Time</span>
                 </Button>
                 <Button
@@ -365,7 +365,7 @@ export function DashboardClient(props: DashboardClientProps) {
                   className="h-auto py-3 flex-col gap-1 border-cream-200 hover:bg-sal-50 hover:border-sal-200"
                   onClick={() => router.push("/reports")}
                 >
-                  <TrendingUp className="w-5 h-5 text-sal-500" />
+                  <TrendingUp className="w-5 h-5 text-mint-strong" />
                   <span className="text-xs">View Reports</span>
                 </Button>
               </CardContent>
@@ -375,7 +375,7 @@ export function DashboardClient(props: DashboardClientProps) {
             <Card className="border-cream-200">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg font-heading">Recent Clients</CardTitle>
-                <Button variant="ghost" size="sm" className="text-sal-600" onClick={() => router.push("/clients")}>
+                <Button variant="ghost" size="sm" className="text-mint" onClick={() => router.push("/clients")}>
                   View All
                 </Button>
               </CardHeader>
@@ -391,7 +391,7 @@ export function DashboardClient(props: DashboardClientProps) {
                       >
                         <Avatar className="w-10 h-10">
                           <AvatarImage src={client.avatar} />
-                          <AvatarFallback className="bg-sal-100 text-sal-700 text-sm">
+                          <AvatarFallback className="bg-sal-100 text-mint-soft text-sm">
                             {client.name.split(" ").map((n) => n[0]).join("")}
                           </AvatarFallback>
                         </Avatar>

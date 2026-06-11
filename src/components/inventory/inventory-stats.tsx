@@ -28,28 +28,28 @@ export function InventoryStats({ products, categories }: InventoryStatsProps) {
       title: "Total Products",
       value: totalProducts.toString(),
       icon: Package,
-      iconColor: "text-sal-600",
+      iconColor: "text-mint",
       iconBgColor: "bg-sal-100",
     },
     {
       title: "Low Stock",
       value: lowStockCount.toString(),
       icon: AlertTriangle,
-      iconColor: "text-amber-600 dark:text-amber-400",
+      iconColor: "text-amber-400",
       iconBgColor: "bg-amber-500/10",
     },
     {
       title: "Total Inventory Value",
       value: formatCurrency(totalValue),
       icon: DollarSign,
-      iconColor: "text-sal-600",
+      iconColor: "text-mint",
       iconBgColor: "bg-sal-100",
     },
     {
       title: "Categories",
       value: categoryCount.toString(),
       icon: Tag,
-      iconColor: "text-blue-600 dark:text-blue-400",
+      iconColor: "text-blue-400",
       iconBgColor: "bg-blue-500/10",
     },
   ]
@@ -62,12 +62,12 @@ export function InventoryStats({ products, categories }: InventoryStatsProps) {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-wrap items-center gap-3 text-sm"
       >
-        <span className="flex items-center gap-1.5 bg-sal-500/10 text-sal-700 dark:text-sal-300 px-3 py-1 rounded-full font-medium">
+        <span className="flex items-center gap-1.5 bg-sal-500/10 text-sal-300 px-3 py-1 rounded-full font-medium">
           <Package className="h-3.5 w-3.5" />
           {inStockPct}% in stock
         </span>
         {lowStockCount > 0 && (
-          <span className="flex items-center gap-1.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-3 py-1 rounded-full font-medium">
+          <span className="flex items-center gap-1.5 bg-amber-500/10 text-amber-300 px-3 py-1 rounded-full font-medium">
             <AlertTriangle className="h-3.5 w-3.5" />
             {lowStockCount} low stock
           </span>

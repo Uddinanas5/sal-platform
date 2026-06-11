@@ -120,7 +120,7 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2 font-heading">
-                  <DoorOpen className="w-5 h-5 text-sal-500" />
+                  <DoorOpen className="w-5 h-5 text-mint-strong" />
                   Rooms &amp; Equipment
                 </CardTitle>
                 <CardDescription>
@@ -162,7 +162,7 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                       className={`relative rounded-xl border p-4 transition-all duration-200 hover:shadow-md ${
                         resource.isActive
                           ? "border-cream-200 dark:border-cream-800 bg-card"
-                          : "border-cream-200/60 dark:border-cream-800/60 bg-muted/40 opacity-70"
+                          : "border-cream-200 dark:border-cream-800 bg-muted/40 opacity-70"
                       }`}
                     >
                       {/* Header Row */}
@@ -179,7 +179,7 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                               <DoorOpen
                                 className={`w-5 h-5 ${
                                   resource.isActive
-                                    ? "text-blue-600 dark:text-blue-400"
+                                    ? "text-blue-400"
                                     : "text-muted-foreground"
                                 }`}
                               />
@@ -187,7 +187,7 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                               <Wrench
                                 className={`w-5 h-5 ${
                                   resource.isActive
-                                    ? "text-amber-600 dark:text-amber-400"
+                                    ? "text-amber-400"
                                     : "text-muted-foreground"
                                 }`}
                               />
@@ -201,8 +201,8 @@ export function ResourcesSection({ resources, services }: ResourcesSectionProps)
                               variant="secondary"
                               className={`text-[10px] px-1.5 py-0 mt-0.5 ${
                                 resource.type === "room"
-                                  ? "bg-blue-500/10 text-blue-700 dark:text-blue-300"
-                                  : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                  ? "bg-blue-500/10 text-blue-300"
+                                  : "bg-amber-500/10 text-amber-300"
                               }`}
                             >
                               {resource.type === "room" ? "Room" : "Equipment"}

@@ -204,11 +204,11 @@ export default function RegisterPage() {
               />
               <Label htmlFor="terms" className="text-sm font-normal leading-snug cursor-pointer">
                 I agree to the{" "}
-                <Link href="/terms" className="text-sal-600 hover:text-sal-700 underline">
+                <Link href="/terms" className="text-mint hover:text-mint-soft underline">
                   Terms of Service
                 </Link>{" "}
                 and{" "}
-                <Link href="/privacy" className="text-sal-600 hover:text-sal-700 underline">
+                <Link href="/privacy" className="text-mint hover:text-mint-soft underline">
                   Privacy Policy
                 </Link>
               </Label>
@@ -227,7 +227,7 @@ export default function RegisterPage() {
             <span className="text-sm text-muted-foreground">Already have an account? </span>
             <Link
               href="/login"
-              className="text-sm text-sal-600 hover:text-sal-700 font-medium"
+              className="text-sm text-mint hover:text-mint-soft font-medium"
             >
               Sign in
             </Link>

@@ -70,7 +70,7 @@ export function ThreeDayView({
                 key={day.toISOString()}
                 className={cn(
                   "flex flex-col border-r border-cream-200 last:border-r-0 flex-1",
-                  isToday && "bg-sal-50/30"
+                  isToday && "bg-sal-50"
                 )}
               >
                 {/* Day label */}
@@ -78,7 +78,7 @@ export function ThreeDayView({
                   <span
                     className={cn(
                       "text-[11px] font-medium uppercase",
-                      isToday ? "text-sal-600" : "text-muted-foreground"
+                      isToday ? "text-mint" : "text-muted-foreground"
                     )}
                   >
                     {format(day, "EEE")}
@@ -86,7 +86,7 @@ export function ThreeDayView({
                   <span
                     className={cn(
                       "ml-1 text-sm font-semibold",
-                      isToday ? "text-sal-700" : "text-foreground"
+                      isToday ? "text-mint-soft" : "text-foreground"
                     )}
                   >
                     {format(day, "d")}

@@ -226,7 +226,7 @@ function CancelDialog({ booking, onClose, onCancelled }: CancelDialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+      <div className="w-full max-w-md rounded-xl bg-card shadow-2xl">
         <div className="p-6">
           <div className="mb-4 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
@@ -445,7 +445,7 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-card shadow-2xl">
         <div className="flex items-start gap-3 border-b p-6 pb-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
             <Calendar className="h-5 w-5 text-emerald-600" />
@@ -654,7 +654,7 @@ export function ManageBookingClient({ booking }: ManageBookingClientProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="border-b bg-white">
+      <div className="border-b bg-card">
         <div className="mx-auto max-w-2xl px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

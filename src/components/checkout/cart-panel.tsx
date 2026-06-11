@@ -142,7 +142,7 @@ export function CartPanel({
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5 text-sal-600" />
+            <ShoppingCart className="h-5 w-5 text-mint" />
             <h2 className="font-semibold">Cart</h2>
             {items.length > 0 && (
               <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-sal-500 px-1.5 text-[10px] font-bold text-white">
@@ -247,7 +247,7 @@ export function CartPanel({
                       className={cn(
                         "flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all",
                         tip === preset
-                          ? "border-sal-500 bg-sal-50 text-sal-700"
+                          ? "border-sal-500 bg-sal-50 text-mint-soft"
                           : "border-border text-muted-foreground hover:border-sal-300"
                       )}
                     >
@@ -268,7 +268,7 @@ export function CartPanel({
                     className={cn(
                       "flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all",
                       showCustomTip || (!tipPresets.includes(tip) && tip > 0)
-                        ? "border-sal-500 bg-sal-50 text-sal-700"
+                        ? "border-sal-500 bg-sal-50 text-mint-soft"
                         : "border-border text-muted-foreground hover:border-sal-300"
                     )}
                   >
@@ -364,7 +364,7 @@ export function CartPanel({
                       className={cn(
                         "h-5 w-5",
                         paymentMethod === "cash"
-                          ? "text-sal-600"
+                          ? "text-mint"
                           : "text-muted-foreground"
                       )}
                     />
@@ -372,7 +372,7 @@ export function CartPanel({
                       className={cn(
                         "text-[10px] font-medium",
                         paymentMethod === "cash"
-                          ? "text-sal-700"
+                          ? "text-mint-soft"
                           : "text-muted-foreground"
                       )}
                     >
@@ -408,13 +408,13 @@ export function CartPanel({
                     <Gift
                       className={cn(
                         "h-5 w-5",
-                        paymentMethod === "gift_card" ? "text-sal-600" : "text-muted-foreground"
+                        paymentMethod === "gift_card" ? "text-mint" : "text-muted-foreground"
                       )}
                     />
                     <span
                       className={cn(
                         "text-[10px] font-medium",
-                        paymentMethod === "gift_card" ? "text-sal-700" : "text-muted-foreground"
+                        paymentMethod === "gift_card" ? "text-mint-soft" : "text-muted-foreground"
                       )}
                     >
                       Gift Card

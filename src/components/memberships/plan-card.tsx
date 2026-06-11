@@ -40,7 +40,7 @@ export function PlanCard({ plan, index = 0, onEdit, onToggleActive, busy = false
                 {plan.name}
               </h3>
               {!plan.isActive && (
-                <Badge variant="secondary" className="bg-gray-500/10 text-gray-600 dark:text-gray-300 text-[10px]">
+                <Badge variant="secondary" className="bg-gray-500/10 text-gray-300 text-[10px]">
                   Inactive
                 </Badge>
               )}

@@ -121,7 +121,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-sal-50">
-                <Mail className="w-4 h-4 text-sal-600" />
+                <Mail className="w-4 h-4 text-mint" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Email</p>
@@ -131,7 +131,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
             <Separator />
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-sal-50">
-                <Phone className="w-4 h-4 text-sal-600" />
+                <Phone className="w-4 h-4 text-mint" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Phone</p>
@@ -141,7 +141,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
             <Separator />
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-sal-50">
-                <Calendar className="w-4 h-4 text-sal-600" />
+                <Calendar className="w-4 h-4 text-mint" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Date of Birth</p>
@@ -153,7 +153,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
             <Separator />
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-sal-50">
-                <Clock className="w-4 h-4 text-sal-600" />
+                <Clock className="w-4 h-4 text-mint" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Member Since</p>
@@ -180,7 +180,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Balance</span>
-              <span className="text-2xl font-heading font-bold text-sal-600">
+              <span className="text-2xl font-heading font-bold text-mint">
                 {formatCurrency(client.walletBalance || 0)}
               </span>
             </div>
@@ -290,7 +290,7 @@ export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
                       <Badge className={getStatusColor(appt.status)}>
                         {appt.status}
                       </Badge>
-                      <span className="text-sm font-medium text-sal-600">
+                      <span className="text-sm font-medium text-mint">
                         {formatCurrency(appt.price)}
                       </span>
                     </div>

@@ -83,7 +83,7 @@ export function AppointmentCard({ appointment, variant = "detailed", index = 0 }
         <div className="w-1 h-10 rounded-full bg-sal-400" />
         <Avatar className="w-10 h-10">
           <AvatarImage src={appointment.clientAvatar} />
-          <AvatarFallback className="bg-sal-100 text-sal-700 text-sm">
+          <AvatarFallback className="bg-sal-100 text-mint-soft text-sm">
             {appointment.clientName.split(" ").map((n) => n[0]).join("")}
           </AvatarFallback>
         </Avatar>
@@ -98,7 +98,7 @@ export function AppointmentCard({ appointment, variant = "detailed", index = 0 }
             <Button
               size="sm"
               variant="outline"
-              className="h-7 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity border-sal-200 text-sal-600 hover:bg-sal-50"
+              className="h-7 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity border-sal-200 text-mint hover:bg-sal-50"
               onClick={async (e) => {
                 e.stopPropagation()
                 const statusOrder: Appointment["status"][] = ["pending", "confirmed", "checked-in", "in-progress", "completed"]
@@ -137,7 +137,7 @@ export function AppointmentCard({ appointment, variant = "detailed", index = 0 }
         <div className="flex items-center gap-3">
           <Avatar className="w-12 h-12 ring-2 ring-sal-100">
             <AvatarImage src={appointment.clientAvatar} />
-            <AvatarFallback className="bg-sal-100 text-sal-700 font-medium">
+            <AvatarFallback className="bg-sal-100 text-mint-soft font-medium">
               {appointment.clientName.split(" ").map((n) => n[0]).join("")}
             </AvatarFallback>
           </Avatar>

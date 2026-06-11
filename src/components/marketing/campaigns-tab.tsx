@@ -195,7 +195,7 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
             <Card className="border-cream-200">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-sal-100">
-                  <stat.icon className="w-5 h-5 text-sal-600" />
+                  <stat.icon className="w-5 h-5 text-mint" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -212,7 +212,7 @@ export function CampaignsTab({ campaigns, stats }: CampaignsTabProps) {
       {/* Campaign Cards Grid */}
       {campaigns.length === 0 ? (
         <EmptyState
-          icon={<Megaphone className="w-7 h-7 text-sal-600" />}
+          icon={<Megaphone className="w-7 h-7 text-mint" />}
           title="No campaigns yet"
           description="Create your first marketing campaign to reach your clients."
         />

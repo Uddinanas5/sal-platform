@@ -56,12 +56,12 @@ interface DealItem {
 }
 
 const typeBadgeColors: Record<string, string> = {
-  percentage: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  fixed_amount: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  fixed: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  free_service: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
-  bogo: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
-  bundle: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  percentage: "bg-blue-500/10 text-blue-300",
+  fixed_amount: "bg-emerald-500/10 text-emerald-300",
+  fixed: "bg-emerald-500/10 text-emerald-300",
+  free_service: "bg-purple-500/10 text-purple-300",
+  bogo: "bg-purple-500/10 text-purple-300",
+  bundle: "bg-amber-500/10 text-amber-300",
 }
 
 function formatDealValue(deal: DealItem): string {
@@ -181,7 +181,7 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
           into checkout or booking, so creating one does not discount anything
           for clients today. */}
       <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
-        <p className="text-xs text-amber-800 dark:text-amber-300">
+        <p className="text-xs text-amber-300">
           Promo-code redemption is coming soon. You can create and organize deals
           here, but codes do not yet apply a discount at checkout or booking.
         </p>
@@ -190,7 +190,7 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
       {/* Deals Grid */}
       {deals.length === 0 ? (
         <EmptyState
-          icon={<Tag className="w-7 h-7 text-sal-600" />}
+          icon={<Tag className="w-7 h-7 text-mint" />}
           title="No deals yet"
           description="Create promotional deals to attract new clients."
         />
@@ -227,7 +227,7 @@ export function DealsTab({ deals: initialDeals }: DealsTabProps) {
                   </div>
 
                   {/* Value Display */}
-                  <div className="text-2xl font-heading font-bold text-sal-600 mb-2">
+                  <div className="text-2xl font-heading font-bold text-mint mb-2">
                     {formatDealValue(deal)}
                   </div>
 

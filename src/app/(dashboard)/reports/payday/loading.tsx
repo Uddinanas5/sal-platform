@@ -4,7 +4,7 @@ export default function Loading() {
   return (
     <div className="min-h-screen bg-cream">
       {/* Header skeleton */}
-      <div className="flex h-16 items-center border-b border-cream-200 bg-white/80 px-6">
+      <div className="flex h-16 items-center border-b border-cream-200 bg-card/80 px-6">
         <div className="space-y-2">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-3 w-56" />

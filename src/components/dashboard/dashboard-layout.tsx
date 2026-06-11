@@ -83,20 +83,6 @@ export function DashboardLayout({ children, billingBanner = null }: DashboardLay
         router.push("/calendar")
       }
 
-      // "D" toggles dark mode
-      if (e.key === "d" || e.key === "D") {
-        e.preventDefault()
-        const root = document.documentElement
-        const isDark = root.classList.contains("dark")
-        if (isDark) {
-          root.classList.remove("dark")
-          localStorage.setItem("sal-theme", "light")
-        } else {
-          root.classList.add("dark")
-          localStorage.setItem("sal-theme", "dark")
-        }
-      }
-
       // "?" opens shortcut guide
       if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault()
@@ -119,7 +105,7 @@ export function DashboardLayout({ children, billingBanner = null }: DashboardLay
     <MobileSidebarContext.Provider
       value={{ toggleMobileSidebar: isMobile ? toggleMobileSidebar : undefined }}
     >
-      <div className="min-h-screen app-canvas">
+      <div className="min-h-screen app-canvas env-grain">
         <Sidebar
           collapsed={isMobile ? false : sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -129,13 +115,13 @@ export function DashboardLayout({ children, billingBanner = null }: DashboardLay
         />
         <motion.main
           initial={false}
-          animate={{ marginLeft: isMobile ? 0 : sidebarCollapsed ? 80 : 280 }}
+          animate={{ marginLeft: isMobile ? 0 : sidebarCollapsed ? 92 : 292 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="min-h-screen"
         >
           {billingBanner && (
             <div className="flex items-center justify-between gap-4 bg-amber-500/10 border-b border-amber-500/30 px-6 py-3 text-sm">
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+              <div className="flex items-center gap-2 text-amber-300">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>
                   {billingBanner === "past_due"
@@ -145,7 +131,7 @@ export function DashboardLayout({ children, billingBanner = null }: DashboardLay
               </div>
               <Link
                 href="/settings?tab=billing"
-                className="shrink-0 font-medium text-amber-700 dark:text-amber-300 underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-200"
+                className="shrink-0 font-medium text-amber-300 underline underline-offset-2 hover:text-amber-200"
               >
                 {billingBanner === "past_due" ? "Update card" : "Manage billing"}
               </Link>

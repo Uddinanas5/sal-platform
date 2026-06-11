@@ -55,7 +55,7 @@ export function BookingWidgetCode({ businessSlug }: { businessSlug: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg font-heading flex items-center gap-2">
-          <Code2 className="w-5 h-5 text-sal-500" />
+          <Code2 className="w-5 h-5 text-mint-strong" />
           Embed Widget
         </CardTitle>
       </CardHeader>

@@ -193,7 +193,7 @@ export function ServiceProductBrowser({
                 className={cn(
                   "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
                   activeCategory === category
-                    ? "border-sal-500 bg-sal-50 text-sal-700"
+                    ? "border-sal-500 bg-sal-50 text-mint-soft"
                     : "border-border bg-background text-muted-foreground hover:border-sal-300 hover:text-foreground"
                 )}
               >
@@ -259,7 +259,7 @@ export function ServiceProductBrowser({
                         <Clock className="h-3 w-3" />
                         {formatDuration(service.duration)}
                       </div>
-                      <span className="text-sm font-bold text-sal-600">
+                      <span className="text-sm font-bold text-mint">
                         {formatCurrency(service.price)}
                       </span>
                     </div>
@@ -350,7 +350,7 @@ export function ServiceProductBrowser({
                             </span>
                           )}
                         </div>
-                        <span className="text-sm font-bold text-sal-600">
+                        <span className="text-sm font-bold text-mint">
                           {formatCurrency(product.retailPrice)}
                         </span>
                       </div>

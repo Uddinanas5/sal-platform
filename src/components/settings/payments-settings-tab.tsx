@@ -133,7 +133,7 @@ export function PaymentsSettingsTab({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Wallet className="w-5 h-5 text-sal-500" />
+              <Wallet className="w-5 h-5 text-mint-strong" />
               Payment Methods
             </CardTitle>
             <CardDescription>
@@ -198,7 +198,7 @@ export function PaymentsSettingsTab({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Percent className="w-5 h-5 text-sal-500" />
+              <Percent className="w-5 h-5 text-mint-strong" />
               Tax Settings
             </CardTitle>
             <CardDescription>
@@ -265,7 +265,7 @@ export function PaymentsSettingsTab({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <HandCoins className="w-5 h-5 text-sal-500" />
+              <HandCoins className="w-5 h-5 text-mint-strong" />
               Tipping
             </CardTitle>
             <CardDescription>
@@ -334,7 +334,7 @@ export function PaymentsSettingsTab({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Receipt className="w-5 h-5 text-sal-500" />
+              <Receipt className="w-5 h-5 text-mint-strong" />
               Receipts
             </CardTitle>
             <CardDescription>

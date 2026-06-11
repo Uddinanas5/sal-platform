@@ -86,31 +86,31 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
       label: "Total Spent",
       value: formatCurrency(client.totalSpent),
       icon: DollarSign,
-      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+      color: "bg-emerald-500/10 text-emerald-400",
     },
     {
       label: "Total Visits",
       value: client.totalVisits.toString(),
       icon: Calendar,
-      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+      color: "bg-blue-500/10 text-blue-400",
     },
     {
       label: "Loyalty Points",
       value: (client.loyaltyPoints || 0).toLocaleString(),
       icon: Star,
-      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+      color: "bg-amber-500/10 text-amber-400",
     },
     {
       label: "Wallet Balance",
       value: formatCurrency(client.walletBalance || 0),
       icon: Wallet,
-      color: "bg-sal-100 text-sal-600",
+      color: "bg-sal-100 text-mint",
     },
     {
       label: "Last Visit",
       value: client.lastVisit ? formatRelativeDate(new Date(client.lastVisit)) : "N/A",
       icon: Clock,
-      color: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+      color: "bg-purple-500/10 text-purple-400",
     },
   ]
 
@@ -189,7 +189,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
                         {client.name}
                       </h1>
                       {client.totalVisits <= 1 && (
-                        <Badge className="bg-sal-100 text-sal-700 hover:bg-sal-100 text-[10px] px-1.5 py-0 font-semibold flex items-center gap-0.5">
+                        <Badge className="bg-sal-100 text-mint-soft hover:bg-sal-100 text-[10px] px-1.5 py-0 font-semibold flex items-center gap-0.5">
                           <Sparkles className="w-3 h-3" />
                           NEW
                         </Badge>
@@ -221,7 +221,7 @@ export function ClientDetailClient(props: ClientDetailClientProps) {
                     {/* Last cut note — read-only at-a-glance ("last time: #2 fade") */}
                     {lastCutNote && (
                       <div className="flex items-start gap-1.5 mt-2 text-xs text-muted-foreground max-w-md">
-                        <Scissors className="w-3.5 h-3.5 shrink-0 mt-0.5 text-sal-500" />
+                        <Scissors className="w-3.5 h-3.5 shrink-0 mt-0.5 text-mint-strong" />
                         <span>
                           <span className="font-medium text-foreground">Last cut:</span>{" "}
                           <span className="line-clamp-1">{lastCutNote.body}</span>

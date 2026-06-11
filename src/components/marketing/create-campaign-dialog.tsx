@@ -217,7 +217,7 @@ export function CreateCampaignDialog({
                     className={cn(
                       "w-6 h-6",
                       campaignType === "email"
-                        ? "text-sal-600"
+                        ? "text-mint"
                         : "text-muted-foreground/70"
                     )}
                   />
@@ -225,7 +225,7 @@ export function CreateCampaignDialog({
                     className={cn(
                       "text-sm font-medium",
                       campaignType === "email"
-                        ? "text-sal-700"
+                        ? "text-mint-soft"
                         : "text-muted-foreground"
                     )}
                   >
@@ -274,7 +274,7 @@ export function CreateCampaignDialog({
                         className={cn(
                           "text-sm font-medium block",
                           audience === opt.label
-                            ? "text-sal-700"
+                            ? "text-mint-soft"
                             : "text-foreground"
                         )}
                       >
@@ -350,7 +350,7 @@ export function CreateCampaignDialog({
                   className={cn(
                     "text-sm font-medium",
                     scheduleOption === "now"
-                      ? "text-sal-700"
+                      ? "text-mint-soft"
                       : "text-muted-foreground"
                   )}
                 >
@@ -373,7 +373,7 @@ export function CreateCampaignDialog({
                   className={cn(
                     "text-sm font-medium",
                     scheduleOption === "later"
-                      ? "text-sal-700"
+                      ? "text-mint-soft"
                       : "text-muted-foreground"
                   )}
                 >
@@ -427,7 +427,7 @@ export function CreateCampaignDialog({
                   variant="secondary"
                   className={cn(
                     "text-xs capitalize",
-                    "bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                    "bg-blue-500/10 text-blue-300"
                   )}
                 >
                   {campaignType}
@@ -463,7 +463,7 @@ export function CreateCampaignDialog({
               <p className="text-sm text-foreground">{content}</p>
             </div>
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
-              <p className="text-xs text-amber-800 dark:text-amber-300">
+              <p className="text-xs text-amber-300">
                 This campaign will be saved to your campaigns list. No emails are
                 sent yet — open it there and click Send to email your clients.
               </p>

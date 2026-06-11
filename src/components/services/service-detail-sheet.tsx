@@ -233,7 +233,7 @@ export function ServiceDetailSheet({
                 {/* Price & Duration */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-cream-100">
-                    <DollarSign className="w-5 h-5 text-sal-600" />
+                    <DollarSign className="w-5 h-5 text-mint" />
                     <div>
                       <p className="text-xs text-muted-foreground">Price</p>
                       <p className="font-semibold text-foreground">
@@ -242,7 +242,7 @@ export function ServiceDetailSheet({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-cream-100">
-                    <Clock className="w-5 h-5 text-sal-600" />
+                    <Clock className="w-5 h-5 text-mint" />
                     <div>
                       <p className="text-xs text-muted-foreground">Duration</p>
                       <p className="font-semibold text-foreground">
@@ -345,7 +345,7 @@ export function ServiceDetailSheet({
                         <p className="text-sm font-medium text-foreground">
                           {addon.name}
                         </p>
-                        <span className="font-semibold text-sal-600">
+                        <span className="font-semibold text-mint">
                           +{formatCurrency(addon.price)}
                         </span>
                       </motion.div>

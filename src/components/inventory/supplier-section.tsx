@@ -38,7 +38,7 @@ export function SupplierSection({ products }: SupplierSectionProps) {
       <Card className="border-cream-200">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Truck className="w-5 h-5 text-sal-600" />
+            <Truck className="w-5 h-5 text-mint" />
             <CardTitle className="font-heading">Suppliers</CardTitle>
           </div>
         </CardHeader>
@@ -51,10 +51,10 @@ export function SupplierSection({ products }: SupplierSectionProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 * index }}
               >
-                <div className="flex items-center justify-between p-4 rounded-xl border border-cream-200 hover:border-sal-200 hover:bg-sal-50/30 transition-colors">
+                <div className="flex items-center justify-between p-4 rounded-xl border border-cream-200 hover:border-sal-200 hover:bg-sal-50 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-sal-100">
-                      <Package className="w-5 h-5 text-sal-600" />
+                      <Package className="w-5 h-5 text-mint" />
                     </div>
                     <div>
                       <p className="font-medium text-foreground text-sm">
@@ -69,7 +69,7 @@ export function SupplierSection({ products }: SupplierSectionProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-sal-700"
+                    className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-mint-soft"
                     onClick={() =>
                       toast.info(`Contact form for ${supplier.name} coming soon`)
                     }

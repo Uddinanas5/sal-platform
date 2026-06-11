@@ -401,7 +401,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-heading">
-                      <Building2 className="w-5 h-5 text-sal-500" />
+                      <Building2 className="w-5 h-5 text-mint-strong" />
                       Business Profile
                     </CardTitle>
                     <CardDescription>
@@ -412,7 +412,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                     <div className="flex items-center gap-6">
                       <Avatar className="w-24 h-24">
                         <AvatarImage src="/logos/sal-icon.svg" />
-                        <AvatarFallback className="bg-sal-100 text-sal-600 text-2xl">
+                        <AvatarFallback className="bg-sal-100 text-mint text-2xl">
                           S
                         </AvatarFallback>
                       </Avatar>
@@ -473,7 +473,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-heading">
-                      <Globe className="w-5 h-5 text-sal-500" />
+                      <Globe className="w-5 h-5 text-mint-strong" />
                       Localization
                     </CardTitle>
                     <CardDescription>
@@ -543,7 +543,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-heading">
-                      <Palette className="w-5 h-5 text-sal-500" />
+                      <Palette className="w-5 h-5 text-mint-strong" />
                       Appearance
                     </CardTitle>
                     <CardDescription>
@@ -602,7 +602,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                     <div className="flex items-center justify-between">
                       <div>
                         <CardTitle className="flex items-center gap-2 font-heading">
-                          <CreditCard className="w-5 h-5 text-sal-500" />
+                          <CreditCard className="w-5 h-5 text-mint-strong" />
                           SAL Subscription
                         </CardTitle>
                         <CardDescription>
@@ -610,7 +610,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                         </CardDescription>
                       </div>
                       {billing.billingExempt ? (
-                        <Badge className="bg-sal-500/10 text-sal-700 dark:text-sal-300 border-sal-500/30">
+                        <Badge className="bg-sal-500/10 text-sal-300 border-sal-500/30">
                           Founding beta \u2014 billing waived
                         </Badge>
                       ) : billing.hasSubscription && billing.status === "active" ? (
@@ -618,11 +618,11 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                           Pro \u2014 active
                         </Badge>
                       ) : billing.hasSubscription && billing.status === "past_due" ? (
-                        <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                        <Badge className="bg-amber-500/10 text-amber-300 border-amber-500/30">
                           Past due
                         </Badge>
                       ) : billing.hasSubscription && billing.status === "paused" ? (
-                        <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                        <Badge className="bg-amber-500/10 text-amber-300 border-amber-500/30">
                           Paused
                         </Badge>
                       ) : billing.hasSubscription && billing.status === "cancelled" ? (
@@ -669,7 +669,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                     ) : billing.hasSubscription && billing.status === "past_due" ? (
                       /* (C) past due \u2014 payment failed, full access retained. */
                       <>
-                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
                           Your last payment failed. Update your card to keep your
                           subscription active.
                         </div>
@@ -686,7 +686,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                     ) : billing.hasSubscription && billing.status === "paused" ? (
                       /* (C2) paused \u2014 temporary hold, full access retained. */
                       <>
-                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
                           Your subscription is paused. It will resume automatically;
                           manage it anytime from the billing portal.
                         </div>
@@ -772,7 +772,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                   <CardContent>
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                       <div className="w-12 h-12 rounded-full bg-sal-500/10 flex items-center justify-center mb-4">
-                        <Globe className="w-6 h-6 text-sal-500" />
+                        <Globe className="w-6 h-6 text-mint-strong" />
                       </div>
                       <p className="font-medium text-foreground">Coming soon</p>
                       <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -796,7 +796,7 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-heading">
-                      <Lock className="w-5 h-5 text-sal-500" />
+                      <Lock className="w-5 h-5 text-mint-strong" />
                       Security Settings
                     </CardTitle>
                   </CardHeader>

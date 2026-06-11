@@ -130,7 +130,7 @@ export function NotificationDropdown() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-auto px-2 py-1 text-xs text-sal-600 hover:text-sal-700"
+              className="h-auto px-2 py-1 text-xs text-mint hover:text-mint-soft"
               onClick={markAllRead}
             >
               Mark all read
@@ -160,7 +160,7 @@ export function NotificationDropdown() {
                   onClick={() => handleNotificationClick(notification)}
                   className={cn(
                     "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-cream-50",
-                    !notification.read && "bg-sal-50/50"
+                    !notification.read && "bg-sal-50"
                   )}
                 >
                   <div
@@ -198,7 +198,7 @@ export function NotificationDropdown() {
             <div className="p-2">
               <Button
                 variant="ghost"
-                className="w-full text-sm text-sal-600 hover:text-sal-700 hover:bg-sal-50"
+                className="w-full text-sm text-mint hover:text-mint-soft hover:bg-sal-50"
                 onClick={markAllRead}
                 disabled={unreadCount === 0}
               >

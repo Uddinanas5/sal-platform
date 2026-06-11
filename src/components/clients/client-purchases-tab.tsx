@@ -98,7 +98,7 @@ const columns: ColumnDef<PurchaseRow>[] = [
       </Button>
     ),
     cell: ({ row }) => (
-      <span className="font-semibold text-sm text-sal-600">
+      <span className="font-semibold text-sm text-mint">
         {formatCurrency(row.getValue("total"))}
       </span>
     ),
@@ -151,7 +151,7 @@ export function ClientPurchasesTab({ client }: ClientPurchasesTabProps) {
             <Card className="border-cream-200">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-sal-100">
-                  <stat.icon className="w-5 h-5 text-sal-600" />
+                  <stat.icon className="w-5 h-5 text-mint" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{stat.label}</p>

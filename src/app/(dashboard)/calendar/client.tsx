@@ -508,7 +508,7 @@ export function CalendarClient(props: CalendarClientProps) {
                 <ListChecks className="h-3.5 w-3.5" />
                 Waitlist
                 {(props.waitlistEntries?.length ?? 0) > 0 && (
-                  <span className="bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center font-semibold">
+                  <span className="bg-amber-500/10 text-amber-300 text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center font-semibold">
                     {props.waitlistEntries?.length}
                   </span>
                 )}

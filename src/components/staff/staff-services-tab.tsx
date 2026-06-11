@@ -135,7 +135,7 @@ export function StaffServicesTab({
                             "w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all",
                             isSelected
                               ? "border-sal-600 bg-sal-600"
-                              : "border-cream-300 bg-white"
+                              : "border-cream-300 bg-card"
                           )}
                         >
                           {isSelected && (
@@ -176,7 +176,7 @@ export function StaffServicesTab({
                             className={cn(
                               "text-xs font-medium",
                               isSelected
-                                ? "bg-sal-100 text-sal-700 dark:bg-sal-900/40 dark:text-sal-300"
+                                ? "bg-sal-100 text-mint-soft dark:bg-sal-900/40 dark:text-sal-300"
                                 : ""
                             )}
                           >

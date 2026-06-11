@@ -169,10 +169,13 @@ function SidebarContent({
       initial={false}
       animate={{ width: isMobile ? 280 : collapsed ? 80 : 280 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
-      className="fixed left-0 top-0 z-40 h-screen bg-white border-r border-cream-200/90 flex flex-col"
+      className={cn(
+        "z-40 glass-panel glass-glint flex flex-col",
+        isMobile ? "h-full rounded-r-panel" : "fixed left-3 top-3 bottom-3 rounded-panel"
+      )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-cream-200/90">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
         <Link
           href="/dashboard"
           className="flex items-center gap-3"
@@ -206,7 +209,7 @@ function SidebarContent({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-2xl font-heading font-bold text-sal-700"
+              className="text-2xl font-heading font-bold text-ink"
             >
               SAL
             </motion.span>
@@ -234,7 +237,7 @@ function SidebarContent({
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="px-3 mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground/60 uppercase"
+                className="px-3 mb-1 text-[10px] font-semibold tracking-widest text-ink-faint uppercase"
               >
                 {section.label}
               </motion.p>
@@ -257,21 +260,21 @@ function SidebarContent({
                       className={cn(
                         "group/nav flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 relative border",
                         isActive
-                          ? "bg-sal-50 text-sal-800 border-sal-200"
-                          : "text-muted-foreground border-transparent hover:bg-cream-100 hover:text-foreground hover:border-cream-200"
+                          ? "bg-white/[0.12] text-white border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.30)]"
+                          : "text-ink-soft border-transparent hover:bg-white/[0.08] hover:text-white"
                       )}
                     >
-                      {/* Active indicator bar */}
+                      {/* Active indicator LED */}
                       {isActive && (
                         <motion.div
                           layoutId="sidebar-active-indicator"
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-sal-600 rounded-full -ml-1.5"
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-mint rounded-full shadow-led-mint -ml-1"
                           transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         />
                       )}
                       <item.icon className={cn(
                         "w-5 h-5 flex-shrink-0 transition-colors duration-200",
-                        isActive ? "text-sal-700" : "group-hover/nav:text-sal-600"
+                        isActive ? "text-mint" : "group-hover/nav:text-mint"
                       )} />
                       {(isMobile || !collapsed) && (
                         <>
@@ -287,8 +290,8 @@ function SidebarContent({
                               className={cn(
                                 "text-[10px] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1",
                                 isActive
-                                  ? "bg-sal-600 text-white"
-                                  : "bg-sal-100 text-sal-700"
+                                  ? "bg-mint/20 text-mint"
+                                  : "bg-white/10 text-white/80"
                               )}
                             >
                               {item.badge}
@@ -328,52 +331,52 @@ function SidebarContent({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-lg border border-sal-200/70 bg-sal-50 p-4"
+            className="relative overflow-hidden glass-tile rounded-tile p-4"
           >
             <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-sal-300/30 blur-2xl" />
             <div className="relative flex items-center gap-2 mb-3">
-              <Bell className="w-4 h-4 text-sal-600" />
-              <span className="text-sm font-semibold text-sal-900">Today&apos;s Summary</span>
+              <Bell className="w-4 h-4 text-mint" />
+              <span className="text-sm font-semibold text-ink">Today&apos;s Summary</span>
             </div>
             <div className="relative space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-sal-700">Revenue</span>
-                <span className="text-sm font-bold text-sal-800">{formatCurrency(stats?.todayRevenue ?? 0)}</span>
+                <span className="text-xs text-mint-soft">Revenue</span>
+                <span className="text-sm font-bold text-ink">{formatCurrency(stats?.todayRevenue ?? 0)}</span>
               </div>
-              <div className="h-1.5 bg-sal-200/50 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(((stats?.todayRevenue ?? 0) / 1200) * 100, 100)}%` }}
                   transition={{ duration: 0.8, delay: 0.3 }}
-                  className="h-full bg-sal-500 rounded-full"
+                  className="h-full bg-mint rounded-full"
                 />
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-sal-700">Appointments</span>
-                <span className="text-sm font-semibold text-sal-800">
+                <span className="text-xs text-mint-soft">Appointments</span>
+                <span className="text-sm font-semibold text-ink">
                   {stats?.completedAppointments ?? 0}/{stats?.todayAppointments ?? 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-sal-700">Upcoming</span>
-                <span className="text-sm font-semibold text-sal-800">{stats?.upcomingAppointments ?? 0}</span>
+                <span className="text-xs text-mint-soft">Upcoming</span>
+                <span className="text-sm font-semibold text-ink">{stats?.upcomingAppointments ?? 0}</span>
               </div>
             </div>
           </motion.div>
         </div>
       )}
 
-      <Separator className="bg-cream-200" />
+      <Separator className="bg-white/10" />
 
       {/* User Profile */}
       <div className="p-3">
         <div className={cn(
-          "flex items-center gap-3 p-2 rounded-lg hover:bg-cream-100 cursor-pointer transition-colors",
+          "flex items-center gap-3 p-2 rounded-lg hover:bg-white/[0.08] cursor-pointer transition-colors",
           !isMobile && collapsed && "justify-center"
         )}>
           <Avatar className="w-9 h-9">
             <AvatarImage src={session?.user?.image || undefined} />
-            <AvatarFallback className="bg-sal-100 text-sal-700">
+            <AvatarFallback className="bg-sal-100 text-mint-soft">
               {session?.user?.name
                 ? session.user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
                 : "U"}
@@ -399,7 +402,7 @@ function SidebarContent({
             variant="outline"
             size="icon"
             onClick={onToggle}
-            className="w-6 h-6 rounded-full bg-cream-50 shadow-md border-cream-300 hover:bg-sal-50"
+            className="w-6 h-6 rounded-full bg-card/90 border-white/20 shadow-md hover:bg-white/15"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
@@ -428,7 +431,7 @@ export function Sidebar({ collapsed, onToggle, isMobile = false, isMobileOpen = 
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-black/50"
+              className="fixed inset-0 z-40 bg-[rgba(2,17,11,0.72)]"
               onClick={onMobileClose}
             />
             {/* Drawer */}

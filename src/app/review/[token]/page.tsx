@@ -26,9 +26,9 @@ export default async function ReviewPage({ params }: { params: { token: string }
 
   return (
     <main className="min-h-screen bg-cream-50 px-4 py-10 text-stone-950">
-      <div className="mx-auto w-full max-w-xl rounded-lg border border-cream-200 bg-white p-6 shadow-sm">
+      <div className="mx-auto w-full max-w-xl rounded-lg border border-cream-200 bg-card p-6 shadow-sm">
         <div className="mb-6">
-          <p className="text-sm font-semibold uppercase tracking-wide text-sal-600">
+          <p className="text-sm font-semibold uppercase tracking-wide text-mint">
             {appointment.business.name}
           </p>
           <h1 className="mt-2 font-heading text-2xl font-semibold">How was your visit?</h1>
@@ -39,7 +39,7 @@ export default async function ReviewPage({ params }: { params: { token: string }
         </div>
 
         {alreadyReviewed ? (
-          <div className="rounded-lg border border-sal-100 bg-sal-50 p-5 text-sm text-sal-900">
+          <div className="rounded-lg border border-sal-100 bg-sal-50 p-5 text-sm text-ink">
             A review has already been submitted for this appointment. Thank you.
           </div>
         ) : appointment.status === "completed" ? (

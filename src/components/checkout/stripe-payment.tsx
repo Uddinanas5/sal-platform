@@ -164,7 +164,7 @@ export function StripePayment({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-sal-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-mint-strong" />
       </div>
     )
   }

@@ -138,7 +138,7 @@ export default function AcceptInvitationClient({ state }: Props) {
           <CardHeader className="text-center space-y-4">
             <Logo />
             <div className="flex justify-center">
-              <CheckCircle2 className="w-12 h-12 text-sal-500" />
+              <CheckCircle2 className="w-12 h-12 text-mint-strong" />
             </div>
             <div>
               <h1 className="text-2xl font-heading font-bold text-foreground">
@@ -153,10 +153,10 @@ export default function AcceptInvitationClient({ state }: Props) {
           <CardContent className="space-y-4">
             <div className="bg-sal-50 border border-sal-200 rounded-lg p-4 space-y-2">
               <div className="flex items-center gap-2">
-                <RoleIcon className="w-4 h-4 text-sal-600" />
-                <span className="text-sm font-medium text-sal-900">{roleLabel} at {businessName}</span>
+                <RoleIcon className="w-4 h-4 text-mint" />
+                <span className="text-sm font-medium text-ink">{roleLabel} at {businessName}</span>
               </div>
-              <p className="text-xs text-sal-700">
+              <p className="text-xs text-mint-soft">
                 Your existing account ({email}) will be linked to this business.
               </p>
             </div>
@@ -215,10 +215,10 @@ export default function AcceptInvitationClient({ state }: Props) {
         </CardHeader>
         <CardContent>
           <div className="bg-sal-50 border border-sal-200 rounded-lg p-3 flex items-center gap-2 mb-6">
-            <RoleIcon className="w-4 h-4 text-sal-600 flex-shrink-0" />
+            <RoleIcon className="w-4 h-4 text-mint flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-sal-900">{businessName}</p>
-              <p className="text-xs text-sal-700">{email} &middot; {roleLabel}</p>
+              <p className="text-sm font-medium text-ink">{businessName}</p>
+              <p className="text-xs text-mint-soft">{email} &middot; {roleLabel}</p>
             </div>
           </div>
 

@@ -210,7 +210,7 @@ export function ReviewsClient(props: ReviewsClientProps) {
 
         {filteredReviews.length === 0 && (
           <EmptyState
-            icon={<Star className="w-8 h-8 text-sal-600" />}
+            icon={<Star className="w-8 h-8 text-mint" />}
             title="No reviews found"
             description="No reviews match your current filters. Try adjusting the source, rating, or sort options."
           />

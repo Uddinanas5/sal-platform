@@ -117,7 +117,7 @@ export function IssueGiftCardDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Gift className="w-5 h-5 text-sal-500" />
+            <Gift className="w-5 h-5 text-mint-strong" />
             Issue Gift Card
           </DialogTitle>
           <DialogDescription>
@@ -225,7 +225,7 @@ export function IssueGiftCardDialog({
           {/* Generated Code Preview */}
           <div className="bg-cream-100 p-4 rounded-xl border border-cream-200 text-center">
             <p className="text-xs text-muted-foreground/70 mb-1">Generated Gift Card Code</p>
-            <p className="text-xl font-mono font-bold text-sal-600 tracking-wider">
+            <p className="text-xl font-mono font-bold text-mint tracking-wider">
               {generatedCode}
             </p>
             {amount && amount > 0 ? (

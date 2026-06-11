@@ -734,7 +734,7 @@ function DateTimeStep({
                       isSelected
                         ? "bg-sal-500 text-white shadow-sm"
                         : isToday && !closed
-                          ? "bg-sal-500/10 text-sal-600 dark:text-sal-400 font-semibold"
+                          ? "bg-sal-500/10 text-sal-400 font-semibold"
                           : isDisabled
                             ? "text-muted-foreground/40 cursor-not-allowed"
                             : "text-foreground hover:bg-muted"
@@ -783,7 +783,7 @@ function DateTimeStep({
                     className="text-center space-y-4 py-4"
                   >
                     <div className="w-14 h-14 rounded-full bg-sal-500/10 mx-auto flex items-center justify-center">
-                      <Bell className="w-7 h-7 text-sal-600 dark:text-sal-400" />
+                      <Bell className="w-7 h-7 text-sal-400" />
                     </div>
                     <div>
                       <h4 className="font-semibold text-foreground text-base">
@@ -1188,7 +1188,7 @@ function ConfirmationStep({
         <CardContent className="p-5 space-y-4">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-sal-500/10 flex items-center justify-center shrink-0 mt-0.5">
-              <Scissors className="w-4 h-4 text-sal-600 dark:text-sal-400" />
+              <Scissors className="w-4 h-4 text-sal-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground">Service</p>
@@ -1208,7 +1208,7 @@ function ConfirmationStep({
 
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-sal-500/10 flex items-center justify-center shrink-0 mt-0.5">
-              <User className="w-4 h-4 text-sal-600 dark:text-sal-400" />
+              <User className="w-4 h-4 text-sal-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Staff</p>
@@ -1220,7 +1220,7 @@ function ConfirmationStep({
 
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-sal-500/10 flex items-center justify-center shrink-0 mt-0.5">
-              <CalendarIcon className="w-4 h-4 text-sal-600 dark:text-sal-400" />
+              <CalendarIcon className="w-4 h-4 text-sal-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Date & Time</p>
@@ -1233,7 +1233,7 @@ function ConfirmationStep({
 
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-sal-500/10 flex items-center justify-center shrink-0 mt-0.5">
-              <Star className="w-4 h-4 text-sal-600 dark:text-sal-400" />
+              <Star className="w-4 h-4 text-sal-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Your info</p>
@@ -1258,7 +1258,7 @@ function ConfirmationStep({
             <span className="font-medium text-foreground">Price</span>
             <p className="text-xs text-muted-foreground">Tax calculated at checkout</p>
           </div>
-          <span className="text-xl font-bold text-sal-600 dark:text-sal-400 font-heading">
+          <span className="text-xl font-bold text-sal-400 font-heading">
             {formatCurrency(service.price)}
           </span>
         </CardContent>
@@ -1380,7 +1380,7 @@ function SuccessState({
             <div className="border-t border-border" />
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Price</span>
-              <span className="font-semibold text-sal-600 dark:text-sal-400">
+              <span className="font-semibold text-sal-400">
                 {formatCurrency(service.price)}
               </span>
             </div>

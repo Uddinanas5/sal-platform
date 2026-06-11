@@ -37,7 +37,7 @@ function DroppableSlot({ id, className, style, onClick, children }: DroppableSlo
   return (
     <div
       ref={setNodeRef}
-      className={cn(className, isOver && "bg-sal-100/60 ring-1 ring-sal-400/40")}
+      className={cn(className, isOver && "bg-sal-100 ring-1 ring-sal-400/40")}
       style={style}
       onClick={onClick}
     >
@@ -236,7 +236,7 @@ export function StaffColumn({
     >
       {/* Staff header */}
       {showHeader && (
-        <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm border-b border-cream-200 h-[52px]">
+        <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 bg-card/95 backdrop-blur-sm border-b border-cream-200 h-[52px]">
           <Avatar className="h-7 w-7">
             <AvatarImage src={staff.avatar} />
             <AvatarFallback
@@ -298,7 +298,7 @@ export function StaffColumn({
             }}
           >
             <div className="flex items-center justify-center h-full">
-              <span className="text-xs font-medium text-muted-foreground/70 bg-white/80 px-2 py-1 rounded-md">
+              <span className="text-xs font-medium text-muted-foreground/70 bg-card/80 px-2 py-1 rounded-md">
                 Day Off
               </span>
             </div>
@@ -311,7 +311,7 @@ export function StaffColumn({
             key={`${slot.hour}-${slot.minute}`}
             id={buildSlotId(staff.id, date, slot.hour, slot.minute)}
             className={cn(
-              "absolute left-0 right-0 border-b group cursor-pointer hover:bg-sal-50/40 transition-colors",
+              "absolute left-0 right-0 border-b group cursor-pointer hover:bg-sal-50 transition-colors",
               slot.minute === 0 ? "border-cream-200" : "border-cream-100"
             )}
             style={{

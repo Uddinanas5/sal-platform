@@ -113,7 +113,7 @@ export function FormsSection({ templates: initialTemplates }: FormsSectionProps)
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2 font-heading">
-                  <FileText className="w-5 h-5 text-sal-500" />
+                  <FileText className="w-5 h-5 text-mint-strong" />
                   Client Forms
                 </CardTitle>
                 <CardDescription>
@@ -239,7 +239,7 @@ export function FormsSection({ templates: initialTemplates }: FormsSectionProps)
                             }
                           >
                             {template.isActive ? (
-                              <ToggleRight className="w-3.5 h-3.5 text-sal-500" />
+                              <ToggleRight className="w-3.5 h-3.5 text-mint-strong" />
                             ) : (
                               <ToggleLeft className="w-3.5 h-3.5" />
                             )}

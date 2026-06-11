@@ -37,7 +37,7 @@ export function CheckoutSummary({
       </div>
 
       {discount > 0 && (
-        <div className="flex items-center justify-between text-sal-600">
+        <div className="flex items-center justify-between text-mint">
           <span>
             Discount{" "}
             {discountType === "percentage"
@@ -49,7 +49,7 @@ export function CheckoutSummary({
       )}
 
       {loyaltyDiscount > 0 && (
-        <div className="flex items-center justify-between text-sal-600">
+        <div className="flex items-center justify-between text-mint">
           <span>Loyalty{loyaltyPoints > 0 ? ` (${loyaltyPoints.toLocaleString()} pts)` : ""}</span>
           <span>-{formatCurrency(loyaltyDiscount)}</span>
         </div>
@@ -71,7 +71,7 @@ export function CheckoutSummary({
 
       <div className="flex items-center justify-between">
         <span className="text-base font-bold">Total</span>
-        <span className="text-lg font-bold text-sal-600">
+        <span className="text-lg font-bold text-mint">
           {formatCurrency(total)}
         </span>
       </div>

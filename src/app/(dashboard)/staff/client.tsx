@@ -57,9 +57,9 @@ import { deleteStaff, setStaffActive } from "@/lib/actions/staff"
 import { sendInvitation } from "@/lib/actions/invitations"
 
 const roleConfig = {
-  admin: { label: "Admin", icon: ShieldAlert, color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10" },
-  manager: { label: "Manager", icon: ShieldCheck, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
-  staff: { label: "Staff", icon: Shield, color: "text-muted-foreground", bg: "bg-cream-200 dark:bg-cream-200/20" },
+  admin: { label: "Admin", icon: ShieldAlert, color: "text-red-400", bg: "bg-red-500/10" },
+  manager: { label: "Manager", icon: ShieldCheck, color: "text-blue-400", bg: "bg-blue-500/10" },
+  staff: { label: "Staff", icon: Shield, color: "text-muted-foreground", bg: "bg-cream-200 dark:bg-cream-200" },
 }
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -134,7 +134,7 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-2 right-2 bg-white/50 hover:bg-white/80"
+                className="absolute top-2 right-2 bg-card/50 hover:bg-card/80"
                 onClick={(e) => e.preventDefault()}
                 aria-label="More options"
               >
@@ -239,7 +239,7 @@ function StaffCard({ staff, index, onDelete, allServices }: { staff: Staff; inde
                     className={cn(
                       "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-medium transition-colors",
                       isWorking
-                        ? "bg-sal-100 text-sal-700"
+                        ? "bg-sal-100 text-mint-soft"
                         : "bg-cream-200 text-muted-foreground/70"
                     )}
                   >
@@ -486,7 +486,7 @@ export function StaffClient(props: StaffClientProps) {
 
         {filteredStaff.length === 0 && (
           <EmptyState
-            icon={<UserCircle className="w-8 h-8 text-sal-600" />}
+            icon={<UserCircle className="w-8 h-8 text-mint" />}
             title="No staff members found"
             description="No staff members match your current search or role filter. Try adjusting your criteria or invite a new team member."
             action={{
@@ -525,7 +525,7 @@ export function StaffClient(props: StaffClientProps) {
                       <td className="py-3 px-4">
                         <Link
                           href={`/staff/${staff.id}`}
-                          className="flex items-center gap-2 hover:text-sal-600 transition-colors"
+                          className="flex items-center gap-2 hover:text-mint transition-colors"
                         >
                           <div
                             className="w-3 h-3 rounded-full"

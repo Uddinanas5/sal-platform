@@ -88,7 +88,7 @@ export function OAuthConsentClient({
               {scope.split(" ").map((s) => (
                 <li key={s} className="flex items-start gap-2 text-sm text-muted-foreground">
                   <svg
-                    className="w-4 h-4 text-sal-600 mt-0.5 flex-shrink-0"
+                    className="w-4 h-4 text-mint mt-0.5 flex-shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"

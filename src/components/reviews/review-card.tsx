@@ -17,10 +17,10 @@ interface ReviewCardProps {
 }
 
 const sourceColors: Record<string, string> = {
-  Google: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  Yelp: "bg-red-500/10 text-red-700 dark:text-red-300",
-  Website: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  App: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
+  Google: "bg-blue-500/10 text-blue-300",
+  Yelp: "bg-red-500/10 text-red-300",
+  Website: "bg-emerald-500/10 text-emerald-300",
+  App: "bg-purple-500/10 text-purple-300",
 }
 
 export function ReviewCard({ review, index, onReply }: ReviewCardProps) {
@@ -80,7 +80,7 @@ export function ReviewCard({ review, index, onReply }: ReviewCardProps) {
       {review.response ? (
         <div className="mt-4 ml-4 pl-4 border-l-2 border-sal-200 space-y-1">
           <div className="flex items-center gap-2">
-            <p className="text-xs font-semibold text-sal-700">
+            <p className="text-xs font-semibold text-mint-soft">
               Response from SAL
             </p>
             {review.responseDate && (

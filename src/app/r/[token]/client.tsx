@@ -53,7 +53,7 @@ export function ReviewCaptureClient({
 
   return (
     <main className="min-h-screen bg-[#f9f7f4] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-sm border border-[#f0ece7] overflow-hidden">
+      <div className="w-full max-w-md rounded-2xl bg-card shadow-sm border border-[#f0ece7] overflow-hidden">
         <div className="bg-emerald-600 px-8 py-6 text-center">
           <span className="text-2xl font-bold tracking-wide text-white">SAL</span>
         </div>
