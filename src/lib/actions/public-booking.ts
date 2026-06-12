@@ -94,7 +94,7 @@ export async function createPublicBooking(data: {
     data = parsed
 
     // Rate limit by email: 5 bookings per hour per email
-    const rl = rateLimit(`booking:${data.clientEmail}`, 5, 60 * 60 * 1000)
+    const rl = await rateLimit(`booking:${data.clientEmail}`, 5, 60 * 60 * 1000)
     if (rl.limited) {
       return { success: false, error: "Too many booking attempts. Please try again later." }
     }
@@ -367,7 +367,7 @@ export async function addToPublicWaitlist(data: {
     const parsed = addToPublicWaitlistSchema.parse(data)
 
     // Rate limit: 5 waitlist entries per hour per email
-    const rl = rateLimit(`waitlist:${parsed.clientEmail}`, 5, 60 * 60 * 1000)
+    const rl = await rateLimit(`waitlist:${parsed.clientEmail}`, 5, 60 * 60 * 1000)
     if (rl.limited) {
       return { success: false, error: "Too many requests. Please try again later." }
     }
@@ -488,7 +488,7 @@ export async function cancelPublicBooking(
 ): Promise<ActionResult<{ status: string }>> {
   try {
     // Rate limit: 3 cancellation attempts per booking reference per 10 minutes
-    const rl = rateLimit(`cancel:${bookingReference}`, 3, 10 * 60 * 1000)
+    const rl = await rateLimit(`cancel:${bookingReference}`, 3, 10 * 60 * 1000)
     if (rl.limited) {
       return { success: false, error: "Too many cancellation attempts. Please try again later." }
     }
@@ -629,7 +629,7 @@ export async function reschedulePublicBooking(
     newStartTime = parsed.newStartTime
 
     // Rate limit: 5 reschedule attempts per booking reference per 10 minutes.
-    const rl = rateLimit(`reschedule:${bookingReference}`, 5, 10 * 60 * 1000)
+    const rl = await rateLimit(`reschedule:${bookingReference}`, 5, 10 * 60 * 1000)
     if (rl.limited) {
       return { success: false, error: "Too many reschedule attempts. Please try again later." }
     }

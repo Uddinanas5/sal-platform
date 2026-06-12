@@ -1,6 +1,66 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+Guidance for ANY AI agent (Codex, Claude, etc.) working in this repository.
+**Read the Constitution below before writing a single line. It overrides convenience, speed, and your own instincts.**
+
+---
+
+# THE SAL CONSTITUTION (read first, every session)
+
+You have no memory of previous sessions. These rules are how SAL stays coherent
+across amnesiac AI sessions. Follow them or your change will be blocked by CI.
+
+## 1. What SAL is (the one thesis)
+SAL helps appointment businesses (salons/barbershops/spas) **turn calendar time
+into paid appointments, stop revenue leakage, and bring clients back.** The whole
+product is ONE loop: **Book → Show up → Pay → Rebook.**
+
+## 2. The Money-Loop test (apply to EVERY feature)
+Before building anything, answer in one sentence:
+> "Which link in the money loop (fill the calendar / prevent the no-show /
+> capture the money / bring them back) does this strengthen, and what NUMBER will move?"
+
+If the answer is "none" or "it's cool" — **do not build it.** No feature bloat.
+Generic dashboards, chatbots, and clever extras are NOT the product.
+
+## 3. Never ship a fake success (the #1 sin)
+A control that shows "success" but does nothing is the most dangerous thing you
+can create — it passes a demo and fails a real customer. **A feature is NOT done
+because the UI works.** Every button/toggle/form must either (a) call a real
+server action that truly persists/does what the label says, or (b) be visibly
+disabled and labelled "Coming soon." A `toast.success(...)` with no awaited
+server action behind it is a bug. (`npm run check:fake-success` scans for this.)
+
+## 4. Sacred zones — extra proof, never re-implement
+A mistake in these ends the business. Do NOT create a second implementation of
+any of them; change them only with a named invariant test that fails-without:
+- **Booking/availability engine** — `src/lib/availability.ts`, `src/lib/scheduling/`, `assertSlotAllowed`, the advisory locks in `src/lib/db/advisory-lock.ts`.
+- **Checkout single-writer** — `src/lib/checkout/record-checkout.ts` (money math is server-authoritative; never trust client prices/totals).
+- **Tenancy primitives** — `getBusinessContext`, `withV1Auth`, `assertOwnedRefs`, `scopedWhere`. Every query on tenant data is scoped by `businessId`.
+- **Auth** — `src/lib/auth.ts`, `src/lib/auth.config.ts`, `src/middleware.ts`.
+- **Stripe webhook** — `src/app/api/stripe/webhook/route.ts` (idempotent + signature-verified + freshness-guarded).
+- **Migrations** — additive, schema-scoped, idempotent, with a `rollback.sql`. Never run against `public` (prod) without explicit founder approval.
+
+## 5. One way to do each thing
+Reuse the existing helper. Before adding a util/pattern, grep for an existing one.
+Do not invent new architecture. If two ways exist, that is a bug to fix, not a choice.
+
+## 6. The Evidence rule (definition of done)
+"Done" = a named artifact a non-technical founder can point at: a passing test
+named for the risk, a screenshot, a runbook output, or a number on the Trust
+board. Risky changes leave a `docs/evidence/phase-X.md` ("what it is / what
+proves it / what I could NOT verify"). The founder's question "what proves this
+works?" must always resolve to a LINK, not a sentence.
+
+## 7. Proof commands (run before claiming done)
+- `npm run typecheck && npm run lint && npm test` — must be green.
+- `npm run test:tz` — green under UTC AND America/New_York (timezone is a known trap).
+- `npm run check:invariants` — the business-invariant board (cross-tenant, no-double-booking, money-authoritative, etc.) must be all-green.
+- `npm run check:fake-success` — no new fake-success controls.
+- `npm run trust` — regenerates the founder-readable Trust board (`docs/TRUST.md`).
+- Sacred-zone or migration change → also run the relevant `check:migrations` / `check:transactions` and an adversarial review.
+
+---
 
 ## Commands
 
@@ -14,7 +74,8 @@ pnpm prisma migrate dev --name <name>  # Create a migration
 npx tsx prisma/seed.ts # Seed the database
 ```
 
-No test framework is configured.
+Test framework: **vitest** (`npm test`, `npm run test:tz`). Plus the safety checks
+in §7 of the Constitution above (`check:invariants`, `check:fake-success`, `trust`).
 
 ## Testing & Database Safety
 

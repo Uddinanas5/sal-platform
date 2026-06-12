@@ -1,5 +1,6 @@
 import { PrismaClient } from "@/generated/prisma"
 import { PrismaPg } from "@prisma/adapter-pg"
+import { applyTenantGuard } from "@/lib/prisma-tenant"
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
@@ -16,6 +17,8 @@ function createPrismaClient() {
   return new PrismaClient({ adapter })
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+// applyTenantGuard returns the client UNCHANGED when TENANT_GUARD=off (default),
+// so this is a no-op until the guard is explicitly enabled (log/throw).
+export const prisma = applyTenantGuard(globalForPrisma.prisma ?? createPrismaClient())
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma as unknown as PrismaClient

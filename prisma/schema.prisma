@@ -1130,9 +1130,15 @@ model Commission {
 
   // Relations
   staff       Staff        @relation(fields: [staffId], references: [id])
-  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  // SetNull (not Cascade): a Commission is a financial/payroll record that must
+  // SURVIVE deletion of its appointment. It self-contains gross/rate/amount/
+  // period/status, so dropping only the appointment link preserves payroll.
+  // (Cascade here silently destroyed payroll rows when an appointment was deleted.)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@index([staffId])
+  // Serves the payroll read: staffId IN (...) + createdAt range + order by createdAt.
+  @@index([staffId, createdAt])
   @@index([appointmentId])
   @@map("commissions")
 
