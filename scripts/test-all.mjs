@@ -12,8 +12,15 @@
 // but does not, by itself, fail the run.
 //
 // Steps run in order; each is a labeled area with pass/fail captured.
+//
+// Flags:
+//   --with-db   Also run the golden-path smoke (scripts/golden-path.mts), which
+//               needs a reachable DATABASE_URL targeting the dev/agents schema.
+//               Off by default so test:all stays runnable without a database.
 
 import { spawnSync } from "node:child_process"
+
+const withDb = process.argv.includes("--with-db")
 
 /**
  * @type {{ area: string, name: string, cmd: string, args: string[], blocking: boolean }[]}
@@ -29,6 +36,13 @@ const steps = [
   { area: "Migrations", name: "Migration safety (changed)", cmd: "npm", args: ["run", "check:migrations"], blocking: true },
   { area: "Honesty", name: "Fake-success scan", cmd: "npm", args: ["run", "check:fake-success"], blocking: false },
 ]
+
+if (withDb) {
+  // Opt-in DB domain: the one-command Money-Loop proof (book → pay → ledger →
+  // calendar) against the dev/agents schema. Blocking when requested — if the
+  // golden path is broken, nothing else matters.
+  steps.push({ area: "GoldenPath", name: "Golden-path smoke (dev DB)", cmd: "npm", args: ["run", "test:golden"], blocking: true })
+}
 
 const results = []
 let blockingFailed = false
