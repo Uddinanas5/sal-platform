@@ -3,7 +3,9 @@ import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { decideBillingGate } from "@/lib/billing/gate"
+import { OPEN_DISPUTE_STATUSES } from "@/lib/billing/disputes"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import type { DisputeBannerData } from "@/components/dashboard/dashboard-layout"
 
 export const dynamic = "force-dynamic"
 
@@ -35,6 +37,7 @@ export default async function Layout({
   const role = (session?.user as any)?.role as string | undefined
 
   let billingBanner: "past_due" | "paused" | null = null
+  let disputeBanner: DisputeBannerData | null = null
 
   if (businessId) {
     const business = await prisma.business
@@ -92,9 +95,34 @@ export default async function Layout({
         billingBanner = decision.banner
       }
     }
+
+    // OPEN DISPUTES → red banner (merchant liability: the shop bears a lost
+    // chargeback, so the owner must see it the moment they open the dashboard).
+    // Earliest evidence deadline first; nulls (no deadline on the event yet)
+    // sort last. .catch keeps the dashboard resilient if the table is missing
+    // (a deploy that raced its migration must degrade to "no banner", never 500).
+    const openDisputes = await prisma.dispute
+      .findMany({
+        where: { businessId, status: { in: [...OPEN_DISPUTE_STATUSES] } },
+        select: { amountCents: true, evidenceDueBy: true },
+        orderBy: { evidenceDueBy: { sort: "asc", nulls: "last" } },
+      })
+      .catch(() => [])
+
+    if (openDisputes.length > 0) {
+      disputeBanner = {
+        count: openDisputes.length,
+        totalAmountCents: openDisputes.reduce((sum, d) => sum + d.amountCents, 0),
+        // Earliest deadline across open disputes (ISO string — serializable
+        // across the server/client boundary).
+        evidenceDueBy: openDisputes[0].evidenceDueBy?.toISOString() ?? null,
+      }
+    }
   }
 
   return (
-    <DashboardLayout billingBanner={billingBanner}>{children}</DashboardLayout>
+    <DashboardLayout billingBanner={billingBanner} disputeBanner={disputeBanner}>
+      {children}
+    </DashboardLayout>
   )
 }

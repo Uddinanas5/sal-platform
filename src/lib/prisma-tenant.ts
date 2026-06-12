@@ -30,7 +30,7 @@ export const DIRECT_BUSINESS_ID = new Set([
   "GiftCard", "Review", "WaitlistEntry", "FormTemplate", "Product", "ProductCategory",
   "Campaign", "Deal", "AutomatedMessage", "MembershipPlan", "Resource", "VisitNote",
   "LoyaltyTransaction", "Notification", "ServiceBundle", "PayrollPeriod",
-  "StaffInvitation", "Location", "Discount",
+  "StaffInvitation", "Location", "Discount", "Dispute",
 ])
 
 // Models that are tenant-owned only via a relation (no business_id column). The

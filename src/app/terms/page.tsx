@@ -1,8 +1,10 @@
 // HUMAN_INPUT_NEEDED: lawyer review required. Section 6 (Payment Terms) below
 // describes SAL's real pricing and refund/cancellation policy ($1,500 one-time
-// setup + $497/month). This wording is a good-faith draft and is NOT legal
-// advice — have counsel review the refund, cancellation, and price-change terms
-// before relying on them.
+// setup + $497/month), and Section 7 (Payments, Chargebacks & Disputes)
+// describes the merchant-liability chargeback policy (the shop bears lost
+// chargebacks; $15 dispute fee refunded on win, waived during beta). Both are
+// good-faith drafts modeled on industry-standard clauses and are NOT legal
+// advice — have counsel review before relying on or enforcing them.
 import Link from "next/link"
 
 export const metadata = {
@@ -42,7 +44,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p className="text-sm text-ink-faint mt-2">
-            Last updated: February 20, 2026
+            Last updated: June 11, 2026
           </p>
         </header>
 
@@ -155,10 +157,46 @@ export default function TermsPage() {
             </p>
           </section>
 
-          {/* 7. Data & Privacy */}
+          {/* 7. Payments, Chargebacks & Disputes */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              7. Data &amp; Privacy
+              7. Payments, Chargebacks &amp; Disputes
+            </h2>
+            <p>
+              SAL Payments lets your business accept card payments from your clients,
+              processed by Stripe. Payments your clients make through the Platform are
+              payments to <em>your business</em> — SAL facilitates the processing but is
+              not a party to the sale between you and your client.
+            </p>
+            <p className="mt-3">
+              <strong className="text-foreground">Your business is responsible for
+              chargebacks.</strong> If a client disputes (charges back) a payment made to
+              your business through the Platform and the dispute is lost, your business
+              bears the disputed amount. SAL may recover that amount by deducting it from
+              your future payouts or by reversing the corresponding transfer to your
+              connected payment account. This is standard practice across salon and
+              booking platforms.
+            </p>
+            <p className="mt-3">
+              Each dispute carries a <strong className="text-foreground">$15 USD dispute
+              fee</strong>. The fee is refunded to you if you win the dispute.{" "}
+              <strong className="text-foreground">During the beta period this fee is
+              waived.</strong>
+            </p>
+            <p className="mt-3">
+              When a dispute is opened, we will notify you on your dashboard and help you
+              respond. You must submit any evidence (receipts, appointment records,
+              cancellation-policy consent, communications) by the deadline shown —
+              disputes that receive no response are almost always lost. You agree to
+              cooperate in good faith with evidence requests and to maintain accurate
+              records of the services you provide.
+            </p>
+          </section>
+
+          {/* 8. Data & Privacy */}
+          <section>
+            <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
+              8. Data &amp; Privacy
             </h2>
             <p>
               Your use of the Platform is also governed by our{" "}
@@ -173,10 +211,10 @@ export default function TermsPage() {
             </p>
           </section>
 
-          {/* 8. Termination */}
+          {/* 9. Termination */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              8. Termination
+              9. Termination
             </h2>
             <p>
               We may terminate or suspend your account immediately, without prior notice or
@@ -188,10 +226,10 @@ export default function TermsPage() {
             </p>
           </section>
 
-          {/* 9. Limitation of Liability */}
+          {/* 10. Limitation of Liability */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              9. Limitation of Liability
+              10. Limitation of Liability
             </h2>
             <p>
               To the maximum extent permitted by applicable law, SAL and its affiliates, officers,
@@ -204,10 +242,10 @@ export default function TermsPage() {
             </p>
           </section>
 
-          {/* 10. Changes to Terms */}
+          {/* 11. Changes to Terms */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              10. Changes to Terms
+              11. Changes to Terms
             </h2>
             <p>
               We reserve the right to modify or replace these Terms at any time. If a revision is
@@ -218,10 +256,10 @@ export default function TermsPage() {
             </p>
           </section>
 
-          {/* 11. Contact Information */}
+          {/* 12. Contact Information */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              11. Contact Information
+              12. Contact Information
             </h2>
             <p>
               If you have any questions about these Terms, please contact us at{" "}

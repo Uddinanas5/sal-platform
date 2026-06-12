@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
-import { ArrowUp, AlertTriangle } from "lucide-react"
+import { ArrowUp, AlertTriangle, ShieldAlert } from "lucide-react"
+import { toast } from "sonner"
 import { Sidebar } from "./sidebar"
 import { MobileSidebarContext } from "./mobile-sidebar-context"
 import { ShortcutGuideDialog } from "./shortcut-guide-dialog"
@@ -25,15 +26,43 @@ function useIsMobile(breakpoint = 768) {
   return isMobile
 }
 
+// Open-dispute (chargeback) notice. Merchant-liability tone is deliberate:
+// the SHOP bears a lost chargeback, so the banner says so plainly and pushes
+// the owner to respond with evidence before the deadline.
+export interface DisputeBannerData {
+  count: number
+  totalAmountCents: number
+  evidenceDueBy: string | null // ISO string of the EARLIEST deadline, or null
+}
+
 interface DashboardLayoutProps {
   children: React.ReactNode
   // Non-blocking billing notice. "past_due" → amber banner prompting a card
   // update via the billing portal. "paused" → amber banner noting the temporary
   // hold. null → no banner (the common case).
   billingBanner?: "past_due" | "paused" | null
+  // Open dispute notice — red banner rendered ABOVE the amber billing banner
+  // (money leaving beats money owed). null → no banner (the common case).
+  disputeBanner?: DisputeBannerData | null
 }
 
-export function DashboardLayout({ children, billingBanner = null }: DashboardLayoutProps) {
+function formatUsd(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`
+}
+
+function formatDeadline(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
+export function DashboardLayout({
+  children,
+  billingBanner = null,
+  disputeBanner = null,
+}: DashboardLayoutProps) {
   const pathname = usePathname()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -101,6 +130,25 @@ export function DashboardLayout({ children, billingBanner = null }: DashboardLay
     setMobileOpen(false)
   }, [])
 
+  // CTA for the dispute banner → the existing Stripe Express dashboard-link
+  // route (server-side resolves the caller's OWN connected account; never
+  // accepts an account id from the browser). Evidence is submitted in Stripe.
+  const [disputeLinkLoading, setDisputeLinkLoading] = useState(false)
+  const openStripeDashboard = useCallback(async () => {
+    setDisputeLinkLoading(true)
+    try {
+      const response = await fetch("/api/stripe/dashboard-link", { method: "POST" })
+      if (!response.ok) throw new Error("Failed to create dashboard link")
+      const { url } = await response.json()
+      window.open(url, "_blank", "noopener,noreferrer")
+    } catch (error) {
+      console.error("Error opening payment dashboard:", error)
+      toast.error("Couldn't open the Stripe dashboard. Please try again.")
+    } finally {
+      setDisputeLinkLoading(false)
+    }
+  }, [])
+
   return (
     <MobileSidebarContext.Provider
       value={{ toggleMobileSidebar: isMobile ? toggleMobileSidebar : undefined }}
@@ -119,6 +167,33 @@ export function DashboardLayout({ children, billingBanner = null }: DashboardLay
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="min-h-screen"
         >
+          {disputeBanner && (
+            <div className="flex items-center justify-between gap-4 bg-red-500/10 border-b border-red-500/30 px-6 py-3 text-sm">
+              <div className="flex items-center gap-2 text-red-300">
+                <ShieldAlert className="w-4 h-4 shrink-0" />
+                <span>
+                  {disputeBanner.count === 1
+                    ? `A client disputed a ${formatUsd(disputeBanner.totalAmountCents)} payment. Respond with evidence${
+                        disputeBanner.evidenceDueBy
+                          ? ` by ${formatDeadline(disputeBanner.evidenceDueBy)}`
+                          : " as soon as possible"
+                      } — if the dispute is lost, the amount comes out of your payouts.`
+                    : `${disputeBanner.count} client payments are disputed (${formatUsd(disputeBanner.totalAmountCents)} total). Respond with evidence${
+                        disputeBanner.evidenceDueBy
+                          ? ` by ${formatDeadline(disputeBanner.evidenceDueBy)}`
+                          : " as soon as possible"
+                      } — if a dispute is lost, the amount comes out of your payouts.`}
+                </span>
+              </div>
+              <button
+                onClick={openStripeDashboard}
+                disabled={disputeLinkLoading}
+                className="shrink-0 font-medium text-red-300 underline underline-offset-2 hover:text-red-200 disabled:opacity-60"
+              >
+                {disputeLinkLoading ? "Opening…" : "Respond in Stripe"}
+              </button>
+            </div>
+          )}
           {billingBanner && (
             <div className="flex items-center justify-between gap-4 bg-amber-500/10 border-b border-amber-500/30 px-6 py-3 text-sm">
               <div className="flex items-center gap-2 text-amber-300">
