@@ -53,5 +53,16 @@ jobs:
       - name: Test
         run: npm run test
 
+      - name: Business invariants (fitness functions)
+        # Each business promise (no cross-tenant leak, no double-booking, money
+        # is server-authoritative, ...) must stay GREEN. Fails the build if a
+        # sacred guarantee breaks OR loses its proving test.
+        run: npm run check:invariants
+
+      - name: Fake-success scan (advisory)
+        # Surfaces controls that toast "success" with no awaited action. Advisory
+        # (does not fail) — visible in logs + on the Trust board.
+        run: npm run check:fake-success
+
       - name: Build
         run: npm run build

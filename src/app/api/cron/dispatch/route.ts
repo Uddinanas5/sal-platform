@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { timingSafeEqual } from "crypto"
 import { runDueReminders } from "@/lib/automation/reminders"
 import { runDueAutomatedMessages } from "@/lib/automation/automated-messages"
+import { getLog } from "@/lib/log/context"
 
 // This route is invoked by Vercel Cron (see vercel.json "crons") on a ~15-minute
 // cadence. It is the runtime backbone for SAL's "Never Miss Again" reminders.
@@ -64,11 +65,7 @@ async function handle(req: NextRequest) {
     // fail-closed 500 below (the cron simply retries on its next tick).
     const reminders = await runDueReminders(startedAt)
     const automatedMessages = await runDueAutomatedMessages(startedAt)
-    console.log("[cron/dispatch] run", {
-      at: startedAt.toISOString(),
-      reminders,
-      automatedMessages,
-    })
+    getLog().info({ at: startedAt.toISOString(), reminders, automatedMessages }, "cron/dispatch run")
     return NextResponse.json({
       ok: true,
       at: startedAt.toISOString(),
@@ -79,7 +76,7 @@ async function handle(req: NextRequest) {
       automatedMessages,
     })
   } catch (e) {
-    console.error("[cron/dispatch] run failed", e)
+    getLog().error({ err: e instanceof Error ? e.message : String(e) }, "cron/dispatch run failed")
     return NextResponse.json(
       { ok: false, error: "dispatch_failed" },
       { status: 500 }

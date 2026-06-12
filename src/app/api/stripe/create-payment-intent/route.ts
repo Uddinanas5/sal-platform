@@ -101,11 +101,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create payment intent
+    // Create payment intent. Idempotency key is per-appointment, hourly-bucketed
+    // (mirrors the subscription-checkout key scheme): a double-submit/retry for
+    // the same appointment within the hour returns the SAME PaymentIntent rather
+    // than charging the client's card twice. Amount is already server-derived
+    // from appointment.totalAmount, so the appointment is the natural charge unit.
+    const hourBucket = Math.floor(Date.now() / 3_600_000)
     const result = await createPaymentIntent({
       amount: Math.round(amount * 100), // Convert to cents
       customerId,
       connectedAccountId: business.stripeAccountId,
+      idempotencyKey: `pi-${appointmentId}-${hourBucket}`,
       metadata: {
         appointmentId: appointmentId || '',
         items: items ? JSON.stringify(items) : '',
