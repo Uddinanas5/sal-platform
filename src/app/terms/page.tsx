@@ -1,9 +1,19 @@
 // HUMAN_INPUT_NEEDED: lawyer review required. Section 6 (Payment Terms) below
 // describes SAL's real pricing and refund/cancellation policy ($1,500 one-time
-// setup + $497/month). This wording is a good-faith draft and is NOT legal
-// advice — have counsel review the refund, cancellation, and price-change terms
-// before relying on them.
+// setup + $497/month), and Section 7 (Payments, Chargebacks & Disputes)
+// describes the merchant-liability chargeback policy (the shop bears lost
+// chargebacks; $15 dispute fee refunded on win, waived during beta). Both are
+// good-faith drafts modeled on industry-standard clauses and are NOT legal
+// advice — have counsel review before relying on or enforcing them.
+//
+// Loop 8 (adversarial ToS review, ~/SAL-ToS-Review-Memo.md) applied the
+// memo's wording patches 1-3 (recovery waterfall, survival, evidence-handling
+// reality) + quick fixes. DELIBERATELY NOT attempted here (lawyer's list):
+// governing law/venue, Bill 96 French version, abusive-clause restructuring
+// (Quebec C.c.Q. arts. 1435-1437), and termination/refund-policy changes
+// (memo findings 3, 7, 15, 16).
 import Link from "next/link"
+import { TOS_VERSION, formatTosVersion } from "@/lib/tos-version"
 
 export const metadata = {
   title: "Terms of Service - SAL",
@@ -42,7 +52,10 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p className="text-sm text-ink-faint mt-2">
-            Last updated: February 20, 2026
+            {/* Driven by TOS_VERSION (src/lib/tos-version.ts) — the same value
+                persisted on each account at acceptance, so the page and the
+                recorded version can never drift apart. */}
+            Last updated: {formatTosVersion(TOS_VERSION)}
           </p>
         </header>
 
@@ -155,10 +168,90 @@ export default function TermsPage() {
             </p>
           </section>
 
-          {/* 7. Data & Privacy */}
+          {/* 7. Payments, Chargebacks & Disputes */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              7. Data &amp; Privacy
+              7. Payments, Chargebacks &amp; Disputes
+            </h2>
+            <p>
+              SAL Payments lets your business accept card payments from your clients,
+              processed by Stripe. Payments your clients make through the Platform are
+              payments to <em>your business</em> — SAL facilitates the processing but is
+              not a party to the sale between you and your client. Payment processing is
+              provided by Stripe and subject to the{" "}
+              <a
+                href="https://stripe.com/legal/connect-account"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-mint underline underline-offset-2 hover:text-mint-soft transition-colors"
+              >
+                Stripe Connected Account Agreement
+              </a>
+              ; by using SAL Payments you agree to be bound by it and by applicable card
+              network rules.
+            </p>
+            <p className="mt-3">
+              <strong className="text-foreground">Your business is responsible for
+              chargebacks.</strong> This Section applies to any payment processed through
+              the Platform that is disputed or reversed for any reason, whether or not
+              the person disputing it is your client. If such a payment is disputed
+              (charged back) and the dispute is lost, your business bears the disputed
+              amount. A dispute is &ldquo;won&rdquo; or &ldquo;lost&rdquo; according to
+              the decision of the card network or issuing bank, as reported to us by our
+              payment processor (Stripe).
+            </p>
+            <p className="mt-3">
+              You authorize SAL to recover the disputed amount and any applicable dispute
+              fee by any combination of: (a) deducting or setting it off against any
+              payouts, transfers, or other amounts otherwise payable to you; (b)
+              reversing transfers, in whole or in part, to the Stripe connected account
+              associated with your business; (c) debiting the payment method on file for
+              your subscription; or (d) invoicing you for the balance, which is due
+              within seven (7) days of our demand. You agree to reimburse SAL&apos;s
+              reasonable costs of collecting amounts you fail to pay when due. While a
+              dispute is pending, SAL may withhold an amount equal to the disputed
+              payment plus the dispute fee from amounts otherwise payable to you;
+              withheld amounts are released promptly if the dispute is resolved in your
+              favor by the card network or issuing bank, as reported by our payment
+              processor. Recovery is made in the currency of the original charge;
+              unless otherwise stated, amounts in these Terms are in USD.
+            </p>
+            <p className="mt-3">
+              Each dispute carries a <strong className="text-foreground">$15 USD dispute
+              fee</strong>, which you authorize SAL to collect using the same recovery
+              methods described above. The fee is refunded to you if the dispute is
+              resolved in your favor.{" "}
+              <strong className="text-foreground">The dispute fee is waived for accounts
+              SAL designates as beta accounts; we will give at least 30 days&apos;
+              written notice before the fee begins to apply.</strong>
+            </p>
+            <p className="mt-3">
+              When a dispute is opened, we will make reasonable efforts to notify you on
+              your dashboard and by email. You must provide SAL with any evidence
+              (receipts, appointment records, cancellation-policy consent,
+              communications) by the deadline we communicate, which may be earlier than
+              the card network&apos;s deadline. You authorize SAL to submit dispute
+              responses and evidence to the payment processor on your business&apos;s
+              behalf. If you do not provide evidence in time, we may accept or decline
+              to contest the dispute, and your business remains responsible for the
+              disputed amount and the dispute fee. SAL does not guarantee the outcome of
+              any dispute, and failure or delay of any notice does not relieve your
+              business of responsibility. You agree to cooperate in good faith with
+              evidence requests and to maintain accurate records of the services you
+              provide.
+            </p>
+            <p className="mt-3">
+              Your business&apos;s responsibility for chargebacks and disputes relating
+              to payments processed before cancellation or termination, and SAL&apos;s
+              recovery rights under this Section, survive cancellation or termination of
+              your account for any reason.
+            </p>
+          </section>
+
+          {/* 8. Data & Privacy */}
+          <section>
+            <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
+              8. Data &amp; Privacy
             </h2>
             <p>
               Your use of the Platform is also governed by our{" "}
@@ -173,10 +266,10 @@ export default function TermsPage() {
             </p>
           </section>
 
-          {/* 8. Termination */}
+          {/* 9. Termination */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              8. Termination
+              9. Termination
             </h2>
             <p>
               We may terminate or suspend your account immediately, without prior notice or
@@ -186,12 +279,19 @@ export default function TermsPage() {
               remove your personal data in accordance with our Privacy Policy, though we may
               retain certain data as required by law or for legitimate business purposes.
             </p>
+            <p className="mt-3">
+              Sections 6 (Payment Terms), 7 (Payments, Chargebacks &amp; Disputes), and
+              10 (Limitation of Liability) survive cancellation or termination of these
+              Terms, including your business&apos;s responsibility for chargebacks and
+              disputes relating to payments processed before cancellation or termination
+              and SAL&apos;s recovery rights under Section 7.
+            </p>
           </section>
 
-          {/* 9. Limitation of Liability */}
+          {/* 10. Limitation of Liability */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              9. Limitation of Liability
+              10. Limitation of Liability
             </h2>
             <p>
               To the maximum extent permitted by applicable law, SAL and its affiliates, officers,
@@ -204,10 +304,10 @@ export default function TermsPage() {
             </p>
           </section>
 
-          {/* 10. Changes to Terms */}
+          {/* 11. Changes to Terms */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              10. Changes to Terms
+              11. Changes to Terms
             </h2>
             <p>
               We reserve the right to modify or replace these Terms at any time. If a revision is
@@ -218,10 +318,10 @@ export default function TermsPage() {
             </p>
           </section>
 
-          {/* 11. Contact Information */}
+          {/* 12. Contact Information */}
           <section>
             <h2 className="text-lg font-heading font-semibold text-foreground mb-3">
-              11. Contact Information
+              12. Contact Information
             </h2>
             <p>
               If you have any questions about these Terms, please contact us at{" "}

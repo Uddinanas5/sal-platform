@@ -3,6 +3,10 @@ import { headers } from "next/headers"
 import Stripe from "stripe"
 import { prisma } from "@/lib/prisma"
 import { stripe } from "@/lib/stripe"
+import { applyDisputeEvent } from "@/lib/billing/disputes"
+// Shared Stripe→SAL subscription status mapping — lives in the reconcile
+// module so the webhook and the daily reconciler can never disagree.
+import { mapStripeStatus } from "@/lib/billing/reconcile"
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
@@ -19,35 +23,6 @@ function isUniqueViolation(err: unknown): boolean {
     err !== null &&
     (err as { code?: unknown }).code === "P2002"
   )
-}
-
-// Map a Stripe subscription status onto SAL's SubscriptionStatus enum values
-// (exactly: active | trialing | past_due | cancelled | paused). We treat a
-// trial as full access (active), and every failure/incomplete state as past_due
-// so the dashboard shows the non-blocking "update your card" banner rather than
-// hard-locking the salon. Stripe's `paused` (pause_collection) is a TEMPORARY
-// hold — the subscription still exists and is expected to resume — so it maps to
-// our own `paused` value (non-blocking banner), NEVER to `cancelled`. Only a true
-// Stripe `canceled` is terminal and triggers the hard gate.
-function mapStripeStatus(
-  status: Stripe.Subscription.Status
-): "active" | "past_due" | "cancelled" | "paused" {
-  switch (status) {
-    case "active":
-    case "trialing":
-      return "active"
-    case "past_due":
-    case "unpaid":
-    case "incomplete":
-    case "incomplete_expired":
-      return "past_due"
-    case "paused":
-      return "paused"
-    case "canceled":
-      return "cancelled"
-    default:
-      return "past_due"
-  }
 }
 
 // Build the Prisma `where` used to resolve the owning business from a Stripe
@@ -319,6 +294,35 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        break
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // DISPUTES (chargebacks) — Phase 2B. A client disputed a card payment
+      // made to a salon. Merchant-liability policy: the SHOP bears a lost
+      // chargeback (industry standard); SAL records, notifies, and helps
+      // respond. All state logic lives in src/lib/billing/disputes.ts —
+      // per-row lastEventAt watermark + create-with-P2002-swallow makes it
+      // safe under replay AND reordering (closed-before-created).
+      // ───────────────────────────────────────────────────────────────────
+      case "charge.dispute.created":
+      case "charge.dispute.updated":
+      case "charge.dispute.closed": {
+        await applyDisputeEvent(event)
+        break
+      }
+
+      // Balance-movement notifications within the dispute lifecycle. The money
+      // state is already fully tracked by created/updated/closed (dispute row +
+      // payment status); acting on these too would double-count the same funds.
+      // Deliberate, LOGGED no-ops.
+      case "charge.dispute.funds_withdrawn":
+      case "charge.dispute.funds_reinstated": {
+        const fundsDispute = event.data.object as Stripe.Dispute
+        console.warn(
+          `[stripe.webhook] ${event.type} dispute=${fundsDispute.id} amount=${fundsDispute.amount} — ` +
+            `logged no-op (dispute state is tracked via created/updated/closed; acting here would double-count).`
+        )
         break
       }
 

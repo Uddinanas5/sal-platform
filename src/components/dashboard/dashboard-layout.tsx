@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
-import { ArrowUp, AlertTriangle } from "lucide-react"
+import { ArrowUp, AlertTriangle, ShieldAlert } from "lucide-react"
 import { Sidebar } from "./sidebar"
 import { MobileSidebarContext } from "./mobile-sidebar-context"
 import { ShortcutGuideDialog } from "./shortcut-guide-dialog"
@@ -25,15 +25,51 @@ function useIsMobile(breakpoint = 768) {
   return isMobile
 }
 
+// Open-dispute (chargeback) notice. Merchant-liability tone is deliberate:
+// the SHOP bears a lost chargeback, so the banner says so plainly and pushes
+// the owner to send their evidence before the deadline.
+//
+// IMPORTANT (adversarial ToS review, finding #5): under destination charges
+// the dispute lives on SAL's PLATFORM Stripe account — it does NOT exist in
+// the merchant's Express dashboard, so the old "Respond in Stripe" deep link
+// sent owners to an empty page. Only SAL can submit evidence to the network;
+// the merchant's job is to get their evidence to SAL. The CTA is therefore a
+// mailto to SAL support (resolved server-side — see (dashboard)/layout.tsx).
+export interface DisputeBannerData {
+  count: number
+  totalAmountCents: number
+  evidenceDueBy: string | null // ISO string of the EARLIEST deadline, or null
+  supportEmail: string // where the owner sends evidence (SUPPORT_EMAIL env)
+}
+
 interface DashboardLayoutProps {
   children: React.ReactNode
   // Non-blocking billing notice. "past_due" → amber banner prompting a card
   // update via the billing portal. "paused" → amber banner noting the temporary
   // hold. null → no banner (the common case).
   billingBanner?: "past_due" | "paused" | null
+  // Open dispute notice — red banner rendered ABOVE the amber billing banner
+  // (money leaving beats money owed). null → no banner (the common case).
+  disputeBanner?: DisputeBannerData | null
 }
 
-export function DashboardLayout({ children, billingBanner = null }: DashboardLayoutProps) {
+function formatUsd(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`
+}
+
+function formatDeadline(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
+export function DashboardLayout({
+  children,
+  billingBanner = null,
+  disputeBanner = null,
+}: DashboardLayoutProps) {
   const pathname = usePathname()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -119,6 +155,35 @@ export function DashboardLayout({ children, billingBanner = null }: DashboardLay
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="min-h-screen"
         >
+          {disputeBanner && (
+            <div className="flex items-center justify-between gap-4 bg-red-500/10 border-b border-red-500/30 px-6 py-3 text-sm">
+              <div className="flex items-center gap-2 text-red-300">
+                <ShieldAlert className="w-4 h-4 shrink-0" />
+                <span>
+                  {disputeBanner.count === 1
+                    ? `A client disputed a ${formatUsd(disputeBanner.totalAmountCents)} payment. Reply to the dispute email with your evidence (receipts, photos, client messages)${
+                        disputeBanner.evidenceDueBy
+                          ? ` by ${formatDeadline(disputeBanner.evidenceDueBy)}`
+                          : " as soon as possible"
+                      } — we submit it to the card network for you. If the dispute is lost, the amount comes out of your payouts.`
+                    : `${disputeBanner.count} client payments are disputed (${formatUsd(disputeBanner.totalAmountCents)} total). Reply to the dispute emails with your evidence (receipts, photos, client messages)${
+                        disputeBanner.evidenceDueBy
+                          ? ` by ${formatDeadline(disputeBanner.evidenceDueBy)}`
+                          : " as soon as possible"
+                      } — we submit it to the card network for you. If a dispute is lost, the amount comes out of your payouts.`}
+                </span>
+              </div>
+              {/* mailto — NOT the Express dashboard: the dispute doesn't exist
+                  there (destination charges live on SAL's platform account, so
+                  only SAL can submit evidence to the card network). */}
+              <a
+                href={`mailto:${disputeBanner.supportEmail}?subject=${encodeURIComponent("Dispute evidence")}`}
+                className="shrink-0 font-medium text-red-300 underline underline-offset-2 hover:text-red-200"
+              >
+                Email your evidence
+              </a>
+            </div>
+          )}
           {billingBanner && (
             <div className="flex items-center justify-between gap-4 bg-amber-500/10 border-b border-amber-500/30 px-6 py-3 text-sm">
               <div className="flex items-center gap-2 text-amber-300">

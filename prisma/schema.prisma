@@ -144,6 +144,11 @@ enum PaymentStatus {
   completed
   failed
   refunded
+  // A client opened a chargeback on this payment (charge.dispute.*). Set by the
+  // Stripe webhook; restored to `completed` only if the dispute is WON. A lost
+  // dispute stays `disputed` — the money left, and `refunded` would misreport
+  // it as a voluntary refund.
+  disputed
 
 
 }
@@ -263,6 +268,12 @@ model User {
   notificationPreferences Json       @default("{}") @map("notification_preferences")
   failedLoginAttempts     Int        @default(0) @map("failed_login_attempts")
   lockedUntil             DateTime?  @map("locked_until") @db.Timestamptz
+  // ToS acceptance proof (adversarial ToS review, finding #4): WHEN this user
+  // affirmatively accepted the Terms and WHICH revision (TOS_VERSION from
+  // src/lib/tos-version.ts). Set at registration; NULL for accounts created
+  // before this was recorded (pre-Jun 2026) — those need re-acceptance.
+  tosAcceptedAt           DateTime?  @map("tos_accepted_at") @db.Timestamptz
+  tosVersion              String?    @map("tos_version") @db.VarChar(20)
   metadata                Json       @default("{}")
   createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime   @updatedAt @map("updated_at") @db.Timestamptz
@@ -336,6 +347,7 @@ model Business {
   clients            Client[]
   appointments       Appointment[]
   payments           Payment[]
+  disputes           Dispute[]
   invoices           Invoice[]
   giftCards          GiftCard[]
   productCategories  ProductCategory[]
@@ -757,6 +769,12 @@ model Appointment {
   rescheduledTo      String?           @map("rescheduled_to") @db.Uuid
   reminderSentAt     DateTime?         @map("reminder_sent_at") @db.Timestamptz
   confirmationSentAt DateTime?         @map("confirmation_sent_at") @db.Timestamptz
+  // Cancellation-policy consent proof (adversarial ToS review, finding #13):
+  // set ONLY by the public booking funnel (createPublicBooking), where the
+  // business's real, enforced cancellation window is displayed directly above
+  // the Confirm button. NULL for internal/API/MCP bookings (no policy shown).
+  // This is the "cancellation-policy consent" evidence ToS §7 references.
+  policyAcceptedAt   DateTime?         @map("policy_accepted_at") @db.Timestamptz
   createdBy          String?           @map("created_by") @db.Uuid
   metadata           Json              @default("{}")
   createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz
@@ -933,6 +951,7 @@ model Payment {
   processedUser User?        @relation("ProcessedBy", fields: [processedBy], references: [id])
   loyaltyTransactions LoyaltyTransaction[]
   productLines        AppointmentProduct[]
+  disputes            Dispute[]
 
   @@index([businessId])
   @@index([businessId, status])
@@ -1130,9 +1149,15 @@ model Commission {
 
   // Relations
   staff       Staff        @relation(fields: [staffId], references: [id])
-  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  // SetNull (not Cascade): a Commission is a financial/payroll record that must
+  // SURVIVE deletion of its appointment. It self-contains gross/rate/amount/
+  // period/status, so dropping only the appointment link preserves payroll.
+  // (Cascade here silently destroyed payroll rows when an appointment was deleted.)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@index([staffId])
+  // Serves the payroll read: staffId IN (...) + createdAt range + order by createdAt.
+  @@index([staffId, createdAt])
   @@index([appointmentId])
   @@map("commissions")
 
@@ -1850,4 +1875,51 @@ model StripeEvent {
 
   @@index([type])
   @@map("stripe_events")
+}
+
+// ============================================================================
+// STRIPE DISPUTES (chargebacks) — Phase 2B
+// One row per Stripe dispute, written exclusively by the charge.dispute.*
+// webhook handlers. Merchant-liability policy (founder-approved Jun 2026): the
+// SHOP bears a lost chargeback; recovery v1 is a manual transfer reversal by
+// the founder (see docs/INCIDENT_RUNBOOK.md).
+// ============================================================================
+
+model Dispute {
+  // Stripe dispute id stored VERBATIM. Both `du_` (current) and legacy `dp_`
+  // prefixes exist in the wild — NEVER validate or parse the prefix.
+  id              String    @id @db.VarChar(255)
+  // Nullable ON PURPOSE: an orphan dispute (no Payment row matches the
+  // payment_intent) is still recorded with businessId null + a loud error —
+  // money at risk must never be silently dropped.
+  businessId      String?   @map("business_id") @db.Uuid
+  paymentId       String?   @map("payment_id") @db.Uuid
+  paymentIntentId String?   @map("payment_intent_id") @db.VarChar(255)
+  chargeId        String?   @map("charge_id") @db.VarChar(255)
+  amountCents     Int       @map("amount_cents")
+  currency        String    @db.VarChar(3)
+  reason          String?   @db.VarChar(100)
+  // Stripe dispute status stored as varchar, NOT a Postgres enum — Stripe adds
+  // and retires statuses (`charge_refunded` no longer exists; `prevented` is
+  // new). An unknown status must be storable, never a constraint violation.
+  status          String    @db.VarChar(50)
+  evidenceDueBy   DateTime? @map("evidence_due_by") @db.Timestamptz
+  // $15 dispute fee policy (founder-approved): refunded if the shop wins,
+  // WAIVED during beta. v1 is RECORD-ONLY — no auto-charging anywhere.
+  feeCents        Int       @default(1500) @map("fee_cents")
+  feeWaived       Boolean   @default(true) @map("fee_waived")
+  // Per-row freshness watermark: the Stripe event.created of the freshest
+  // charge.dispute.* event applied to this row. Guards out-of-order delivery
+  // (e.g. a stale `created` arriving after `closed`) the same way
+  // Business.lastBillingEventAt guards billing events.
+  lastEventAt     DateTime  @map("last_event_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  business Business? @relation(fields: [businessId], references: [id])
+  payment  Payment?  @relation(fields: [paymentId], references: [id])
+
+  @@index([businessId, status])
+  @@index([paymentIntentId])
+  @@map("disputes")
 }

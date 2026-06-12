@@ -1,0 +1,14 @@
+-- PaymentStatus gains 'disputed' (Phase 2B — Stripe dispute handling).
+--
+-- This migration contains ONLY the ALTER TYPE ... ADD VALUE — nothing else, on
+-- purpose. PG12+ allows ADD VALUE inside a transaction, but the new value
+-- CANNOT BE USED in the same transaction it was added in. Prisma wraps each
+-- migration in its own transaction, so isolating the ADD VALUE here guarantees
+-- the value is committed before anything (the disputes table migration, the
+-- webhook at runtime) can reference it.
+--
+-- IF NOT EXISTS makes this idempotent across schemas (public / dev / agents /
+-- rehearsal copies), matching the house pattern. Rollback SQL is in
+-- rollback.sql alongside this file (an enum value cannot be dropped directly —
+-- see the guarded type-rebuild there).
+ALTER TYPE "PaymentStatus" ADD VALUE IF NOT EXISTS 'disputed';
