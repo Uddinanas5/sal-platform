@@ -106,7 +106,7 @@ export function StaffServicesTab({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: catIndex * 0.05 }}
           >
-            <Card>
+            <Card variant="tile">
               <CardContent className="p-4">
                 <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                   {category}

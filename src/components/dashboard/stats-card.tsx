@@ -112,16 +112,20 @@ export function StatsCard({
     ? value
     : parseFloat(String(value).replace(/[^0-9.]/g, "")) || 0
   const prefix = typeof value === "string" ? (value.match(/^[^0-9]*/)?.[0] || "") : ""
-  const isDecimal = String(value).includes(".")
+  // Preserve however many decimal places the formatted value carries
+  // (e.g. "$1,234.56" → 2) instead of forcing everything to one digit.
+  const decimals = (String(value).replace(/[^0-9.]/g, "").split(".")[1] ?? "").length
+  const scale = 10 ** decimals
   const { count, ref: countRef } = useCountUp(
-    isDecimal ? Math.round(numericValue * 10) : numericValue,
+    decimals > 0 ? Math.round(numericValue * scale) : numericValue,
     800,
     (delay + 0.3) * 1000
   )
 
-  const displayCount = isDecimal
-    ? (count / 10).toFixed(1)
-    : count.toLocaleString()
+  const displayCount = (count / scale).toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
 
   return (
     <motion.div

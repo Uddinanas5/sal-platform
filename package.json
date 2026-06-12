@@ -13,7 +13,7 @@
     "check:launch": "node scripts/launch-safety-check.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "check:transactions": "node scripts/check-transaction-side-effects.mjs",
-    "check:db": "node scripts/db-health-check.mjs",
+    "check:db": "node --env-file=.env scripts/db-health-check.mjs",
     "check:orphans": "node scripts/orphan-sweep.mjs",
     "check:restore": "node scripts/verify-restore.mjs",
     "test": "vitest run",
@@ -35,8 +35,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "@prisma/adapter-pg": "^7.4.0",
-    "@prisma/client": "^7.4.0",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -89,6 +89,14 @@
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
   },
+  "overrides": {
+    "@prisma/dev": "^0.24.12"
+  },
+  "pnpm": {
+    "overrides": {
+      "@prisma/dev": "^0.24.12"
+    }
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
@@ -100,7 +108,7 @@
     "eslint-config-next": "14.2.35",
     "pg": "^8.21.0",
     "postcss": "^8",
-    "prisma": "^7.4.0",
+    "prisma": "^7.8.0",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.21.0",
     "typescript": "^5",
