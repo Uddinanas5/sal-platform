@@ -53,6 +53,9 @@ export default function RegisterPage() {
       lastName,
       email: normalizedEmail,
       password,
+      // Persisted server-side as tosAcceptedAt + tosVersion — the recorded
+      // proof of acceptance, not just a button gate.
+      agreedToTerms,
     })
 
     if (!result.success) {

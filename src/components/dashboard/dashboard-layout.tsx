@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { ArrowUp, AlertTriangle, ShieldAlert } from "lucide-react"
-import { toast } from "sonner"
 import { Sidebar } from "./sidebar"
 import { MobileSidebarContext } from "./mobile-sidebar-context"
 import { ShortcutGuideDialog } from "./shortcut-guide-dialog"
@@ -28,11 +27,19 @@ function useIsMobile(breakpoint = 768) {
 
 // Open-dispute (chargeback) notice. Merchant-liability tone is deliberate:
 // the SHOP bears a lost chargeback, so the banner says so plainly and pushes
-// the owner to respond with evidence before the deadline.
+// the owner to send their evidence before the deadline.
+//
+// IMPORTANT (adversarial ToS review, finding #5): under destination charges
+// the dispute lives on SAL's PLATFORM Stripe account — it does NOT exist in
+// the merchant's Express dashboard, so the old "Respond in Stripe" deep link
+// sent owners to an empty page. Only SAL can submit evidence to the network;
+// the merchant's job is to get their evidence to SAL. The CTA is therefore a
+// mailto to SAL support (resolved server-side — see (dashboard)/layout.tsx).
 export interface DisputeBannerData {
   count: number
   totalAmountCents: number
   evidenceDueBy: string | null // ISO string of the EARLIEST deadline, or null
+  supportEmail: string // where the owner sends evidence (SUPPORT_EMAIL env)
 }
 
 interface DashboardLayoutProps {
@@ -130,25 +137,6 @@ export function DashboardLayout({
     setMobileOpen(false)
   }, [])
 
-  // CTA for the dispute banner → the existing Stripe Express dashboard-link
-  // route (server-side resolves the caller's OWN connected account; never
-  // accepts an account id from the browser). Evidence is submitted in Stripe.
-  const [disputeLinkLoading, setDisputeLinkLoading] = useState(false)
-  const openStripeDashboard = useCallback(async () => {
-    setDisputeLinkLoading(true)
-    try {
-      const response = await fetch("/api/stripe/dashboard-link", { method: "POST" })
-      if (!response.ok) throw new Error("Failed to create dashboard link")
-      const { url } = await response.json()
-      window.open(url, "_blank", "noopener,noreferrer")
-    } catch (error) {
-      console.error("Error opening payment dashboard:", error)
-      toast.error("Couldn't open the Stripe dashboard. Please try again.")
-    } finally {
-      setDisputeLinkLoading(false)
-    }
-  }, [])
-
   return (
     <MobileSidebarContext.Provider
       value={{ toggleMobileSidebar: isMobile ? toggleMobileSidebar : undefined }}
@@ -173,25 +161,27 @@ export function DashboardLayout({
                 <ShieldAlert className="w-4 h-4 shrink-0" />
                 <span>
                   {disputeBanner.count === 1
-                    ? `A client disputed a ${formatUsd(disputeBanner.totalAmountCents)} payment. Respond with evidence${
+                    ? `A client disputed a ${formatUsd(disputeBanner.totalAmountCents)} payment. Reply to the dispute email with your evidence (receipts, photos, client messages)${
                         disputeBanner.evidenceDueBy
                           ? ` by ${formatDeadline(disputeBanner.evidenceDueBy)}`
                           : " as soon as possible"
-                      } — if the dispute is lost, the amount comes out of your payouts.`
-                    : `${disputeBanner.count} client payments are disputed (${formatUsd(disputeBanner.totalAmountCents)} total). Respond with evidence${
+                      } — we submit it to the card network for you. If the dispute is lost, the amount comes out of your payouts.`
+                    : `${disputeBanner.count} client payments are disputed (${formatUsd(disputeBanner.totalAmountCents)} total). Reply to the dispute emails with your evidence (receipts, photos, client messages)${
                         disputeBanner.evidenceDueBy
                           ? ` by ${formatDeadline(disputeBanner.evidenceDueBy)}`
                           : " as soon as possible"
-                      } — if a dispute is lost, the amount comes out of your payouts.`}
+                      } — we submit it to the card network for you. If a dispute is lost, the amount comes out of your payouts.`}
                 </span>
               </div>
-              <button
-                onClick={openStripeDashboard}
-                disabled={disputeLinkLoading}
-                className="shrink-0 font-medium text-red-300 underline underline-offset-2 hover:text-red-200 disabled:opacity-60"
+              {/* mailto — NOT the Express dashboard: the dispute doesn't exist
+                  there (destination charges live on SAL's platform account, so
+                  only SAL can submit evidence to the card network). */}
+              <a
+                href={`mailto:${disputeBanner.supportEmail}?subject=${encodeURIComponent("Dispute evidence")}`}
+                className="shrink-0 font-medium text-red-300 underline underline-offset-2 hover:text-red-200"
               >
-                {disputeLinkLoading ? "Opening…" : "Respond in Stripe"}
-              </button>
+                Email your evidence
+              </a>
             </div>
           )}
           {billingBanner && (

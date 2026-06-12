@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma"
 import { rateLimit } from "@/lib/rate-limit"
 import { sendEmail } from "@/lib/email"
 import { welcomeEmail } from "@/lib/email-templates"
+import { TOS_VERSION } from "@/lib/tos-version"
 
 type RegisterResult =
   | { success: true }
@@ -17,6 +18,12 @@ const registerBusinessSchema = z.object({
   lastName: z.string().trim().min(1, "Last name is required"),
   email: z.string().email("Valid email is required"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  // ToS acceptance is enforced SERVER-SIDE (the checkbox alone proved nothing —
+  // adversarial ToS review, finding #4). Must be literally true to register;
+  // the accepted timestamp + version are persisted on the User row below.
+  agreedToTerms: z.boolean().refine((v) => v === true, {
+    message: "You must agree to the Terms of Service to create an account",
+  }),
 })
 
 export async function registerBusiness(data: {
@@ -25,6 +32,7 @@ export async function registerBusiness(data: {
   lastName: string
   email: string
   password: string
+  agreedToTerms: boolean
 }): Promise<RegisterResult> {
   try {
     const parsed = registerBusinessSchema.parse(data)
@@ -56,7 +64,8 @@ export async function registerBusiness(data: {
 
     // Create user, business, location, and staff in a transaction
     const { firstName, email } = await prisma.$transaction(async (tx) => {
-      // Create the user
+      // Create the user. tosAcceptedAt/tosVersion record the affirmative ToS
+      // acceptance validated above — the proof the signup checkbox never saved.
       const user = await tx.user.create({
         data: {
           email: parsed.email.toLowerCase(),
@@ -65,6 +74,8 @@ export async function registerBusiness(data: {
           lastName: parsed.lastName.trim(),
           role: "owner",
           status: "active",
+          tosAcceptedAt: new Date(),
+          tosVersion: TOS_VERSION,
         },
       })
 

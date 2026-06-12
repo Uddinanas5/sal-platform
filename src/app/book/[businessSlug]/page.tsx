@@ -192,6 +192,7 @@ export default async function PublicBookingPage({
       staff={staff}
       businessHours={businessHours}
       maxAdvanceBooking={bookingSettings.maxAdvanceBooking}
+      cancellationWindow={bookingSettings.cancellationWindow}
       timezone={timezone}
       socialLinks={onlinePresence.socialLinks}
     />

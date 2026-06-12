@@ -1,6 +1,7 @@
 import Stripe from "stripe"
 import { prisma } from "@/lib/prisma"
-import { sendEmail } from "@/lib/email"
+import { sendEmail, getSupportEmail } from "@/lib/email"
+import { formatInZone } from "@/lib/scheduling/zoned-time"
 
 // STRIPE DISPUTE (CHARGEBACK) HANDLING — Phase 2B.
 //
@@ -159,11 +160,18 @@ export async function applyDisputeEvent(
     }
   }
 
-  // Founder alert email — POST-DB, fire-and-forget (sendEmail never throws, so
-  // a slow/failing provider can never 500 the webhook). Only when the event
+  // Notification emails — POST-DB, fire-and-forget (sendEmail never throws,
+  // and the owner path catches its own lookup errors, so a slow/failing
+  // provider or DB hiccup can never 500 the webhook). Only when the event
   // applied: duplicates and stale replays must not re-alert.
   if (applied) {
+    // Founder copy (ALERT_EMAIL) on EVERY applied event...
     await sendDisputeAlertEmail(event.type, state, dispute.id)
+    // ...and the business OWNER on created/closed (adversarial ToS review,
+    // finding #10: the ToS promised "we will notify you ... by email" but only
+    // the founder was emailed — the shop owner got a banner they might never
+    // see inside a 7–21 day evidence window).
+    await sendOwnerDisputeEmail(event.type, state, dispute.id)
   }
 
   return { applied, orphan }
@@ -216,4 +224,130 @@ async function sendDisputeAlertEmail(
       before the deadline; if lost, recover via manual transfer reversal.</p>
     `,
   })
+}
+
+// Merchant-facing dispute notification (adversarial ToS review, finding #10).
+// Sent on `created` (act NOW: get your evidence to SAL) and `closed` (the
+// outcome) — NOT on `updated`, whose status churn is noise to a shop owner.
+//
+// The copy matches the dashboard banner and ToS §7: under destination charges
+// the dispute lives on SAL's PLATFORM Stripe account, so the merchant cannot
+// respond in their own Stripe dashboard — they reply to THIS email with their
+// evidence and SAL submits it to the card network. replyTo is therefore
+// getSupportEmail(), the same inbox the banner's mailto CTA points at.
+//
+// Best-effort BY DESIGN: the dispute is already recorded and the founder alert
+// has fired. A thrown owner-lookup error here would 500 the webhook, Stripe
+// would retry, and the retry would be swallowed as stale (watermark) — losing
+// the notification forever. So every failure is caught and logged, never thrown.
+async function sendOwnerDisputeEmail(
+  eventType: string,
+  state: {
+    businessId: string | null
+    paymentIntentId: string | null
+    amountCents: number
+    currency: string
+    reason: string | null
+    status: string
+    evidenceDueBy: Date | null
+  },
+  disputeId: string
+): Promise<void> {
+  if (!eventType.endsWith(".created") && !eventType.endsWith(".closed")) return
+  // Orphan disputes have no business to notify — the founder alert already
+  // screams about those (manual review).
+  if (!state.businessId) return
+
+  try {
+    const business = await prisma.business.findUnique({
+      where: { id: state.businessId },
+      select: {
+        name: true,
+        timezone: true,
+        owner: { select: { email: true, firstName: true } },
+      },
+    })
+    const ownerEmail = business?.owner?.email
+    if (!ownerEmail) {
+      console.warn(
+        `[stripe.webhook] no owner email for business=${state.businessId} — skipping owner dispute email (dispute=${disputeId}).`
+      )
+      return
+    }
+
+    const amount = `$${(state.amountCents / 100).toFixed(2)} ${state.currency}`
+    const supportEmail = getSupportEmail()
+    // Deadline in the SALON's wall-clock (same precedent as booking emails) —
+    // an ISO/UTC timestamp reads like a different day to a 9pm-ET owner.
+    const dueBy = state.evidenceDueBy
+      ? formatInZone(state.evidenceDueBy, business.timezone, {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+          timeZoneName: "short",
+        })
+      : null
+
+    let subject: string
+    let html: string
+    if (eventType.endsWith(".created")) {
+      subject = `Action needed: a client disputed a ${amount} payment to ${business.name}`
+      html = `
+        <h2>A payment to ${business.name} was disputed</h2>
+        <p>A client disputed (charged back) a <strong>${amount}</strong> payment
+        made to your business through SAL.</p>
+        <p><strong>What to do: reply to this email with your evidence</strong> —
+        receipts, appointment records, photos, client messages, and any
+        cancellation-policy consent. ${dueBy ? `Please send it by <strong>${dueBy}</strong>.` : "Please send it as soon as possible."}
+        SAL submits your evidence to the card network on your behalf — disputes
+        are handled on SAL's payment account, so you won't see this dispute in
+        your own Stripe dashboard.</p>
+        <p>If the dispute is lost, the disputed amount is your business's
+        responsibility and comes out of your payouts (Terms of Service §7).
+        Disputes that receive no evidence are almost always lost.</p>
+        <p>Questions? Reply to this email or write to ${supportEmail}.</p>
+      `
+    } else if (WON_STATUSES.has(state.status)) {
+      subject = `Good news: the disputed ${amount} payment to ${business.name} was resolved in your favor`
+      html = `
+        <h2>Dispute resolved in your favor</h2>
+        <p>The card network resolved the dispute over a <strong>${amount}</strong>
+        payment to ${business.name} in your favor. The payment is restored and
+        nothing is deducted from your payouts.</p>
+        <p>Questions? Reply to this email or write to ${supportEmail}.</p>
+      `
+    } else if (state.status === "lost") {
+      subject = `Dispute lost: ${amount} payment to ${business.name}`
+      html = `
+        <h2>Dispute lost</h2>
+        <p>The card network resolved the dispute over a <strong>${amount}</strong>
+        payment to ${business.name} in the cardholder's favor. Per the Terms of
+        Service (§7), the disputed amount is your business's responsibility and
+        comes out of your payouts. We'll reach out about next steps.</p>
+        <p>Questions? Reply to this email or write to ${supportEmail}.</p>
+      `
+    } else {
+      // A closed status that is neither won nor lost (Stripe adds/retires
+      // statuses) — report it verbatim rather than guessing the outcome.
+      subject = `Dispute closed (${state.status}): ${amount} payment to ${business.name}`
+      html = `
+        <h2>Dispute closed</h2>
+        <p>The dispute over a <strong>${amount}</strong> payment to
+        ${business.name} was closed with status
+        <strong>${state.status}</strong>, as reported by our payment processor.</p>
+        <p>Questions? Reply to this email or write to ${supportEmail}.</p>
+      `
+    }
+
+    await sendEmail({ to: ownerEmail, replyTo: supportEmail, subject, html })
+  } catch (err) {
+    console.error(
+      `[stripe.webhook] owner dispute email failed (dispute=${disputeId}):`,
+      err
+    )
+  }
 }

@@ -6,19 +6,28 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 //
 //   1. created → Dispute row recorded (verbatim Stripe id, businessId resolved
 //      via the Payment's processorId) + the Payment flips to `disputed` + the
-//      founder alert email fires.
+//      founder alert email fires + the business OWNER is emailed (reply-to =
+//      the support inbox, so "reply with your evidence" reaches SAL).
 //   2. updated (fresh) → the per-row lastEventAt watermark write applies
-//      (updateMany hit) without a create.
-//   3. closed/won → the Payment is restored to `completed` ONLY-IF-disputed.
+//      (updateMany hit) without a create. Founder alert only — status churn
+//      between created and closed is NOT owner-emailed (noise).
+//   3. closed/won → the Payment is restored to `completed` ONLY-IF-disputed +
+//      the owner gets the "resolved in your favor" outcome email.
 //   4. closed/lost → the Payment stays/becomes `disputed` (never `refunded`,
-//      never restored).
+//      never restored) + the owner gets the "dispute lost" outcome email.
 //   5. OUT-OF-ORDER: a stale `created` delivered AFTER `closed` is swallowed
-//      (create → P2002) and regresses NOTHING — no payment write, no alert.
+//      (create → P2002) and regresses NOTHING — no payment write, no emails.
 //   6. duplicate delivery short-circuits at the StripeEvent ledger with zero
 //      side effects.
 //   7. ORPHAN: a dispute with an unknown payment_intent is still recorded
 //      (businessId null) with a loud error — money at risk is never dropped.
-//   8. ALERT_EMAIL unset → email is skipped with a log, never an error.
+//      No owner email (no business) — the founder alert screams instead.
+//   8. ALERT_EMAIL unset → the FOUNDER alert is skipped with a log, but the
+//      OWNER email still fires — the merchant notice never depends on founder
+//      alert configuration.
+//   9. Owner-email resolution failure (DB hiccup) is caught and logged — the
+//      webhook still 200s (a 500 would make Stripe retry, and the retry would
+//      be swallowed as stale, losing the notification forever).
 
 const { prismaMock, constructEventMock, headersGetMock, sendEmailMock } = vi.hoisted(() => {
   // The route reads STRIPE_WEBHOOK_SECRET at module-load time. vi.hoisted runs
@@ -26,7 +35,7 @@ const { prismaMock, constructEventMock, headersGetMock, sendEmailMock } = vi.hoi
   process.env.STRIPE_WEBHOOK_SECRET = "whsec_test"
   const prismaMock = {
     stripeEvent: { create: vi.fn(), findUnique: vi.fn() },
-    business: { updateMany: vi.fn(), findMany: vi.fn() },
+    business: { updateMany: vi.fn(), findMany: vi.fn(), findUnique: vi.fn() },
     payment: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
     appointment: { update: vi.fn() },
     dispute: { create: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
@@ -44,7 +53,12 @@ vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }))
 vi.mock("@/lib/stripe", () => ({
   stripe: { webhooks: { constructEvent: constructEventMock } },
 }))
-vi.mock("@/lib/email", () => ({ sendEmail: sendEmailMock }))
+vi.mock("@/lib/email", () => ({
+  sendEmail: sendEmailMock,
+  // Same resolution order as the real helper (SUPPORT_EMAIL → EMAIL_REPLY_TO
+  // → fallback) — pinned here so the reply-to assertions are deterministic.
+  getSupportEmail: () => "support@meetsal.ai",
+}))
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: headersGetMock })),
 }))
@@ -93,6 +107,12 @@ beforeEach(() => {
   prismaMock.stripeEvent.create.mockResolvedValue({ id: "evt_dispute_1" })
   prismaMock.payment.findFirst.mockResolvedValue({ id: "pay_1", businessId: "biz_1" })
   prismaMock.payment.updateMany.mockResolvedValue({ count: 1 })
+  // Owner resolution for the merchant-facing dispute email (created/closed).
+  prismaMock.business.findUnique.mockResolvedValue({
+    name: "Test Salon",
+    timezone: "America/New_York",
+    owner: { email: "owner@shop.com", firstName: "Pat" },
+  })
   prismaMock.dispute.updateMany.mockResolvedValue({ count: 0 })
   prismaMock.dispute.create.mockResolvedValue({ id: "du_test_1" })
   sendEmailMock.mockResolvedValue({ success: true })
@@ -135,9 +155,21 @@ describe("stripe webhook — charge.dispute.* (record, flip payment, alert)", ()
       data: { status: "disputed" },
     })
 
-    // Founder alert fired, and the event was recorded AFTER the handler.
-    expect(sendEmailMock).toHaveBeenCalledTimes(1)
+    // Founder alert + OWNER notification both fired, and the event was
+    // recorded AFTER the handler.
+    expect(sendEmailMock).toHaveBeenCalledTimes(2)
     expect(sendEmailMock.mock.calls[0][0].to).toBe("founder@meetsal.ai")
+    const ownerCall = sendEmailMock.mock.calls[1][0]
+    expect(ownerCall.to).toBe("owner@shop.com")
+    // Replies must land in the SAME inbox the dashboard banner's mailto CTA
+    // points at — "reply to the dispute email" and "email your evidence" are
+    // one path by design.
+    expect(ownerCall.replyTo).toBe("support@meetsal.ai")
+    expect(ownerCall.subject).toContain("Action needed")
+    // Honest mechanics: the merchant replies with evidence; SAL submits to the
+    // card network. The dispute does NOT exist in their own Stripe dashboard.
+    expect(ownerCall.html).toContain("reply to this email with your evidence")
+    expect(ownerCall.html).toContain("your own Stripe dashboard")
     expect(prismaMock.stripeEvent.create).toHaveBeenCalledTimes(1)
   })
 
@@ -160,6 +192,11 @@ describe("stripe webhook — charge.dispute.* (record, flip payment, alert)", ()
       where: { id: "pay_1", status: { in: ["completed", "pending"] } },
       data: { status: "disputed" },
     })
+    // `updated` is founder-alert only: status churn between created and closed
+    // is noise to a shop owner — no owner email, no owner lookup.
+    expect(sendEmailMock).toHaveBeenCalledTimes(1)
+    expect(sendEmailMock.mock.calls[0][0].to).toBe("founder@meetsal.ai")
+    expect(prismaMock.business.findUnique).not.toHaveBeenCalled()
   })
 
   it("closed/won: restores the payment to completed ONLY-IF-disputed", async () => {
@@ -179,6 +216,11 @@ describe("stripe webhook — charge.dispute.* (record, flip payment, alert)", ()
       where: { id: "pay_1", status: "disputed" }, // only-if-disputed guard
       data: { status: "completed" },
     })
+    // Outcome email to the owner: won copy, nothing deducted.
+    expect(sendEmailMock).toHaveBeenCalledTimes(2)
+    const wonCall = sendEmailMock.mock.calls[1][0]
+    expect(wonCall.to).toBe("owner@shop.com")
+    expect(wonCall.subject).toContain("resolved in your favor")
   })
 
   it("closed/lost: the payment stays disputed — never restored, never refunded", async () => {
@@ -201,6 +243,13 @@ describe("stripe webhook — charge.dispute.* (record, flip payment, alert)", ()
       where: { id: "pay_1", status: { in: ["completed", "pending"] } },
       data: { status: "disputed" },
     })
+    // Outcome email to the owner: lost copy — the amount is the business's
+    // responsibility per ToS §7 (merchant liability, stated plainly).
+    expect(sendEmailMock).toHaveBeenCalledTimes(2)
+    const lostCall = sendEmailMock.mock.calls[1][0]
+    expect(lostCall.to).toBe("owner@shop.com")
+    expect(lostCall.subject).toContain("Dispute lost")
+    expect(lostCall.html).toContain("comes out of your payouts")
   })
 
   it("OUT-OF-ORDER: a stale `created` after `closed` is swallowed (P2002) and regresses nothing", async () => {
@@ -263,25 +312,63 @@ describe("stripe webhook — charge.dispute.* (record, flip payment, alert)", ()
     expect(createArg.data.paymentId).toBeNull()
     expect(createArg.data.status).toBe("needs_response")
 
-    // No payment to flip, but the alert still fires (money at risk) and the
-    // orphan is loud in the logs for manual review.
+    // No payment to flip, but the FOUNDER alert still fires (money at risk)
+    // and the orphan is loud in the logs for manual review. No owner email —
+    // there is no business to notify (businessId null), so no owner lookup.
     expect(prismaMock.payment.updateMany).not.toHaveBeenCalled()
     expect(sendEmailMock).toHaveBeenCalledTimes(1)
+    expect(sendEmailMock.mock.calls[0][0].to).toBe("founder@meetsal.ai")
+    expect(prismaMock.business.findUnique).not.toHaveBeenCalled()
     expect(
       errorSpy.mock.calls.some((c) => String(c[0]).includes("UNKNOWN payment"))
     ).toBe(true)
     errorSpy.mockRestore()
   })
 
-  it("ALERT_EMAIL unset: the alert is skipped with a log — never an error, never a 500", async () => {
+  it("ALERT_EMAIL unset: the founder alert is skipped with a log, but the OWNER is still emailed", async () => {
     delete process.env.ALERT_EMAIL
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
 
     const res = await POST(makeRequest("{}"))
     expect(res.status).toBe(200)
-    expect(sendEmailMock).not.toHaveBeenCalled()
+    // The merchant notice must never depend on founder alert configuration.
+    expect(sendEmailMock).toHaveBeenCalledTimes(1)
+    expect(sendEmailMock.mock.calls[0][0].to).toBe("owner@shop.com")
     expect(
       warnSpy.mock.calls.some((c) => String(c[0]).includes("ALERT_EMAIL not set"))
+    ).toBe(true)
+    warnSpy.mockRestore()
+  })
+
+  it("owner lookup failure: caught and logged — the webhook still 200s, founder alert unaffected", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    prismaMock.business.findUnique.mockRejectedValue(new Error("db hiccup"))
+
+    const res = await POST(makeRequest("{}"))
+    // A 500 here would make Stripe retry; the retry would be swallowed as
+    // stale (watermark) and the notification lost forever — so never throw.
+    expect(res.status).toBe(200)
+    expect(sendEmailMock).toHaveBeenCalledTimes(1) // founder alert only
+    expect(sendEmailMock.mock.calls[0][0].to).toBe("founder@meetsal.ai")
+    expect(
+      errorSpy.mock.calls.some((c) => String(c[0]).includes("owner dispute email failed"))
+    ).toBe(true)
+    errorSpy.mockRestore()
+  })
+
+  it("owner without an email: skipped with a log — never an error", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+    prismaMock.business.findUnique.mockResolvedValue({
+      name: "Test Salon",
+      timezone: "America/New_York",
+      owner: { email: null, firstName: "Pat" },
+    })
+
+    const res = await POST(makeRequest("{}"))
+    expect(res.status).toBe(200)
+    expect(sendEmailMock).toHaveBeenCalledTimes(1) // founder alert only
+    expect(
+      warnSpy.mock.calls.some((c) => String(c[0]).includes("no owner email"))
     ).toBe(true)
     warnSpy.mockRestore()
   })

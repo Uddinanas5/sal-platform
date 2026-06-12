@@ -268,6 +268,12 @@ model User {
   notificationPreferences Json       @default("{}") @map("notification_preferences")
   failedLoginAttempts     Int        @default(0) @map("failed_login_attempts")
   lockedUntil             DateTime?  @map("locked_until") @db.Timestamptz
+  // ToS acceptance proof (adversarial ToS review, finding #4): WHEN this user
+  // affirmatively accepted the Terms and WHICH revision (TOS_VERSION from
+  // src/lib/tos-version.ts). Set at registration; NULL for accounts created
+  // before this was recorded (pre-Jun 2026) — those need re-acceptance.
+  tosAcceptedAt           DateTime?  @map("tos_accepted_at") @db.Timestamptz
+  tosVersion              String?    @map("tos_version") @db.VarChar(20)
   metadata                Json       @default("{}")
   createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime   @updatedAt @map("updated_at") @db.Timestamptz
@@ -763,6 +769,12 @@ model Appointment {
   rescheduledTo      String?           @map("rescheduled_to") @db.Uuid
   reminderSentAt     DateTime?         @map("reminder_sent_at") @db.Timestamptz
   confirmationSentAt DateTime?         @map("confirmation_sent_at") @db.Timestamptz
+  // Cancellation-policy consent proof (adversarial ToS review, finding #13):
+  // set ONLY by the public booking funnel (createPublicBooking), where the
+  // business's real, enforced cancellation window is displayed directly above
+  // the Confirm button. NULL for internal/API/MCP bookings (no policy shown).
+  // This is the "cancellation-policy consent" evidence ToS §7 references.
+  policyAcceptedAt   DateTime?         @map("policy_accepted_at") @db.Timestamptz
   createdBy          String?           @map("created_by") @db.Uuid
   metadata           Json              @default("{}")
   createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz

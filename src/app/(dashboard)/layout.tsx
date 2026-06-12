@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { decideBillingGate } from "@/lib/billing/gate"
 import { OPEN_DISPUTE_STATUSES } from "@/lib/billing/disputes"
+import { getSupportEmail } from "@/lib/email"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import type { DisputeBannerData } from "@/components/dashboard/dashboard-layout"
 
@@ -116,6 +117,12 @@ export default async function Layout({
         // Earliest deadline across open disputes (ISO string — serializable
         // across the server/client boundary).
         evidenceDueBy: openDisputes[0].evidenceDueBy?.toISOString() ?? null,
+        // Where the owner emails their evidence. Resolved HERE (server side)
+        // so the env var needs no NEXT_PUBLIC_ prefix. getSupportEmail is the
+        // SAME resolver the owner-facing dispute email uses as its reply-to
+        // (src/lib/billing/disputes.ts), so "email your evidence" and "reply
+        // to the dispute email" converge on one monitored inbox by design.
+        supportEmail: getSupportEmail(),
       }
     }
   }
