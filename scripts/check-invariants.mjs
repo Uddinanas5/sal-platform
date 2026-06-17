@@ -25,6 +25,7 @@ const INVARIANTS = [
   { id: "payroll-survives-deletion", label: "Deleting an appointment never wipes payroll", why: "A cascade once destroyed commission rows", match: ["commission-payroll-integrity"] },
   { id: "no-double-charge", label: "A retry can't charge a card twice", why: "Double-charging a client is unacceptable", match: ["stripe-create-payment-intent-idempotency"] },
   { id: "webhook-idempotent", label: "Stripe can replay events without corrupting state", why: "Stripe retries and reorders by design", match: ["stripe-webhook-idempotency", "stripe-subscription-webhook"] },
+  { id: "dispute-webhook-idempotent", label: "A chargeback is recorded once and never regressed", why: "Disputes are money-at-risk; replay/reorder must not corrupt or drop them", match: ["stripe-dispute-webhook"] },
   { id: "billing-gate-correct", label: "Unpaid salons are gated correctly (no false lockout)", why: "Wrong gating loses money or locks out payers", match: ["billing-gate"] },
   { id: "timezone-correct", label: "Times are right in the salon's timezone", why: "A UTC bug once shifted a salon by 4-5h", match: ["scheduling-timezone", "availability-timezone", "timezone-write-paths"] },
   { id: "auth-denies-unauthed", label: "No session = no data, no writes", why: "Auth boundary must hold on the server", match: ["session-expiry-denies"] },

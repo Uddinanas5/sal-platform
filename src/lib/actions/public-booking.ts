@@ -265,6 +265,13 @@ export async function createPublicBooking(data: {
           taxAmount: tax,
           totalAmount: price + tax,
           notes: data.notes,
+          // Cancellation-policy consent (ToS §7 dispute evidence; adversarial
+          // review finding #13): this action is called ONLY by the public
+          // booking page, whose confirm step displays the business's real
+          // cancellation window directly above the Confirm button — so
+          // confirming IS the consent; record when. Internal/API/MCP booking
+          // paths never set this (no policy is shown there).
+          policyAcceptedAt: new Date(),
         },
       })
 

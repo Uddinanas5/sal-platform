@@ -254,6 +254,37 @@ describe("createPublicBooking — max-advance boundary", () => {
 })
 
 // ===========================================================================
+// 3b. createPublicBooking — cancellation-policy consent recorded
+// ===========================================================================
+describe("createPublicBooking — cancellation-policy consent (ToS §7 evidence)", () => {
+  it("stamps policyAcceptedAt on the created appointment (the public confirm step shows the policy)", async () => {
+    // Adversarial ToS review, finding #13: the booking page used to CLAIM
+    // "you agree to the cancellation policy" while nothing was shown or
+    // logged. Now the confirm step displays the business's real cancellation
+    // window, and confirming records WHEN — the consent evidence ToS §7 tells
+    // merchants to provide in a dispute.
+    const apptCreate = vi.fn()
+    apptCreate.mockResolvedValue({ id: APPT, bookingReference: "SALPOL1" })
+    prismaMock.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({
+        appointmentService: { findFirst: vi.fn(async () => null), create: vi.fn() },
+        appointment: { create: apptCreate },
+        staffSchedule: { findFirst: vi.fn(async () => null) },
+        staffTimeOff: { findFirst: vi.fn(async () => null) },
+      }),
+    )
+
+    const before = Date.now()
+    const res = await createPublicBooking(validBookingInput())
+    expect(res.success).toBe(true)
+
+    const data = apptCreate.mock.calls[0][0].data
+    expect(data.policyAcceptedAt).toBeInstanceOf(Date)
+    expect((data.policyAcceptedAt as Date).getTime()).toBeGreaterThanOrEqual(before)
+  })
+})
+
+// ===========================================================================
 // 4. addToPublicWaitlist — service / staff / date hardening
 // ===========================================================================
 describe("addToPublicWaitlist — hardening", () => {

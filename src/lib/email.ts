@@ -12,6 +12,19 @@ export const resend = apiKey ? new Resend(apiKey) : null
 // own email on client-facing booking mail so replies reach the salon).
 const DEFAULT_REPLY_TO = process.env.EMAIL_REPLY_TO || "support@meetsal.ai"
 
+// THE support inbox merchants are told to email — the dispute banner's mailto
+// CTA ((dashboard)/layout.tsx) and the reply-to on owner-facing dispute emails
+// (src/lib/billing/disputes.ts) both resolve through here, so "email your
+// evidence" and "reply to the dispute email" can never land in two different
+// inboxes. Read at call time (not module load) so tests and late env injection
+// behave. Resolution: SUPPORT_EMAIL → EMAIL_REPLY_TO → the same hardcoded
+// fallback DEFAULT_REPLY_TO uses.
+export function getSupportEmail(): string {
+  return (
+    process.env.SUPPORT_EMAIL || process.env.EMAIL_REPLY_TO || "support@meetsal.ai"
+  )
+}
+
 const EMAIL_TIMEOUT_MS = Number(process.env.EMAIL_TIMEOUT_MS) || 8000
 const EMAIL_MAX_RETRIES = 2
 const EMAIL_BACKOFF_BASE_MS = 250

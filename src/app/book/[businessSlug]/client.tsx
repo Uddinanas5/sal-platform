@@ -58,6 +58,7 @@ interface BookingPageClientProps {
   staff: Staff[]
   businessHours: BusinessHourData[]
   maxAdvanceBooking?: string
+  cancellationWindow?: string
   timezone: string
   socialLinks?: {
     instagram?: string
@@ -511,6 +512,17 @@ function StaffStep({
 
 const MAX_ADVANCE_MAP: Record<string, number> = {
   "1w": 7, "2w": 14, "1m": 30, "2m": 60, "3m": 90,
+}
+
+// Human labels for the business's cancellation-window setting — the SAME enum
+// the cancel path actually ENFORCES (CANCELLATION_WINDOW_MINUTES in
+// actions/public-booking.ts), rendered on the confirm step so the consent line
+// describes the real policy instead of claiming agreement to an unseen one
+// (adversarial ToS review, finding #13). `none` → null: cancellation stays
+// open until the appointment starts, so there is no cutoff to describe.
+const CANCELLATION_WINDOW_LABELS: Record<string, string | null> = {
+  none: null, "1h": "1 hour", "2h": "2 hours", "4h": "4 hours",
+  "12h": "12 hours", "24h": "24 hours", "48h": "48 hours",
 }
 
 // ---------------------------------------------------------------------------
@@ -1156,6 +1168,8 @@ function ConfirmationStep({
   isSubmitting,
   onConfirm,
   timezone,
+  businessName,
+  cancellationWindow,
 }: {
   service: Service
   staffMember: Staff | "any"
@@ -1165,7 +1179,12 @@ function ConfirmationStep({
   isSubmitting: boolean
   onConfirm: () => void
   timezone: string
+  businessName: string
+  cancellationWindow?: string
 }) {
+  // "24h" mirrors the booking-settings schema default (booking-settings.ts).
+  const cancelWindowLabel =
+    CANCELLATION_WINDOW_LABELS[cancellationWindow ?? "24h"] ?? null
   const dateStr = formatSelectedDate(date, {
     weekday: "long",
     year: "numeric",
@@ -1282,8 +1301,16 @@ function ConfirmationStep({
         )}
       </Button>
 
+      {/* The ACTUAL cancellation policy, stated before consent is claimed —
+          the same window cancelPublicBooking enforces. Confirming with this
+          text shown is the consent the appointment's policyAcceptedAt records
+          (ToS §7 dispute evidence). */}
       <p className="text-xs text-center text-ink-faint">
-        By confirming, you agree to the cancellation policy. You&apos;ll receive a
+        Cancellation policy:{" "}
+        {cancelWindowLabel
+          ? `you can cancel or reschedule online until ${cancelWindowLabel} before your appointment — after that, please contact ${businessName} directly.`
+          : `you can cancel or reschedule online any time before your appointment starts.`}{" "}
+        By confirming, you agree to this policy. You&apos;ll receive a
         confirmation email at {details.email}.
       </p>
     </div>
@@ -1402,7 +1429,7 @@ function SuccessState({
 // Main Client Component
 // ---------------------------------------------------------------------------
 
-export function BookingPageClient({ businessSlug, businessId, businessName, locationId, services, staff, businessHours, maxAdvanceBooking, timezone, socialLinks }: BookingPageClientProps) {
+export function BookingPageClient({ businessSlug, businessId, businessName, locationId, services, staff, businessHours, maxAdvanceBooking, cancellationWindow, timezone, socialLinks }: BookingPageClientProps) {
   // Suppress unused variable warning - businessSlug is kept for future URL-based features
   void businessSlug
   const [step, setStep] = useState<BookingStep>(1)
@@ -1796,6 +1823,8 @@ export function BookingPageClient({ businessSlug, businessId, businessName, loca
                   isSubmitting={isSubmitting}
                   onConfirm={handleConfirm}
                   timezone={timezone}
+                  businessName={businessName}
+                  cancellationWindow={cancellationWindow}
                 />
               )}
             </motion.div>
