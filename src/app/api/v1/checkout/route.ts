@@ -48,7 +48,7 @@ const processPaymentSchema = z
     // "card" rejected server-side — no real online charge behind it in beta
     // (matches the dashboard action; defense in depth). "gift_card" is accepted
     // ONLY with a giftCardCode (enforced by the refine below).
-    method: z.enum(["cash", "online", "other", "gift_card"]),
+    method: z.enum(["cash", "other", "gift_card"]),
     // Loyalty points to spend as a DISCOUNT (server validates + caps the value).
     redeemPoints: z.number().int().nonnegative().optional(),
     // Gift-card code, required when method === "gift_card".

@@ -170,13 +170,15 @@ describe("MCP process-checkout tool", () => {
     expect(parse(out).error).toBe("One or more services not found")
   })
 
-  it("rejects the card method server-side (not live in beta) but accepts gift_card", () => {
+  it("rejects card AND online methods server-side (not live in beta) but accepts gift_card", () => {
     const { schema } = loadTool()
     expect(schema.method.safeParse("cash").success).toBe(true)
-    expect(schema.method.safeParse("online").success).toBe(true)
-    // "card" stays rejected — online charging via SAL Payments is off in beta.
+    // Both "card" and "online" imply a real Stripe capture that doesn't exist in
+    // beta — accepting them would let a caller log collected revenue with no
+    // money behind it (P1-14). Both are rejected until SAL Payments is live.
     expect(schema.method.safeParse("card").success).toBe(false)
-    // "gift_card" is now a live tender (redeemed server-side in recordCheckout).
+    expect(schema.method.safeParse("online").success).toBe(false)
+    // "gift_card" is a live tender (redeemed server-side in recordCheckout).
     expect(schema.method.safeParse("gift_card").success).toBe(true)
   })
 

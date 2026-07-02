@@ -418,6 +418,17 @@ export async function recordCheckout(
   // Payment is recorded against a card that wasn't actually charged. The masked
   // code (last 4) is persisted in Payment.methodNote (the honest sub-tender
   // note field added in GAP-037 — NOT cardLastFour, which is card-brand only).
+  // Defense in depth (P1-14): "card" and "online" tenders imply a real Stripe
+  // capture that does not exist in beta. Recording either as a completed payment
+  // would log collected revenue with no money behind it. The entry schemas
+  // already exclude them; reject here too so no future caller can slip through.
+  if (data.method === "card" || data.method === "online") {
+    throw new RecordCheckoutError(
+      "BAD_REQUEST",
+      "Card and online payments are not available yet — record cash, gift card, or other."
+    )
+  }
+
   let giftCardNote: string | null = null
   if (data.method === "gift_card") {
     if (!data.giftCardCode) {

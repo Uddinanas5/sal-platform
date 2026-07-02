@@ -4,6 +4,12 @@
 
 ---
 
+## P1-14 · Blocked recording "collected" online payments that were never charged
+
+**Problem:** Through the API and AI-integration surfaces, someone could record a sale paid "online" and it would be logged as fully collected money — even though there's no real card charge behind an online payment in beta (that feature is switched off). That means fake revenue in the books. Card payments were already blocked this way; online wasn't.
+
+**Fix:** "Online" is now rejected everywhere the same way "card" is (dashboard, API, and AI tool), plus a final backstop in the core money-recording code so no future path can slip a fake online payment through. Cash, gift card, and "other" still work. **Proof:** existing checkout tests updated to assert both card and online are refused; full suite green.
+
 ## P1-5 · Cancelled salons can't re-activate by re-opening an old payment link
 
 **Problem:** A completed Stripe checkout link stays "successful" forever. The app re-activated a subscription whenever someone landed on the success URL — so a cancelled salon could regain full paid access just by re-visiting its old `?billing=success` link.
