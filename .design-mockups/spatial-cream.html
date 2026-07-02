@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SAL — Spatial Glass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --txt:#143426; --txt-soft:rgba(20,52,38,.62); --txt-dim:rgba(20,52,38,.42);
+    /* deep, rich forest-emerald — calm + luxurious, NOT neon */
+    --green:#3f9b73; --green-bright:#57b88c; --green-deep:#1f7a52; --green-darkest:#0f2e22;
+    --glass:rgba(255,255,255,.55); --glass-light:rgba(255,255,255,.65);
+    --stroke:rgba(255,255,255,.85); --stroke-soft:rgba(20,52,38,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'DM Sans',system-ui,sans-serif; color:var(--txt);
+    -webkit-font-smoothing:antialiased; overflow:hidden; position:relative;
+  }
+  /* deep forest-emerald gradient background (ref: glassmorphism on green) */
+  .bg{position:fixed;inset:0;z-index:0;
+    background:
+      radial-gradient(55% 50% at 78% 8%, rgba(63,155,115,.16), transparent 58%),
+      radial-gradient(50% 55% at 8% 100%, rgba(63,155,115,.10), transparent 60%),
+      linear-gradient(160deg, #fbf8f1 0%, #f3eee1 55%, #ece5d4 100%);
+  }
+  /* soft sheen + subtle grain for depth so it isn't a flat fill */
+  .bg-veil{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(60% 40% at 50% 0%, rgba(255,255,255,.45), transparent 60%);}
+  .heading{font-family:'Sora',sans-serif}
+  .app{position:relative;z-index:1;display:grid;grid-template-columns:78px 1fr;gap:24px;height:100vh;padding:24px 30px}
+
+  /* glass primitive — genuinely translucent, shows the shop through it */
+  .glass{
+    background:var(--glass);
+    backdrop-filter:blur(30px) saturate(150%) brightness(1.04);
+    -webkit-backdrop-filter:blur(30px) saturate(150%) brightness(1.04);
+    border:1px solid var(--stroke);
+    border-radius:28px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.9),
+      inset 0 0 0 1px rgba(255,255,255,.04),
+      0 26px 54px -26px rgba(20,52,38,.30);
+    position:relative; overflow:hidden;
+  }
+  .glass::after{content:"";position:absolute;left:0;right:0;top:0;height:46%;
+    background:linear-gradient(180deg,rgba(255,255,255,.5),transparent);pointer-events:none}
+
+  /* floating rail sidebar */
+  .rail{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 0}
+  .rail .logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;margin-bottom:14px;
+    background:linear-gradient(150deg,var(--green-bright),var(--green-deep));box-shadow:0 10px 22px -8px rgba(63,155,115,.5)}
+  .rail .logo svg{width:22px;height:22px}
+  .rail a{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--txt-soft);transition:.16s;position:relative}
+  .rail a svg{width:20px;height:20px}
+  .rail a:hover{background:rgba(20,52,38,.06);color:var(--txt)}
+  .rail a.active{background:rgba(255,255,255,.7);color:var(--green-deep);border:1px solid var(--stroke)}
+  .rail a.active::before{content:"";position:absolute;left:-16px;top:50%;transform:translateY(-50%);
+    width:4px;height:20px;border-radius:4px;background:var(--green);box-shadow:0 0 12px var(--green)}
+  .rail .sp{flex:1}
+  .rail .me{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-family:'Sora';font-weight:700;font-size:14px;
+    background:linear-gradient(150deg,var(--green-bright),var(--green-deep));color:#fff}
+
+  /* main */
+  .main{display:flex;flex-direction:column;gap:22px;overflow:hidden}
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+  .kick{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.24em;color:var(--green)}
+  .top h1{font-family:'Sora';font-weight:800;font-size:38px;letter-spacing:-.035em;margin-top:7px;line-height:1;
+    text-shadow:0 2px 24px rgba(0,0,0,.5)}
+  .top h1 em{font-style:normal;color:var(--txt-soft)}
+  .top p{font-size:13.5px;color:var(--txt-soft);margin-top:11px;max-width:340px}
+  .actions{display:flex;align-items:center;gap:10px}
+  .search{display:flex;align-items:center;gap:8px;padding:11px 15px;border-radius:14px;font-size:13px;color:var(--txt-soft);width:210px}
+  .search svg{width:15px;height:15px}
+  .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:12px 18px;
+    font-family:'DM Sans';font-weight:700;font-size:13.5px;color:#fff;cursor:pointer;
+    background:linear-gradient(150deg,var(--green-bright),var(--green-deep));box-shadow:0 16px 30px -12px rgba(31,122,82,.6)}
+  .btn svg{width:16px;height:16px}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .stat{padding:20px}
+  .stat .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.13em;color:var(--txt-soft)}
+  .stat .num{font-family:'Sora';font-weight:800;font-size:36px;letter-spacing:-.03em;margin-top:10px;line-height:1}
+  .stat .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;margin-top:11px;
+    background:rgba(63,155,115,.18);color:var(--green)}
+
+  .grid{display:grid;grid-template-columns:1.5fr 1fr;gap:22px;flex:1;min-height:0}
+  .col{display:flex;flex-direction:column;gap:22px;min-height:0}
+  .panel{padding:22px;display:flex;flex-direction:column;min-height:0}
+  .panel-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .panel-h h3{font-family:'Sora';font-weight:700;font-size:19px;letter-spacing:-.02em}
+  .panel-h a{font-size:12.5px;font-weight:600;color:var(--green);text-decoration:none}
+  .appt{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:14px;padding:12px 14px;border-radius:16px;margin-bottom:10px;
+    background:rgba(255,255,255,.5);border:1px solid var(--stroke-soft)}
+  .appt .t{font-family:'Sora';font-weight:700;font-size:13px;color:var(--txt-soft)}
+  .appt .nm{font-family:'Sora';font-weight:700;font-size:15px}
+  .appt .sv{font-size:12.5px;color:var(--txt-dim)}
+  .pill{font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;white-space:nowrap}
+  .pill.ok{background:rgba(63,155,115,.16);color:var(--green)}
+  .pill.live{background:var(--green);color:#fff}
+  .pill.bk{background:rgba(20,52,38,.07);color:var(--txt-soft)}
+  .bars{display:flex;align-items:flex-end;gap:9px;height:80px;margin-top:auto}
+  .bars div{flex:1;border-radius:7px 7px 2px 2px;background:rgba(20,52,38,.12)}
+  .bars div.today{background:linear-gradient(180deg,var(--green-bright),var(--green))}
+  .big-num{font-family:'Sora';font-weight:800;font-size:26px;letter-spacing:-.03em;margin-top:4px}
+  .nudge{padding:20px}
+  .nudge .tag{display:inline-flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:var(--green)}
+  .ping{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+  .nudge h4{font-family:'Sora';font-weight:700;font-size:17px;letter-spacing:-.02em;margin-top:11px;line-height:1.25}
+  .nudge p{font-size:12.5px;color:var(--txt-soft);margin-top:8px;line-height:1.45}
+  .nudge-btn{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.7);border:1px solid var(--stroke);color:var(--txt);
+    font-family:'DM Sans';font-weight:700;font-size:12.5px;padding:10px 15px;border-radius:12px;margin-top:15px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="bg-veil"></div>
+<div class="app">
+  <!-- floating rail -->
+  <aside class="glass rail">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M7 8.5C7 7 8.2 6 10 6h4c1.8 0 3 1 3 2.3 0 1.5-1.2 2.2-3.4 2.6l-1.2.2c-2.2.4-3.4 1.1-3.4 2.6C9 17.6 10.2 18 12 18h4" stroke="#0a1410" stroke-width="2.3" stroke-linecap="round"/></svg></div>
+    <a class="active" title="Today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H4a1 1 0 0 1-1-1Z"/></svg></a>
+    <a title="Calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg></a>
+    <a title="Clients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></a>
+    <a title="Checkout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M2.5 10h19M6 14h5"/></svg></a>
+    <a title="Reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></a>
+    <a title="Marketing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 11 18-7-7 18-2.5-7.5Z"/></svg></a>
+    <div class="sp"></div>
+    <a title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.3 1A7 7 0 0 0 14 5.5L13.7 3h-3.4L10 5.5a7 7 0 0 0-2.3 1.3l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.3l-2 1.5 2 3.4 2.3-1A7 7 0 0 0 10 18.5L10.3 21h3.4l.3-2.5a7 7 0 0 0 2.3-1.3l2.3 1 2-3.4-2-1.5Z"/></svg></a>
+    <div class="me">A</div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div>
+        <div class="kick">Back Alive · Thursday, Jun 11</div>
+        <h1>Good morning, Anas <em>—</em><br>here's your chair today.</h1>
+        <p>6 appointments on the books · 2 chairs open this afternoon.</p>
+      </div>
+      <div class="actions">
+        <div class="glass search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>Search…</div>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>New appointment</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="glass stat"><div class="lbl">Appointments</div><div class="num">6</div><span class="chip">▲ 2 today</span></div>
+      <div class="glass stat"><div class="lbl">Revenue today</div><div class="num">$480</div><span class="chip">▲ 12%</span></div>
+      <div class="glass stat"><div class="lbl">No-shows prevented</div><div class="num">2</div><span class="chip">SAL</span></div>
+      <div class="glass stat"><div class="lbl">Returning</div><div class="num">78%</div><span class="chip">▲ 4%</span></div>
+    </div>
+
+    <div class="grid">
+      <div class="glass panel">
+        <div class="panel-h"><h3>Next up</h3><a href="#">Calendar →</a></div>
+        <div class="appt"><span class="t">10:30</span><div><div class="nm">Marcus Bell</div><div class="sv">Skin Fade · Mike</div></div><span class="pill ok">Confirmed</span></div>
+        <div class="appt"><span class="t">11:15</span><div><div class="nm">Devon Carter</div><div class="sv">Beard Trim · Anas</div></div><span class="pill ok">Confirmed</span></div>
+        <div class="appt"><span class="t">12:00</span><div><div class="nm">Tyrone Woods</div><div class="sv">Cut + Lineup · Mike</div></div><span class="pill live">Arrived</span></div>
+        <div class="appt"><span class="t">1:30</span><div><div class="nm">Jamal Price</div><div class="sv">Skin Fade · Anas</div></div><span class="pill bk">Booked</span></div>
+      </div>
+      <div class="col">
+        <div class="glass panel">
+          <div class="panel-h"><h3>This week</h3><a href="#">Reports →</a></div>
+          <div class="big-num">$2,840</div>
+          <div class="bars"><div style="height:46%"></div><div style="height:60%"></div><div style="height:52%"></div><div style="height:72%"></div><div style="height:82%"></div><div class="today" style="height:96%"></div><div style="height:40%"></div></div>
+        </div>
+        <div class="glass nudge">
+          <div class="tag"><span class="ping"></span>Fill your day</div>
+          <h4>2 open slots this afternoon — fill them before they go cold.</h4>
+          <p>Send a one-tap offer to your waitlist near these times.</p>
+          <button class="nudge-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m3 11 18-7-7 18-2.5-7.5Z"/></svg>Send fill offer</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

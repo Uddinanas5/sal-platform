@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SAL — Back Alive Barbershop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --accent: #4fe6a6;
+    --accent-glow: 79,230,166;
+    --ink: #ffffff;
+    --ink-soft: rgba(255,255,255,0.75);
+    --ink-faint: rgba(255,255,255,0.48);
+    --r: 26px;
+  }
+
+  html, body { height: 100%; }
+  html { scrollbar-width: none; -ms-overflow-style: none; }
+  body::-webkit-scrollbar { display: none; }
+
+  body {
+    font-family: "DM Sans", system-ui, sans-serif;
+    color: var(--ink);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* deep emerald room — varied glow shapes, light source upper-left */
+    background:
+      radial-gradient(58% 50% at 19% 9%, #33a674 0%, transparent 57%),
+      radial-gradient(42% 40% at 63% 5%, #4dbe8d 0%, transparent 50%),
+      radial-gradient(50% 56% at 91% 25%, #2e9c70 0%, transparent 54%),
+      radial-gradient(36% 34% at 44% 38%, #1f8a60 0%, transparent 60%),
+      radial-gradient(72% 66% at 80% 110%, #06301f 0%, transparent 62%),
+      radial-gradient(56% 54% at 2% 94%, #042217 0%, transparent 58%),
+      linear-gradient(161deg, #1d7c56 0%, #0e4d36 48%, #05241a 100%);
+    background-attachment: fixed;
+    overflow-x: hidden;
+  }
+
+  /* faint grain — topmost */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ====== ATMOSPHERE — everything here lives BEHIND the UI plane (z 0) ====== */
+
+  /* volumetric bloom, upper-left — the room's key light */
+  .bloom {
+    position: fixed;
+    z-index: 0;
+    pointer-events: none;
+    width: 820px; height: 660px;
+    top: -210px; left: -150px;
+    background: radial-gradient(closest-side, rgba(198,255,227,0.20), rgba(150,240,200,0.07) 54%, transparent 76%);
+    filter: blur(34px);
+  }
+  /* a faint echo bloom right of center for balance */
+  .bloom.b2 {
+    width: 540px; height: 460px;
+    top: 120px; left: auto; right: -80px;
+    background: radial-gradient(closest-side, rgba(160,242,206,0.10), transparent 72%);
+    filter: blur(40px);
+  }
+
+  /* soft light shafts falling from the key light — frost diffuses these */
+  .shaft {
+    position: fixed;
+    z-index: 0;
+    pointer-events: none;
+    top: -32%;
+    height: 175%;
+    transform: rotate(24deg);
+    transform-origin: top center;
+    filter: blur(24px);
+  }
+  .shaft.s1 {
+    left: 7%; width: 340px;
+    background: linear-gradient(90deg, transparent, rgba(200,255,229,0.085) 48%, rgba(200,255,229,0.085) 54%, transparent);
+  }
+  .shaft.s2 {
+    left: 22%; width: 140px;
+    background: linear-gradient(90deg, transparent, rgba(200,255,229,0.06) 50%, transparent);
+  }
+
+  /* out-of-focus ghost glass slabs drifting behind the dashboard */
+  .ghost {
+    position: fixed;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 56px;
+    background: linear-gradient(150deg, rgba(255,255,255,0.105), rgba(255,255,255,0.02) 70%);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    box-shadow: 0 40px 90px -40px rgba(0,10,6,0.55);
+  }
+  .ghost.g1 { width: 460px; height: 310px; top: -70px; left: 17%;  transform: rotate(-13deg); filter: blur(26px); }
+  .ghost.g2 { width: 560px; height: 380px; top: 36%;  right: -170px; transform: rotate(9deg);  filter: blur(36px); opacity: 0.9; }
+  .ghost.g3 { width: 330px; height: 330px; bottom: -110px; left: -80px; border-radius: 50%; filter: blur(42px); opacity: 0.85; }
+  .ghost.g4 { width: 270px; height: 180px; top: 57%; left: 31%; transform: rotate(17deg); filter: blur(30px); opacity: 0.65; }
+  .ghost.g5 { width: 200px; height: 200px; top: 9%; right: 23%; border-radius: 50%; filter: blur(34px); opacity: 0.55; }
+
+  /* deep corner vignette painted OVER the atmosphere, still behind the glass */
+  .vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(118% 104% at 50% 36%, transparent 40%, rgba(2,16,10,0.50) 76%, rgba(1,10,6,0.84) 100%);
+  }
+
+  /* ====== SHELL ====== */
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 38px 44px 50px;
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+
+  /* ====== GLASS PRIMITIVE ====== */
+  .glass {
+    position: relative;
+    background: linear-gradient(152deg, rgba(255,255,255,0.165) 0%, rgba(255,255,255,0.05) 46%, rgba(255,255,255,0.085) 100%);
+    backdrop-filter: blur(46px) saturate(190%);
+    -webkit-backdrop-filter: blur(46px) saturate(190%);
+    border: 1px solid rgba(255,255,255,0.21);
+    border-top-color: rgba(255,255,255,0.40);
+    border-bottom-color: rgba(255,255,255,0.13);
+    border-radius: var(--r);
+    transition: transform 0.28s cubic-bezier(.2,.7,.3,1);
+  }
+
+  /* glint — a brighter segment along part of the top edge, position varies per panel */
+  .glass::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: var(--gx, 12%);
+    width: var(--gw, 34%);
+    height: 1px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.85) 28%, #ffffff 52%, rgba(255,255,255,0.85) 74%, transparent);
+    box-shadow: 0 0 7px rgba(255,255,255,0.4);
+    opacity: 0.72;
+    pointer-events: none;
+    z-index: 2;
+    transition: opacity 0.25s ease;
+  }
+
+  /* inner refraction line 1px inside the border + top specular + bottom-edge darkening */
+  .glass::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: calc(var(--r) - 1px);
+    pointer-events: none;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.055),
+      inset 0 1px 0 rgba(255,255,255,0.34),
+      inset 0 -22px 38px -28px rgba(0,6,4,0.55),
+      inset 0 -1px 0 rgba(0,0,0,0.20);
+  }
+
+  /* elevation tiers — panels float at different heights in the room */
+  .elev-1 { box-shadow: 0 16px 34px -18px rgba(0,9,5,0.55), 0 2px 8px -4px rgba(0,9,5,0.32); }
+  .elev-2 { box-shadow: 0 30px 62px -24px rgba(0,9,5,0.66), 0 5px 14px -8px rgba(0,9,5,0.36); }
+  .elev-3 { box-shadow: 0 48px 94px -30px rgba(0,9,5,0.74), 0 12px 28px -16px rgba(0,9,5,0.42); }
+
+  .stat:hover, .panel:hover { transform: translateY(-2px); }
+  .stat:hover::before, .panel:hover::before { opacity: 1; }
+
+  /* nested inner glass — second, lighter tint = the glass-on-glass seam */
+  .glass-inner {
+    position: relative;
+    background: linear-gradient(150deg, rgba(255,255,255,0.15), rgba(255,255,255,0.06) 58%, rgba(255,255,255,0.095));
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-top-color: rgba(255,255,255,0.30);
+    border-radius: 18px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.38),
+      inset 0 -10px 22px -16px rgba(0,6,4,0.38),
+      0 10px 22px -12px rgba(0,9,5,0.45);
+  }
+
+  .micro {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.60);
+  }
+
+  /* hairline with gradient fades at the ends */
+  .hair {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14) 14%, rgba(255,255,255,0.14) 86%, transparent);
+  }
+
+  /* ====== NAV RAIL ====== */
+  .rail {
+    position: sticky;
+    top: 38px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 20px 0 18px;
+    height: calc(100vh - 88px);
+    min-height: 660px;
+  }
+  .rail .brandmark {
+    width: 40px; height: 40px;
+    border-radius: 13px;
+    display: grid; place-items: center;
+    background: linear-gradient(150deg, rgba(255,255,255,0.18), rgba(255,255,255,0.07));
+    border: 1px solid rgba(255,255,255,0.26);
+    border-top-color: rgba(255,255,255,0.42);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 6px 14px -8px rgba(0,9,5,0.5);
+    font-family: "Sora", sans-serif;
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.04em;
+    margin-bottom: 22px;
+  }
+  .rail nav { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .nav-btn {
+    position: relative;
+    width: 46px; height: 46px;
+    border-radius: 14px;
+    display: grid; place-items: center;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+  .nav-btn svg { width: 21px; height: 21px; stroke-width: 1.7; }
+  .nav-btn:hover { background: rgba(255,255,255,0.09); color: var(--ink); }
+  .nav-btn.active {
+    background: linear-gradient(150deg, rgba(255,255,255,0.20), rgba(255,255,255,0.10));
+    border: 1px solid rgba(255,255,255,0.24);
+    border-top-color: rgba(255,255,255,0.40);
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 6px 14px -8px rgba(0,9,5,0.5);
+  }
+  .nav-btn.active::before {
+    content: "";
+    position: absolute;
+    left: -13px; top: 50%;
+    transform: translateY(-50%);
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(var(--accent-glow),0.14), 0 0 11px 1px rgba(var(--accent-glow),0.85);
+  }
+  .rail .rail-hair { width: 38px; margin-bottom: 12px; }
+  .rail .avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: "Sora", sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: #fff;
+    background: linear-gradient(150deg, rgba(255,255,255,0.24), rgba(255,255,255,0.07));
+    border: 1px solid rgba(255,255,255,0.28);
+    border-top-color: rgba(255,255,255,0.46);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 8px 18px -10px rgba(0,9,5,0.55);
+  }
+
+  /* ====== MAIN ====== */
+  .main { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+
+  /* topbar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 14px 16px 14px 24px;
+  }
+  .shopname {
+    font-family: "Sora", sans-serif;
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .topbar .search {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 11px 16px;
+    border-radius: 14px;
+    color: var(--ink-faint);
+    font-size: 14px;
+    transition: background 0.18s ease;
+  }
+  .topbar .search:hover { background: linear-gradient(150deg, rgba(255,255,255,0.19), rgba(255,255,255,0.09) 58%, rgba(255,255,255,0.12)); }
+  .topbar .search svg { width: 17px; height: 17px; opacity: 0.75; flex-shrink: 0; }
+  .btn-new {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 18px;
+    border-radius: 14px;
+    font-family: "DM Sans", sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: filter 0.18s ease;
+  }
+  .btn-new:hover { filter: brightness(1.12); }
+  .btn-new .plus {
+    font-family: "Sora", sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    line-height: 1;
+    margin-top: -1px;
+  }
+
+  /* hero — sits directly on the environment */
+  .hero { padding: 6px 8px 2px; }
+  .hero h1 {
+    font-family: "Sora", sans-serif;
+    font-weight: 800;
+    font-size: 50px;
+    line-height: 1.04;
+    letter-spacing: -0.038em;
+    margin-bottom: 15px;
+    max-width: 17ch;
+    text-shadow: 0 2px 34px rgba(0,8,5,0.28);
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .hero .subline {
+    font-size: 16px;
+    color: rgba(255,255,255,0.78);
+    letter-spacing: 0.005em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero .subline .dot { color: var(--ink-faint); margin: 0 9px; }
+
+  /* stats row */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .stat { padding: 22px 24px 23px; }
+  .stat .micro { margin-bottom: 15px; }
+  .stat .figure {
+    font-family: "Sora", sans-serif;
+    font-weight: 700;
+    font-size: 38px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .delta.muted { color: var(--ink-faint); }
+  .stat .delta .tri { font-size: 9px; line-height: 1; }
+
+  /* two-column area */
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 26px;
+    align-items: start;
+  }
+  .col-right { display: flex; flex-direction: column; gap: 26px; }
+
+  /* panel heads */
+  .panel { padding: 26px 26px 28px; }
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    padding: 0 4px;
+  }
+  .panel-head h2 {
+    font-family: "Sora", sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    letter-spacing: -0.02em;
+  }
+  .panel-head .tag { font-size: 12.5px; color: var(--ink-faint); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  /* next up — rows nested in a lighter glass tile (visible seam) */
+  .appt-list { padding: 4px 18px; }
+  .appt {
+    display: grid;
+    grid-template-columns: 74px 1fr auto;
+    align-items: center;
+    gap: 18px;
+    padding: 16px 8px;
+    margin: 0 -6px;
+    border-radius: 12px;
+    transition: background 0.18s ease;
+  }
+  .appt:hover { background: rgba(255,255,255,0.045); }
+  .appt .time {
+    font-family: "Sora", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .appt .time .mer { font-size: 11px; color: var(--ink-faint); font-weight: 500; margin-left: 2px; }
+  .appt .who .name {
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 3px;
+  }
+  .appt .who .svc {
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 0.005em;
+  }
+  .appt .who .svc .sep { color: var(--ink-faint); margin: 0 7px; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.17);
+    border-top-color: rgba(255,255,255,0.28);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
+    white-space: nowrap;
+  }
+  .pill .led {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ink-faint);
+  }
+  .pill.confirmed .led {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(var(--accent-glow),0.13), 0 0 9px 1px rgba(var(--accent-glow),0.75);
+  }
+  .pill.arrived {
+    background: rgba(var(--accent-glow),0.15);
+    border-color: rgba(var(--accent-glow),0.34);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .pill.arrived .led {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(var(--accent-glow),0.16), 0 0 10px 1px rgba(var(--accent-glow),0.9);
+  }
+  .pill.booked .led {
+    background: rgba(255,255,255,0.55);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.07);
+  }
+
+  /* this week */
+  .week .figure {
+    font-family: "Sora", sans-serif;
+    font-weight: 800;
+    font-size: 44px;
+    line-height: 1;
+    letter-spacing: -0.035em;
+    margin: 2px 4px 5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .week .cap { font-size: 13px; color: var(--ink-soft); margin: 0 4px 18px; }
+  .chart-tile { padding: 20px 18px 16px; }
+  .chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    height: 110px;
+  }
+  .bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 11px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+  .bar {
+    width: 100%;
+    max-width: 26px;
+    border-radius: 9px 9px 6px 6px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.25), rgba(255,255,255,0.10) 42%, rgba(255,255,255,0.07));
+    border: 1px solid rgba(255,255,255,0.15);
+    border-top-color: rgba(255,255,255,0.34);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.4),
+      inset 0 -6px 10px -6px rgba(0,6,4,0.35);
+  }
+  .bar.active {
+    background: linear-gradient(180deg, rgba(var(--accent-glow),0.95), rgba(var(--accent-glow),0.38));
+    border-color: rgba(var(--accent-glow),0.55);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.7),
+      0 0 18px -2px rgba(var(--accent-glow),0.55),
+      0 0 44px -6px rgba(var(--accent-glow),0.3);
+  }
+  .bar-wrap .lbl {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .bar-wrap.active .lbl { color: var(--accent); }
+
+  /* fill your day */
+  .fill .micro { margin-bottom: 16px; }
+  .fill .head {
+    font-family: "Sora", sans-serif;
+    font-weight: 600;
+    font-size: 19px;
+    line-height: 1.32;
+    letter-spacing: -0.015em;
+    margin-bottom: 11px;
+  }
+  .fill .sub {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    margin-bottom: 22px;
+  }
+  .btn-fill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    font-family: "DM Sans", sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 14px;
+    transition: filter 0.18s ease;
+  }
+  .btn-fill:hover { filter: brightness(1.14); }
+  .btn-fill svg { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+
+  <!-- atmosphere: bloom, light shafts, ghost glass, vignette — all behind the UI plane -->
+  <div class="bloom" aria-hidden="true"></div>
+  <div class="bloom b2" aria-hidden="true"></div>
+  <div class="shaft s1" aria-hidden="true"></div>
+  <div class="shaft s2" aria-hidden="true"></div>
+  <div class="ghost g1" aria-hidden="true"></div>
+  <div class="ghost g2" aria-hidden="true"></div>
+  <div class="ghost g3" aria-hidden="true"></div>
+  <div class="ghost g4" aria-hidden="true"></div>
+  <div class="ghost g5" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <div class="shell">
+
+    <!-- ============ LEFT NAV RAIL ============ -->
+    <aside class="rail glass elev-2" style="--gx:24%; --gw:52%;">
+      <div class="brandmark">S</div>
+      <nav>
+        <div class="nav-btn active" aria-label="Home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
+        </div>
+        <div class="nav-btn" aria-label="Calendar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
+        </div>
+        <div class="nav-btn" aria-label="Clients">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M17.5 20a5.5 5.5 0 0 0-2.2-4.4"/></svg>
+        </div>
+        <div class="nav-btn" aria-label="Services">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M8.3 7.7 20 17M8.3 16.3 20 7"/></svg>
+        </div>
+        <div class="nav-btn" aria-label="Marketing">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 9v6l4 .5 2 4 1.5-.5L9.5 15.5 19 18V6L9.5 8.5H5a1.5 1.5 0 0 0-1.5 1.5Z"/></svg>
+        </div>
+        <div class="nav-btn" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8 6 18M18 6l1.8-1.8"/></svg>
+        </div>
+      </nav>
+      <hr class="hair rail-hair" />
+      <div class="avatar">A</div>
+    </aside>
+
+    <!-- ============ MAIN COLUMN ============ -->
+    <main class="main">
+
+      <!-- top bar -->
+      <header class="topbar glass elev-1" style="--gx:5%; --gw:24%;">
+        <div class="shopname">Back Alive</div>
+        <div class="search glass-inner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <span>Search clients, appointments, services…</span>
+        </div>
+        <button class="btn-new glass-inner"><span class="plus">+</span> New appointment</button>
+      </header>
+
+      <!-- hero -->
+      <section class="hero">
+        <h1>Good morning, Anas — <em>here's your chair today.</em></h1>
+        <p class="subline">6 appointments on the books <span class="dot">·</span> 2 chairs open this afternoon.</p>
+      </section>
+
+      <!-- stat tiles -->
+      <section class="stats">
+        <div class="stat glass elev-1" style="--gx:10%; --gw:42%;">
+          <div class="micro">Appointments</div>
+          <div class="figure">6</div>
+          <div class="delta"><span class="tri">▲</span> 2 today</div>
+        </div>
+        <div class="stat glass elev-1" style="--gx:30%; --gw:38%;">
+          <div class="micro">Revenue today</div>
+          <div class="figure">$480</div>
+          <div class="delta"><span class="tri">▲</span> 12%</div>
+        </div>
+        <div class="stat glass elev-1" style="--gx:8%; --gw:30%;">
+          <div class="micro">No-shows prevented</div>
+          <div class="figure">2</div>
+          <div class="delta muted">this week</div>
+        </div>
+        <div class="stat glass elev-1" style="--gx:22%; --gw:44%;">
+          <div class="micro">Returning</div>
+          <div class="figure">78%</div>
+          <div class="delta"><span class="tri">▲</span> 4%</div>
+        </div>
+      </section>
+
+      <!-- two-column area -->
+      <section class="grid2">
+
+        <!-- Next up -->
+        <div class="panel glass elev-3" style="--gx:7%; --gw:32%;">
+          <div class="panel-head">
+            <h2>Next up</h2>
+            <span class="tag">Thursday, Jun 11</span>
+          </div>
+
+          <div class="appt-list glass-inner">
+            <div class="appt">
+              <div class="time">10:30<span class="mer">AM</span></div>
+              <div class="who">
+                <div class="name">Marcus Bell</div>
+                <div class="svc">Skin Fade <span class="sep">·</span> 45 min</div>
+              </div>
+              <span class="pill confirmed"><span class="led"></span>Confirmed</span>
+            </div>
+            <hr class="hair" />
+
+            <div class="appt">
+              <div class="time">11:15<span class="mer">AM</span></div>
+              <div class="who">
+                <div class="name">Devon Carter</div>
+                <div class="svc">Beard Trim <span class="sep">·</span> 30 min</div>
+              </div>
+              <span class="pill confirmed"><span class="led"></span>Confirmed</span>
+            </div>
+            <hr class="hair" />
+
+            <div class="appt">
+              <div class="time">12:00<span class="mer">PM</span></div>
+              <div class="who">
+                <div class="name">Tyrone Woods</div>
+                <div class="svc">Cut + Lineup <span class="sep">·</span> 1 hour</div>
+              </div>
+              <span class="pill arrived"><span class="led"></span>Arrived</span>
+            </div>
+            <hr class="hair" />
+
+            <div class="appt">
+              <div class="time">1:30<span class="mer">PM</span></div>
+              <div class="who">
+                <div class="name">Jamal Price</div>
+                <div class="svc">Skin Fade <span class="sep">·</span> 30 min</div>
+              </div>
+              <span class="pill booked"><span class="led"></span>Booked</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- right column -->
+        <div class="col-right">
+
+          <!-- This week -->
+          <div class="panel glass elev-2 week" style="--gx:18%; --gw:38%;">
+            <div class="panel-head">
+              <h2>This week</h2>
+              <span class="tag">Jun 8 – 14</span>
+            </div>
+            <div class="figure">$2,840</div>
+            <div class="cap">Revenue across 7 days</div>
+            <div class="chart-tile glass-inner">
+              <div class="chart">
+                <div class="bar-wrap"><div class="bar" style="height:38%"></div><span class="lbl">M</span></div>
+                <div class="bar-wrap"><div class="bar" style="height:54%"></div><span class="lbl">T</span></div>
+                <div class="bar-wrap"><div class="bar" style="height:46%"></div><span class="lbl">W</span></div>
+                <div class="bar-wrap active"><div class="bar active" style="height:100%"></div><span class="lbl">T</span></div>
+                <div class="bar-wrap"><div class="bar" style="height:62%"></div><span class="lbl">F</span></div>
+                <div class="bar-wrap"><div class="bar" style="height:80%"></div><span class="lbl">S</span></div>
+                <div class="bar-wrap"><div class="bar" style="height:34%"></div><span class="lbl">S</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fill your day -->
+          <div class="panel glass elev-1 fill" style="--gx:42%; --gw:36%;">
+            <div class="micro">Fill your day</div>
+            <div class="head">2 open slots this afternoon — fill them before they go cold.</div>
+            <div class="sub">Send a one-tap offer to your waitlist near these times.</div>
+            <button class="btn-fill glass-inner">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m4 12 16-8-6 16-2.5-6.5L4 12Z"/></svg>
+              Send fill offer
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

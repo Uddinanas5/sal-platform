@@ -1,32 +1,12 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { resolveBusinessRole } from "@/lib/auth-utils"
 import crypto from "crypto"
 
 export type ApiContext = {
   userId: string
   businessId: string
   role: string
-}
-
-/**
- * Resolve a user's effective role for a specific business, verifying the user is
- * still a member of that business (owner or active staff). Returns null if the
- * user has no live relationship with the business — used to gate OAuth tokens so
- * a revoked/transferred user cannot keep acting on a tenant.
- */
-async function resolveBusinessRole(userId: string, businessId: string): Promise<string | null> {
-  const [user, ownedBusiness, staffProfile] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { role: true, status: true } }),
-    prisma.business.findFirst({ where: { id: businessId, ownerId: userId }, select: { id: true } }),
-    prisma.staff.findFirst({
-      where: { userId, isActive: true, deletedAt: null, primaryLocation: { businessId } },
-      select: { id: true },
-    }),
-  ])
-  if (!user || user.status !== "active") return null
-  if (ownedBusiness) return user.role === "owner" ? "owner" : "admin"
-  if (staffProfile) return user.role // honor the user's real role (staff/admin)
-  return null // no membership in this business
 }
 
 export async function withV1Auth(req: Request): Promise<ApiContext | null> {
@@ -69,10 +49,14 @@ export async function withV1Auth(req: Request): Promise<ApiContext | null> {
 
     return null
   }
-  // 2. Try session cookie
+  // 2. Try session cookie — re-validate live membership (don't trust stale JWT
+  // claims): a removed staffer's 7-day cookie must not keep working, and a
+  // demotion must take effect at once. Mirrors the OAuth path above.
   const session = await auth()
   if (!session?.user) return null
   const user = session.user as { id?: string; role?: string; businessId?: string }
   if (!user.id || !user.businessId) return null
-  return { userId: user.id, businessId: user.businessId, role: user.role ?? "staff" }
+  const role = await resolveBusinessRole(user.id, user.businessId)
+  if (!role) return null
+  return { userId: user.id, businessId: user.businessId, role }
 }
