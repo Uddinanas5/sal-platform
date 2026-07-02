@@ -73,7 +73,11 @@ interface OnlinePresenceTabProps {
 }
 
 export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePresenceTabProps) {
-  const [slug, setSlug] = useState(businessSlug)
+  // Slug is the persisted Business.slug and is display-only here: the booking
+  // URL, embed code and QR all derive from it, so an editable-but-unsaved field
+  // would hand owners dead links. Changing the booking URL is a dedicated future
+  // flow (needs a uniqueness check + old-link handling).
+  const slug = businessSlug
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
   const [buttonColor, setButtonColor] = useState(initialSettings.buttonColor)
@@ -212,22 +216,14 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Custom Slug</Label>
+              <Label className="text-sm font-medium">Booking Link</Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">{origin}/book/</span>
-                <Input
-                  value={slug}
-                  onChange={(e) =>
-                    setSlug(
-                      e.target.value
-                        .toLowerCase()
-                        .replace(/[^a-z0-9-]/g, "-")
-                    )
-                  }
-                  className="max-w-xs"
-                  placeholder="your-salon-name"
-                />
+                <span className="text-sm font-medium text-foreground">{slug}</span>
               </div>
+              <p className="text-xs text-muted-foreground/70">
+                Your booking link is fixed so shared links and QR codes keep working. Contact support to change it.
+              </p>
             </div>
 
             <Button variant="outline" size="sm" asChild>

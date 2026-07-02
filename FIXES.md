@@ -4,6 +4,30 @@
 
 ---
 
+## P1-5 · Cancelled salons can't re-activate by re-opening an old payment link
+
+**Problem:** A completed Stripe checkout link stays "successful" forever. The app re-activated a subscription whenever someone landed on the success URL — so a cancelled salon could regain full paid access just by re-visiting its old `?billing=success` link.
+
+**Fix:** Before activating, the app now checks the *live* subscription status at Stripe. If the subscription is cancelled (or can't be confirmed), it refuses to activate. **Proof:** 4 new tests (cancelled → denied, unretrievable → denied, active/trialing → activated).
+
+## P1-6 · Fixed a group-booking overselling race (API)
+
+**Problem:** When two staff added the last seat to a group appointment at the same instant via the API, both checks passed and both were added — overselling the class. The dashboard already had this protected; the API route didn't.
+
+**Fix:** The API route now takes a per-appointment lock, re-counts seats under it, and only then adds the participant — the same proven pattern the dashboard uses. The concurrency proof runs in the Phase-5 stress test.
+
+## P1-7 · OAuth consent screen now shows where you're being sent
+
+**Problem:** The "authorize this app" screen showed only the app's self-chosen name (which anyone can set) and never showed where the login code would actually be sent — a setup ripe for a phishing app named "SAL Official" that forwards your access elsewhere. (This surface is switched off in production, but fixed anyway.)
+
+**Fix:** The consent screen now shows the real redirect destination and marks the app name as "unverified / self-reported."
+
+## P1-8 · Booking-link field no longer hands owners dead links
+
+**Problem:** The Online Presence settings had an editable "Custom Slug" box, but saving never stored it — yet the copied booking URL, embed code, and QR code all used the unsaved value. An owner could "change" their link, copy it, share it, and it would 404.
+
+**Fix:** The booking link is now shown as fixed (read-only) so everything you copy always resolves. Changing the booking URL will be a proper dedicated flow later (it needs uniqueness checks and old-link handling).
+
 ## P1-9 · Support & legal emails now use a real address
 
 **Problem:** Terms of Service, Privacy Policy, and the in-app Support button all pointed to `hello@salplatform.com` — a domain that isn't registered, so every message a customer sent would bounce into the void.

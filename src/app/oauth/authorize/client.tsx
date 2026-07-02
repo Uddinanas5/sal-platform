@@ -61,6 +61,16 @@ export function OAuthConsentClient({
     mcp: "Access your salon data through AI assistants (read and manage appointments, clients, services, and more)",
   }
 
+  // The client name is self-declared at (unauthenticated) registration and is
+  // NOT verified — show the actual redirect destination so the user can spot a
+  // phishing app whose name says one thing but sends the code somewhere else.
+  let redirectHost = redirectUri
+  try {
+    redirectHost = new URL(redirectUri).host
+  } catch {
+    /* fall back to the raw value if it doesn't parse */
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center env-canvas-lite p-4">
       <Card className="w-full max-w-md glass-panel-lite">
@@ -76,6 +86,9 @@ export function OAuthConsentClient({
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               This application wants to access your SAL account
+            </p>
+            <p className="text-xs text-amber-300/90 mt-1">
+              Unverified app name — this name is self-reported and not checked by SAL.
             </p>
           </div>
         </CardHeader>
@@ -104,6 +117,13 @@ export function OAuthConsentClient({
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div className="glass-tile rounded-tile p-4">
+            <p className="text-xs text-muted-foreground">
+              After approval, you&apos;ll be sent to:
+            </p>
+            <p className="text-sm font-medium text-foreground break-all mt-1">{redirectHost}</p>
           </div>
 
           {error && (
