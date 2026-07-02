@@ -4,6 +4,17 @@
 
 ---
 
+## Phase 4 · End-to-end tests for the money flows
+
+Added a real browser (Playwright) test suite that drives the app the way a customer and owner actually do, run with `npm run test:e2e` against a local dev server:
+- **Client books end-to-end:** picks a service, stylist, day, and time, enters details, confirms, and sees the confirmation screen — the whole booking money flow.
+- **Unbookable days are blocked:** past days and days off are disabled in the picker.
+- **Owner can log in and load the calendar** (proves the dashboard loads real data, not an error).
+- **Owner can open the POS/checkout screen** without a server error.
+- **Dashboard shows real numbers** — a regression guard asserting the fixed display bugs ("0000%", "[object Object]", "+-") never come back.
+
+All 5 pass. These become the safety net for Phase 5 (stress) and Phase 7 (UI polish).
+
 ## P3 batch B · Settings robustness (P3-12,13,14,21)
 
 - **P3-12:** Saving different settings tabs in two browser tabs at once no longer silently discards one of them — settings saves are now serialized per business so both survive.
