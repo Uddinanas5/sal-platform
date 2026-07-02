@@ -4,6 +4,14 @@
 
 ---
 
+## P2-4 / P2-11 / P2-12 / P2-17 / P2-18 · Billing toast, deletion trail, MCP oversell, real QR, Terms
+
+- **P2-4:** The "Subscription active" message used to appear just from the URL after checkout, even if payment didn't actually go through. It now only shows when the subscription is genuinely active; otherwise it shows a "finishing up" message.
+- **P2-11:** Account-deletion requests send a team email that can silently fail. The app now checks whether that email actually sent and, if not, writes a durable audit record so the request can't vanish unnoticed.
+- **P2-12:** Closed the same group-overselling race (from P1-6) in the AI-integration tool — it now locks and re-counts seats inside the transaction. (Feature is off in beta; fixed anyway.)
+- **P2-17:** The QR code in settings was a fake, non-scannable decoration and its Download/Print buttons always failed. It now shows a real scannable QR of your booking link, and Download/Print work.
+- **P2-18:** The Terms of Service now describe the real "free to start, pay when you subscribe" model, matching the landing page (they previously described only the paid plan). *(Decision logged: aligned Terms to the beta reality — registration is free, charges begin at checkout.)*
+
 ## P2-7 / P2-8 / P2-9 / P2-10 / P3-4 / P3-5 · Onboarding wizard hardening
 
 **Problems (setup wizard):** Adding two services with the same name crashed "Finish" with a raw database error and blocked setup (P2-7). If the final step half-failed, clicking Finish again kept erroring — the owner looked stuck until they reloaded (P2-8). Coming back to finish setup later silently reset your working hours to defaults and could overwrite what you'd saved (P2-9). You could set a closing time earlier than the opening time, making a day silently unbookable (P2-10). The hours save wasn't atomic, so a mid-save failure could wipe your hours (P3-4). And several errors showed raw technical text (P3-5).

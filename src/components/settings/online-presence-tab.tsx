@@ -29,43 +29,6 @@ import {
 } from "@/components/ui/select"
 import { updateOnlinePresenceSettings, type OnlinePresenceSettings } from "@/lib/actions/settings"
 
-function QrCodePlaceholder() {
-  const size = 9
-  const pattern = [
-    [1,1,1,1,1,1,1,0,1],
-    [1,0,0,0,0,0,1,0,0],
-    [1,0,1,1,1,0,1,0,1],
-    [1,0,1,1,1,0,1,0,0],
-    [1,0,1,1,1,0,1,0,1],
-    [1,0,0,0,0,0,1,0,1],
-    [1,1,1,1,1,1,1,0,1],
-    [0,0,0,0,0,0,0,0,0],
-    [1,0,1,1,0,1,1,0,1],
-  ]
-
-  return (
-    <svg
-      viewBox={`0 0 ${size} ${size}`}
-      className="w-48 h-48"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {pattern.map((row, y) =>
-        row.map((cell, x) =>
-          cell ? (
-            <rect
-              key={`${x}-${y}`}
-              x={x}
-              y={y}
-              width={1}
-              height={1}
-              fill="#059669"
-            />
-          ) : null
-        )
-      )}
-    </svg>
-  )
-}
 
 interface OnlinePresenceTabProps {
   businessSlug: string
@@ -139,40 +102,38 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
     setIsSaving(false)
   }
 
-  const handleDownloadQr = () => {
-    const svg = document.querySelector(".qr-code-svg")
-    if (!svg) {
-      toast.error("QR code not found")
-      return
+  // Real, scannable QR served by /api/booking-qr (encodes the booking URL).
+  const qrSrc = `/api/booking-qr?slug=${encodeURIComponent(slug)}`
+
+  const handleDownloadQr = async () => {
+    try {
+      const res = await fetch(qrSrc)
+      if (!res.ok) throw new Error("fetch failed")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `sal-${slug}-booking-qr.png`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("QR code downloaded")
+    } catch {
+      toast.error("Could not download the QR code")
     }
-    const svgData = new XMLSerializer().serializeToString(svg)
-    const blob = new Blob([svgData], { type: "image/svg+xml" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `qr-${slug}.svg`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success("QR code downloaded")
   }
 
   const handlePrintQr = () => {
-    const svg = document.querySelector(".qr-code-svg")
-    if (!svg) {
-      toast.error("QR code not found")
-      return
-    }
-    const svgData = new XMLSerializer().serializeToString(svg)
     const win = window.open("", "_blank")
     if (!win) {
       toast.error("Could not open print window")
       return
     }
-    win.document.write(`<html><body style="display:flex;justify-content:center;align-items:center;min-height:100vh;">${svgData}</body></html>`)
+    win.document.write(
+      `<html><body style="display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;">` +
+        `<img src="${qrSrc}" alt="Booking QR code" style="width:320px;height:320px;" onload="window.focus();window.print();" />` +
+        `</body></html>`
+    )
     win.document.close()
-    win.focus()
-    win.print()
-    win.close()
   }
 
   return (
@@ -255,7 +216,8 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
           <CardContent>
             <div className="flex items-start gap-8">
               <div className="p-4 bg-white rounded-xl border border-white/10 shadow-card">
-                <QrCodePlaceholder />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrSrc} alt="Booking page QR code" className="w-48 h-48" width={192} height={192} />
               </div>
               <div className="space-y-4 flex-1">
                 <p className="text-sm text-muted-foreground">

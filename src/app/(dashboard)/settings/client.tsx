@@ -254,9 +254,18 @@ export default function SettingsClient({ resources, services, formTemplates, ini
   // toast on mount, then strip the marker params so a refresh doesn't re-fire it.
   useEffect(() => {
     if (billingResult === "success") {
-      toast.success("Subscription active", {
-        description: "Your SAL subscription is set up. Welcome aboard!",
-      })
+      // Only claim success if the subscription actually reconciled to active —
+      // the ?billing=success marker alone is attacker/replay-controllable and
+      // must not drive a "you're subscribed" message on its own (P2-4).
+      if (billing.hasSubscription) {
+        toast.success("Subscription active", {
+          description: "Your SAL subscription is set up. Welcome aboard!",
+        })
+      } else {
+        toast("Finishing up your subscription…", {
+          description: "If this doesn't update shortly, refresh the page or contact support.",
+        })
+      }
     } else if (billingResult === "cancelled") {
       toast("Checkout cancelled", {
         description: "No charge was made. You can set up billing anytime.",
