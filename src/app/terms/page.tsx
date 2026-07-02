@@ -226,10 +226,10 @@ export default function TermsPage() {
             <p>
               If you have any questions about these Terms, please contact us at{" "}
               <a
-                href="mailto:hello@salplatform.com"
+                href="mailto:support@meetsal.ai"
                 className="text-mint underline underline-offset-2 hover:text-mint-soft transition-colors"
               >
-                hello@salplatform.com
+                support@meetsal.ai
               </a>
               .
             </p>

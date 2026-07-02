@@ -84,7 +84,7 @@ export async function GET(
       `SUMMARY:${escapeICS(summary)}`,
       `DESCRIPTION:${escapeICS(description)}`,
       location ? `LOCATION:${escapeICS(location)}` : "",
-      `ORGANIZER;CN=${escapeICS(appointment.business.name)}:mailto:${appointment.business.email || "noreply@salplatform.com"}`,
+      `ORGANIZER;CN=${escapeICS(appointment.business.name)}:mailto:${appointment.business.email || "noreply@meetsal.ai"}`,
       `STATUS:${appointment.status === "cancelled" ? "CANCELLED" : "CONFIRMED"}`,
       "END:VEVENT",
       "END:VCALENDAR",

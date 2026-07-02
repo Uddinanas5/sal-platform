@@ -150,7 +150,7 @@ export function Header({ title, subtitle }: HeaderProps) {
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => window.open("mailto:hello@salplatform.com?subject=Support Request", "_blank")}>
+            <DropdownMenuItem onClick={() => window.open("mailto:support@meetsal.ai?subject=Support Request", "_blank")}>
               <HelpCircle className="mr-2 h-4 w-4" />
               Help & Support
             </DropdownMenuItem>

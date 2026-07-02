@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
 export async function getGiftCards(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   const giftCards = await prisma.giftCard.findMany({
@@ -51,6 +52,7 @@ export async function getGiftCards(businessId?: string) {
 // Membership rows on each plan. (The public booking/v1 layer filters to
 // isActive itself, so widening here is safe — only this page consumes it.)
 export async function getMembershipPlans(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   const plans = await prisma.membershipPlan.findMany({
@@ -87,6 +89,7 @@ export async function getMembershipPlans(businessId?: string) {
 }
 
 export async function getMemberships(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   // Membership doesn't have businessId directly; filter through plan
   const planFilter = businessId
     ? { plan: { businessId } }
@@ -129,6 +132,7 @@ export async function getMemberships(businessId?: string) {
 }
 
 export async function getMembershipStats(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   // Try to get real membership data first
   let totalMembers = 0
   let activeMembers = 0

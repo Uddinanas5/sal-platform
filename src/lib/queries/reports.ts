@@ -9,6 +9,7 @@ import { subDays, subMonths, startOfDay, startOfMonth, endOfMonth, format } from
 // ============================================================================
 
 async function getBusinessTimezone(businessId?: string): Promise<string> {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   if (!businessId) return "UTC"
   const b = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true } })
   return b?.timezone || "UTC"
@@ -77,6 +78,7 @@ export function resolveRange(range?: { from?: Date | null; to?: Date | null }): 
 // ============================================================================
 
 export async function getRevenueByDay(days: number, businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const since = startOfDay(subDays(new Date(), days - 1))
   const businessFilter = businessId ? { businessId } : {}
   const timezone = await getBusinessTimezone(businessId)
@@ -114,6 +116,7 @@ export async function getStaffPerformance(
   businessId?: string,
   range?: { from?: Date | null; to?: Date | null }
 ) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   // Staff links to business through location
   const locationFilter = businessId
     ? { primaryLocation: { businessId } }
@@ -216,6 +219,7 @@ export async function getStaffPerformance(
 }
 
 export async function getChannelBreakdown(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   const appointments = await prisma.appointment.groupBy({
@@ -259,6 +263,7 @@ export async function getReportSummary(
   businessId?: string,
   range?: { from?: Date | null; to?: Date | null }
 ) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   // Current window = the selected range (defaults to this month). The previous
   // comparison window is the immediately-preceding span of equal length, so
   // growth % stays meaningful for any picked range.
@@ -411,6 +416,7 @@ export async function getReportSummary(
 // ============================================================================
 
 export async function getRevenueByMonth(months: number = 6, businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
   const rangeStart = startOfMonth(subMonths(new Date(), months - 1))
 
@@ -456,6 +462,7 @@ export async function getRevenueByCategory(
   businessId?: string,
   range?: { from?: Date | null; to?: Date | null }
 ) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const categoryColors: Record<string, string> = {
     Hair: "#f97316",
     Wellness: "#10b981",
@@ -528,6 +535,7 @@ export async function getRevenueByPaymentMethod(
   businessId?: string,
   range?: { from?: Date | null; to?: Date | null }
 ) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const methodColors: Record<string, string> = {
     card: "#059669",
     cash: "#34d399",
@@ -576,6 +584,7 @@ export async function getAppointmentsByHour(
   businessId: string,
   range?: { from?: Date | null; to?: Date | null }
 ) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const hourLabels = [
     "8AM", "9AM", "10AM", "11AM", "12PM", "1PM",
     "2PM", "3PM", "4PM", "5PM", "6PM", "7PM",
@@ -612,6 +621,7 @@ export async function getAppointmentCompletionRate(
   businessId?: string,
   range?: { from?: Date | null; to?: Date | null }
 ) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const { from, to } = resolveRange(range)
   const businessFilter = businessId ? { businessId } : {}
 
@@ -648,6 +658,7 @@ export async function getAppointmentCompletionRate(
 }
 
 export async function getBusiestTimesHeatmap(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   const dayMap: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5 }
   const businessFilter = businessId ? { businessId } : {}
@@ -686,6 +697,7 @@ export async function getBusiestTimesHeatmap(businessId?: string) {
 // ============================================================================
 
 export async function getClientRetention(months: number = 6, businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
   const now = new Date()
   const rangeStart = startOfMonth(subMonths(now, months - 1))
@@ -758,6 +770,7 @@ export async function getClientRetention(months: number = 6, businessId?: string
 }
 
 export async function getTopClients(limit: number = 5, businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   const clients = await prisma.client.findMany({
@@ -782,6 +795,7 @@ export async function getTopClients(limit: number = 5, businessId?: string) {
 }
 
 export async function getClientAcquisitionSources(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const colors: Record<string, string> = {
     google: "#059669",
     referral: "#34d399",

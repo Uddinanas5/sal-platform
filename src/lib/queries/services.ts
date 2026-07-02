@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
 export async function getServices(businessId: string, includeInactive = false) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const services = await prisma.service.findMany({
     where: {
       ...(includeInactive ? {} : { isActive: true }),
@@ -33,6 +34,7 @@ export async function getServices(businessId: string, includeInactive = false) {
 }
 
 export async function getServicesByCategory(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   const categories = await prisma.serviceCategory.findMany({

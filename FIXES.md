@@ -4,6 +4,20 @@
 
 ---
 
+## P1-9 · Support & legal emails now use a real address
+
+**Problem:** Terms of Service, Privacy Policy, and the in-app Support button all pointed to `hello@salplatform.com` — a domain that isn't registered, so every message a customer sent would bounce into the void.
+
+**Fix:** Replaced all of them with `support@meetsal.ai` (and the calendar-invite fallback with `noreply@meetsal.ai`). *(Decision logged: chose meetsal.ai since that's the live product domain; if you'd rather use a different inbox, it's a one-line change.)*
+
+## P1-11 · Closed the "forgot the shop ID = see everyone's data" hole
+
+**Problem:** About 30 reporting, review, marketing, membership, and waitlist data functions had a quiet fallback: if the shop ID was ever missing, they'd return data across *every* shop on the platform instead of erroring. Nothing exploited it today, but one forgotten argument in future code would leak another business's numbers.
+
+**Fix:** Every one of those functions now refuses to run without a shop ID — it throws immediately instead of querying globally. All current screens already pass the ID, so nothing changes for real usage; the dangerous fallback is simply gone.
+
+**Proof:** 7 new tests confirm the functions throw (and never touch the database) when the shop ID is missing. Full suite green.
+
 ## P1-4 / P2-14 · Review-request links now work; deleted the dead duplicate funnel
 
 **Problem:** The "leave us a review" emails linked to `/r/<token>`, but the app's security gate didn't allow that address for logged-out people — so every client who clicked a review link hit a login wall. The whole review-collection feature was silently dead. Separately, there was a second, unused copy of the review system sitting in the codebase that (if ever switched on) would publish 1-star reviews with no spam protection.

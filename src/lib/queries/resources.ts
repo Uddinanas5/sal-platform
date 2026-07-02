@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
 export async function getResources(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   const resources = await prisma.resource.findMany({
@@ -20,6 +21,7 @@ export async function getResources(businessId?: string) {
 }
 
 export async function getResourceCount(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   return prisma.resource.count({

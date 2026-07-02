@@ -176,10 +176,10 @@ export default function PrivacyPage() {
             <p className="mt-3">
               To exercise any of these rights, contact us at{" "}
               <a
-                href="mailto:hello@salplatform.com"
+                href="mailto:support@meetsal.ai"
                 className="text-mint underline underline-offset-2 hover:text-mint-soft transition-colors"
               >
-                hello@salplatform.com
+                support@meetsal.ai
               </a>
               . We will respond to your request within 30 days.
             </p>
@@ -237,10 +237,10 @@ export default function PrivacyPage() {
               If you have any questions about this Privacy Policy or our data practices, please
               contact us at{" "}
               <a
-                href="mailto:hello@salplatform.com"
+                href="mailto:support@meetsal.ai"
                 className="text-mint underline underline-offset-2 hover:text-mint-soft transition-colors"
               >
-                hello@salplatform.com
+                support@meetsal.ai
               </a>
               .
             </p>
