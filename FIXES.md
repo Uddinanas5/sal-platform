@@ -4,6 +4,12 @@
 
 ---
 
+## P2-7 / P2-8 / P2-9 / P2-10 / P3-4 / P3-5 · Onboarding wizard hardening
+
+**Problems (setup wizard):** Adding two services with the same name crashed "Finish" with a raw database error and blocked setup (P2-7). If the final step half-failed, clicking Finish again kept erroring — the owner looked stuck until they reloaded (P2-8). Coming back to finish setup later silently reset your working hours to defaults and could overwrite what you'd saved (P2-9). You could set a closing time earlier than the opening time, making a day silently unbookable (P2-10). The hours save wasn't atomic, so a mid-save failure could wipe your hours (P3-4). And several errors showed raw technical text (P3-5).
+
+**Fixes:** Duplicate service names are de-duplicated and the save skips duplicates, so Finish never crashes on them and is safe to retry. Resuming setup now loads your previously-saved hours instead of defaults. Reversed open/close times are rejected with a clear per-day message. Hours are saved in a single all-or-nothing transaction. Error messages are now plain and friendly. **Proof:** new tests cover dedupe, reversed-range rejection, and atomic write; full suite green.
+
 ## P2-5 · VIP clients are no longer excluded from VIP campaigns
 
 **Problem:** Clients get tagged "VIP" (capitals), but the campaign audience matched "vip" (lowercase). The database treats those as different, so VIP-tagged clients were silently left out of "VIP" campaigns (unless they also had loyalty points).

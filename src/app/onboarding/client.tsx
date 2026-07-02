@@ -58,6 +58,7 @@ interface OnboardingClientProps {
     postalCode: string
     country: string
   } | null
+  initialHours?: WorkingDay[] | null
 }
 
 type OnboardingStep = 1 | 2 | 3 | 4
@@ -396,7 +397,7 @@ function StepIndicator({ currentStep }: { currentStep: OnboardingStep }) {
 // Main Onboarding Client
 // ---------------------------------------------------------------------------
 
-export function OnboardingClient({ business, location }: OnboardingClientProps) {
+export function OnboardingClient({ business, location, initialHours }: OnboardingClientProps) {
   const router = useRouter()
   const [step, setStep] = useState<OnboardingStep>(1)
   const [direction, setDirection] = useState(1)
@@ -414,8 +415,10 @@ export function OnboardingClient({ business, location }: OnboardingClientProps) 
     business.timezone === "UTC" ? "America/New_York" : business.timezone
   )
 
-  // Step 2 state
-  const [workingHours, setWorkingHours] = useState<WorkingDay[]>(DEFAULT_HOURS)
+  // Step 2 state — seed from previously-saved hours when resuming, else defaults.
+  const [workingHours, setWorkingHours] = useState<WorkingDay[]>(
+    initialHours && initialHours.length ? initialHours : DEFAULT_HOURS
+  )
 
   // Step 3 state
   const [services, setServices] = useState<ServiceEntry[]>([])
