@@ -17,3 +17,8 @@ tsconfig.tsbuildinfo
 .codex/
 .env.backup-local
 .claude-review-findings.json
+
+# Playwright
+test-results/
+playwright-report/
+.playwright-mcp/

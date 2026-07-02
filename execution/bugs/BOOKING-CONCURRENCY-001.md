@@ -1,7 +1,7 @@
 # BOOKING-CONCURRENCY-001 — Double-booking race in appointment create/reschedule
 
 **Priority:** P0
-**Status:** Open — spec ready, awaiting Coder
+**Status:** RESOLVED (app-layer) — advisory locks (`pg_advisory_xact_lock` via `src/lib/db/advisory-lock.ts`) + overlap re-check ship on all create/reschedule/resize/group write paths, covered by tests. DB-level defense-in-depth (btree_gist EXCLUDE constraint) tracked separately in BOOKING-EXCLUSION-CONSTRAINT-001.
 **Reported by:** Tester (repro confirmed, screenshot in thread)
 **Owner:** Coder
 **Related:** [[BOOKING-EXCLUSION-CONSTRAINT-001]] (structural follow-up)

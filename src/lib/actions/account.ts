@@ -144,7 +144,11 @@ export async function requestAccountDeletion(data: {
     })
     const ownerName = owner ? `${owner.firstName ?? ""} ${owner.lastName ?? ""}`.trim() : "Unknown"
 
-    await sendEmail({
+    // sendEmail NEVER throws — it returns { success:false } on failure. If we
+    // don't inspect the result, a failed notification vanishes and the deletion
+    // request may never actually reach the team. Record a durable audit flag on
+    // failure so it can be found by querying, not just by hoping the email sent.
+    const emailResult = await sendEmail({
       to: "support@meetsal.ai",
       subject: `Account deletion request — ${business.name}`,
       replyTo: owner?.email || undefined,
@@ -163,6 +167,24 @@ export async function requestAccountDeletion(data: {
         within 30 days per the privacy policy.</p>
       `,
     })
+
+    if (!emailResult.success) {
+      console.error("requestAccountDeletion notification email FAILED:", emailResult.error)
+      await prisma.auditLog.create({
+        data: {
+          businessId,
+          userId,
+          action: "delete_request_email_failed",
+          entityType: "Business",
+          entityId: businessId,
+          metadata: {
+            note: "Deletion request recorded but the team notification email FAILED to send — follow up manually.",
+            error: String(emailResult.error ?? "unknown"),
+            failedAt: new Date().toISOString(),
+          },
+        },
+      })
+    }
   } catch (e) {
     // Logged, not surfaced — the request is already recorded.
     console.error("requestAccountDeletion email error:", e)

@@ -15,10 +15,6 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    if (!businessId) {
-      return NextResponse.json({ clients: [], services: [], staff: [] })
-    }
-
     const [clients, services, staff] = await Promise.all([
       getClients(undefined, businessId),
       getServices(businessId),

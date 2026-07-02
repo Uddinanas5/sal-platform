@@ -29,6 +29,18 @@ const saveWorkingHoursSchema = z.object({
     openTime: z.string(),
     closeTime: z.string(),
   })),
+}).superRefine((data, ctx) => {
+  // A reversed/equal range on an OPEN day would make it silently unbookable.
+  // Times are zero-padded "HH:MM", so a string compare is a valid time compare.
+  const dayName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+  for (const h of data.hours) {
+    if (!h.isClosed && h.openTime >= h.closeTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${dayName[h.dayOfWeek] ?? `Day ${h.dayOfWeek}`}: closing time must be after opening time`,
+      })
+    }
+  }
 })
 
 const addOnboardingServicesSchema = z.object({
@@ -105,7 +117,7 @@ export async function updateBusinessDetails(data: {
       return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     }
     console.error("updateBusinessDetails error:", e)
-    return { success: false, error: (e as Error).message }
+    return { success: false, error: "Couldn't save your business details. Please try again." }
   }
 }
 
@@ -136,10 +148,8 @@ export async function saveWorkingHours(data: {
     const locationId = business.locations[0]?.id
     if (!locationId) return { success: false, error: "No primary location found" }
 
-    // Delete any existing hours for this location, then recreate
-    await prisma.businessHours.deleteMany({
-      where: { locationId },
-    })
+    // (transactional delete+recreate below so a mid-write failure can't leave
+    // the location with zero hours rows)
 
     // Convert "HH:MM" to a Date representing just the time. The adapter
     // serializes @db.Time with getUTCHours, so build in UTC — a local
@@ -162,16 +172,20 @@ export async function saveWorkingHours(data: {
       return { dayOfWeek: i, isClosed: true, openTime: "09:00", closeTime: "17:00" }
     })
 
-    // Create hours for each day
-    await prisma.businessHours.createMany({
-      data: allDays.map((h) => ({
-        locationId,
-        dayOfWeek: h.dayOfWeek,
-        isClosed: h.isClosed,
-        openTime: h.isClosed ? null : timeStringToDate(h.openTime),
-        closeTime: h.isClosed ? null : timeStringToDate(h.closeTime),
-      })),
-    })
+    // Delete + recreate in ONE transaction so a failure can't leave the location
+    // with no hours rows at all.
+    await prisma.$transaction([
+      prisma.businessHours.deleteMany({ where: { locationId } }),
+      prisma.businessHours.createMany({
+        data: allDays.map((h) => ({
+          locationId,
+          dayOfWeek: h.dayOfWeek,
+          isClosed: h.isClosed,
+          openTime: h.isClosed ? null : timeStringToDate(h.openTime),
+          closeTime: h.isClosed ? null : timeStringToDate(h.closeTime),
+        })),
+      }),
+    ])
 
     return { success: true, data: undefined }
   } catch (e) {
@@ -179,7 +193,7 @@ export async function saveWorkingHours(data: {
       return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     }
     console.error("saveWorkingHours error:", e)
-    return { success: false, error: (e as Error).message }
+    return { success: false, error: "Couldn't save your working hours. Please try again." }
   }
 }
 
@@ -222,11 +236,25 @@ export async function addOnboardingServices(data: {
       })
     }
 
-    // Create all services
+    // Create all services. skipDuplicates makes this both dup-safe (Service has
+    // @@unique([businessId,name]), so two same-named entries or a name that
+    // already exists won't throw a raw constraint error) and idempotent — if a
+    // prior Finish attempt committed the services but the completeOnboarding step
+    // failed, re-clicking Finish re-runs this without erroring.
     const serviceColors = ["#059669", "#f97316", "#ec4899", "#8b5cf6", "#06b6d4", "#f59e0b"]
 
+    // De-dupe within the batch by trimmed name (first occurrence wins) so the
+    // sortOrder/color indices stay stable.
+    const seen = new Set<string>()
+    const uniqueServices = parsed.services.filter((s) => {
+      const key = s.name.trim().toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+
     await prisma.service.createMany({
-      data: parsed.services.map((s, i) => ({
+      data: uniqueServices.map((s, i) => ({
         businessId: parsed.businessId,
         categoryId: category!.id,
         name: s.name.trim(),
@@ -236,6 +264,7 @@ export async function addOnboardingServices(data: {
         isActive: true,
         sortOrder: i,
       })),
+      skipDuplicates: true,
     })
 
     return { success: true, data: undefined }
@@ -244,7 +273,7 @@ export async function addOnboardingServices(data: {
       return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     }
     console.error("addOnboardingServices error:", e)
-    return { success: false, error: (e as Error).message }
+    return { success: false, error: "Couldn't add your services. Please try again." }
   }
 }
 
@@ -285,6 +314,6 @@ export async function completeOnboarding(data: {
       return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     }
     console.error("completeOnboarding error:", e)
-    return { success: false, error: (e as Error).message }
+    return { success: false, error: "Couldn't finish setup. Please try again." }
   }
 }

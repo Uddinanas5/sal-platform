@@ -30,7 +30,7 @@ const STAFF = "staff_1"
 function fakeTx(schedule: { startTime: Date; endTime: Date } | null) {
   return {
     staffSchedule: { findFirst: async () => schedule },
-    staffTimeOff: { findFirst: async () => null },
+    staffTimeOff: { findMany: async () => [] },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any
 }

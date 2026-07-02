@@ -66,19 +66,9 @@ export async function GET() {
     })
   } catch (e) {
     console.error("GET /api/sidebar-data error:", e)
-    // Return fallback zeros so the UI still renders
-    return NextResponse.json({
-      todayAppointments: 0,
-      clientsCount: 0,
-      lowStockCount: 0,
-      pendingReviewsCount: 0,
-      staffProfileId: null,
-      dashboardStats: {
-        todayRevenue: 0,
-        todayAppointments: 0,
-        completedAppointments: 0,
-        upcomingAppointments: 0,
-      },
-    })
+    // Signal a real failure instead of returning zeros: fake zeros are
+    // indistinguishable from a genuinely-empty shop and hide outages. The client
+    // renders sidebar counters as "unavailable" on a non-200 rather than "0".
+    return NextResponse.json({ error: "Failed to load sidebar data" }, { status: 500 })
   }
 }

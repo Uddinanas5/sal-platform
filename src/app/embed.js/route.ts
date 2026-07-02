@@ -38,7 +38,7 @@ const embedScript = String.raw`
 
   function createFrame() {
     var iframe = document.createElement("iframe");
-    iframe.src = bookingUrl + "?embedded=1";
+    iframe.src = bookingUrl + "?embed=1";
     iframe.title = "Book an appointment";
     iframe.loading = "lazy";
     iframe.style.cssText = [

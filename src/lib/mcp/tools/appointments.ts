@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
 import { canAccessAppointment, canAccessAppointmentSeries } from "@/lib/api/appointment-access"
 import { prisma } from "@/lib/prisma"
-import { lockStaffSchedule, isBookingContentionError } from "@/lib/db/advisory-lock"
+import { lockStaffSchedule, lockAppointment, isBookingContentionError } from "@/lib/db/advisory-lock"
 import { generateBookingReference } from "@/lib/booking-reference"
 import { hasRole } from "@/lib/permissions"
 import {
@@ -11,6 +11,8 @@ import {
   ERR_ON_APPROVED_TIME_OFF,
 } from "@/lib/scheduling/working-hours"
 import { z } from "zod"
+
+class GroupFullError extends Error {}
 
 function ok(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data) }] }
@@ -627,13 +629,10 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
     async ({ appointmentId, clientId }) => {
       const appointment = await prisma.appointment.findFirst({
         where: { id: appointmentId, businessId: ctx.businessId, isGroupBooking: true },
-        include: { groupParticipants: true, services: true, business: { select: { timezone: true } } },
+        include: { services: true, business: { select: { timezone: true } } },
       })
       if (!appointment) return err("Group appointment not found")
       if (!(await canAccessAppointment(ctx, appointmentId))) return err("Forbidden")
-      if (appointment.maxParticipants && appointment.groupParticipants.length >= appointment.maxParticipants) {
-        return err("Group appointment is full")
-      }
       const client = await prisma.client.findFirst({
         where: { id: clientId, businessId: ctx.businessId, deletedAt: null },
         select: { id: true },
@@ -643,6 +642,14 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       const slotStaffId = appointment.services[0]?.staffId
       try {
         const participant = await prisma.$transaction(async (tx) => {
+          // Capacity check + insert must be atomic: lock the appointment and
+          // RE-COUNT under it, or two concurrent adds both read count = max-1 and
+          // oversell maxParticipants. Mirrors the v1 route + actions/recurring.ts.
+          await lockAppointment(tx, ctx.businessId, appointmentId)
+          if (appointment.maxParticipants) {
+            const count = await tx.groupParticipant.count({ where: { appointmentId } })
+            if (count >= appointment.maxParticipants) throw new GroupFullError()
+          }
           // Re-validate the group session's slot before adding load to it. Same
           // working-hours / break / approved-time-off guard the booking write
           // paths use (BOOKING-RESIDUAL): lock -> assertSlotAllowed -> create.
@@ -664,6 +671,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         }, { timeout: 20000, maxWait: 15000 })
         return ok(participant)
       } catch (e) {
+        if (e instanceof GroupFullError) return err("Group appointment is full")
         const slotErr = slotErrorMessage(e)
         if (slotErr) return err(slotErr)
         // Concurrency contention behind the advisory lock (tx timeout P2028 /

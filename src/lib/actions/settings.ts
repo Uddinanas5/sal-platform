@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
+import { mergeBusinessSettings } from "@/lib/settings/merge-settings"
 import { revalidatePath } from "next/cache"
 import { requireMinRole, getBusinessContext } from "@/lib/auth-utils"
 
@@ -46,8 +47,16 @@ export async function updateBusinessSettings(data: {
       },
     })
 
-    // Update location-level address fields
-    if (parsed.address || parsed.city || parsed.state || parsed.zipCode) {
+    // Update location-level address fields when any is present in the payload.
+    // Use `!== undefined` (not truthiness) so an empty string CLEARS a field,
+    // while an omitted field is a Prisma no-op — clearing works and a partial
+    // edit never blanks the sibling fields it didn't touch.
+    if (
+      parsed.address !== undefined ||
+      parsed.city !== undefined ||
+      parsed.state !== undefined ||
+      parsed.zipCode !== undefined
+    ) {
       const location = await prisma.location.findFirst({
         where: { businessId },
       })
@@ -82,16 +91,35 @@ export async function updateBusinessSettings(data: {
 
 // ── Online Presence Settings ──────────────────────────────────────────────────
 
+// A social link is stored and later rendered as a raw href on the PUBLIC booking
+// page, so it must not carry a dangerous scheme (javascript:, data:, vbscript:).
+// Allow: empty, an http(s) URL, or a bare handle/domain with no scheme at all.
+// Reject anything whose leading token before ":" is a non-http(s) scheme.
+const safeSocialLink = z
+  .string()
+  .trim()
+  .max(300)
+  .default("")
+  .refine(
+    (v) => {
+      if (v === "") return true
+      const scheme = v.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/)
+      if (!scheme) return true // no scheme → bare handle/domain, safe
+      return /^https?$/i.test(scheme[1])
+    },
+    { message: "Links must start with http:// or https:// (or be a plain handle)" }
+  )
+
 const onlinePresenceSettingsSchema = z.object({
   buttonColor: z.string().default("#059669"),
   buttonText: z.string().default("Book Now"),
   widgetSize: z.enum(["small", "medium", "large"]).default("medium"),
   socialLinks: z
     .object({
-      instagram: z.string().default(""),
-      facebook: z.string().default(""),
-      tiktok: z.string().default(""),
-      website: z.string().default(""),
+      instagram: safeSocialLink,
+      facebook: safeSocialLink,
+      tiktok: safeSocialLink,
+      website: safeSocialLink,
     })
     .default({ instagram: "", facebook: "", tiktok: "", website: "" }),
 })
@@ -102,21 +130,10 @@ export async function updateOnlinePresenceSettings(
   data: OnlinePresenceSettings
 ): Promise<{ success: true; data: OnlinePresenceSettings } | { success: false; error: string }> {
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     const validated = onlinePresenceSettingsSchema.parse(data)
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { settings: true },
-    })
-    const existingSettings = (business?.settings as Record<string, unknown>) ?? {}
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        settings: { ...existingSettings, onlinePresence: validated },
-      },
-    })
+    await mergeBusinessSettings(businessId, "onlinePresence", validated)
 
     revalidatePath("/settings")
     return { success: true as const, data: validated }
@@ -204,21 +221,10 @@ export async function updateNotificationSettings(
   data: NotificationSettings
 ): Promise<{ success: true; data: NotificationSettings } | { success: false; error: string }> {
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     const validated = notificationSettingsSchema.parse(data)
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { settings: true },
-    })
-    const existingSettings = (business?.settings as Record<string, unknown>) ?? {}
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        settings: { ...existingSettings, notifications: validated },
-      },
-    })
+    await mergeBusinessSettings(businessId, "notifications", validated)
 
     revalidatePath("/settings")
     return { success: true as const, data: validated }
@@ -231,8 +237,13 @@ export async function updateNotificationSettings(
 }
 
 export async function getNotificationSettings(businessId: string): Promise<NotificationSettings> {
+  // Sensitive (message templates + internal alert prefs): authenticate and scope
+  // to the caller's own business. A "use server" export is a live RPC endpoint,
+  // so we must not trust a caller-supplied businessId.
+  const ctx = await getBusinessContext()
+  if (businessId && businessId !== ctx.businessId) throw new Error("Forbidden")
   const business = await prisma.business.findUnique({
-    where: { id: businessId },
+    where: { id: ctx.businessId },
     select: { settings: true },
   })
   const rawSettings = (business?.settings as Record<string, unknown>)?.notifications
@@ -272,21 +283,10 @@ export async function updatePaymentSettings(
   data: PaymentSettings
 ): Promise<{ success: true; data: PaymentSettings } | { success: false; error: string }> {
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     const validated = paymentSettingsSchema.parse(data)
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { settings: true },
-    })
-    const existingSettings = (business?.settings as Record<string, unknown>) ?? {}
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        settings: { ...existingSettings, payments: validated },
-      },
-    })
+    await mergeBusinessSettings(businessId, "payments", validated)
 
     revalidatePath("/settings")
     return { success: true as const, data: validated }
@@ -299,8 +299,12 @@ export async function updatePaymentSettings(
 }
 
 export async function getPaymentSettings(businessId: string): Promise<PaymentSettings> {
+  // Sensitive (tax config, receipt settings): authenticate and scope to the
+  // caller's own business — never trust a caller-supplied businessId.
+  const ctx = await getBusinessContext()
+  if (businessId && businessId !== ctx.businessId) throw new Error("Forbidden")
   const business = await prisma.business.findUnique({
-    where: { id: businessId },
+    where: { id: ctx.businessId },
     select: { settings: true },
   })
   const rawSettings = (business?.settings as Record<string, unknown>)?.payments

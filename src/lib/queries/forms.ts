@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
 export async function getFormTemplates(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   const templates = await prisma.formTemplate.findMany({

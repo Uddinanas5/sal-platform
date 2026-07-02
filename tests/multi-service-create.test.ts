@@ -41,7 +41,7 @@ const appointmentCreate = vi.fn(async (args: { data: Record<string, unknown> }) 
 function makeTx() {
   return {
     staffSchedule: { findFirst: vi.fn(async () => scheduleReturn) },
-    staffTimeOff: { findFirst: vi.fn(async () => timeOffReturn) },
+    staffTimeOff: { findMany: vi.fn(async () => (timeOffReturn ? [timeOffReturn] : [])) },
     appointmentService: {
       findFirst: vi.fn(async () => null), // no conflicting booking
       create: appointmentServiceCreate,

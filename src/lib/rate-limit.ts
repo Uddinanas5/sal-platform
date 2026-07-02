@@ -93,9 +93,12 @@ export async function rateLimit(
     const { success, remaining, reset } = await limiter.limit(key)
     if (!success) return { limited: true, retryAfterMs: Math.max(0, reset - Date.now()) }
     return { limited: false, remaining }
-  } catch {
+  } catch (err) {
     // Upstash unreachable: fall back to in-memory rather than hard-blocking auth
-    // /booking on a Redis hiccup. Best-effort beats a total outage.
+    // /booking on a Redis hiccup. Best-effort beats a total outage — but LOG it,
+    // so an ongoing limiter outage is visible instead of silently weakening
+    // brute-force protection.
+    console.error("[rateLimit] Upstash error — degraded to per-instance in-memory:", err instanceof Error ? err.message : err)
     return inMemoryRateLimit(key, maxAttempts, windowMs)
   }
 }

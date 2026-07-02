@@ -278,6 +278,29 @@ export function ReportsClient(props: ReportsClientProps) {
     clientAcquisitionSources,
   } = props
 
+  // Label the growth comparison to match the selected range (getReportSummary
+  // compares against the immediately-preceding equal-length window), instead of a
+  // fixed "vs last month" that's wrong for every range except This Month.
+  const searchParams = useSearchParams()
+  const activePreset: PresetValue = React.useMemo(() => {
+    const from = searchParams.get("from")
+    const to = searchParams.get("to")
+    if (!from || !to) return "this-month"
+    for (const p of presets) {
+      if (p.value === "custom") continue
+      const r = presetRange(p.value)
+      if (dayKey(r.from) === from && dayKey(r.to) === to) return p.value
+    }
+    return "custom"
+  }, [searchParams])
+  const comparisonLabel: string = {
+    "today": "vs yesterday",
+    "this-week": "vs last week",
+    "this-month": "vs last month",
+    "last-month": "vs prior month",
+    "custom": "vs prior period",
+  }[activePreset] ?? "vs prior period"
+
   const summaryCards = [
     {
       title: "Total Revenue",
@@ -482,7 +505,7 @@ export function ReportsClient(props: ReportsClientProps) {
                             {isPositive ? "+" : ""}
                             {card.growth}%
                           </span>
-                          <span className="text-xs text-muted-foreground/70">vs last month</span>
+                          <span className="text-xs text-muted-foreground/70">{comparisonLabel}</span>
                         </div>
                       </div>
                       <div className={cn("p-3 rounded-xl", card.iconBg)}>

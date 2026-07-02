@@ -64,7 +64,7 @@ const processPaymentSchema = z
     // charging via SAL Payments is not enabled until Stripe activation, so
     // accepting it would record a "paid" sale that was never collected (defense
     // in depth, not just the client-side disable).
-    method: z.enum(["cash", "online", "other", "gift_card"]),
+    method: z.enum(["cash", "other", "gift_card"]),
     // Loyalty points the client elects to spend as a DISCOUNT. The actual dollar
     // value + cap is computed server-side in recordCheckout; this is only the
     // requested point count.

@@ -98,6 +98,21 @@ export async function reconcileCheckoutSession(
       ? session.customer
       : session.customer?.id ?? undefined
 
+  // Guard against replay of an OLD success URL: a Checkout session stays
+  // status=complete/paid forever, so without checking the LIVE subscription a
+  // cancelled salon could re-activate itself by re-visiting its old
+  // ?billing=success link. Confirm the subscription is still active/trialing now.
+  if (subscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+      const liveStatus = subscription.status
+      if (liveStatus !== "active" && liveStatus !== "trialing") return false
+    } catch {
+      // Can't confirm the live subscription — do not activate.
+      return false
+    }
+  }
+
   await persist({
     where: { id: opts.businessId },
     data: {

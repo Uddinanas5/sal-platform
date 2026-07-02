@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
 export async function getWaitlistEntries(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   const entries = await prisma.waitlistEntry.findMany({
@@ -27,6 +28,7 @@ export async function getWaitlistEntries(businessId?: string) {
 }
 
 export async function getWaitlistCount(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   return prisma.waitlistEntry.count({

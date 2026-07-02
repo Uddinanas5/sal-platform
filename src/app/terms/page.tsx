@@ -134,10 +134,12 @@ export default function TermsPage() {
               6. Payment Terms
             </h2>
             <p>
-              SAL is offered as a paid subscription: a one-time setup fee of $1,500 USD
-              plus a recurring subscription of $497 USD per month. The setup fee is
-              charged once at the start of your subscription; the monthly fee recurs each
-              billing period until you cancel.
+              Creating an account and setting up your salon is free — no card is
+              required to start, and you are not charged until you choose to activate a
+              paid subscription. When you subscribe, SAL is offered as a one-time setup
+              fee of $1,500 USD plus a recurring subscription of $497 USD per month. The
+              setup fee is charged once at the start of your subscription; the monthly fee
+              recurs each billing period until you cancel.
             </p>
             <p className="mt-3">
               You may cancel at any time through the billing portal. Cancellation takes
@@ -226,10 +228,10 @@ export default function TermsPage() {
             <p>
               If you have any questions about these Terms, please contact us at{" "}
               <a
-                href="mailto:hello@salplatform.com"
+                href="mailto:support@meetsal.ai"
                 className="text-mint underline underline-offset-2 hover:text-mint-soft transition-colors"
               >
-                hello@salplatform.com
+                support@meetsal.ai
               </a>
               .
             </p>

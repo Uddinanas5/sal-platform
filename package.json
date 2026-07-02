@@ -25,7 +25,8 @@
     "test:golden": "tsx scripts/golden-path.mts",
     "trust": "node scripts/trust-report.mjs",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
-    "stripe:trigger": "stripe trigger"
+    "stripe:trigger": "stripe trigger",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -98,6 +99,7 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",

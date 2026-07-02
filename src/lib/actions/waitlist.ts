@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getBusinessContext } from "@/lib/auth-utils"
+import { assertOwnedRefs } from "@/lib/api/ownership"
 import { sendEmail } from "@/lib/email"
 import { lifecycleEmail } from "@/lib/email-templates"
 import { timeStringToUtcDate } from "@/lib/scheduling/zoned-time"
@@ -32,6 +33,15 @@ export async function addToWaitlist(data: {
   try {
     const parsed = addToWaitlistSchema.parse(data)
     const { businessId } = await getBusinessContext()
+
+    // Verify every referenced id belongs to this business before writing — the
+    // v1 route and MCP tool already do this; the server action must too, or a
+    // caller can attach a cross-tenant client/service/staff to a waitlist entry.
+    const badRef = await assertOwnedRefs(
+      { businessId },
+      { client: parsed.clientId, service: parsed.serviceId, staff: parsed.staffId },
+    )
+    if (badRef) return { success: false, error: `${badRef} not found` }
 
     const entry = await prisma.waitlistEntry.create({
       data: {

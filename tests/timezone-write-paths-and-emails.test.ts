@@ -92,7 +92,7 @@ vi.mock("@/lib/api/appointment-access", () => ({
 function makeTx() {
   return {
     staffSchedule: { findFirst: vi.fn(async () => null) },
-    staffTimeOff: { findFirst: vi.fn(async () => null) },
+    staffTimeOff: { findMany: vi.fn(async () => []) },
     appointmentService: {
       findFirst: vi.fn(async () => null),
       create: vi.fn(async () => ({ id: "as_1" })),

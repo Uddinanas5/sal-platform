@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
 export async function getReviews(filter?: "all" | "needs-reply", businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const where: Record<string, unknown> = {}
 
   if (businessId) {
@@ -57,6 +58,7 @@ export async function getReviews(filter?: "all" | "needs-reply", businessId?: st
 }
 
 export async function getReviewStats(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const businessFilter = businessId ? { businessId } : {}
 
   const reviews = await prisma.review.findMany({

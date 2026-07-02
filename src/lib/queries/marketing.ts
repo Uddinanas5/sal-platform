@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
 export async function getCampaigns(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const where = businessId ? { businessId } : {}
 
   const campaigns = await prisma.campaign.findMany({
@@ -28,6 +29,7 @@ export async function getCampaigns(businessId?: string) {
 }
 
 export async function getCampaignStats(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const where = businessId ? { businessId } : {}
 
   const [total, active, sent] = await Promise.all([
@@ -49,6 +51,7 @@ export async function getCampaignStats(businessId?: string) {
 }
 
 export async function getDeals(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const where = businessId ? { businessId } : {}
 
   const deals = await prisma.deal.findMany({
@@ -75,6 +78,7 @@ export async function getDeals(businessId?: string) {
 }
 
 export async function getAutomatedMessages(businessId?: string) {
+  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const where = businessId ? { businessId } : {}
 
   const messages = await prisma.automatedMessage.findMany({

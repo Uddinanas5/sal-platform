@@ -37,8 +37,31 @@ export default async function OnboardingPage() {
 
   const location = business.locations[0] ?? null
 
+  // Load any previously-saved working hours so resuming onboarding shows what the
+  // owner already entered instead of silently reverting to defaults (and then
+  // overwriting the saved rows when they click Next through step 2).
+  const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+  const savedHoursRows = location
+    ? await prisma.businessHours.findMany({ where: { locationId: location.id } })
+    : []
+  const hhmm = (d: Date | null) =>
+    d ? `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}` : "09:00"
+  const initialHours = savedHoursRows.length
+    ? savedHoursRows
+        .slice()
+        .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+        .map((h) => ({
+          dayOfWeek: h.dayOfWeek,
+          label: DAY_LABELS[h.dayOfWeek] ?? `Day ${h.dayOfWeek}`,
+          isWorking: !h.isClosed,
+          openTime: hhmm(h.openTime),
+          closeTime: hhmm(h.closeTime),
+        }))
+    : null
+
   return (
     <OnboardingClient
+      initialHours={initialHours}
       business={{
         id: business.id,
         name: business.name,

@@ -81,6 +81,9 @@ interface StatsCardProps {
   value: string | number
   change?: number
   changeLabel?: string
+  /** When true (default) the change is rendered as a percentage ("+12%"); when
+   * false it's a raw count ("+3") — e.g. "3 new this month". */
+  changeIsPercent?: boolean
   icon: LucideIcon
   iconColor?: string
   iconBgColor?: string
@@ -95,6 +98,7 @@ export function StatsCard({
   value,
   change,
   changeLabel,
+  changeIsPercent = true,
   icon: Icon,
   iconColor = "text-mint",
   iconBgColor = "bg-sal-100",
@@ -170,7 +174,7 @@ export function StatsCard({
                 {isPositive && <TrendingUp className="w-3 h-3" />}
                 {isNegative && <TrendingDown className="w-3 h-3" />}
                 {isPositive && "+"}
-                {change}%
+                {change}{changeIsPercent ? "%" : ""}
               </span>
               {changeLabel && (
                 <span className="text-xs text-muted-foreground/70">{changeLabel}</span>

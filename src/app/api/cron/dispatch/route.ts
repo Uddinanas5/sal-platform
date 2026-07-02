@@ -4,8 +4,10 @@ import { runDueReminders } from "@/lib/automation/reminders"
 import { runDueAutomatedMessages } from "@/lib/automation/automated-messages"
 import { getLog } from "@/lib/log/context"
 
-// This route is invoked by Vercel Cron (see vercel.json "crons") on a ~15-minute
-// cadence. It is the runtime backbone for SAL's "Never Miss Again" reminders.
+// This route is invoked by Vercel Cron (see vercel.json "crons"). On the current
+// (Hobby) schedule it runs once daily at 13:00 UTC; a ~15-minute cadence requires
+// Vercel Pro + a */15 cron and REMINDER_CADENCE=frequent. It is the runtime
+// backbone for SAL's "Never Miss Again" reminders.
 //
 // SECURITY MODEL — FAIL CLOSED:
 //   - Access requires the CRON_SECRET. We compare in constant time.

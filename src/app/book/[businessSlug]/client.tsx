@@ -476,7 +476,6 @@ function StaffStep({
                     </div>
                     <div className="flex-1">
                       <h4 className="font-medium text-ink">{member.name}</h4>
-                      <p className="text-sm text-ink-soft capitalize">{member.role}</p>
                     </div>
                     {isSelected && (
                       <motion.div

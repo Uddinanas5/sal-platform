@@ -64,7 +64,7 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
       // dashboard action + /api/v1/checkout; accepting it would record a "paid"
       // sale that was never collected). "gift_card" IS accepted, but requires a
       // giftCardCode (validated in the handler) — balance is redeemed server-side.
-      method: z.enum(["cash", "online", "other", "gift_card"]).describe("Payment method (cash/online/other/gift_card; card is not live in beta)"),
+      method: z.enum(["cash", "other", "gift_card"]).describe("Payment method (cash/other/gift_card; card and online are not live in beta)"),
       // Gift-card code, required when method === "gift_card".
       giftCardCode: z.string().min(1).optional().describe("Gift card code (required when method is gift_card)"),
     },

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Back Alive Barbershop — Today</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --emerald:#0c3b2e;
+    --emerald-deep:#06241b;
+    --emerald-bright:#1f7a5c;
+    --emerald-glow:#34c98a;
+    --cream:#f4efe4;
+    --cream-2:#efe8d8;
+    --paper:#fbf8f0;
+    --ink:#0a1410;
+    --ink-soft:#3a4843;
+    --line:#dcd4c2;
+    --line-soft:#e6dfcf;
+    --gold:#c9a24b;
+    --amber:#c97d2c;
+    --rust:#b4452f;
+    --shadow-sm:0 1px 2px rgba(10,20,16,.06);
+    --shadow-md:0 18px 40px -22px rgba(10,40,30,.45);
+    --shadow-lg:0 40px 80px -30px rgba(6,36,27,.55);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"DM Sans",system-ui,sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  .app{
+    display:grid;
+    grid-template-columns:248px 1fr;
+    min-height:100vh;
+    max-width:1440px;
+    margin:0 auto;
+    background:var(--cream);
+  }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar{
+    background:var(--emerald-deep);
+    color:var(--cream);
+    padding:30px 20px 22px;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    border-right:1px solid rgba(0,0,0,.2);
+  }
+  .sidebar::after{
+    content:"";
+    position:absolute;inset:0;
+    background:radial-gradient(120% 60% at 0% 0%, rgba(52,201,138,.10), transparent 60%);
+    pointer-events:none;
+  }
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:42px;position:relative;z-index:1;}
+  .brand-mark{
+    width:38px;height:38px;border-radius:11px;
+    background:linear-gradient(150deg,var(--emerald-glow),var(--emerald-bright));
+    display:grid;place-items:center;
+    box-shadow:0 8px 22px -10px rgba(52,201,138,.8), inset 0 1px 0 rgba(255,255,255,.25);
+    flex-shrink:0;
+  }
+  .brand-word{
+    font-family:"Sora",sans-serif;font-weight:800;letter-spacing:-.04em;
+    font-size:24px;line-height:1;color:var(--cream);
+  }
+  .brand-sub{
+    font-size:9.5px;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--emerald-glow);margin-top:3px;font-weight:600;
+  }
+  .nav{display:flex;flex-direction:column;gap:2px;position:relative;z-index:1;}
+  .nav-label{
+    font-size:9.5px;letter-spacing:.28em;text-transform:uppercase;
+    color:rgba(244,239,228,.4);margin:0 0 12px 12px;font-weight:600;
+  }
+  .nav a{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 12px;border-radius:11px;
+    color:rgba(244,239,228,.66);
+    font-size:14.5px;font-weight:500;text-decoration:none;
+    letter-spacing:-.01em;
+    transition:.18s ease;position:relative;
+  }
+  .nav a svg{width:18px;height:18px;flex-shrink:0;opacity:.8;}
+  .nav a:hover{background:rgba(255,255,255,.05);color:var(--cream);}
+  .nav a.active{
+    background:linear-gradient(100deg,rgba(52,201,138,.18),rgba(52,201,138,.04));
+    color:#fff;font-weight:600;
+  }
+  .nav a.active svg{opacity:1;color:var(--emerald-glow);}
+  .nav a.active::before{
+    content:"";position:absolute;left:-20px;top:50%;transform:translateY(-50%);
+    width:4px;height:22px;border-radius:0 4px 4px 0;background:var(--emerald-glow);
+    box-shadow:0 0 14px var(--emerald-glow);
+  }
+  .nav-spacer{flex:1;}
+  .owner{
+    display:flex;align-items:center;gap:11px;
+    padding:11px;border-radius:14px;margin-top:18px;
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.08);position:relative;z-index:1;
+  }
+  .owner-av{
+    width:38px;height:38px;border-radius:11px;flex-shrink:0;
+    background:linear-gradient(150deg,#c9a24b,#a07b2c);
+    display:grid;place-items:center;font-family:"Sora";font-weight:700;
+    color:#251a06;font-size:15px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .owner-name{font-size:13.5px;font-weight:600;color:var(--cream);letter-spacing:-.01em;}
+  .owner-role{font-size:11px;color:rgba(244,239,228,.5);margin-top:1px;}
+
+  /* ============ MAIN ============ */
+  .main{
+    padding:30px 44px 48px;
+    position:relative;
+    background:
+      radial-gradient(80% 50% at 100% 0%, rgba(31,122,92,.06), transparent 55%),
+      var(--cream);
+    overflow:hidden;
+  }
+
+  /* top bar */
+  .topbar{
+    display:flex;align-items:center;gap:18px;
+    margin-bottom:38px;
+  }
+  .search{
+    flex:1;max-width:340px;
+    display:flex;align-items:center;gap:10px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:13px;padding:11px 15px;
+    color:var(--ink-soft);font-size:14px;
+    box-shadow:var(--shadow-sm);
+  }
+  .search svg{width:17px;height:17px;opacity:.5;flex-shrink:0;}
+  .search input{
+    border:0;background:transparent;outline:0;flex:1;
+    font-family:inherit;font-size:14px;color:var(--ink);
+  }
+  .search input::placeholder{color:#9aa39d;}
+  .search kbd{
+    font-family:"DM Sans";font-size:11px;color:#9aa39d;
+    border:1px solid var(--line);border-radius:6px;padding:2px 6px;background:var(--cream);
+  }
+  .topbar-spacer{flex:1;}
+  .icon-btn{
+    width:44px;height:44px;border-radius:13px;
+    background:var(--paper);border:1px solid var(--line);
+    display:grid;place-items:center;cursor:pointer;color:var(--ink-soft);
+    box-shadow:var(--shadow-sm);transition:.18s;position:relative;
+  }
+  .icon-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
+  .icon-btn svg{width:19px;height:19px;}
+  .icon-btn .dot{
+    position:absolute;top:9px;right:10px;width:7px;height:7px;border-radius:50%;
+    background:var(--rust);border:2px solid var(--paper);
+  }
+  .btn-new{
+    display:flex;align-items:center;gap:9px;
+    background:var(--emerald);color:var(--cream);
+    border:0;border-radius:13px;padding:13px 20px;
+    font-family:"Sora";font-size:14px;font-weight:600;letter-spacing:-.01em;
+    cursor:pointer;box-shadow:0 16px 30px -14px rgba(12,59,46,.7);
+    transition:.18s;
+  }
+  .btn-new:hover{transform:translateY(-1px);box-shadow:0 22px 38px -14px rgba(12,59,46,.85);}
+  .btn-new svg{width:17px;height:17px;}
+
+  /* ===== HERO ===== */
+  .hero{
+    position:relative;
+    margin-bottom:14px;
+  }
+  .hero-kicker{
+    display:flex;align-items:center;gap:14px;
+    font-size:11px;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--emerald-bright);font-weight:600;margin-bottom:10px;
+  }
+  .hero-kicker .rule{height:1px;width:54px;background:var(--emerald-bright);opacity:.45;}
+  .hero-kicker .date{color:var(--ink-soft);letter-spacing:.22em;}
+  .hero h1{
+    font-family:"Sora";font-weight:700;
+    font-size:84px;line-height:.9;letter-spacing:-.045em;
+    color:var(--ink);
+    position:relative;z-index:2;
+  }
+  .hero h1 .accent{
+    font-weight:300;font-style:italic;
+    color:var(--emerald-bright);
+  }
+  .hero h1 .ampersand{color:var(--gold);font-weight:400;}
+  .hero-meta{
+    position:absolute;top:8px;right:0;text-align:right;z-index:2;max-width:280px;
+  }
+  .hero-meta p{
+    font-size:14px;color:var(--ink-soft);line-height:1.5;
+  }
+  .hero-meta strong{color:var(--ink);font-weight:600;}
+  .hero-shape{
+    position:absolute;right:-30px;top:-46px;
+    font-family:"Sora";font-weight:800;font-size:220px;line-height:1;
+    color:rgba(12,59,46,.04);letter-spacing:-.06em;z-index:1;user-select:none;
+    pointer-events:none;
+  }
+
+  /* ===== EDITORIAL GRID ===== */
+  .grid{
+    display:grid;
+    grid-template-columns:1.55fr 1fr;
+    gap:22px;
+    margin-top:30px;
+    align-items:start;
+  }
+  .col-left{display:flex;flex-direction:column;gap:22px;}
+  .col-right{display:flex;flex-direction:column;gap:22px;}
+
+  /* ===== STAT STRIP (oversized numbers) ===== */
+  .stats{
+    display:grid;grid-template-columns:1fr 1fr;gap:0;
+    background:var(--paper);border:1px solid var(--line);border-radius:22px;
+    overflow:hidden;box-shadow:var(--shadow-md);
+  }
+  .stat{
+    padding:24px 24px 22px;position:relative;
+    border-right:1px solid var(--line-soft);
+    border-bottom:1px solid var(--line-soft);
+  }
+  .stat:nth-child(2n){border-right:0;}
+  .stat:nth-child(3),.stat:nth-child(4){border-bottom:0;}
+  .stat.feature{
+    background:linear-gradient(160deg,var(--emerald),var(--emerald-deep));
+    color:var(--cream);
+  }
+  .stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .stat-label{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:600;
+  }
+  .stat.feature .stat-label{color:rgba(244,239,228,.72);}
+  .chip{
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:11px;font-weight:700;border-radius:20px;padding:4px 9px;
+    font-family:"DM Sans";
+  }
+  .chip svg{width:11px;height:11px;}
+  .chip.up{background:rgba(31,122,92,.12);color:var(--emerald-bright);}
+  .stat.feature .chip.up{background:rgba(52,201,138,.22);color:#9ff0cb;}
+  .chip.flat{background:rgba(201,162,75,.16);color:#9c7a26;}
+  .stat-num{
+    font-family:"Sora";font-weight:700;letter-spacing:-.05em;
+    font-size:64px;line-height:.82;color:var(--ink);
+  }
+  .stat.feature .stat-num{color:#fff;}
+  .stat-num .unit{font-size:30px;font-weight:600;vertical-align:top;letter-spacing:-.02em;}
+  .stat-num .pct{font-size:34px;font-weight:600;}
+  .stat-foot{font-size:12.5px;color:var(--ink-soft);margin-top:12px;letter-spacing:-.01em;}
+  .stat.feature .stat-foot{color:rgba(244,239,228,.66);}
+
+  /* ===== NEXT UP ===== */
+  .panel{
+    background:var(--paper);border:1px solid var(--line);border-radius:22px;
+    box-shadow:var(--shadow-md);overflow:hidden;
+  }
+  .panel-head{
+    display:flex;align-items:flex-end;justify-content:space-between;
+    padding:22px 24px 16px;
+  }
+  .panel-title{
+    font-family:"Sora";font-weight:700;font-size:24px;letter-spacing:-.03em;color:var(--ink);
+  }
+  .panel-title .em{color:var(--emerald-bright);font-weight:300;font-style:italic;}
+  .panel-link{
+    font-size:12.5px;font-weight:600;color:var(--emerald-bright);
+    text-decoration:none;display:flex;align-items:center;gap:5px;letter-spacing:-.01em;
+  }
+  .panel-link svg{width:14px;height:14px;}
+  .appt{
+    display:grid;grid-template-columns:74px 1fr auto;
+    align-items:center;gap:18px;
+    padding:15px 24px;
+    border-top:1px solid var(--line-soft);
+    transition:.16s;cursor:default;position:relative;
+  }
+  .appt:hover{background:#fdfbf5;}
+  .appt:hover::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--emerald-bright);
+  }
+  .appt-time{
+    font-family:"Sora";font-weight:600;font-size:17px;letter-spacing:-.03em;color:var(--ink);
+  }
+  .appt-time span{display:block;font-size:11px;color:#9aa39d;font-weight:500;margin-top:2px;font-family:"DM Sans";}
+  .appt-client{font-size:16px;font-weight:600;letter-spacing:-.02em;color:var(--ink);}
+  .appt-detail{font-size:13px;color:var(--ink-soft);margin-top:2px;}
+  .appt-detail b{color:var(--ink);font-weight:600;}
+  .pill{
+    font-size:11.5px;font-weight:700;letter-spacing:.01em;
+    border-radius:20px;padding:5px 12px;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .pill.confirmed{background:rgba(31,122,92,.1);color:var(--emerald-bright);}
+  .pill.arrived{background:rgba(201,125,44,.13);color:var(--amber);}
+  .pill.booked{background:rgba(58,72,67,.1);color:var(--ink-soft);}
+
+  /* ===== WEEK CHART ===== */
+  .chart-card{
+    background:linear-gradient(165deg,var(--emerald),var(--emerald-deep));
+    border-radius:22px;padding:24px 26px 20px;color:var(--cream);
+    box-shadow:var(--shadow-lg);position:relative;overflow:hidden;
+  }
+  .chart-card::before{
+    content:"";position:absolute;right:-60px;top:-60px;width:200px;height:200px;border-radius:50%;
+    background:radial-gradient(circle,rgba(52,201,138,.2),transparent 70%);
+  }
+  .chart-head{display:flex;align-items:flex-start;justify-content:space-between;position:relative;z-index:1;}
+  .chart-label{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(244,239,228,.6);font-weight:600;}
+  .chart-total{font-family:"Sora";font-weight:700;font-size:40px;letter-spacing:-.04em;margin-top:6px;line-height:1;}
+  .chart-total .unit{font-size:20px;font-weight:500;opacity:.7;}
+  .chart-trend{
+    display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;
+    background:rgba(52,201,138,.2);color:#9ff0cb;border-radius:20px;padding:5px 11px;margin-top:8px;
+  }
+  .chart-trend svg{width:12px;height:12px;}
+  .chart-svg{width:100%;height:104px;margin-top:14px;display:block;position:relative;z-index:1;}
+  .chart-days{display:flex;justify-content:space-between;margin-top:8px;position:relative;z-index:1;}
+  .chart-days span{font-size:10.5px;color:rgba(244,239,228,.5);font-weight:600;letter-spacing:.04em;}
+  .chart-days span.now{color:var(--emerald-glow);}
+
+  /* ===== FILL DAY NUDGE ===== */
+  .nudge{
+    background:var(--paper);border:1.5px solid var(--emerald-bright);border-radius:22px;
+    padding:24px;position:relative;overflow:hidden;box-shadow:var(--shadow-md);
+  }
+  .nudge::after{
+    content:"";position:absolute;right:-40px;bottom:-50px;width:160px;height:160px;
+    background:radial-gradient(circle,rgba(31,122,92,.08),transparent 70%);
+  }
+  .nudge-tag{
+    display:inline-flex;align-items:center;gap:7px;
+    font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;
+    color:var(--emerald-bright);margin-bottom:14px;
+  }
+  .nudge-tag .ping{position:relative;width:8px;height:8px;}
+  .nudge-tag .ping i{position:absolute;inset:0;border-radius:50%;background:var(--emerald-glow);}
+  .nudge-tag .ping i:first-child{animation:ping 1.8s cubic-bezier(0,0,.2,1) infinite;}
+  @keyframes ping{75%,100%{transform:scale(2.4);opacity:0;}}
+  .nudge h3{
+    font-family:"Sora";font-weight:700;font-size:27px;line-height:1.04;letter-spacing:-.035em;
+    color:var(--ink);position:relative;z-index:1;
+  }
+  .nudge h3 .hl{
+    color:var(--emerald-bright);position:relative;
+  }
+  .nudge p{font-size:13.5px;color:var(--ink-soft);margin-top:10px;line-height:1.5;max-width:300px;position:relative;z-index:1;}
+  .nudge-actions{display:flex;align-items:center;gap:14px;margin-top:20px;position:relative;z-index:1;}
+  .btn-fill{
+    display:flex;align-items:center;gap:9px;
+    background:var(--emerald-bright);color:#fff;border:0;border-radius:12px;
+    padding:13px 20px;font-family:"Sora";font-weight:600;font-size:14px;letter-spacing:-.01em;
+    cursor:pointer;box-shadow:0 14px 28px -12px rgba(31,122,92,.7);transition:.18s;
+  }
+  .btn-fill:hover{transform:translateY(-1px);box-shadow:0 20px 34px -12px rgba(31,122,92,.85);}
+  .btn-fill svg{width:16px;height:16px;}
+  .nudge-skip{font-size:13px;font-weight:600;color:var(--ink-soft);text-decoration:none;}
+  .nudge-skip:hover{color:var(--ink);}
+  .waitlist{
+    display:flex;align-items:center;gap:0;margin-top:18px;position:relative;z-index:1;
+  }
+  .waitlist .av{
+    width:30px;height:30px;border-radius:50%;border:2px solid var(--paper);
+    margin-left:-8px;display:grid;place-items:center;
+    font-family:"Sora";font-weight:600;font-size:11px;color:#fff;
+  }
+  .waitlist .av:first-child{margin-left:0;}
+  .waitlist .more{font-size:12.5px;color:var(--ink-soft);margin-left:12px;font-weight:500;}
+
+  ::selection{background:var(--emerald-glow);color:var(--emerald-deep);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ========= SIDEBAR ========= -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C12 7 8 9 4 9c0 6 4 11 8 13 4-2 8-7 8-13-4 0-8-2-8-7Z" fill="#06241b" opacity=".9"/>
+          <path d="M12 7v9M9 11l3-2 3 2" stroke="#9ff0cb" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-word">SAL</div>
+        <div class="brand-sub">Never miss again</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Workspace</div>
+      <a href="#" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H4a1 1 0 0 1-1-1V9.5Z"/></svg>
+        Today
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>
+        Calendar
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.2 3.2 0 0 1 0 6.4M18 14c2 .8 3 2.6 3 6"/></svg>
+        Clients
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M2.5 10h19M6 14h5"/></svg>
+        Checkout
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 4 5.5 5.5L9 20.5l-5.5.9.9-5.5L14.5 4Z"/><path d="m12.5 6 5.5 5.5"/></svg>
+        Services
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3.4"/><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
+        Staff
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        Reports
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-7-7 18-2.5-7.5L3 11Z"/></svg>
+        Marketing
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.6 15H4.5a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 6 8.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3 1.6 1.6 0 0 0 .9-1.5V4.5a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8 1.6 1.6 0 0 0 1.5.9h.1a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5.9Z"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <div class="nav-spacer"></div>
+
+    <div class="owner">
+      <div class="owner-av">A</div>
+      <div>
+        <div class="owner-name">Back Alive Barbershop</div>
+        <div class="owner-role">Anas · Owner</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========= MAIN ========= -->
+  <main class="main">
+
+    <!-- top bar -->
+    <div class="topbar">
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+        <input type="text" placeholder="Search clients, appointments, services…" />
+        <kbd>⌘K</kbd>
+      </label>
+      <div class="topbar-spacer"></div>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span class="dot"></span>
+      </button>
+      <button class="btn-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New appointment
+      </button>
+    </div>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-shape">06</div>
+      <div class="hero-kicker">
+        <span class="rule"></span>
+        <span>Today at the chair</span>
+        <span class="date">Thu, Jun 11</span>
+      </div>
+      <h1>Good morning,<br><span class="accent">Anas</span> <span class="ampersand">—</span> let's run it.</h1>
+      <div class="hero-meta">
+        <p><strong>6 appointments</strong> on the books, <strong>2 chairs</strong> open this afternoon. The day is yours to fill.</p>
+      </div>
+    </section>
+
+    <!-- GRID -->
+    <div class="grid">
+
+      <!-- LEFT COLUMN -->
+      <div class="col-left">
+
+        <!-- STATS -->
+        <section class="stats">
+          <div class="stat">
+            <div class="stat-top">
+              <span class="stat-label">Today's appointments</span>
+              <span class="chip up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>+2</span>
+            </div>
+            <div class="stat-num">6</div>
+            <div class="stat-foot">vs. 4 last Thursday</div>
+          </div>
+
+          <div class="stat feature">
+            <div class="stat-top">
+              <span class="stat-label">Revenue today</span>
+              <span class="chip up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>12%</span>
+            </div>
+            <div class="stat-num"><span class="unit">$</span>480</div>
+            <div class="stat-foot">Projected $720 by close</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-top">
+              <span class="stat-label">No-shows prevented</span>
+              <span class="chip flat">SAVED</span>
+            </div>
+            <div class="stat-num">2</div>
+            <div class="stat-foot">≈ $90 recovered today</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-top">
+              <span class="stat-label">Returning clients</span>
+              <span class="chip up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>+4%</span>
+            </div>
+            <div class="stat-num">78<span class="pct">%</span></div>
+            <div class="stat-foot">Loyalty trending up</div>
+          </div>
+        </section>
+
+        <!-- NEXT UP -->
+        <section class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Next <span class="em">up</span></div>
+            <a href="#" class="panel-link">View full calendar
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+          </div>
+
+          <div class="appt">
+            <div class="appt-time">10:30<span>30 min</span></div>
+            <div>
+              <div class="appt-client">Marcus Bell</div>
+              <div class="appt-detail">Skin Fade · with <b>Mike</b></div>
+            </div>
+            <span class="pill confirmed">Confirmed</span>
+          </div>
+
+          <div class="appt">
+            <div class="appt-time">11:15<span>20 min</span></div>
+            <div>
+              <div class="appt-client">Devon Carter</div>
+              <div class="appt-detail">Beard Trim · with <b>Anas</b></div>
+            </div>
+            <span class="pill confirmed">Confirmed</span>
+          </div>
+
+          <div class="appt">
+            <div class="appt-time">12:00<span>45 min</span></div>
+            <div>
+              <div class="appt-client">Tyrone Woods</div>
+              <div class="appt-detail">Cut + Lineup · with <b>Mike</b></div>
+            </div>
+            <span class="pill arrived">Arrived</span>
+          </div>
+
+          <div class="appt">
+            <div class="appt-time">1:30<span>30 min</span></div>
+            <div>
+              <div class="appt-client">Jamal Price</div>
+              <div class="appt-detail">Skin Fade · with <b>Anas</b></div>
+            </div>
+            <span class="pill booked">Booked</span>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="col-right">
+
+        <!-- WEEK CHART -->
+        <section class="chart-card">
+          <div class="chart-head">
+            <div>
+              <div class="chart-label">This week · revenue</div>
+              <div class="chart-total"><span class="unit">$</span>2,940</div>
+              <div class="chart-trend">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+                +18% on last week
+              </div>
+            </div>
+          </div>
+
+          <svg class="chart-svg" viewBox="0 0 340 104" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="barG" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#9ff0cb"/>
+                <stop offset="1" stop-color="#1f7a5c"/>
+              </linearGradient>
+              <linearGradient id="areaG" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#34c98a" stop-opacity=".34"/>
+                <stop offset="1" stop-color="#34c98a" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <!-- area trend line -->
+            <path d="M22 70 L70 60 L118 64 L166 46 L214 50 L262 34 L310 24 L310 104 L22 104 Z" fill="url(#areaG)"/>
+            <path d="M22 70 L70 60 L118 64 L166 46 L214 50 L262 34 L310 24" fill="none" stroke="#9ff0cb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- bars -->
+            <g>
+              <rect x="14"  y="74" width="16" height="22" rx="4" fill="url(#barG)" opacity=".55"/>
+              <rect x="62"  y="66" width="16" height="30" rx="4" fill="url(#barG)" opacity=".6"/>
+              <rect x="110" y="70" width="16" height="26" rx="4" fill="url(#barG)" opacity=".62"/>
+              <rect x="158" y="52" width="16" height="44" rx="4" fill="url(#barG)" opacity=".7"/>
+              <rect x="206" y="56" width="16" height="40" rx="4" fill="url(#barG)" opacity=".72"/>
+              <rect x="254" y="40" width="16" height="56" rx="4" fill="url(#barG)" opacity=".85"/>
+              <rect x="302" y="30" width="16" height="66" rx="4" fill="url(#barG)"/>
+            </g>
+            <!-- today dot -->
+            <circle cx="310" cy="24" r="4.5" fill="#fff"/>
+            <circle cx="310" cy="24" r="4.5" fill="none" stroke="#34c98a" stroke-width="2"/>
+          </svg>
+          <div class="chart-days">
+            <span>Fri</span><span>Sat</span><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span class="now">Thu</span>
+          </div>
+        </section>
+
+        <!-- FILL YOUR DAY -->
+        <section class="nudge">
+          <div class="nudge-tag">
+            <span class="ping"><i></i><i></i></span>
+            Money loop · waitlist
+          </div>
+          <h3>Fill your day —<br><span class="hl">2 open slots</span> this afternoon.</h3>
+          <p>Send a one-tap fill offer to your waitlist and turn empty chairs into paid cuts before 5 PM.</p>
+
+          <div class="waitlist">
+            <div class="av" style="background:linear-gradient(150deg,#1f7a5c,#0c3b2e)">RJ</div>
+            <div class="av" style="background:linear-gradient(150deg,#c9a24b,#a07b2c)">KS</div>
+            <div class="av" style="background:linear-gradient(150deg,#b4452f,#7d2f1f)">DM</div>
+            <div class="av" style="background:linear-gradient(150deg,#3a4843,#1a2420)">+5</div>
+            <span class="more">8 clients waiting</span>
+          </div>
+
+          <div class="nudge-actions">
+            <button class="btn-fill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-7-7 18-2.5-7.5L3 11Z"/></svg>
+              Send fill offer
+            </button>
+            <a href="#" class="nudge-skip">Not now</a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

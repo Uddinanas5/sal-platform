@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { requireMinRole } from "@/lib/auth-utils"
+import { requireMinRole, getBusinessContext } from "@/lib/auth-utils"
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string }
 
@@ -80,8 +80,12 @@ export async function deleteBundle(id: string): Promise<ActionResult> {
 }
 
 export async function getBundles(businessId: string) {
+  // Authenticate and scope to the caller's own business — a "use server" export
+  // is a live RPC endpoint, so never trust a caller-supplied businessId.
+  const ctx = await getBusinessContext()
+  if (businessId && businessId !== ctx.businessId) throw new Error("Forbidden")
   const bundles = await prisma.serviceBundle.findMany({
-    where: { businessId, isActive: true },
+    where: { businessId: ctx.businessId, isActive: true },
     orderBy: { sortOrder: "asc" },
   })
 
