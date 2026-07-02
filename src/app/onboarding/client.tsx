@@ -602,9 +602,13 @@ export function OnboardingClient({ business, location, initialHours }: Onboardin
     setServices(prev => {
       const existingNames = new Set(prev.map(s => s.name))
       const newServices = TEMPLATE_SERVICES.filter(t => !existingNames.has(t.name))
+      if (newServices.length === 0) {
+        toast("All template services are already in your list")
+      } else {
+        toast.success(`Added ${newServices.length} template service${newServices.length === 1 ? "" : "s"}`)
+      }
       return [...prev, ...newServices]
     })
-    toast.success("Template services added")
   }, [])
 
   // ---------------------------------------------------------------------------

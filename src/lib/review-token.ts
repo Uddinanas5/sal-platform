@@ -43,6 +43,8 @@ function getSecret(): string {
   return secret
 }
 
+const REVIEW_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60 // 30 days
+
 function b64url(buf: Buffer): string {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
@@ -108,5 +110,13 @@ export function verifyReviewToken(token: string | undefined | null): DecodedRevi
     return null
   }
 
-  return { appointmentId: payload.a, clientId: payload.c, issuedAt: payload.iat ?? 0 }
+  // Expire review links after 30 days. These are stateless (no DB revocation), so
+  // without a TTL a leaked link would be usable forever. Tokens carry iat; a
+  // token whose iat is present and older than the window is rejected.
+  const iat = payload.iat ?? 0
+  if (iat > 0 && Date.now() / 1000 - iat > REVIEW_TOKEN_TTL_SECONDS) {
+    return null
+  }
+
+  return { appointmentId: payload.a, clientId: payload.c, issuedAt: iat }
 }

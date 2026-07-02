@@ -57,7 +57,7 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
   const bookingUrl = `${origin}/book/${slug}`
 
   const embedCode = `<iframe
-  src="${bookingUrl}?embed=true"
+  src="${bookingUrl}?embed=1"
   width="${widgetSize === "small" ? "320" : widgetSize === "medium" ? "480" : "640"}"
   height="${widgetSize === "small" ? "500" : widgetSize === "medium" ? "600" : "700"}"
   frameborder="0"
@@ -173,14 +173,6 @@ export function OnlinePresenceTab({ businessSlug, initialSettings }: OnlinePrese
                   )}
                   {copiedUrl ? "Copied" : "Copy"}
                 </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Booking Link</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{origin}/book/</span>
-                <span className="text-sm font-medium text-foreground">{slug}</span>
               </div>
               <p className="text-xs text-muted-foreground/70">
                 Your booking link is fixed so shared links and QR codes keep working. Contact support to change it.

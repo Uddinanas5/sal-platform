@@ -27,6 +27,17 @@ const updateFormTemplateSchema = z.object({
 
 const idSchema = z.string().uuid("Invalid ID")
 
+// Returns true if any of the given serviceIds is NOT owned by the business.
+async function unownedServiceIds(
+  serviceIds: string[] | undefined,
+  businessId: string
+): Promise<boolean> {
+  if (!serviceIds || serviceIds.length === 0) return false
+  const unique = Array.from(new Set(serviceIds))
+  const owned = await prisma.service.count({ where: { id: { in: unique }, businessId } })
+  return owned !== unique.length
+}
+
 const submitFormSchema = z.object({
   templateId: z.string().uuid(),
   clientId: z.string().uuid(),
@@ -45,6 +56,11 @@ export async function createFormTemplate(data: {
   try {
     const parsed = createFormTemplateSchema.parse(data)
     const { businessId } = await requireMinRole("admin")
+
+    // Every serviceId attached to the template must belong to this business —
+    // otherwise a caller could bind a form to another shop's services.
+    const badServices = await unownedServiceIds(parsed.serviceIds, businessId)
+    if (badServices) return { success: false, error: "One or more services not found" }
 
     const template = await prisma.formTemplate.create({
       data: {
@@ -84,6 +100,9 @@ export async function updateFormTemplate(
     const parsedId = idSchema.parse(id)
     const parsed = updateFormTemplateSchema.parse(data)
     const { businessId } = await requireMinRole("admin")
+
+    const badServices = await unownedServiceIds(parsed.serviceIds, businessId)
+    if (badServices) return { success: false, error: "One or more services not found" }
 
     const template = await prisma.formTemplate.update({
       where: { id: parsedId, businessId },

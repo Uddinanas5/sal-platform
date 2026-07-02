@@ -4,6 +4,17 @@
 
 ---
 
+## P3 batch A · Polish & hardening (P3-2,3,6,7,8,9,16,18)
+
+- **P3-2:** The public booking page no longer shows staff internal roles ("admin"/"staff") to clients; the role is also no longer sent to the browser at all.
+- **P3-3:** Report summary cards now label the comparison correctly for the chosen range ("vs last week", "vs yesterday", etc.) instead of always "vs last month".
+- **P3-6:** The onboarding "template services added" message now tells the truth — it says how many were added, or that they were already in your list.
+- **P3-7:** The sidebar data endpoint now reports a real error instead of returning fake zeros, so an outage can't masquerade as "your shop has $0 and no clients."
+- **P3-8:** Removed a dead, unreachable code branch in the search endpoint.
+- **P3-9:** Review links now expire after 30 days (they were valid forever).
+- **P3-16:** Form templates now reject service IDs that don't belong to your shop.
+- **P3-18:** The two embed-code snippets now use the same URL parameter (were inconsistent).
+
 ## P2-4 / P2-11 / P2-12 / P2-17 / P2-18 · Billing toast, deletion trail, MCP oversell, real QR, Terms
 
 - **P2-4:** The "Subscription active" message used to appear just from the URL after checkout, even if payment didn't actually go through. It now only shows when the subscription is genuinely active; otherwise it shows a "finishing up" message.
