@@ -11,16 +11,16 @@ Legend: `[ ]` open · `[x]` passed.
 
 ## P0 — do first
 
-- [ ] **P0-1 · Removed team member keeps full access.** `src/lib/actions/invitations.ts:372` — `removeTeamMember` only soft-deletes the Staff row; the 7-day JWT keeps `businessId`/`role`, so a fired staffer retains access until the cookie expires. Root cause shared with stale-JWT claims (`src/lib/auth.config.ts` jwt callback runs only `if (user)`).
+- [x] **P0-1 · Removed team member keeps full access.** `src/lib/actions/invitations.ts:372` — `removeTeamMember` only soft-deletes the Staff row; the 7-day JWT keeps `businessId`/`role`, so a fired staffer retains access until the cookie expires. Root cause shared with stale-JWT claims (`src/lib/auth.config.ts` jwt callback runs only `if (user)`).
   **Pass:** after `removeTeamMember`, the target's existing session is denied at business-scoped endpoints (session re-validates membership against `isActive:true, deletedAt:null`) and a fresh login yields no businessId. Add a test proving a removed staffer gets 403 on a `/api/v1` call with their old cookie.
 
 ---
 
 ## P1 — broken core flows / real security holes
 
-- [ ] **P1-1 · Unauthenticated cross-tenant settings read.** `src/lib/actions/settings.ts:233` (`getNotificationSettings`) and `:301` (`getPaymentSettings`) are `"use server"` actions taking arbitrary `businessId` with no `auth()`/tenant check — any caller reads another shop's settings.
+- [x] **P1-1 · Unauthenticated cross-tenant settings read.** `src/lib/actions/settings.ts:233` (`getNotificationSettings`) and `:301` (`getPaymentSettings`) are `"use server"` actions taking arbitrary `businessId` with no `auth()`/tenant check — any caller reads another shop's settings.
   **Pass:** both derive businessId from `getBusinessContext()` and reject mismatch; a POST with a foreign businessId returns not-found/forbidden. Add a cross-tenant test.
-- [ ] **P1-2 · Settings writes have no role gate.** `src/lib/actions/booking-settings.ts:35` + `settings.ts:105/207/275` call only `getBusinessContext()`, no `requireMinRole`. A plain staff user can rewrite deposits, tax rate, and templates.
+- [x] **P1-2 · Settings writes have no role gate.** `src/lib/actions/booking-settings.ts:35` + `settings.ts:105/207/275` call only `getBusinessContext()`, no `requireMinRole`. A plain staff user can rewrite deposits, tax rate, and templates.
   **Pass:** all four `update*` settings actions call `requireMinRole("admin")`; a staff-role session gets a permissions error. Test added.
 - [ ] **P1-3 · Global `User.role` bleeds invite-granted roles across tenants.** `src/lib/actions/invitations.ts:246` — role is stored on `User`, not per-membership, so acceptInvitation escalation/bleed is possible in both directions.
   **Pass:** role is enforced per-business (Staff.role / membership); a user who is staff in B has only staff rights in B regardless of their role elsewhere. Test added.
@@ -38,7 +38,7 @@ Legend: `[ ]` open · `[x]` passed.
   **Pass:** `grep salplatform.com src/` returns nothing; all use a monitored address on a domain with valid MX (e.g. `support@meetsal.ai`).
 
 ### P1 — systemic (from Phase 1, carried in)
-- [ ] **P1-10 · `getBundles` unauthenticated cross-tenant read.** `src/lib/actions/bundles.ts:82` — exported `"use server"` fn takes caller `businessId` with no auth. **Pass:** derives/validates businessId from session; cross-tenant test added.
+- [x] **P1-10 · `getBundles` unauthenticated cross-tenant read.** `src/lib/actions/bundles.ts:82` — exported `"use server"` fn takes caller `businessId` with no auth. **Pass:** derives/validates businessId from session; cross-tenant test added.
 - [ ] **P1-11 · Unscoped-fallback queries can leak all tenants.** `getReviews`/`getReviewStats` (`src/lib/queries/reviews.ts`), `getCampaignStats` (`queries/marketing.ts:31`), and most of `queries/reports.ts` query ALL tenants when businessId is undefined. **Pass:** each throws (or returns empty) on missing businessId rather than querying globally; test added.
 - [ ] **P1-12 · No DB-level double-booking backstop.** `prisma/schema.prisma` Appointment has no exclusion constraint; prevention is app-layer advisory lock only. Ship the `btree_gist` + `tstzrange` EXCLUDE constraint (`execution/bugs/BOOKING-EXCLUSION-CONSTRAINT-001.md`). *(Coordinated with Phase 5 stress test.)* **Pass:** a direct SQL insert of an overlapping staff appointment on the dev schema is rejected by the DB.
 - [ ] **P1-13 · Rate limiting is inert on the whole API surface + per-container in prod.** No `rateLimit()` on any `/api/v1`, `/api/mcp`, `/api/oauth`; and `src/lib/rate-limit.ts` falls back to per-container in-memory unless Upstash env is set (silently degrades on Redis error too). *(See Phase 6.)* **Pass:** documented serverless strategy decided + implemented; abusive REST calls are throttled; a Redis-outage path logs instead of silently degrading.

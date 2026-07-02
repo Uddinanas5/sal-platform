@@ -4,6 +4,16 @@
 
 ---
 
+## P1-1 / P1-2 / P1-10 · Settings & bundles: closed cross-tenant reads and added role gates
+
+**Problem:** Three "back office" data functions were reachable as raw web endpoints that trusted whatever shop-ID the caller sent. In theory someone could read another shop's tax setup, message templates, or service bundles by passing a different ID. Separately, saving booking/payment/notification/online-presence settings only checked you were *logged in* — a plain staff member (not an admin) could rewrite deposit rules, tax rates, and templates.
+
+**Fix:** The sensitive settings readers (payment, notification) and the bundles reader now authenticate and refuse any shop-ID that isn't your own. The four settings-save actions now require **admin** role, matching the main business-settings save. (The public-facing readers — social links and booking rules shown to clients on the booking page — were intentionally left open, since that data is displayed publicly anyway.)
+
+**Proof:** 7 new tests: cross-tenant reads throw "Forbidden" with no DB query, and staff-role saves are denied with no write. Full suite green (565 tests).
+
+---
+
 ## P0-1 · Removed team members can no longer keep access
 
 **Problem:** When you removed a staff member, they kept full access to your shop's data for up to 7 days — until their login "cookie" happened to expire. Removal only hid them from the team list; it didn't actually lock them out.

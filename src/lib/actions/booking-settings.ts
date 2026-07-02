@@ -2,7 +2,7 @@
 
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { getBusinessContext } from "@/lib/auth-utils"
+import { requireMinRole, getBusinessContext } from "@/lib/auth-utils"
 import { revalidatePath } from "next/cache"
 
 const bookingSettingsSchema = z.object({
@@ -32,7 +32,7 @@ export async function updateBookingSettings(
   data: BookingSettings
 ): Promise<{ success: true; data: BookingSettings } | { success: false; error: string }> {
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     const validated = bookingSettingsSchema.parse(data)
 
     const business = await prisma.business.findUnique({

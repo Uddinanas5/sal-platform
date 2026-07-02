@@ -102,7 +102,7 @@ export async function updateOnlinePresenceSettings(
   data: OnlinePresenceSettings
 ): Promise<{ success: true; data: OnlinePresenceSettings } | { success: false; error: string }> {
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     const validated = onlinePresenceSettingsSchema.parse(data)
 
     const business = await prisma.business.findUnique({
@@ -204,7 +204,7 @@ export async function updateNotificationSettings(
   data: NotificationSettings
 ): Promise<{ success: true; data: NotificationSettings } | { success: false; error: string }> {
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     const validated = notificationSettingsSchema.parse(data)
 
     const business = await prisma.business.findUnique({
@@ -231,8 +231,13 @@ export async function updateNotificationSettings(
 }
 
 export async function getNotificationSettings(businessId: string): Promise<NotificationSettings> {
+  // Sensitive (message templates + internal alert prefs): authenticate and scope
+  // to the caller's own business. A "use server" export is a live RPC endpoint,
+  // so we must not trust a caller-supplied businessId.
+  const ctx = await getBusinessContext()
+  if (businessId && businessId !== ctx.businessId) throw new Error("Forbidden")
   const business = await prisma.business.findUnique({
-    where: { id: businessId },
+    where: { id: ctx.businessId },
     select: { settings: true },
   })
   const rawSettings = (business?.settings as Record<string, unknown>)?.notifications
@@ -272,7 +277,7 @@ export async function updatePaymentSettings(
   data: PaymentSettings
 ): Promise<{ success: true; data: PaymentSettings } | { success: false; error: string }> {
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId } = await requireMinRole("admin")
     const validated = paymentSettingsSchema.parse(data)
 
     const business = await prisma.business.findUnique({
@@ -299,8 +304,12 @@ export async function updatePaymentSettings(
 }
 
 export async function getPaymentSettings(businessId: string): Promise<PaymentSettings> {
+  // Sensitive (tax config, receipt settings): authenticate and scope to the
+  // caller's own business — never trust a caller-supplied businessId.
+  const ctx = await getBusinessContext()
+  if (businessId && businessId !== ctx.businessId) throw new Error("Forbidden")
   const business = await prisma.business.findUnique({
-    where: { id: businessId },
+    where: { id: ctx.businessId },
     select: { settings: true },
   })
   const rawSettings = (business?.settings as Record<string, unknown>)?.payments
