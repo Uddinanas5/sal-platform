@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
+import { mergeBusinessSettings } from "@/lib/settings/merge-settings"
 import { revalidatePath } from "next/cache"
 import { requireMinRole, getBusinessContext } from "@/lib/auth-utils"
 
@@ -46,8 +47,16 @@ export async function updateBusinessSettings(data: {
       },
     })
 
-    // Update location-level address fields
-    if (parsed.address || parsed.city || parsed.state || parsed.zipCode) {
+    // Update location-level address fields when any is present in the payload.
+    // Use `!== undefined` (not truthiness) so an empty string CLEARS a field,
+    // while an omitted field is a Prisma no-op — clearing works and a partial
+    // edit never blanks the sibling fields it didn't touch.
+    if (
+      parsed.address !== undefined ||
+      parsed.city !== undefined ||
+      parsed.state !== undefined ||
+      parsed.zipCode !== undefined
+    ) {
       const location = await prisma.location.findFirst({
         where: { businessId },
       })
@@ -124,18 +133,7 @@ export async function updateOnlinePresenceSettings(
     const { businessId } = await requireMinRole("admin")
     const validated = onlinePresenceSettingsSchema.parse(data)
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { settings: true },
-    })
-    const existingSettings = (business?.settings as Record<string, unknown>) ?? {}
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        settings: { ...existingSettings, onlinePresence: validated },
-      },
-    })
+    await mergeBusinessSettings(businessId, "onlinePresence", validated)
 
     revalidatePath("/settings")
     return { success: true as const, data: validated }
@@ -226,18 +224,7 @@ export async function updateNotificationSettings(
     const { businessId } = await requireMinRole("admin")
     const validated = notificationSettingsSchema.parse(data)
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { settings: true },
-    })
-    const existingSettings = (business?.settings as Record<string, unknown>) ?? {}
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        settings: { ...existingSettings, notifications: validated },
-      },
-    })
+    await mergeBusinessSettings(businessId, "notifications", validated)
 
     revalidatePath("/settings")
     return { success: true as const, data: validated }
@@ -299,18 +286,7 @@ export async function updatePaymentSettings(
     const { businessId } = await requireMinRole("admin")
     const validated = paymentSettingsSchema.parse(data)
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { settings: true },
-    })
-    const existingSettings = (business?.settings as Record<string, unknown>) ?? {}
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        settings: { ...existingSettings, payments: validated },
-      },
-    })
+    await mergeBusinessSettings(businessId, "payments", validated)
 
     revalidatePath("/settings")
     return { success: true as const, data: validated }

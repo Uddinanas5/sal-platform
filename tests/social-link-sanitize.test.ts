@@ -4,11 +4,21 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 // dangerous scheme (javascript:, data:) must be rejected at save time. http(s)
 // URLs and bare handles/domains stay allowed.
 
-const { prismaMock, requireMinRoleMock } = vi.hoisted(() => ({
-  prismaMock: { business: { findUnique: vi.fn(), update: vi.fn() } },
-  requireMinRoleMock: vi.fn(),
-}))
+const { prismaMock, requireMinRoleMock } = vi.hoisted(() => {
+  const business = { findUnique: vi.fn(), update: vi.fn() }
+  const tx = { business, $executeRaw: vi.fn() }
+  return {
+    prismaMock: {
+      business,
+      // mergeBusinessSettings runs its work inside an interactive transaction.
+      $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)),
+    },
+    requireMinRoleMock: vi.fn(),
+  }
+})
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }))
+// merge-settings imports Prisma types + lockBusiness ($executeRaw on tx) — stub the lock.
+vi.mock("@/lib/db/advisory-lock", () => ({ lockBusiness: vi.fn() }))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
 vi.mock("@/lib/auth-utils", () => ({
   requireMinRole: requireMinRoleMock,

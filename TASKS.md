@@ -83,16 +83,16 @@ Legend: `[ ]` open · `[x]` passed.
 - [x] **P3-9 · Review tokens never expire.** `src/lib/review-token.ts:111` — `iat` signed, never checked. **Pass:** tokens past a TTL (e.g. 30d) rejected.
 - [ ] **P3-10 · Review single-use is check-then-insert, no DB constraint.** `src/lib/actions/reviews.ts:209`. **Pass:** partial unique on `reviews.appointment_id` (or transactional guard) blocks concurrent dupes.
 - [ ] **P3-11 · Invitations: no DB single-use/uniqueness; revoke-then-create not transactional; revoke before email delivered.** `src/lib/actions/invitations.ts:84/295`. **Pass:** partial unique on pending invitations + transactional revoke/create.
-- [ ] **P3-12 · Settings JSON read-modify-write clobbers concurrent tab saves.** `src/lib/actions/settings.ts:108` (+210/278, `booking-settings.ts:38`). **Pass:** atomic sub-key writes (`jsonb_set` or `$transaction` re-read).
-- [ ] **P3-13 · Delete-account dialog validates against unsaved live-edited business name.** `src/app/(dashboard)/settings/client.tsx:854`. **Pass:** validates against persisted `Business.name`.
-- [ ] **P3-14 · Address fields can't be cleared; empty strings blank siblings.** `src/lib/actions/settings.ts:50`. **Pass:** clearing persists; partial edits don't blank other fields.
+- [x] **P3-12 · Settings JSON read-modify-write clobbers concurrent tab saves.** `src/lib/actions/settings.ts:108` (+210/278, `booking-settings.ts:38`). **Pass:** atomic sub-key writes (`jsonb_set` or `$transaction` re-read).
+- [x] **P3-13 · Delete-account dialog validates against unsaved live-edited business name.** `src/app/(dashboard)/settings/client.tsx:854`. **Pass:** validates against persisted `Business.name`.
+- [x] **P3-14 · Address fields can't be cleared; empty strings blank siblings.** `src/lib/actions/settings.ts:50`. **Pass:** clearing persists; partial edits don't blank other fields.
 - [ ] **P3-15 · Account "deletion" leaves tenant fully live (booking up, Connect untouched).** `src/lib/actions/account.ts:110`. **Pass:** sets a pendingDeletion flag disabling public booking, or the support email lists the Connect account id + open appointments.
 - [x] **P3-16 · Form template `serviceIds` not ownership-validated.** `src/lib/actions/forms.ts:49` + v1 forms routes. **Pass:** reject serviceIds not owned by the business.
 - [ ] **P3-17 · Unbounded OAuth DCR growth (no cap/rate limit).** `src/app/api/oauth/register/route.ts:78`. **GATED.** **Pass:** rate-limited and/or client rows expire and are GC'd. (Folds into P1-13.)
 - [x] **P3-18 · Embed snippets: param name mismatch (`embedded=1` vs `embed=true`), never read; popup has no Esc/scroll-lock/stacking guard.** `src/app/embed.js/route.ts:41,56` + `online-presence-tab.tsx:93`. **Pass:** one canonical param the page consumes (or removed); popup closes on Esc, locks scroll, no stacking.
 - [ ] **P3-19 · Cascade-delete of financial/history records.** `prisma/schema.prisma` — `Review.appointment` and `AppointmentProduct.appointment` are `onDelete: Cascade` (same bug class already fixed for Commission). **Pass:** changed to `SetNull`/`Restrict` with a migration; deleting an appointment preserves its product-sale lines and reviews.
 - [ ] **P3-20 · US/USD/single-location/NYC-tax hardcoding.** `src/lib/stripe.ts` (currency `usd`, country `US`), tax constant 8.875%, `createPublicBooking` ignores location. **GATED partly (payments).** **Pass:** currency/country derive from `Business`; tax from settings; document the single-location assumption or honor location choice. (Founder's Dubai shop is the trigger case.)
-- [ ] **P3-21 · Stale docs/comments.** `execution/bugs/BOOKING-CONCURRENCY-001.md` marked Open though shipped; cron route comment "~15-minute cadence" vs daily `vercel.json`; `CLAUDE.md`/`MEMORY.md` "no test framework". **Pass:** docs corrected to match code.
+- [x] **P3-21 · Stale docs/comments.** `execution/bugs/BOOKING-CONCURRENCY-001.md` marked Open though shipped; cron route comment "~15-minute cadence" vs daily `vercel.json`; `CLAUDE.md`/`MEMORY.md` "no test framework". **Pass:** docs corrected to match code.
 
 ---
 

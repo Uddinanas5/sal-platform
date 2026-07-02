@@ -4,6 +4,13 @@
 
 ---
 
+## P3 batch B · Settings robustness (P3-12,13,14,21)
+
+- **P3-12:** Saving different settings tabs in two browser tabs at once no longer silently discards one of them — settings saves are now serialized per business so both survive.
+- **P3-13:** The "type your business name to delete" dialog now checks against your *saved* name, not an unsaved edit in the form (which could make the confirmation impossible or inconsistent).
+- **P3-14:** You can now clear address fields in settings (previously an all-empty address was silently ignored), and editing one field no longer risks blanking the others.
+- **P3-21:** Fixed stale docs/comments — the reminder-cron cadence note, the "no test framework" line in CLAUDE.md, and a resolved booking-race bug still marked "Open."
+
 ## P3 batch A · Polish & hardening (P3-2,3,6,7,8,9,16,18)
 
 - **P3-2:** The public booking page no longer shows staff internal roles ("admin"/"staff") to clients; the role is also no longer sent to the browser at all.

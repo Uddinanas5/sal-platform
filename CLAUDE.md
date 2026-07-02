@@ -14,7 +14,7 @@ pnpm prisma migrate dev --name <name>  # Create a migration
 npx tsx prisma/seed.ts # Seed the database
 ```
 
-No test framework is configured.
+Testing uses **Vitest**: `npm test` (run once), `npm run test:watch`, `npm run test:tz` (UTC + NY timezones). ~85 test files live in `tests/`. There are also `check:*` guard scripts (see package.json) and `npm run check:launch` as a pre-ship gate.
 
 ## Testing & Database Safety (OFFICIAL RULES — see also AGENTS.md)
 

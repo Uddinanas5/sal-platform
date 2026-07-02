@@ -860,7 +860,10 @@ export default function SettingsClient({ resources, services, formTemplates, ini
                     <CardTitle className="text-red-400 font-heading">Danger Zone</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <DeleteAccountSection role={role} businessName={businessName} />
+                    {/* Use the PERSISTED name, not the live-edited field state —
+                        the server validates the typed confirmation against the
+                        saved Business.name, so a client-side match must too. */}
+                    <DeleteAccountSection role={role} businessName={initialBusiness?.name || ""} />
                   </CardContent>
                 </Card>
               </motion.div>
