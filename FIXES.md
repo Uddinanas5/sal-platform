@@ -4,6 +4,18 @@
 
 ---
 
+## P1-4 / P2-14 · Review-request links now work; deleted the dead duplicate funnel
+
+**Problem:** The "leave us a review" emails linked to `/r/<token>`, but the app's security gate didn't allow that address for logged-out people — so every client who clicked a review link hit a login wall. The whole review-collection feature was silently dead. Separately, there was a second, unused copy of the review system sitting in the codebase that (if ever switched on) would publish 1-star reviews with no spam protection.
+
+**Fix:** Allowed the public review link through the gate (verified: a logged-out visit to a review link now loads the star form). Deleted the dead duplicate review code entirely so it can't become a trap later.
+
+## P2-1 / P2-2 / P2-3 / P3-1 / P2-19 · Fixed misleading numbers on the dashboard and reports
+
+**Problem (all seen live in the browser):** The dashboard showed "0000%" under Total Clients (a raw count wrongly rendered as a percentage), the Average Rating showed the ugly raw number "4.4375", and the Booking Channels chart legend showed "[object Object]" instead of channel names. The Reports revenue tab showed "+-100%" (a plus sign glued onto a negative number, with an up-arrow on a decline), and the Clients tab showed a hardcoded fake "+2.3%" retention change that wasn't computed from anything.
+
+**Fix:** Counts now render as counts ("+1 new this month", no % sign), the rating rounds to one decimal ("4.4"), the pie chart legend shows real channel names, the revenue deltas show the correct single sign and correct arrow direction, and the fake retention delta was replaced with an honest label. Verified the dashboard fixes live.
+
 ## P1-1 / P1-2 / P1-10 · Settings & bundles: closed cross-tenant reads and added role gates
 
 **Problem:** Three "back office" data functions were reachable as raw web endpoints that trusted whatever shop-ID the caller sent. In theory someone could read another shop's tax setup, message templates, or service bundles by passing a different ID. Separately, saving booking/payment/notification/online-presence settings only checked you were *logged in* — a plain staff member (not an admin) could rewrite deposit rules, tax rates, and templates.

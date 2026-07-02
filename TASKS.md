@@ -24,7 +24,7 @@ Legend: `[ ]` open · `[x]` passed.
   **Pass:** all four `update*` settings actions call `requireMinRole("admin")`; a staff-role session gets a permissions error. Test added.
 - [ ] **P1-3 · Global `User.role` bleeds invite-granted roles across tenants.** `src/lib/actions/invitations.ts:246` — role is stored on `User`, not per-membership, so acceptInvitation escalation/bleed is possible in both directions.
   **Pass:** role is enforced per-business (Staff.role / membership); a user who is staff in B has only staff rights in B regardless of their role elsewhere. Test added.
-- [ ] **P1-4 · Emailed review links are dead.** `src/middleware.ts:30` — `sendReviewRequest` emails `/r/<token>` but publicRoutes only allows `/review/.*`, not `/r/.*`, so logged-out clients hit the auth wall. The entire review-request funnel is non-functional.
+- [x] **P1-4 · Emailed review links are dead.** `src/middleware.ts:30` — `sendReviewRequest` emails `/r/<token>` but publicRoutes only allows `/review/.*`, not `/r/.*`, so logged-out clients hit the auth wall. The entire review-request funnel is non-functional.
   **Pass:** GET `/r/<validToken>` with no session returns the star-rating form (200) and submitting creates a Review row. Verified in browser.
 - [ ] **P1-5 · Cancelled salon can un-gate itself by replaying its old Checkout success URL.** `src/lib/billing/plan.ts:101` — `reconcileCheckoutSession` re-activates on any previously-complete session_id without checking the live subscription is still active. **GATED (billing live-mode pending) but fix the replay.**
   **Pass:** replaying an old completed session_id for a subscription that is cancelled at Stripe leaves `subscriptionStatus='cancelled'`. Test added.
@@ -48,9 +48,9 @@ Legend: `[ ]` open · `[x]` passed.
 
 ## P2 — degraded / misleading (owners act on wrong info)
 
-- [ ] **P2-1 · Dashboard "Total Clients" shows `0000%` new this month.** Verified in browser (`/dashboard`). Hardcoded `weeklyGrowth/monthlyGrowth: 0` (`src/lib/queries/appointments.ts:198`) fed through a broken formatter. **Pass:** card shows a real percentage or is removed; no `0000%`.
-- [ ] **P2-2 · Dashboard "Booking Channels" legend renders `[object Object] legend icon`.** Verified in browser. **Pass:** legend shows channel names; no `[object Object]`.
-- [ ] **P2-3 · Reports growth deltas render `+-100%`.** Verified in browser (`/reports`) — a `+` is prepended to already-negative values. **Pass:** single correct sign (e.g. `-100%`, `+12%`).
+- [x] **P2-1 · Dashboard "Total Clients" shows `0000%` new this month.** Verified in browser (`/dashboard`). Hardcoded `weeklyGrowth/monthlyGrowth: 0` (`src/lib/queries/appointments.ts:198`) fed through a broken formatter. **Pass:** card shows a real percentage or is removed; no `0000%`.
+- [x] **P2-2 · Dashboard "Booking Channels" legend renders `[object Object] legend icon`.** Verified in browser. **Pass:** legend shows channel names; no `[object Object]`.
+- [x] **P2-3 · Reports growth deltas render `+-100%`.** Verified in browser (`/reports`) — a `+` is prepended to already-negative values. **Pass:** single correct sign (e.g. `-100%`, `+12%`).
 - [ ] **P2-4 · Billing "Subscription active" toast fires purely from `?billing=success` URL param.** `src/app/(dashboard)/settings/client.tsx:257` — not driven by verified state; anyone visiting the URL sees it. **GATED.** **Pass:** toast driven by reconciled/loaded subscription state; bare URL param shows nothing.
 - [ ] **P2-5 · VIP-tagged clients silently excluded from VIP campaigns.** Bulk action writes `"VIP"` (`clients/client.tsx:941`) but audience matches lowercase `"vip"` (`marketing/audience.ts:71`, `actions/marketing.ts:96`); Postgres array match is case-sensitive. **Pass:** VIP tag casing is consistent; a VIP-tagged client appears in the VIP audience count. Test added.
 - [ ] **P2-6 · Partial-day time-off gap lets bookings land on a block.** `src/lib/scheduling/working-hours.ts` uses `findFirst` for the day; two same-day blocks → only one checked. **Pass:** all same-day time-off/block rows are considered; a booking overlapping the second block is refused. Test added.
@@ -61,17 +61,18 @@ Legend: `[ ]` open · `[x]` passed.
 - [ ] **P2-11 · Account-deletion email failure is silently swallowed.** `src/lib/actions/account.ts:147` — `sendEmail` never throws; if Resend is unconfigured the deletion request reaches no one but the user sees success. **Pass:** action checks `sendEmail` result and surfaces failure / records `emailFailed`.
 - [ ] **P2-12 · Group-oversell race in MCP tool.** `src/lib/mcp/tools/appointments.ts:634` — capacity checked outside the transaction. **GATED (MCP off).** **Pass:** tool takes `lockAppointment` + recounts inside `$transaction`; ordering test added.
 - [ ] **P2-13 · `addToWaitlist` server action still accepts cross-tenant IDs.** `src/lib/actions/waitlist.ts:36` — v1 route + MCP tool were fixed with `assertOwnedRefs`, the action wasn't. **Pass:** action calls `assertOwnedRefs`; foreign clientId returns not-found and creates nothing. Test added.
-- [ ] **P2-14 · Duplicate dead review funnel is a booby trap.** `src/lib/actions/public-reviews.ts:54` + `src/app/review/[token]` + `src/lib/reviews/review-token.ts` — an unreachable second implementation that auto-publishes 1-star reviews with no rate limit. **Pass:** exactly one review-token module + page + action exist; the dead trio is deleted.
+- [x] **P2-14 · Duplicate dead review funnel is a booby trap.** `src/lib/actions/public-reviews.ts:54` + `src/app/review/[token]` + `src/lib/reviews/review-token.ts` — an unreachable second implementation that auto-publishes 1-star reviews with no rate limit. **Pass:** exactly one review-token module + page + action exist; the dead trio is deleted.
 - [ ] **P2-15 · Billing gate only on dashboard render.** `src/app/(dashboard)/layout.tsx:86` — API v1, MCP, and server actions stay usable after cancellation. **GATED.** **Pass:** with a cancelled sub, mutating `/api/v1` and MCP calls return 402/403 (billing endpoints excepted).
 - [ ] **P2-16 · Business-controlled social links rendered as raw hrefs (stored `javascript:` injection).** `src/app/book/[businessSlug]/client.tsx:1818`, validated only as `z.string()`. **Pass:** schema rejects/normalizes non-http(s) URLs; stored bad values sanitized.
 - [ ] **P2-17 · Online Presence QR card is a fake non-scannable pattern; Download/Print always fail.** `src/components/settings/online-presence-tab.tsx:32`. **Pass:** renders a real QR of the persisted booking URL (reuse `/api/booking-qr`); download/print work.
 - [ ] **P2-18 · Landing promises "Start free — no card" but Terms describe only a paid plan.** `src/components/landing/landing-page.tsx:375` vs `terms/page.tsx` §6. **Pass:** Terms describe the free-until-subscribe model, or the landing copy is corrected — the two agree.
+- [x] **P2-19 · Clients-tab retention showed a hardcoded fake "+2.3% vs last month".** `src/components/reports/clients-tab.tsx` — replaced the fabricated delta with an honest label. Found during P2-3 fix.
 
 ---
 
 ## P3 — polish / hardening (batch late)
 
-- [ ] **P3-1 · Dashboard "Average Rating" shows raw float `4.4375`.** Verified in browser. **Pass:** rounded to 1 decimal (e.g. `4.4`).
+- [x] **P3-1 · Dashboard "Average Rating" shows raw float `4.4375`.** Verified in browser. **Pass:** rounded to 1 decimal (e.g. `4.4`).
 - [ ] **P3-2 · Public booking exposes internal role labels ("admin"/"staff") to clients.** Verified in browser (staff step). **Pass:** public page shows a title/no role, not the internal enum.
 - [ ] **P3-3 · Reports summary label hardcodes "vs last month" for all ranges.** `src/app/(dashboard)/reports/client.tsx:485`. **Pass:** label reflects the active range.
 - [ ] **P3-4 · Onboarding `saveWorkingHours` deleteMany+createMany not transactional.** `src/lib/actions/onboarding.ts:140`. **Pass:** wrapped in `$transaction`.

@@ -60,6 +60,7 @@ export function PieChartComponent({
               outerRadius={outerRadius}
               paddingAngle={2}
               dataKey="value"
+              nameKey="name"
             >
               {data.map((entry, index) => (
                 <Cell key={index} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />

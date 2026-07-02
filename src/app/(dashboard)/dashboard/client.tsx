@@ -176,6 +176,7 @@ export function DashboardClient(props: DashboardClientProps) {
             value={props.stats.totalClients}
             change={props.stats.newClientsThisMonth}
             changeLabel="new this month"
+            changeIsPercent={false}
             icon={Users}
             iconColor="text-blue-400"
             iconBgColor="bg-blue-400/15"
@@ -184,7 +185,7 @@ export function DashboardClient(props: DashboardClientProps) {
           />
           <StatsCard
             title="Average Rating"
-            value={props.stats.averageRating}
+            value={props.stats.averageRating.toFixed(1)}
             icon={Star}
             iconColor="text-amber-400"
             iconBgColor="bg-amber-400/15"

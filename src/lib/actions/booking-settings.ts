@@ -2,7 +2,7 @@
 
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireMinRole, getBusinessContext } from "@/lib/auth-utils"
+import { requireMinRole } from "@/lib/auth-utils"
 import { revalidatePath } from "next/cache"
 
 const bookingSettingsSchema = z.object({

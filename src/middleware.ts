@@ -27,7 +27,7 @@ const publicRoutes = [
   /^\/register$/,
   /^\/book\/.*/,
   /^\/embed\.js$/,
-  /^\/review\/.*/,
+  /^\/r\/.*/, // public review capture (emailed link) — the live funnel
   /^\/terms$/,
   /^\/privacy$/,
   /^\/forgot-password$/,

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { UserCheck, ArrowUpRight } from "lucide-react"
+import { UserCheck } from "lucide-react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Card, CardContent } from "@/components/ui/card"
 import { DataTable } from "@/components/ui/data-table"
@@ -93,10 +93,8 @@ export function ClientsTab({
             <p className="text-4xl font-heading font-bold text-foreground">
               {retentionRate}%
             </p>
-            <div className="flex items-center gap-1 mt-2 text-sm text-mint">
-              <ArrowUpRight className="w-3.5 h-3.5" />
-              <span className="font-medium">+2.3%</span>
-              <span className="text-muted-foreground/70">vs last month</span>
+            <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground/70">
+              <span>of clients returned in this period</span>
             </div>
           </CardContent>
         </Card>

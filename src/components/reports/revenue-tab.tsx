@@ -2,12 +2,12 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { DollarSign, TrendingUp, Receipt, ArrowUpRight } from "lucide-react"
+import { DollarSign, TrendingUp, Receipt, ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { LazyAreaChart as AreaChartComponent } from "@/components/charts/lazy"
 import { LazyBarChart as BarChartComponent } from "@/components/charts/lazy"
 import { LazyPieChart as PieChartComponent } from "@/components/charts/lazy"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, cn } from "@/lib/utils"
 
 interface RevenueTabProps {
   summary: {
@@ -57,6 +57,7 @@ export function RevenueTab({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {summaryCards.map((card, index) => {
           const Icon = card.icon
+          const isPositive = card.growth >= 0
           return (
             <motion.div
               key={card.title}
@@ -72,9 +73,13 @@ export function RevenueTab({
                       <p className="text-2xl font-heading font-bold text-foreground">
                         {card.format(card.value)}
                       </p>
-                      <div className="flex items-center gap-1 text-sm text-mint">
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                        <span className="font-medium">+{card.growth}%</span>
+                      <div className={cn("flex items-center gap-1 text-sm", isPositive ? "text-mint" : "text-red-400")}>
+                        {isPositive ? (
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        ) : (
+                          <ArrowDownRight className="w-3.5 h-3.5" />
+                        )}
+                        <span className="font-medium">{isPositive ? "+" : ""}{card.growth}%</span>
                         <span className="text-muted-foreground/70">vs last month</span>
                       </div>
                     </div>
