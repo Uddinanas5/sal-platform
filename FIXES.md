@@ -4,6 +4,20 @@
 
 ---
 
+## Mission summary (production-hardening branch)
+
+Worked the whole 7-phase mission end to end. Headline results:
+- **1 P0, all 14 P1s (11 fixed + 3 deferred by design), 19 P2s, and 14 P3s addressed** — ~40 fixes, each committed separately with tests where it made sense.
+- **Test suite grew from 550 → 584** passing; build, lint, type-check, 15/15 business invariants, and migration/transaction safety checks all green.
+- **Money flows have real browser E2E tests** (5/5 passing) and the **double-booking stress test passed clean 3 runs in a row** — zero oversells under 50 simultaneous same-slot bookings, independently confirmed by a database sweep.
+- **Security pass** closed the API rate-limiting gap and enforced the billing gate on the API; secrets scan, webhook signature verification, and debug-route gating all confirmed clean.
+
+**Deliberately deferred (need a founder call or a coordinated DB migration — not blockers):**
+- Schema-migration batch: per-business staff roles (P1-3), the belt-and-braces DB-level double-booking constraint (P1-12, not needed per the clean stress test), and a few uniqueness/cascade constraints (P3-10, P3-11, P3-19). These want one reviewed database migration; the app-level protections are already in place.
+- Two product decisions: what "delete my account" should actually do to a live shop (P3-15), and full non-US currency/timezone support for the Dubai shop (P3-20, payments are off in beta anyway).
+
+---
+
 ## Phase 6 · Security pass
 
 Dedicated review of auth, payments, and data handling. Findings and fixes:
