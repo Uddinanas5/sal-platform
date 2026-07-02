@@ -4,6 +4,14 @@
 
 ---
 
+## Phase 5 · Stress test — passed clean 3 runs in a row
+
+Ran the concurrency soak harness (`scripts/soak-test.mts`) which fires **10, 25, then 50 clients booking the exact same time slot at once** (plus 12 clients on 12 different slots, and reschedule/cancel), directly against the real booking code on the dev database.
+
+Result across **3 consecutive runs: 21 checks passed, 0 failed each time.** In every same-slot storm, exactly one booking committed and everyone else got a clean "slot no longer available" — **never a double-booking, never a crash.** An independent database sweep afterward confirmed **zero overlapping appointments** exist.
+
+**Decision (logged):** the mission said to add a database-level double-booking constraint *only if the stress test showed a gap*. It didn't — the application-level locking holds under load — so the extra DB constraint (task P1-12) is left as optional future defense-in-depth rather than shipped now. The DB constraint would still be worth adding before scaling to many app servers; noted for a later migration.
+
 ## Phase 4 · End-to-end tests for the money flows
 
 Added a real browser (Playwright) test suite that drives the app the way a customer and owner actually do, run with `npm run test:e2e` against a local dev server:
