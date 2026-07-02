@@ -1,12 +1,47 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { resolveBusinessRole } from "@/lib/auth-utils"
+import { decideBillingGate } from "@/lib/billing/gate"
 import crypto from "crypto"
 
 export type ApiContext = {
   userId: string
   businessId: string
   role: string
+}
+
+/**
+ * A cancelled (but once-subscribed) salon is hard-gated in the dashboard; the
+ * programmatic API must honor the same gate, or a cancelled owner could keep
+ * operating via API keys / MCP after losing dashboard access (P2-15). Beta
+ * salons never subscribed → never gated (safe default), so this is a no-op for
+ * them. Returns true when the caller's business is billing-gated.
+ */
+async function isBillingGated(businessId: string): Promise<boolean> {
+  try {
+    const biz = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { subscriptionStatus: true, stripeSubscriptionId: true, billingExempt: true },
+    })
+    if (!biz) return false
+    const decision = decideBillingGate({
+      status: biz.subscriptionStatus,
+      hasSubscription: Boolean(biz.stripeSubscriptionId),
+      billingExempt: Boolean(biz.billingExempt),
+    })
+    return decision.kind === "gate"
+  } catch {
+    // A DB hiccup shouldn't lock everyone out — this is defense-in-depth, so
+    // fail open on error (the request likely fails downstream anyway).
+    return false
+  }
+}
+
+// Deny a resolved context if its business is billing-gated (cancelled sub). This
+// is the API mirror of the dashboard gate. No-op for never-subscribed beta salons.
+async function gateOrNull(ctx: ApiContext): Promise<ApiContext | null> {
+  if (await isBillingGated(ctx.businessId)) return null
+  return ctx
 }
 
 export async function withV1Auth(req: Request): Promise<ApiContext | null> {
@@ -27,7 +62,7 @@ export async function withV1Auth(req: Request): Promise<ApiContext | null> {
       if (apiKey && !apiKey.revokedAt && (!apiKey.expiresAt || apiKey.expiresAt >= new Date())) {
         // Update lastUsedAt without blocking response
         prisma.apiKey.update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } }).catch(() => {})
-        return { userId: apiKey.createdById, businessId: apiKey.businessId, role: apiKey.role }
+        return gateOrNull({ userId: apiKey.createdById, businessId: apiKey.businessId, role: apiKey.role })
       }
 
       // Try OAuth access token
@@ -40,7 +75,7 @@ export async function withV1Auth(req: Request): Promise<ApiContext | null> {
         // business, or it is no longer valid (revoked membership, stale token).
         const role = await resolveBusinessRole(oauthToken.userId, oauthToken.businessId)
         if (!role) return null
-        return { userId: oauthToken.userId, businessId: oauthToken.businessId, role }
+        return gateOrNull({ userId: oauthToken.userId, businessId: oauthToken.businessId, role })
       }
     } catch (error) {
       // DB error during token lookup — treat as auth failure rather than leaking 500
@@ -58,5 +93,5 @@ export async function withV1Auth(req: Request): Promise<ApiContext | null> {
   if (!user.id || !user.businessId) return null
   const role = await resolveBusinessRole(user.id, user.businessId)
   if (!role) return null
-  return { userId: user.id, businessId: user.businessId, role }
+  return gateOrNull({ userId: user.id, businessId: user.businessId, role })
 }

@@ -4,6 +4,22 @@
 
 ---
 
+## Phase 6 · Security pass
+
+Dedicated review of auth, payments, and data handling. Findings and fixes:
+
+**Checks that passed clean (no change needed):**
+- No hardcoded secrets anywhere in the source (scanned for Stripe keys, webhook secrets, private keys).
+- The Stripe webhook properly verifies every event's signature and rejects missing/invalid ones.
+- The internal debug/error-test route is locked behind the cron secret with a constant-time check (a random visitor gets a 404).
+
+**Fixed:**
+- **P1-13 / P3-17 · API rate limiting.** The whole programmatic surface (`/api/v1`, `/api/mcp`) and the unauthenticated OAuth client-registration endpoint had *no* throttling — a scripted client or leaked key could hammer expensive endpoints or spam the database with registrations. Added an IP-based rate limit at the single middleware chokepoint (300 req/min per IP for the API; 10/hour for OAuth registration), returning a proper `429` with `Retry-After`.
+- **Silent limiter degradation.** If the distributed rate-limiter (Upstash) has an outage, the app fell back to per-instance limiting *silently*. It now logs the degradation so an ongoing outage is visible.
+- **P2-15 · Billing gate on the API.** A cancelled salon was blocked in the dashboard but could keep operating through API keys / the AI tool. The same billing gate is now enforced at the API auth layer. (No effect on beta salons, who are never gated.)
+
+**Strategy decision (logged):** rate limiting stays best-effort/in-memory until `UPSTASH_REDIS_REST_URL` + token are set in Vercel Production — at which point it becomes correct across all serverless instances. This is documented in the middleware and `docs/PRODUCTION_READINESS.md`; provisioning Upstash is a founder step.
+
 ## Phase 5 · Stress test — passed clean 3 runs in a row
 
 Ran the concurrency soak harness (`scripts/soak-test.mts`) which fires **10, 25, then 50 clients booking the exact same time slot at once** (plus 12 clients on 12 different slots, and reschedule/cancel), directly against the real booking code on the dev database.

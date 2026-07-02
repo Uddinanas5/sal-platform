@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import NextAuth from "next-auth"
 import { authConfig } from "@/lib/auth.config"
 import { STAFF_BLOCKED_ROUTES, STAFF_LIST_BLOCKED_ROUTES } from "@/lib/permissions"
+import { rateLimit } from "@/lib/rate-limit"
 
 // Forward the request pathname to Server Components via a request header. Next
 // 14 does not expose the current path to a layout server component, but the
@@ -126,13 +127,49 @@ const authMiddleware = auth((req) => {
   return continueWithPathname(req)
 })
 
-export default function middleware(req: NextRequest) {
+// IP-based throttle for the programmatic API surface. This is the single
+// chokepoint in front of /api/v1, /api/mcp and /api/oauth, so one check here
+// protects the whole surface (expensive checkout transactions, joined list
+// endpoints, unauthenticated OAuth client registration) from a scripted client
+// or leaked key hammering it. Distributed via Upstash when configured; otherwise
+// best-effort per-instance (documented in docs/PRODUCTION_READINESS.md).
+const API_RATE_MAX = 300 // requests
+const API_RATE_WINDOW_MS = 60_000 // per minute per IP
+
+function clientIp(req: NextRequest): string {
+  const xff = req.headers.get("x-forwarded-for")
+  if (xff) return xff.split(",")[0].trim()
+  return req.headers.get("x-real-ip") || "unknown"
+}
+
+async function throttleApi(req: NextRequest, bucket: string): Promise<Response | undefined> {
+  const res = await rateLimit(`api:${bucket}:${clientIp(req)}`, API_RATE_MAX, API_RATE_WINDOW_MS)
+  if (res.limited) {
+    return Response.json(
+      { error: { code: "RATE_LIMITED", message: "Too many requests — slow down." } },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(res.retryAfterMs / 1000)) } }
+    )
+  }
+}
+
+export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   if (pathname === "/api/v1" || pathname.startsWith("/api/v1/")) {
-    return handleBearerOrSession(req)
+    return (await throttleApi(req, "v1")) ?? handleBearerOrSession(req)
   }
   if (pathname === "/api/mcp" || pathname.startsWith("/api/mcp/")) {
-    return handleBearerOrSession(req)
+    return (await throttleApi(req, "mcp")) ?? handleBearerOrSession(req)
+  }
+  // Unauthenticated OAuth dynamic client registration (RFC 7591): must be open,
+  // but a tighter cap stops unbounded oauth_clients row-spam (P3-17).
+  if (pathname === "/api/oauth/register") {
+    const limited = await rateLimit(`oauth-register:${clientIp(req)}`, 10, 3_600_000)
+    if (limited.limited) {
+      return Response.json(
+        { error: "rate_limited", error_description: "Too many registrations — try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(limited.retryAfterMs / 1000)) } }
+      )
+    }
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (authMiddleware as any)(req)
