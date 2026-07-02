@@ -23,7 +23,7 @@ function fakeTx(opts: {
 }) {
   return {
     staffSchedule: { findFirst: async () => opts.schedule ?? null },
-    staffTimeOff: { findFirst: async () => opts.timeOff ?? null },
+    staffTimeOff: { findMany: async () => (opts.timeOff ? [opts.timeOff] : []) },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any
 }

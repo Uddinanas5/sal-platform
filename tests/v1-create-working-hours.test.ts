@@ -34,7 +34,7 @@ const appointmentCreate = vi.fn(async () => ({ id: "appt_1", bookingReference: "
 function makeTx() {
   return {
     staffSchedule: { findFirst: vi.fn(async () => scheduleReturn) },
-    staffTimeOff: { findFirst: vi.fn(async () => timeOffReturn) },
+    staffTimeOff: { findMany: vi.fn(async () => (timeOffReturn ? [timeOffReturn] : [])) },
     appointmentService: {
       findFirst: vi.fn(async () => null), // no conflicting booking
       create: vi.fn(async () => ({ id: "as_1" })),

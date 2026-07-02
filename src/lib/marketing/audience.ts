@@ -68,7 +68,7 @@ export async function resolveCampaignAudience(
   if (normalized === "vip clients" || normalized === "vip") {
     where = {
       ...base,
-      OR: [{ tags: { has: "vip" } }, { loyaltyPoints: { gt: 0 } }],
+      OR: [{ tags: { has: "VIP" } }, { loyaltyPoints: { gt: 0 } }],
     }
   } else if (normalized === "active clients" || normalized === "active") {
     const cutoff = new Date(Date.now() - INACTIVE_CLIENT_DAYS * 24 * 60 * 60 * 1000)

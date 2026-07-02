@@ -56,7 +56,7 @@ const {
           appointmentService: { findFirst: vi.fn(async () => null), create: vi.fn() },
           appointment: { create: vi.fn(async () => ({ id: APPT, bookingReference: "SALXXXX" })) },
           staffSchedule: { findFirst: vi.fn(async () => null) },
-          staffTimeOff: { findFirst: vi.fn(async () => null) },
+          staffTimeOff: { findMany: vi.fn(async () => []) },
         }),
       ),
     },

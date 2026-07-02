@@ -77,7 +77,9 @@ describe("resolveCampaignAudience — consent-first gate", () => {
     expect(where.emailConsent).toBe(true)
     expect(where.marketingConsent).toBe(true)
     // VIP narrowing.
-    expect(where.OR).toEqual([{ tags: { has: "vip" } }, { loyaltyPoints: { gt: 0 } }])
+    // Tag match is case-sensitive in Postgres; the app tags clients "VIP" (upper),
+    // so the audience matcher must use "VIP" or it silently excludes them (P2-5).
+    expect(where.OR).toEqual([{ tags: { has: "VIP" } }, { loyaltyPoints: { gt: 0 } }])
   })
 
   it("Inactive Clients filters on a lastVisitAt cutoff, still consent-gated", async () => {

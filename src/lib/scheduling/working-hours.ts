@@ -82,7 +82,7 @@ export async function assertSlotAllowed(
       },
       include: { breaks: true },
     }),
-    tx.staffTimeOff.findFirst({
+    tx.staffTimeOff.findMany({
       where: {
         staffId,
         status: "approved",
@@ -112,13 +112,17 @@ export async function assertSlotAllowed(
     }
   }
 
-  if (timeOff) {
-    if (!timeOff.startTime || !timeOff.endTime) {
+  // Check EVERY approved time-off row for the day, not just one: a staffer can
+  // have multiple partial-day blocks (e.g. 9-10 AND 14-15), and a findFirst would
+  // only guard whichever row it happened to return, letting a booking land on the
+  // other block.
+  for (const off of timeOff) {
+    if (!off.startTime || !off.endTime) {
       // Full-day off
       throw new Error(ERR_ON_APPROVED_TIME_OFF)
     }
-    const offStart = combineDateWithTimeZoned(civilDate, timeOff.startTime, timezone)
-    const offEnd = combineDateWithTimeZoned(civilDate, timeOff.endTime, timezone)
+    const offStart = combineDateWithTimeZoned(civilDate, off.startTime, timezone)
+    const offEnd = combineDateWithTimeZoned(civilDate, off.endTime, timezone)
     if (start < offEnd && end > offStart) {
       throw new Error(ERR_ON_APPROVED_TIME_OFF)
     }

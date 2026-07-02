@@ -82,16 +82,35 @@ export async function updateBusinessSettings(data: {
 
 // ── Online Presence Settings ──────────────────────────────────────────────────
 
+// A social link is stored and later rendered as a raw href on the PUBLIC booking
+// page, so it must not carry a dangerous scheme (javascript:, data:, vbscript:).
+// Allow: empty, an http(s) URL, or a bare handle/domain with no scheme at all.
+// Reject anything whose leading token before ":" is a non-http(s) scheme.
+const safeSocialLink = z
+  .string()
+  .trim()
+  .max(300)
+  .default("")
+  .refine(
+    (v) => {
+      if (v === "") return true
+      const scheme = v.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/)
+      if (!scheme) return true // no scheme → bare handle/domain, safe
+      return /^https?$/i.test(scheme[1])
+    },
+    { message: "Links must start with http:// or https:// (or be a plain handle)" }
+  )
+
 const onlinePresenceSettingsSchema = z.object({
   buttonColor: z.string().default("#059669"),
   buttonText: z.string().default("Book Now"),
   widgetSize: z.enum(["small", "medium", "large"]).default("medium"),
   socialLinks: z
     .object({
-      instagram: z.string().default(""),
-      facebook: z.string().default(""),
-      tiktok: z.string().default(""),
-      website: z.string().default(""),
+      instagram: safeSocialLink,
+      facebook: safeSocialLink,
+      tiktok: safeSocialLink,
+      website: safeSocialLink,
     })
     .default({ instagram: "", facebook: "", tiktok: "", website: "" }),
 })

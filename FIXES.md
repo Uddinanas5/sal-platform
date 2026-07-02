@@ -4,6 +4,30 @@
 
 ---
 
+## P2-5 · VIP clients are no longer excluded from VIP campaigns
+
+**Problem:** Clients get tagged "VIP" (capitals), but the campaign audience matched "vip" (lowercase). The database treats those as different, so VIP-tagged clients were silently left out of "VIP" campaigns (unless they also had loyalty points).
+
+**Fix:** The audience now matches "VIP" to align with how clients are actually tagged. Test updated to lock in the casing.
+
+## P2-6 · Bookings can't slip onto a second same-day time-off block
+
+**Problem:** If a barber had two time-off blocks in one day (say 9–10 and 2–3), the booking guard only checked one of them, so a client could be booked right on top of the other block.
+
+**Fix:** The guard now checks every time-off block for the day. **Proof:** new test books onto the second of two blocks and confirms it's refused, while a slot that misses both is allowed.
+
+## P2-13 · Waitlist entries can't reference another shop's records
+
+**Problem:** The "add to waitlist" action didn't verify the client/service/staff it was given actually belonged to your shop — the API and AI paths already checked this, but the dashboard action didn't.
+
+**Fix:** It now verifies every referenced record belongs to your business before saving, matching the other paths.
+
+## P2-16 · Blocked dangerous links in the social-media settings
+
+**Problem:** Instagram/Facebook/website links from settings are shown as real clickable links on your public booking page, but they were saved with no checking — so a `javascript:` link could have been stored and run in a visitor's browser (a classic injection).
+
+**Fix:** Saving now rejects anything that isn't a normal web link (http/https) or a plain handle; dangerous schemes like `javascript:` and `data:` are refused. **Proof:** 3 new tests.
+
 ## P1-14 · Blocked recording "collected" online payments that were never charged
 
 **Problem:** Through the API and AI-integration surfaces, someone could record a sale paid "online" and it would be logged as fully collected money — even though there's no real card charge behind an online payment in beta (that feature is switched off). That means fake revenue in the books. Card payments were already blocked this way; online wasn't.

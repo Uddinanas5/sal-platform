@@ -93,7 +93,7 @@ export async function getCampaignAudienceCounts(): Promise<
     const [all, vip, active, inactive] = await Promise.all([
       prisma.client.count({ where: base }),
       prisma.client.count({
-        where: { ...base, OR: [{ tags: { has: "vip" } }, { loyaltyPoints: { gt: 0 } }] },
+        where: { ...base, OR: [{ tags: { has: "VIP" } }, { loyaltyPoints: { gt: 0 } }] },
       }),
       prisma.client.count({ where: { ...base, lastVisitAt: { gte: cutoff } } }),
       prisma.client.count({ where: { ...base, lastVisitAt: { lt: cutoff } } }),

@@ -106,7 +106,7 @@ function makeTx(opts: {
   const svcUpdate = vi.fn(async (_args: { where: { id: string }; data: { startTime: Date; endTime: Date } }) => ({}))
   const tx = {
     staffSchedule: { findFirst: async () => opts.schedule ?? null },
-    staffTimeOff: { findFirst: async () => null },
+    staffTimeOff: { findMany: async () => [] },
     // The reschedule write path re-checks the online-booking gate per staff.
     staff: {
       findUnique: vi.fn(async () => ({ canAcceptBookings: opts.canAcceptBookings ?? true })),
