@@ -9,7 +9,8 @@ type ActionResult<T = void> = { success: true; data: T } | { success: false; err
 
 const createClientSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
-  lastName: z.string().trim().min(1, "Last name is required"),
+  // Barbershop clients are often walk-ins with a single name — last name optional.
+  lastName: z.string().trim().optional().default(""),
   email: z.string().email().optional(),
   phone: z.string().optional(),
   notes: z.string().optional(),
@@ -19,7 +20,7 @@ const createClientSchema = z.object({
 
 const updateClientSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").optional(),
-  lastName: z.string().trim().min(1, "Last name is required").optional(),
+  lastName: z.string().trim().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
   notes: z.string().optional(),

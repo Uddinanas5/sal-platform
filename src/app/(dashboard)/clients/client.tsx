@@ -764,10 +764,12 @@ export function ClientsClient(props: ClientsClientProps) {
                     if (isAddingClient) return
                     const errors: { name?: string; email?: string } = {}
                     if (!newClientName.trim()) errors.name = "Name is required"
-                    if (!newClientEmail.trim()) {
-                      errors.email = "Email is required"
-                    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClientEmail)) {
+                    // Email optional (barbershops are phone-first) — but if given,
+                    // it must be valid, and a client needs at least one contact.
+                    if (newClientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClientEmail)) {
                       errors.email = "Please enter a valid email address"
+                    } else if (!newClientEmail.trim() && !newClientPhone.trim()) {
+                      errors.email = "Add an email or a phone number"
                     }
                     if (Object.keys(errors).length > 0) {
                       setAddClientErrors(errors)

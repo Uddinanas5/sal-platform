@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { resolveBusinessRole } from "@/lib/auth-utils"
 import { decideBillingGate } from "@/lib/billing/gate"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 
@@ -35,6 +36,17 @@ export default async function Layout({
   const role = (session?.user as any)?.role as string | undefined
 
   let billingBanner: "past_due" | "paused" | null = null
+
+  // Re-validate LIVE tenant membership before rendering any dashboard read page.
+  // The 12 dashboard pages read businessId straight from the 7-day JWT, so a
+  // removed/deactivated member would otherwise keep loading tenant data until the
+  // cookie expires. resolveBusinessRole is the single source of truth for "still
+  // a live owner/active-staff of this business". (Server actions + the API already
+  // gate on it; this closes the SSR read-page path.)
+  if (businessId && session?.user?.id) {
+    const liveRole = await resolveBusinessRole(session.user.id, businessId)
+    if (!liveRole) redirect("/login")
+  }
 
   if (businessId) {
     const business = await prisma.business
