@@ -136,7 +136,14 @@ export async function resetPassword(
     ) as unknown as Prisma.InputJsonObject
     await prisma.user.update({
       where: { id: payload.userId },
-      data: { passwordHash, metadata: metadataWithoutNonce },
+      // Clear the login lockout too — otherwise a user who reset BECAUSE they were
+      // locked out (5 failed attempts) still can't log in with the new password.
+      data: {
+        passwordHash,
+        metadata: metadataWithoutNonce,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
     })
 
     return { success: true }

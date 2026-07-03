@@ -93,19 +93,28 @@ export async function updateStaffSchedule(
     })
     const closedDays = new Set(businessHours.filter(bh => bh.isClosed).map(bh => bh.dayOfWeek))
 
-    // Delete existing schedules and recreate
-    await prisma.staffSchedule.deleteMany({ where: { staffId } })
+    // Validate every working day BEFORE touching the DB: a malformed time would
+    // otherwise throw mid-loop and (without a transaction) leave the schedule
+    // half-rebuilt. HH:MM 24h and start < end, matching createTimeBlock.
+    const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
+    const workingDays = schedule.filter(
+      (d) => d.isWorking && !closedDays.has(d.dayOfWeek)
+    )
+    for (const day of workingDays) {
+      if (!HHMM.test(day.startTime) || !HHMM.test(day.endTime) || day.startTime >= day.endTime) {
+        return { success: false, error: `Invalid working hours for day ${day.dayOfWeek} (need HH:MM, start before end)` }
+      }
+    }
 
-    for (const day of schedule) {
-      // Skip days the business is closed — staff can't work on closed days
-      if (day.isWorking && !closedDays.has(day.dayOfWeek)) {
-        // Persist breaks alongside the schedule so the availability engine
-        // (which already blocks break times) actually keeps clients from
-        // booking over them. Skip zero/negative-length breaks.
+    // Delete + recreate atomically: a failure rolls back, preserving the old
+    // schedule instead of wiping it.
+    await prisma.$transaction(async (tx) => {
+      await tx.staffSchedule.deleteMany({ where: { staffId } })
+      for (const day of workingDays) {
         const validBreaks = (day.breaks ?? []).filter(
           (b) => b.startTime && b.endTime && b.startTime < b.endTime
         )
-        await prisma.staffSchedule.create({
+        await tx.staffSchedule.create({
           data: {
             staffId,
             locationId: staff.locationId,
@@ -125,7 +134,7 @@ export async function updateStaffSchedule(
           },
         })
       }
-    }
+    })
 
     revalidatePath("/staff")
     revalidatePath(`/staff/${staffId}`)

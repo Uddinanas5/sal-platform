@@ -89,12 +89,19 @@ export function formatDuration(minutes: number): string {
   return m > 0 ? `${h}h ${m}min` : `${h}h`
 }
 
+// Neutralize CSV formula injection: a cell starting with = + - @ (or a leading
+// tab/CR) is interpreted as a formula by Excel/Sheets. Prefix such cells with a
+// single quote so a client/service name like "=cmd|..." can't execute.
+function csvSafe(value: string): string {
+  const s = String(value)
+  const escaped = s.replace(/"/g, '""')
+  return /^[=+\-@\t\r]/.test(s) ? `"'${escaped}"` : `"${escaped}"`
+}
+
 export function exportToCsv(filename: string, headers: string[], rows: string[][]) {
   const csvContent = [
-    headers.join(","),
-    ...rows.map((row) =>
-      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
-    ),
+    headers.map(csvSafe).join(","),
+    ...rows.map((row) => row.map(csvSafe).join(",")),
   ].join("\n")
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
