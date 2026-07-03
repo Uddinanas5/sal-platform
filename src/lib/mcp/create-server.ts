@@ -7,7 +7,6 @@ import { registerStaffTools } from "./tools/staff"
 import { registerProductTools } from "./tools/products"
 import { registerCheckoutTools } from "./tools/checkout"
 import { registerMarketingTools } from "./tools/marketing"
-import { registerMembershipTools } from "./tools/memberships"
 import { registerReviewTools } from "./tools/reviews"
 import { registerResourceTools } from "./tools/resources"
 import { registerFormTools } from "./tools/forms"
@@ -31,7 +30,6 @@ export function createMcpServer(ctx: ApiContext): McpServer {
   registerProductTools(server, ctx)
   registerCheckoutTools(server, ctx)
   registerMarketingTools(server, ctx)
-  registerMembershipTools(server, ctx)
   registerReviewTools(server, ctx)
   registerResourceTools(server, ctx)
   registerFormTools(server, ctx)

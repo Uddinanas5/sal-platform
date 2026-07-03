@@ -2,86 +2,50 @@
 
 import React from "react"
 import { motion } from "framer-motion"
-import { CreditCard, Gift, Users, DollarSign, TrendingDown } from "lucide-react"
+import { Gift, DollarSign } from "lucide-react"
 import { Header } from "@/components/dashboard/header"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { MembershipsTab } from "@/components/memberships/memberships-tab"
 import { GiftCardsTab } from "@/components/memberships/gift-cards-tab"
 import { formatCurrency } from "@/lib/utils"
-import type { GiftCard, Member } from "@/data/mock-memberships"
+import type { GiftCard } from "@/data/mock-memberships"
 
 interface ClientOption {
   id: string
   name: string
 }
 
-interface MembershipPlan {
-  id: string
-  name: string
-  description: string | null
-  price: number
-  billingCycle: string
-  benefits: string[]
-  activeMembers: number
-  isActive: boolean
-}
-
 interface MembershipsClientProps {
   stats: {
-    totalMembers: number
-    activeMembers: number
-    mrr: number
-    churnRate: number
     totalGiftCardsSold: number
     outstandingGiftCardBalance: number
   }
   giftCards: GiftCard[]
   clients: ClientOption[]
-  members: Member[]
-  plans?: MembershipPlan[]
 }
 
 export function MembershipsClient(props: MembershipsClientProps) {
-  const { stats, giftCards, clients, members, plans = [] } = props
+  const { stats, giftCards, clients } = props
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header
-        title="Memberships & Gift Cards"
-        subtitle="Manage membership plans, members, and gift cards"
-      />
+      <Header title="Gift Cards" subtitle="Issue and track gift cards" />
 
       <div className="p-6 space-y-6">
-        {/* Top-level Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Gift-card stats */}
+        <div className="grid grid-cols-2 gap-4 max-w-lg">
           {[
             {
-              label: "Total Members",
-              value: stats.totalMembers,
-              icon: Users,
-              color: "text-blue-400",
-              bg: "bg-blue-500/10",
-            },
-            {
-              label: "Active Members",
-              value: stats.activeMembers,
-              icon: CreditCard,
+              label: "Gift Cards Sold",
+              value: stats.totalGiftCardsSold,
+              icon: Gift,
               color: "text-emerald-400",
               bg: "bg-emerald-500/10",
             },
             {
-              label: "Monthly Revenue",
-              value: formatCurrency(stats.mrr),
+              label: "Outstanding Balance",
+              value: formatCurrency(stats.outstandingGiftCardBalance),
               icon: DollarSign,
               color: "text-amber-400",
               bg: "bg-amber-500/10",
-            },
-            {
-              label: "Churn Rate",
-              value: `${stats.churnRate}%`,
-              icon: TrendingDown,
-              color: "text-red-400",
-              bg: "bg-red-500/10",
             },
           ].map((stat, i) => (
             <motion.div
@@ -89,7 +53,6 @@ export function MembershipsClient(props: MembershipsClientProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              whileHover={{ y: -2, boxShadow: "0 4px 12px rgba(0, 9, 5, 0.35)" }}
               className="glass-tile rounded-tile p-4 card-warm transition-shadow"
             >
               <div className="flex items-center gap-3">
@@ -97,48 +60,23 @@ export function MembershipsClient(props: MembershipsClientProps) {
                   <stat.icon className={`w-4 h-4 ${stat.color}`} />
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground font-medium">
-                    {stat.label}
-                  </p>
-                  <p className="text-lg font-heading font-bold text-foreground">
-                    {stat.value}
-                  </p>
+                  <p className="text-[11px] text-muted-foreground font-medium">{stat.label}</p>
+                  <p className="text-lg font-heading font-bold text-foreground">{stat.value}</p>
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
 
-        {/* Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Tabs defaultValue="memberships" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="memberships" className="gap-2">
-                <CreditCard className="w-4 h-4" />
-                Memberships
-              </TabsTrigger>
-              <TabsTrigger value="gift-cards" className="gap-2">
-                <Gift className="w-4 h-4" />
-                Gift Cards
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="memberships">
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                <MembershipsTab members={members} stats={{ totalMembers: stats.totalMembers, activeMembers: stats.activeMembers, mrr: stats.mrr }} plans={plans} />
-              </motion.div>
-            </TabsContent>
-
-            <TabsContent value="gift-cards">
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                <GiftCardsTab giftCards={giftCards} stats={{ totalGiftCardsSold: stats.totalGiftCardsSold, outstandingGiftCardBalance: stats.outstandingGiftCardBalance }} clients={clients} />
-              </motion.div>
-            </TabsContent>
-          </Tabs>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <GiftCardsTab
+            giftCards={giftCards}
+            stats={{
+              totalGiftCardsSold: stats.totalGiftCardsSold,
+              outstandingGiftCardBalance: stats.outstandingGiftCardBalance,
+            }}
+            clients={clients}
+          />
         </motion.div>
       </div>
     </div>
