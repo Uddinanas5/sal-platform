@@ -55,8 +55,10 @@ export async function createClient(data: {
     const normalizedEmail = data.email?.trim().toLowerCase() || null
 
     if (normalizedEmail) {
+      // deletedAt:null so a previously-removed client's email doesn't block a
+      // fresh one (consistent with the CSV import dedup).
       const existing = await prisma.client.findFirst({
-        where: { businessId, email: normalizedEmail },
+        where: { businessId, email: normalizedEmail, deletedAt: null },
       })
       if (existing) return { success: false, error: "A client with this email already exists" }
     }
@@ -116,7 +118,7 @@ export async function updateClient(
     if (data.email) {
       const normalizedEmail = data.email.trim().toLowerCase()
       const existing = await prisma.client.findFirst({
-        where: { businessId, email: normalizedEmail, id: { not: id } },
+        where: { businessId, email: normalizedEmail, id: { not: id }, deletedAt: null },
       })
       if (existing) return { success: false, error: "A client with this email already exists" }
       data.email = normalizedEmail

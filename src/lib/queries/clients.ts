@@ -31,6 +31,10 @@ export async function getClients(search: string | undefined, businessId: string)
       dateOfBirth: true,
     },
     orderBy: { createdAt: "desc" },
+    // Bound the result set so a shop with thousands of clients doesn't ship its
+    // entire table to the browser. Barbershop-scale safe; a search box narrows
+    // server-side. (Full server-side pagination is a follow-up.)
+    take: 2000,
   })
 
   return clients.map((c) => ({
@@ -53,8 +57,10 @@ export async function getClients(search: string | undefined, businessId: string)
 }
 
 export async function getClientById(id: string, businessId: string) {
+  // deletedAt guard added inline in the where below so a soft-deleted client's
+  // detail page (/clients/{id}) 404s instead of rendering full profile + actions.
   const client = await prisma.client.findFirst({
-    where: { id, businessId },
+    where: { id, businessId, deletedAt: null },
     select: {
       id: true,
       firstName: true,
