@@ -256,7 +256,10 @@ export async function createPublicBooking(data: {
           locationId: location.id,
           clientId: client.id,
           bookingReference: bookingRef,
-          status: "confirmed",
+          // Honor the owner's Auto-confirm setting: off → the online booking lands
+          // as "pending" for the owner to confirm. (Pending still occupies the slot
+          // — the conflict check frees only cancelled/no_show.)
+          status: bookingSettings.autoConfirm === false ? "pending" : "confirmed",
           source: "online",
           startTime,
           endTime,
