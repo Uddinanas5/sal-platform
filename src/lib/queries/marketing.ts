@@ -50,33 +50,6 @@ export async function getCampaignStats(businessId?: string) {
   return { total, active, sent, openRate }
 }
 
-export async function getDeals(businessId?: string) {
-  if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
-  const where = businessId ? { businessId } : {}
-
-  const deals = await prisma.deal.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-  })
-
-  return deals.map((d) => ({
-    id: d.id,
-    name: d.name,
-    description: d.description || "",
-    discountType: d.discountType,
-    discountValue: Number(d.discountValue),
-    code: d.code || "",
-    status: d.status,
-    appliesTo: d.appliesTo,
-    serviceIds: d.serviceIds,
-    usageLimit: d.usageLimit,
-    usageCount: d.usageCount,
-    validFrom: d.validFrom,
-    validUntil: d.validUntil,
-    createdAt: d.createdAt,
-  }))
-}
-
 export async function getAutomatedMessages(businessId?: string) {
   if (!businessId) throw new Error("businessId is required — refusing to query across all tenants")
   const where = businessId ? { businessId } : {}

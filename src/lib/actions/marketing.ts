@@ -32,18 +32,6 @@ const updateCampaignSchema = z.object({
 
 const idSchema = z.object({ id: z.string().uuid() })
 
-const createDealSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  discountType: z.enum(["percentage", "fixed", "free_service"]),
-  discountValue: z.number().nonnegative(),
-  code: z.string().optional(),
-  validFrom: z.coerce.date(),
-  validUntil: z.coerce.date(),
-  appliesTo: z.enum(["all", "services", "products", "specific"]).optional(),
-  serviceIds: z.array(z.string().uuid()).optional(),
-  usageLimit: z.number().int().nonnegative().optional(),
-})
 
 const createAutomatedMessageSchema = z.object({
   name: z.string().min(1),
@@ -225,78 +213,6 @@ export async function sendCampaign(id: string) {
 
     revalidatePath("/marketing")
     return { success: true, data: result.campaign, sent: result.sent }
-  } catch (e) {
-    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
-    throw e
-  }
-}
-
-export async function createDeal(data: {
-  name: string
-  description?: string
-  discountType: "percentage" | "fixed" | "free_service"
-  discountValue: number
-  code?: string
-  validFrom: Date
-  validUntil: Date
-  appliesTo?: "all" | "services" | "products" | "specific"
-  serviceIds?: string[]
-  usageLimit?: number
-}) {
-  try {
-    const parsed = createDealSchema.parse(data)
-
-    const { businessId } = await requireMinRole("admin")
-
-    const deal = await prisma.deal.create({
-      data: {
-        businessId,
-        name: parsed.name,
-        description: parsed.description,
-        discountType: parsed.discountType,
-        discountValue: parsed.discountValue,
-        code: parsed.code,
-        validFrom: parsed.validFrom,
-        validUntil: parsed.validUntil,
-        appliesTo: parsed.appliesTo || "all",
-        serviceIds: parsed.serviceIds || [],
-        usageLimit: parsed.usageLimit,
-      },
-    })
-    revalidatePath("/marketing")
-    return deal
-  } catch (e) {
-    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
-    throw e
-  }
-}
-
-export async function deleteDeal(id: string) {
-  try {
-    const parsed = idSchema.parse({ id })
-
-    const { businessId } = await requireMinRole("admin")
-
-    await prisma.deal.delete({ where: { id: parsed.id, businessId } })
-    revalidatePath("/marketing")
-  } catch (e) {
-    if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
-    throw e
-  }
-}
-
-export async function toggleDeal(id: string, isActive: boolean) {
-  try {
-    const parsed = idSchema.parse({ id })
-
-    const { businessId } = await requireMinRole("admin")
-
-    await prisma.deal.update({
-      where: { id: parsed.id, businessId },
-      data: { status: isActive ? "active_deal" : "paused_deal" },
-    })
-    revalidatePath("/marketing")
-    return { success: true }
   } catch (e) {
     if (e instanceof z.ZodError) return { success: false, error: e.issues[0]?.message ?? "Invalid input" }
     throw e

@@ -94,60 +94,6 @@ export function registerMarketingTools(server: McpServer, ctx: ApiContext) {
     }
   )
 
-  // Deals
-  server.tool("list-deals", "List promotional deals/discounts (admin required)", {}, async () => {
-    if (!isAdmin(ctx)) return err("Insufficient permissions")
-    const deals = await prisma.deal.findMany({
-      where: { businessId: ctx.businessId },
-      orderBy: { createdAt: "desc" },
-    })
-    return ok(deals)
-  })
-
-  server.tool(
-    "create-deal",
-    "Create a promotional deal (admin required)",
-    {
-      name: z.string().min(1).describe("Deal name"),
-      description: z.string().optional().describe("Deal description"),
-      discountType: z.enum(["percentage", "fixed"]).describe("Discount type (percentage or fixed amount)"),
-      discountValue: z.number().positive().describe("Discount amount (% or $)"),
-      validFrom: z.string().describe("Deal start date (ISO 8601)"),
-      validUntil: z.string().describe("Deal end date (ISO 8601)"),
-      code: z.string().optional().describe("Promo code (optional)"),
-    },
-    async ({ name, description, discountType, discountValue, validFrom, validUntil, code }) => {
-      if (!isAdmin(ctx)) return err("Insufficient permissions")
-      const deal = await prisma.deal.create({
-        data: {
-          businessId: ctx.businessId,
-          name,
-          description,
-          discountType,
-          discountValue,
-          validFrom: new Date(validFrom),
-          validUntil: new Date(validUntil),
-          code,
-          status: "active_deal",
-        },
-      })
-      return ok(deal)
-    }
-  )
-
-  server.tool(
-    "delete-deal",
-    "Delete a promotional deal (admin required)",
-    { id: z.string().uuid().describe("Deal ID") },
-    async ({ id }) => {
-      if (!isAdmin(ctx)) return err("Insufficient permissions")
-      const existing = await prisma.deal.findFirst({ where: { id, businessId: ctx.businessId } })
-      if (!existing) return err("Deal not found")
-      await prisma.deal.delete({ where: { id } })
-      return ok({ deleted: true })
-    }
-  )
-
   // Automated messages
   server.tool("list-automated-messages", "List automated message rules (admin required)", {}, async () => {
     if (!isAdmin(ctx)) return err("Insufficient permissions")
