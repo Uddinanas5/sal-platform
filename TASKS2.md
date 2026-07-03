@@ -4,18 +4,18 @@ Counts: {"P0":1,"P1":8,"P2":28,"P3":21}
 
 
 ## P0 (1)
-- [ ] **Removed/deactivated members keep full read access to tenant data for up to 7 days (SSR pages skip membership re-validation)** — `src/app/(dashboard)/clients/page.tsx:9` _(auth + onboarding + registration + passw)_
+- [x] **Removed/deactivated members keep full read access to tenant data for up to 7 days (SSR pages skip membership re-validation)** — `src/app/(dashboard)/clients/page.tsx:9` _(auth + onboarding + registration + passw)_
   - auth-utils.ts:resolveBusinessRole is the documented single source of truth for 'is this user still a live member of this tenant' and is meant to defeat the 7-day JWT staleness ('a removed staffer keeps full access until 
   - PASS: After a member is removed/deactivated/status!=active, their next request to any dashboard read page or data API returns no tenant data (redirect to /login or /o
 
 ## P1 (8)
-- [ ] **Reactivating a cancelled/no-show appointment double-books with no conflict re-check** — `src/app/api/v1/appointments/[id]/route.ts:172` _(Calendar + Appointments)_
+- [x] **Reactivating a cancelled/no-show appointment double-books with no conflict re-check** — `src/app/api/v1/appointments/[id]/route.ts:172` _(Calendar + Appointments)_
   - The default status-update branch of PATCH /api/v1/appointments/{id} (and the mirror server action updateAppointmentStatus in src/lib/actions/appointments.ts:310) accepts ANY target status with no valid-transition matrix 
   - PASS: Reactivating an appointment (transitioning from cancelled/no_show back to an active status) re-runs the advisory-lock + assertSlotAllowed + overlap check inside
-- [ ] **Single-name clients cannot be created or edited (lastName required in Zod)** — `src/lib/actions/clients.ts:12` _(Clients CRM)_
+- [x] **Single-name clients cannot be created or edited (lastName required in Zod)** — `src/lib/actions/clients.ts:12` _(Clients CRM)_
   - createClientSchema.lastName is z.string().trim().min(1) (required) and updateClientSchema.lastName is .min(1).optional() (rejects empty string when provided). Both the Add dialog (client.tsx:776-778) and Edit dialog (edi
   - PASS: Creating and editing a client whose name is a single word succeeds; the record persists with an empty last name and no validation error.
-- [ ] **Email marked required in UI but optional everywhere else — blocks phone-only barbershop clients** — `src/components/clients/edit-client-dialog.tsx:68` _(Clients CRM)_
+- [x] **Email marked required in UI but optional everywhere else — blocks phone-only barbershop clients** — `src/components/clients/edit-client-dialog.tsx:68` _(Clients CRM)_
   - Add dialog (client.tsx:767) and Edit dialog (edit-client-dialog.tsx:68) hard-require a non-empty email, but createClient/importClients and the public booking flow treat email as optional. Barbershops routinely have phone
   - PASS: A client with a phone but no email can be created via Add Client and edited/saved via the Edit dialog without an email being demanded.
 - [ ] **POS total ignores business tax config — displayed/collected/receipt amount diverges from recorded charge** — `src/components/checkout/cart-panel.tsx:134` _(POS/checkout — owner side, money)_
@@ -24,7 +24,7 @@ Counts: {"P0":1,"P1":8,"P2":28,"P3":21}
 - [ ] **Edit Product is non-functional and creates duplicates instead of updating** — `src/app/(dashboard)/inventory/client.tsx:74` _(Owner-side: Services + Categories + Inve)_
   - The per-row Edit pencil (product-columns.tsx:237, aria-label 'Edit product') calls handleEditProduct which sets selectedProduct and opens addDialogOpen. But AddProductDialog (add-product-dialog.tsx:35) never receives a p
   - PASS: Clicking Edit opens a pre-filled dialog bound to the selected product and persists changes via an updateProduct action scoped by businessId; no duplicate row is
-- [ ] **updateTeamMemberRole rewrites the GLOBAL User.role with no cross-tenant guard (cross-tenant privilege escalation/downgrade)** — `src/lib/actions/invitations.ts:333` _(Owner side: staff, schedules, breaks, ti)_
+- [x] **updateTeamMemberRole rewrites the GLOBAL User.role with no cross-tenant guard (cross-tenant privilege escalation/downgrade)** — `src/lib/actions/invitations.ts:333` _(Owner side: staff, schedules, breaks, ti)_
   - User.role is a single global column shared across every business a user belongs to. acceptInvitation() deliberately guards this: before adopting an invited role it checks belongsElsewhere (owns another business or has an
   - PASS: updateTeamMemberRole must not change a user's global role when that user also belongs to another business (mirror the belongsElsewhere check in acceptInvitation
 - [ ] **Stripe Connect onboarding UI is unreachable — owners cannot connect Stripe to accept card payments** — `src/app/(dashboard)/settings/client.tsx:883` _(Owner-side Settings)_
@@ -35,10 +35,10 @@ Counts: {"P0":1,"P1":8,"P2":28,"P3":21}
   - PASS: After a successful password reset, all previously issued sessions for that user are rejected on their next request (e.g. a passwordChangedAt/tokenVersion stored
 
 ## P2 (28)
-- [ ] **Availability uses staffTimeOff.findFirst — ignores all-but-one time-off row per day** — `src/lib/availability.ts:117` _(Public booking funnel)_
+- [x] **Availability uses staffTimeOff.findFirst — ignores all-but-one time-off row per day** — `src/lib/availability.ts:117` _(Public booking funnel)_
   - getAvailability fetches a staff member's time-off for the day with prisma.staffTimeOff.findFirst (no ordering), so it only ever considers ONE row. The write-path guard assertSlotAllowed (src/lib/scheduling/working-hours.
   - PASS: For a staff member with multiple approved time-off rows on one date (including a full-day + partial combination), getAvailability returns exactly the slots that
-- [ ] **autoConfirm booking setting is inert — online bookings always created as 'confirmed'** — `src/lib/actions/public-booking.ts:259` _(Public booking funnel)_
+- [x] **autoConfirm booking setting is inert — online bookings always created as 'confirmed'** — `src/lib/actions/public-booking.ts:259` _(Public booking funnel)_
   - The booking-settings UI (src/components/settings/booking-settings-tab.tsx:64,199) lets an owner toggle 'Auto-confirm Bookings' off, and it persists to business.settings.booking.autoConfirm. createPublicBooking never read
   - PASS: When settings.booking.autoConfirm is false, createPublicBooking creates the appointment in a pending/unconfirmed state (and availability treats it consistently)
 - [ ] **requireDeposit / deposit settings inert — no deposit collected at online booking** — `src/lib/actions/public-booking.ts:655` _(Public booking funnel)_
@@ -50,19 +50,19 @@ Counts: {"P0":1,"P1":8,"P2":28,"P3":21}
 - [ ] **Multi-service appointment reschedule sizes availability by lead service only** — `src/app/book/manage/[bookingReference]/page.tsx:98` _(Post-booking client flows — manage booki)_
   - The manage page derives reschedule inputs from only the first service row: leadService = appointment.services[0], passing that single serviceId to the availability picker (page.tsx lines 98-111; client.tsx builds /api/av
   - PASS: Reschedule availability accounts for the full appointment (all services / total duration and each assigned staff), so every slot shown to the client is one the 
-- [ ] **Staff-role users can mutate any colleague's appointment via server actions (no staff-ownership check)** — `src/lib/actions/appointments.ts:296` _(Calendar + Appointments)_
+- [x] **Staff-role users can mutate any colleague's appointment via server actions (no staff-ownership check)** — `src/lib/actions/appointments.ts:296` _(Calendar + Appointments)_
   - updateAppointmentStatus (296), cancelAppointment (407), rescheduleAppointment (473) and resizeAppointment (636) scope only by businessId — none call canAccessAppointment() or check the appointment is assigned to the call
   - PASS: The four appointment mutation server actions gate on staff ownership the same way the v1 route does (admins pass; staff only for appointments assigned to them),
-- [ ] **CSV import phone-dedup uses raw phone string, not normalized digits → creates duplicates** — `src/lib/actions/clients.ts:289` _(Clients CRM)_
+- [x] **CSV import phone-dedup uses raw phone string, not normalized digits → creates duplicates** — `src/lib/actions/clients.ts:289` _(Clients CRM)_
   - In-batch dedup uses normalizePhone() (digits only, phoneKey), but the DB match against existing clients pushes the raw trimmed `phone` into the OR clause (`if (phone) orClauses.push({ phone })`). So an existing client st
   - PASS: Importing a row whose phone differs only in formatting from an existing client updates that client (updated++) instead of inserting a duplicate.
-- [ ] **Soft-deleted clients block re-creation but are ignored by import (inconsistent dedup)** — `src/lib/actions/clients.ts:57` _(Clients CRM)_
+- [x] **Soft-deleted clients block re-creation but are ignored by import (inconsistent dedup)** — `src/lib/actions/clients.ts:57` _(Clients CRM)_
   - createClient (line 57) and updateClient (line 117) email-uniqueness checks omit `deletedAt: null`, so a previously deleted client's email blocks creating a fresh one with a confusing 'A client with this email already exi
   - PASS: Re-creating/importing a client whose email belongs only to a soft-deleted record behaves consistently (either both revive/allow, or both block with a clear mess
-- [ ] **No pagination or row limit on getClients — entire client table loaded into the browser** — `src/lib/queries/clients.ts:15` _(Clients CRM)_
+- [x] **No pagination or row limit on getClients — entire client table loaded into the browser** — `src/lib/queries/clients.ts:15` _(Clients CRM)_
   - getClients does findMany with no take/skip; page.tsx (line 12) passes undefined search and renders ALL clients into the client component, with search/filter/sort done entirely in-browser (client.tsx:536-576). For shops w
   - PASS: The clients list paginates or virtualizes (server-side search/limit) so a shop with thousands of clients loads a bounded number of rows per request.
-- [ ] **Walk-in (no-appointment) checkout has no double-submit idempotency guard** — `src/lib/checkout/record-checkout.ts:306` _(POS/checkout — owner side, money)_
+- [x] **Walk-in (no-appointment) checkout has no double-submit idempotency guard** — `src/lib/checkout/record-checkout.ts:306` _(POS/checkout — owner side, money)_
   - The double-checkout guards (pre-tx findFirst in actions/checkout.ts:119-138 and the in-tx lockAppointment + already-paid re-read at record-checkout.ts:306-319) are ALL keyed on appointmentId. A standalone POS / walk-in s
   - PASS: Two near-simultaneous identical walk-in checkout submissions result in exactly one Payment and one inventory decrement (guarded by a client-supplied idempotency
 - [ ] **Receipt email/view uses client-computed money instead of the server-authoritative result** — `src/components/checkout/payment-dialog.tsx:243` _(POS/checkout — owner side, money)_
@@ -74,37 +74,37 @@ Counts: {"P0":1,"P1":8,"P2":28,"P3":21}
 - [ ] **Category lists are hardcoded salon categories; barbershops cannot create their own categories** — `src/components/services/service-form.tsx:22` _(Owner-side: Services + Categories + Inve)_
   - ServiceForm restricts category to a fixed Select list ['Hair','Wellness','Nails','Skincare','Brows & Lashes','Body'] with no free-text option, even though createService find-or-creates any category name. The services pag
   - PASS: Category input allows selecting existing tenant categories or typing a new one (like the product dialog datalist), and the services filter tabs are derived from
-- [ ] **Categories Overview shows fabricated revenue percentages** — `src/components/services/category-overview.tsx:18` _(Owner-side: Services + Categories + Inve)_
+- [x] **Categories Overview shows fabricated revenue percentages** — `src/components/services/category-overview.tsx:18` _(Owner-side: Services + Categories + Inve)_
   - categoryRevenueContribution is a hardcoded constant map (Hair:38, Wellness:22, Nails:15, ...) rendered as 'X% revenue' per category (line 94). These numbers are invented and unrelated to the tenant's real revenue; any ca
   - PASS: Revenue contribution is computed from actual completed sales/appointments for the tenant, or the metric is removed.
-- [ ] **Service detail sheet shows fake variants/add-ons and a non-persisted Online Booking toggle** — `src/components/services/service-detail-sheet.tsx:50` _(Owner-side: Services + Categories + Inve)_
+- [x] **Service detail sheet shows fake variants/add-ons and a non-persisted Online Booking toggle** — `src/components/services/service-detail-sheet.tsx:50` _(Owner-side: Services + Categories + Inve)_
   - serviceVariants/serviceAddOns are hardcoded mock maps; getDefaultVariants/getDefaultAddOns fabricate 'Standard'/'Premium' variants at price*1.3 and generic add-ons for every real service, each with non-functional 'Add' b
   - PASS: Variants/add-ons reflect real persisted data (or the sections are hidden), and the Online Booking toggle persists and actually controls booking availability.
 - [ ] **Inventory mutation buttons are not role-gated in the UI (staff see actions that always error)** — `src/app/(dashboard)/inventory/page.tsx:18` _(Owner-side: Services + Categories + Inve)_
   - inventory/page.tsx does not fetch or pass the user role, and InventoryClient has no read-only mode, so Add Product, Edit, Adjust Stock, quick +/- and bulk Delete are shown to all roles. Every underlying action (createPro
   - PASS: Server still enforces admin, and the inventory UI hides or disables write actions for staff (matching the services page), so staff see a coherent read-only view
-- [ ] **Availability slot generator honors only ONE same-day time-off row (findFirst) — offers bookable slots inside a second same-day block or a full-day+partial combo** — `src/lib/availability.ts:117` _(Owner side: staff, schedules, breaks, ti)_
+- [x] **Availability slot generator honors only ONE same-day time-off row (findFirst) — offers bookable slots inside a second same-day block or a full-day+partial combo** — `src/lib/availability.ts:117` _(Owner side: staff, schedules, breaks, ti)_
   - getAvailability() fetches time off with prisma.staffTimeOff.findFirst (no orderBy) and treats that single row as the whole day's blocked state (lines 183-197, 278-283). The write-path guard assertSlotAllowed in schedulin
   - PASS: getAvailability must load all approved time-off rows overlapping the day (findMany) and treat any full-day row as a full block and every partial row as a blocke
-- [ ] **updateStaffSchedule wipes then rebuilds schedule non-atomically; no time-format/order validation → partial schedule loss on bad input** — `src/lib/actions/staff.ts:97` _(Owner side: staff, schedules, breaks, ti)_
+- [x] **updateStaffSchedule wipes then rebuilds schedule non-atomically; no time-format/order validation → partial schedule loss on bad input** — `src/lib/actions/staff.ts:97` _(Owner side: staff, schedules, breaks, ti)_
   - updateStaffSchedule() does prisma.staffSchedule.deleteMany() (line 97) then a sequential for-loop of prisma.staffSchedule.create() (line 108) with NO surrounding $transaction. If any create throws mid-loop, the old sched
   - PASS: Validate each day's startTime/endTime with the same strict HH:MM regex and startTime<endTime rule used by createTimeBlock, and wrap the delete+recreate in a sin
-- [ ] **CSV export does not neutralize spreadsheet formula injection from client/service names** — `src/lib/utils.ts:96` _(Owner reports + payday/payroll)_
+- [x] **CSV export does not neutralize spreadsheet formula injection from client/service names** — `src/lib/utils.ts:96` _(Owner reports + payday/payroll)_
   - exportToCsv quotes and doubles quotes but does not guard cells that begin with =, +, -, @, tab or CR. Payday CSV (payday/client.tsx handleExportCsv) writes li.clientName and li.description directly; reports CSV (reports/
   - PASS: Any cell whose first character is one of = + - @ (or a leading tab/CR) is prefixed with a single quote (or otherwise neutralized) before being written to the CS
 - [ ] **Mid-period 'This Month' growth compares a partial current month against a full prior equal-length window** — `src/lib/queries/reports.ts:270` _(Owner reports + payday/payroll)_
   - getReportSummary sets the current window from resolveRange (default and the picker's 'This Month' preset both = startOfMonth..endOfMonth, i.e. through the FUTURE end of month) and the prior window as the immediately-prec
   - PASS: Growth compares like-for-like periods (e.g. month-to-date vs same-length prior-month-to-date, or clamp current window to now), so a normal early-month day does 
-- [ ] **General settings save is blocked for any business with an empty/null email** — `src/lib/actions/settings.ts:14` _(Owner-side Settings)_
+- [x] **General settings save is blocked for any business with an empty/null email** — `src/lib/actions/settings.ts:14` _(Owner-side Settings)_
   - updateBusinessSettingsSchema declares `email: z.string().email().optional()`. `.optional()` only permits `undefined`, not "". The General tab (client.tsx:290) initializes businessEmail = initialBusiness?.email || "" and 
   - PASS: Email schema accepts empty string (e.g. z.string().email().or(z.literal("")).optional() or preprocess ""→undefined); an owner with no email can save other gener
-- [ ] **Clearing the Tax Rate field silently reverts checkout tax to hardcoded 8.875%** — `src/lib/checkout/record-checkout.ts:41` _(Owner-side Settings)_
+- [x] **Clearing the Tax Rate field silently reverts checkout tax to hardcoded 8.875%** — `src/lib/checkout/record-checkout.ts:41` _(Owner-side Settings)_
   - paymentSettingsSchema.taxRate (settings.ts:264) is an unvalidated `z.string()` with no numeric/range check. The Payments tab lets the owner clear the Tax Rate input, saving taxRate="". At checkout, readTaxConfig does par
   - PASS: taxRate is validated as a number in [0,100]; a cleared/zero rate results in 0% tax at checkout (not the platform default), and out-of-range values are rejected 
-- [ ] **Staff role sees full shop revenue + per-colleague earnings on the dashboard/sidebar/notifications despite /reports being blocked** — `src/app/(dashboard)/dashboard/page.tsx:14` _(Owner-side dashboard + global nav plumbi)_
+- [x] **Staff role sees full shop revenue + per-colleague earnings on the dashboard/sidebar/notifications despite /reports being blocked** — `src/app/(dashboard)/dashboard/page.tsx:14` _(Owner-side dashboard + global nav plumbi)_
   - Middleware blocks the staff role from /reports and /reports/payday (STAFF_BLOCKED_ROUTES in src/lib/permissions.ts:18) — clearly treating financial data as admin+. But /dashboard is staff-accessible (NAV_PERMISSIONS, mid
   - PASS: Revenue figures (todayRevenue, 7-day revenue chart, per-staff revenue, sidebar Today's Summary revenue, payment-amount notifications) are hidden or zeroed for t
-- [ ] **Password reset does not clear account lockout, so a locked-out user still can't log in after resetting** — `src/lib/actions/password-reset.ts:139` _(auth + onboarding + registration + passw)_
+- [x] **Password reset does not clear account lockout, so a locked-out user still can't log in after resetting** — `src/lib/actions/password-reset.ts:139` _(auth + onboarding + registration + passw)_
   - auth.ts locks an account (lockedUntil = now+15min) after 5 failed logins and checks lockedUntil BEFORE verifying the password (auth.ts:35). resetPassword updates passwordHash but never clears lockedUntil/failedLoginAttem
   - PASS: A successful password reset clears failedLoginAttempts and lockedUntil, so the user can log in immediately with the new password.
 - [ ] **Onboarding is not enforced — a business can operate fully unconfigured; isOnboarded flag is dead code** — `src/lib/actions/onboarding.ts:305` _(auth + onboarding + registration + passw)_
@@ -139,7 +139,7 @@ Counts: {"P0":1,"P1":8,"P2":28,"P3":21}
 - [ ] **'Tag as Blocked' appends duplicate tags** — `src/app/(dashboard)/clients/[id]/client.tsx:141` _(Clients CRM)_
   - handleBlockClient does `[...(client.tags||[]), 'Blocked']` with no includes() guard, unlike the bulk-VIP action which does guard. Clicking 'Tag as Blocked' twice stores ['Blocked','Blocked'], causing duplicate React keys
   - PASS: Applying an already-present tag is a no-op; tags array never contains duplicates.
-- [ ] **Deleted client still reachable by direct URL** — `src/lib/queries/clients.ts:56` _(Clients CRM)_
+- [x] **Deleted client still reachable by direct URL** — `src/lib/queries/clients.ts:56` _(Clients CRM)_
   - getClientById filters only { id, businessId } with no deletedAt guard, so a soft-deleted client's detail page (/clients/{id}) still renders full profile, history, and edit/actions even though the list hides it.
   - PASS: Navigating to a soft-deleted client's detail URL returns notFound() (or clearly indicates it's deleted).
 - [ ] **POS currency symbol hardcoded USD regardless of business currency** — `src/lib/utils.ts:11` _(POS/checkout — owner side, money)_
