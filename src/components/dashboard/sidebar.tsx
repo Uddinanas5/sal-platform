@@ -16,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ShoppingCart,
-  Package,
   BarChart3,
   Megaphone,
   Star,
@@ -78,7 +77,6 @@ function buildNavSections(data: SidebarData | null, role?: string) {
       items: [
         { href: "/services", icon: Scissors, label: "Services" },
         { href: "/checkout", icon: ShoppingCart, label: "POS / Checkout" },
-        { href: "/inventory", icon: Package, label: "Inventory", badge: data?.lowStockCount || undefined },
       ],
     },
     {
