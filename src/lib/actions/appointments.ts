@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail, appointmentCancelledEmail, appointmentRescheduledEmail } from "@/lib/email-templates"
 import { getBusinessContext } from "@/lib/auth-utils"
@@ -293,7 +294,10 @@ export async function updateAppointmentStatus(
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, id))) {
+      return { success: false, error: "You don't have access to this appointment" }
+    }
 
     const statusMap: Record<string, string> = {
       confirmed: "confirmed",
@@ -441,7 +445,10 @@ export async function cancelAppointment(input: {
   }
 
   try {
-    const { businessId, userId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, parsed.id))) {
+      return { success: false, error: "You don't have access to this appointment" }
+    }
     const now = new Date()
 
     const appointment = await prisma.appointment.update({
@@ -507,7 +514,10 @@ export async function rescheduleAppointment(
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, id))) {
+      return { success: false, error: "You don't have access to this appointment" }
+    }
 
     const appointment = await prisma.appointment.findUnique({
       where: { id, businessId },
@@ -670,7 +680,10 @@ export async function resizeAppointment(
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, id))) {
+      return { success: false, error: "You don't have access to this appointment" }
+    }
 
     const appointment = await prisma.appointment.findUnique({
       where: { id, businessId },

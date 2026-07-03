@@ -34,7 +34,7 @@ const { prismaMock } = vi.hoisted(() => {
   const prismaMock = {
     service: { findUnique: vi.fn() },
     staffSchedule: { findFirst: vi.fn() },
-    staffTimeOff: { findFirst: vi.fn() },
+    staffTimeOff: { findMany: vi.fn() },
     appointmentService: { findMany: vi.fn() },
     staff: { findUnique: vi.fn() },
     businessHours: { findFirst: vi.fn() },
@@ -193,7 +193,7 @@ describe("getAvailability — no slot in the non-existent spring-forward hour (N
       endTime: time(6),
       breaks: [],
     })
-    prismaMock.staffTimeOff.findFirst.mockResolvedValue(null)
+    prismaMock.staffTimeOff.findMany.mockResolvedValue([])
     prismaMock.appointmentService.findMany.mockResolvedValue([])
     prismaMock.staff.findUnique.mockResolvedValue({
       bookingBufferMinutes: 0,

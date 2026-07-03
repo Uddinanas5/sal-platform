@@ -76,7 +76,7 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
   const dayOfWeek = civilDate.getDay() // 0 = Sunday, 1 = Monday, etc.
 
   // Fetch all required data in parallel
-  const [service, staffSchedule, staffTimeOff, existingAppointments, staff, businessHours] = await Promise.all([
+  const [service, staffSchedule, staffTimeOffs, existingAppointments, staff, businessHours] = await Promise.all([
     // Get service duration. deletedAt:null so a soft-deleted (incl. resurrected-
     // to-isActive) service never resolves real slots from any availability caller.
     prisma.service.findUnique({
@@ -113,8 +113,10 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
       },
     }),
 
-    // Check for time off
-    prisma.staffTimeOff.findFirst({
+    // Check for time off — ALL approved rows for the day (a staffer can have
+    // multiple partial blocks, or a full-day + partial combo). Matches the write
+    // guard in scheduling/working-hours.ts.
+    prisma.staffTimeOff.findMany({
       where: {
         staffId,
         status: 'approved',
@@ -179,20 +181,15 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
     }
   }
 
-  // Staff is on time off
-  if (staffTimeOff) {
-    // Check if partial day off (with specific times)
-    if (staffTimeOff.startTime && staffTimeOff.endTime) {
-      // Partial day - will be handled as a "break"
-    } else {
-      // Full day off
-      return {
-        slots: [],
-        staffId,
-        serviceId,
-        date: dateKey,
-        serviceDuration: service.durationMinutes,
-      }
+  // Staff is on time off — a full-day row (no start/end) blocks the whole day;
+  // partial rows are added to blockedRanges below. Check EVERY row.
+  if (staffTimeOffs.some((t) => !t.startTime || !t.endTime)) {
+    return {
+      slots: [],
+      staffId,
+      serviceId,
+      date: dateKey,
+      serviceDuration: service.durationMinutes,
     }
   }
 
@@ -274,12 +271,14 @@ export async function getAvailability(params: AvailabilityParams & { minLeadTime
     })
   }
 
-  // Add partial time off if applicable
-  if (staffTimeOff?.startTime && staffTimeOff?.endTime) {
-    blockedRanges.push({
-      start: combineDateWithTimeZoned(civilDate, staffTimeOff.startTime, timezone),
-      end: combineDateWithTimeZoned(civilDate, staffTimeOff.endTime, timezone),
-    })
+  // Add EVERY partial time-off block (a staffer can have several in one day).
+  for (const off of staffTimeOffs) {
+    if (off.startTime && off.endTime) {
+      blockedRanges.push({
+        start: combineDateWithTimeZoned(civilDate, off.startTime, timezone),
+        end: combineDateWithTimeZoned(civilDate, off.endTime, timezone),
+      })
+    }
   }
 
   // Sort blocked ranges by start time
