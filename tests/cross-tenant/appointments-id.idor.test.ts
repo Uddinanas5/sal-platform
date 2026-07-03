@@ -159,21 +159,22 @@ describe("PATCH /api/v1/appointments/[id] — cross-tenant IDOR (status update)"
     expect(prismaMock.appointment.update).not.toHaveBeenCalled()
   })
 
-  it("404s and the write is businessId-scoped (foreign row unreachable, no cross-tenant mutation)", async () => {
+  it("404s and the gating read is businessId-scoped (foreign row unreachable, no cross-tenant mutation)", async () => {
     const res = await PATCH(patchReq(), ctxArg(FOREIGN_ID))
     expect(res.status).toBe(404)
-    // The update was attempted but constrained to the caller's tenant; Prisma
-    // P2025 (no matching row under BIZ) mapped to 404 — the foreign row was
-    // never updated.
+    // The reactivation guard reads the current appointment scoped to the caller's
+    // tenant FIRST; a foreign row returns null → 404, and the write never runs.
     assertAllWheresScopedToBiz(
-      prismaMock.appointment.update.mock.calls as unknown[][],
-      "appointment.update"
+      prismaMock.appointment.findUnique.mock.calls as unknown[][],
+      "appointment.findUnique"
     )
-    const where = (prismaMock.appointment.update.mock.calls[0][0] as {
+    const where = (prismaMock.appointment.findUnique.mock.calls[0][0] as {
       where: { id: string; businessId: string }
     }).where
     expect(where.id).toBe(FOREIGN_ID)
     expect(where.businessId).toBe(BIZ)
+    // No cross-tenant mutation: update was never reached for the foreign row.
+    expect(prismaMock.appointment.update).not.toHaveBeenCalled()
   })
 })
 

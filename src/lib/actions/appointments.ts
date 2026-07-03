@@ -307,21 +307,54 @@ export async function updateAppointmentStatus(
 
     const dbStatus = statusMap[status] || status
 
-    const appointment = await prisma.appointment.update({
+    // REACTIVATION GUARD: cancelled/no_show FREE the slot, so another booking may
+    // have taken it. Moving back to an active status must re-check for conflicts
+    // under the same advisory lock as create/reschedule — otherwise reactivating
+    // an old cancellation silently double-books the staff member.
+    const FREE = ["cancelled", "no_show"]
+    const ACTIVE = ["confirmed", "pending", "checked_in", "in_progress", "completed"]
+    const current = await prisma.appointment.findUnique({
       where: { id, businessId },
-      data: {
-        status: dbStatus as never,
-        completedAt: dbStatus === "completed" ? new Date() : undefined,
-        checkedInAt: dbStatus === "checked_in" ? new Date() : undefined,
-        cancelledAt: dbStatus === "cancelled" ? new Date() : undefined,
-        noShowAt: dbStatus === "no_show" ? new Date() : undefined,
-      },
-      include: {
-        client: true,
-        services: true,
-        business: true,
-      },
+      select: { status: true, services: { select: { staffId: true, startTime: true, endTime: true } } },
     })
+    if (!current) return { success: false, error: "Appointment not found" }
+    const isReactivation = FREE.includes(current.status) && ACTIVE.includes(dbStatus)
+
+    const updateData = {
+      status: dbStatus as never,
+      completedAt: dbStatus === "completed" ? new Date() : undefined,
+      checkedInAt: dbStatus === "checked_in" ? new Date() : undefined,
+      cancelledAt: dbStatus === "cancelled" ? new Date() : undefined,
+      noShowAt: dbStatus === "no_show" ? new Date() : undefined,
+    }
+    const includeRels = { client: true, services: true, business: true } as const
+
+    let appointment
+    if (isReactivation) {
+      appointment = await prisma.$transaction(async (tx) => {
+        for (const svc of current.services) {
+          if (!svc.staffId) continue
+          await lockStaffSchedule(tx, businessId, svc.staffId)
+          const conflict = await tx.appointmentService.findFirst({
+            where: {
+              staffId: svc.staffId,
+              appointmentId: { not: id },
+              appointment: { status: { notIn: ["cancelled", "no_show"] } },
+              startTime: { lt: svc.endTime },
+              endTime: { gt: svc.startTime },
+            },
+          })
+          if (conflict) throw new Error("CONFLICT")
+        }
+        return tx.appointment.update({ where: { id, businessId }, data: updateData, include: includeRels })
+      }, { timeout: 20000, maxWait: 15000 })
+    } else {
+      appointment = await prisma.appointment.update({
+        where: { id, businessId },
+        data: updateData,
+        include: includeRels,
+      })
+    }
 
     // Send cancellation email when status changes to cancelled
     if (dbStatus === "cancelled" && appointment.client?.email) {
@@ -352,8 +385,12 @@ export async function updateAppointmentStatus(
     revalidatePath("/dashboard")
     return { success: true, data: undefined }
   } catch (e) {
+    const msg = (e as Error).message
+    if (msg === "CONFLICT" || isBookingContentionError(e)) {
+      return { success: false, error: "That time slot is no longer free — another appointment now occupies it." }
+    }
     console.error("updateAppointmentStatus error:", e)
-    return { success: false, error: (e as Error).message }
+    return { success: false, error: msg }
   }
 }
 
