@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState } from "react"
-import { motion } from "framer-motion"
 import {
   Clock,
   DollarSign,
@@ -10,8 +9,6 @@ import {
   Users,
   Globe,
   Timer,
-  Tag,
-  Plus,
 } from "lucide-react"
 import {
   Sheet,
@@ -34,86 +31,6 @@ import { updateService, deleteService } from "@/lib/actions/services"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
-interface ServiceVariant {
-  id: string
-  name: string
-  price: number
-  duration: number
-}
-
-interface ServiceAddOn {
-  id: string
-  name: string
-  price: number
-}
-
-const serviceVariants: Record<string, ServiceVariant[]> = {
-  s1: [
-    { id: "v1", name: "Short Hair", price: 35, duration: 30 },
-    { id: "v2", name: "Medium Hair", price: 45, duration: 45 },
-    { id: "v3", name: "Long Hair", price: 55, duration: 60 },
-  ],
-  s2: [
-    { id: "v4", name: "Root Touch-Up", price: 95, duration: 75 },
-    { id: "v5", name: "Full Color", price: 150, duration: 120 },
-    { id: "v6", name: "Balayage", price: 200, duration: 150 },
-  ],
-  s3: [
-    { id: "v7", name: "30-Minute Session", price: 55, duration: 30 },
-    { id: "v8", name: "60-Minute Session", price: 95, duration: 60 },
-    { id: "v9", name: "90-Minute Session", price: 130, duration: 90 },
-  ],
-  s4: [
-    { id: "v10", name: "Manicure Only", price: 30, duration: 30 },
-    { id: "v11", name: "Pedicure Only", price: 40, duration: 45 },
-    { id: "v12", name: "Mani-Pedi Combo", price: 65, duration: 75 },
-  ],
-  s5: [
-    { id: "v13", name: "Express Facial", price: 55, duration: 30 },
-    { id: "v14", name: "Classic Facial", price: 85, duration: 60 },
-    { id: "v15", name: "Premium Facial", price: 120, duration: 90 },
-  ],
-}
-
-const serviceAddOns: Record<string, ServiceAddOn[]> = {
-  s1: [
-    { id: "a1", name: "Deep Conditioning", price: 15 },
-    { id: "a2", name: "Scalp Treatment", price: 20 },
-    { id: "a3", name: "Hot Towel Service", price: 10 },
-  ],
-  s2: [
-    { id: "a4", name: "Toner Treatment", price: 25 },
-    { id: "a5", name: "Olaplex Add-On", price: 35 },
-  ],
-  s3: [
-    { id: "a6", name: "Aromatherapy", price: 15 },
-    { id: "a7", name: "Hot Stones Add-On", price: 25 },
-    { id: "a8", name: "CBD Oil Upgrade", price: 20 },
-  ],
-  s4: [
-    { id: "a9", name: "Gel Polish Upgrade", price: 15 },
-    { id: "a10", name: "Nail Art (per nail)", price: 5 },
-  ],
-  s5: [
-    { id: "a11", name: "LED Light Therapy", price: 20 },
-    { id: "a12", name: "Dermaplaning", price: 30 },
-    { id: "a13", name: "Eye Mask Treatment", price: 15 },
-  ],
-}
-
-function getDefaultVariants(service: Service): ServiceVariant[] {
-  return serviceVariants[service.id] ?? [
-    { id: "dv1", name: "Standard", price: service.price, duration: service.duration },
-    { id: "dv2", name: "Premium", price: Math.round(service.price * 1.3), duration: service.duration + 15 },
-  ]
-}
-
-function getDefaultAddOns(service: Service): ServiceAddOn[] {
-  return serviceAddOns[service.id] ?? [
-    { id: "da1", name: "Extended Time (+15 min)", price: 20 },
-    { id: "da2", name: "Premium Products Upgrade", price: 25 },
-  ]
-}
 
 interface ServiceDetailSheetProps {
   service: Service | null
@@ -139,8 +56,6 @@ export function ServiceDetailSheet({
   const qualifiedStaff = staff.filter((s) =>
     s.services.includes(service.id)
   )
-  const variants = getDefaultVariants(service)
-  const addOns = getDefaultAddOns(service)
 
   const handleDelete = async () => {
     setIsDeleting(true)
@@ -280,77 +195,6 @@ export function ServiceDetailSheet({
                     checked={onlineBooking}
                     onCheckedChange={setOnlineBooking}
                   />
-                </div>
-
-                <Separator />
-
-                {/* Variants */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-foreground flex items-center gap-2">
-                      <Tag className="w-4 h-4" />
-                      Variants
-                    </h3>
-                    <Button variant="ghost" size="sm">
-                      <Plus className="w-3.5 h-3.5 mr-1" />
-                      Add
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {variants.map((variant) => (
-                      <motion.div
-                        key={variant.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center justify-between p-3 rounded-lg bg-cream-50 border border-cream-200"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {variant.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDuration(variant.duration)}
-                          </p>
-                        </div>
-                        <span className="font-semibold text-foreground">
-                          {formatCurrency(variant.price)}
-                        </span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Add-ons */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-foreground flex items-center gap-2">
-                      <Plus className="w-4 h-4" />
-                      Add-ons
-                    </h3>
-                    <Button variant="ghost" size="sm">
-                      <Plus className="w-3.5 h-3.5 mr-1" />
-                      Add
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {addOns.map((addon) => (
-                      <motion.div
-                        key={addon.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center justify-between p-3 rounded-lg bg-cream-50 border border-cream-200"
-                      >
-                        <p className="text-sm font-medium text-foreground">
-                          {addon.name}
-                        </p>
-                        <span className="font-semibold text-mint">
-                          +{formatCurrency(addon.price)}
-                        </span>
-                      </motion.div>
-                    ))}
-                  </div>
                 </div>
 
                 <Separator />
