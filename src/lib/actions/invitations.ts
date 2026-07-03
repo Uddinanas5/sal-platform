@@ -330,6 +330,33 @@ export async function updateTeamMemberRole(data: {
     })
     if (!staffProfile) return { success: false, error: "User is not a member of this business" }
 
+    // User.role is a single GLOBAL column shared across every business a user
+    // belongs to. Rewriting it here would change their privileges at OTHER
+    // businesses too (cross-tenant escalation/downgrade). Mirror acceptInvitation's
+    // guard: refuse to change the role of anyone who also belongs elsewhere.
+    // (Owner-role users are already rejected above.)
+    const [ownsOther, staffElsewhere] = await Promise.all([
+      prisma.business.findFirst({
+        where: { ownerId: parsed.targetUserId, id: { not: businessId } },
+        select: { id: true },
+      }),
+      prisma.staff.findFirst({
+        where: {
+          userId: parsed.targetUserId,
+          isActive: true,
+          deletedAt: null,
+          primaryLocation: { businessId: { not: businessId } },
+        },
+        select: { id: true },
+      }),
+    ])
+    if (ownsOther || staffElsewhere) {
+      return {
+        success: false,
+        error: "This person also belongs to another business, so their role can't be changed from here.",
+      }
+    }
+
     await prisma.user.update({
       where: { id: parsed.targetUserId },
       data: { role: parsed.newRole },
