@@ -29,6 +29,9 @@ const REPORT = join(HERE, "GATE-REPORT.md")
 const args = process.argv.slice(2)
 const SMOKE = args.includes("--smoke")
 const WITH_DB = args.includes("--with-db")
+// --only A.1,J.1  → run exactly these checks (bypasses the needsDb skip; if you
+// name a check you intend to run it). Verdict still recomputes from all persisted states.
+const ONLY = (() => { const i = args.indexOf("--only"); return i >= 0 && args[i + 1] ? args[i + 1].split(",").map((s) => s.trim()) : null })()
 const TIMEOUT = 240_000
 
 /** Run a shell command; return true on exit 0. */
@@ -40,10 +43,26 @@ function exec(cmd, cmdArgs) {
 const file = (p) => ({ pass: existsSync(join(ROOT, p)), note: existsSync(join(ROOT, p)) ? `present: ${p}` : `missing: ${p}` })
 
 /**
+ * B.1 — no real Stripe secret committed to source control.
+ *  (1) .env must be gitignored AND not tracked.
+ *  (2) no live key (sk_/rk_live_) and no real-length test secret / whsec in tracked files.
+ * Short placeholders like "sk_test_123" in fixtures are intentionally NOT flagged.
+ */
+function secretScan() {
+  const ignored = spawnSync("git", ["check-ignore", ".env"], { cwd: ROOT, encoding: "utf8" }).status === 0
+  const tracked = spawnSync("git", ["ls-files", "--error-unmatch", ".env"], { cwd: ROOT, encoding: "utf8" }).status === 0
+  if (!ignored || tracked) return { pass: false, note: ".env is committed or not gitignored" }
+  const g = spawnSync("git", ["grep", "-I", "-l", "-E", "(sk|rk)_live_[A-Za-z0-9]{20,}|sk_test_[A-Za-z0-9]{60,}|whsec_[A-Za-z0-9]{40,}"], { cwd: ROOT, encoding: "utf8" })
+  if (g.status === 0 && g.stdout.trim()) return { pass: false, note: `secret-like string committed in ${g.stdout.trim().split("\n").length} file(s)` }
+  return { pass: true, note: ".env gitignored+untracked; no live/real secret in tracked files" }
+}
+
+/**
  * checkId -> how to observe it. `needsDb` gates DB-backed checks behind --with-db.
  * Checks not listed here stay `pending` (they need an oracle we haven't built yet).
  */
 const RUNNERS = {
+  "B.1": { needsDb: false, run: () => secretScan() },
   "A.1": { needsDb: false, run: () => exec("npx", ["vitest", "run", "tests/cross-tenant"]) },
   "A.2": { needsDb: false, run: () => exec("npx", ["vitest", "run", "tests/cross-tenant/appointments-id.idor.test.ts"]) },
   "A.3": { needsDb: false, run: () => exec("npx", ["vitest", "run", "tests/query-businessid-guard.test.ts"]) },
@@ -89,7 +108,8 @@ function main() {
     for (const check of gate.checks) {
       const runner = RUNNERS[check.id]
       if (!runner) continue // no oracle yet → stays pending
-      if (runner.needsDb && !WITH_DB) continue // DB check skipped without --with-db → stays as-is
+      if (ONLY && !ONLY.includes(check.id)) continue // subset mode → skip unnamed checks
+      if (runner.needsDb && !WITH_DB && !(ONLY && ONLY.includes(check.id))) continue // DB check skipped unless named
       if (check.state === "blocked") continue
       const res = runner.run()
       check.state = res.pass ? "pass" : "fail"

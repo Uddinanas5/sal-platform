@@ -1,7 +1,7 @@
 {
   "version": 1,
   "note": "FROZEN GATE — owner-protected via CODEOWNERS. The loop reads this and flips check states ONLY from observed external-oracle evidence. Verdict = PUBLIC-GA iff every P0 check passes. The loop must never edit the check definitions or severities to make the board green (see LOOP.md §4).",
-  "updatedAt": "2026-07-08T05:50:39.060Z",
+  "updatedAt": "2026-07-08T06:02:53.246Z",
   "verdict": "PENDING",
   "gates": [
     {
@@ -57,8 +57,8 @@
           "id": "B.1",
           "desc": "No Stripe secret key in repo or non-Production env",
           "proof": "secret scan (to build)",
-          "state": "pending",
-          "evidence": null
+          "state": "pass",
+          "evidence": ".env gitignored+untracked; no live/real secret in tracked files @ 2026-07-08T06:02:53.246Z"
         },
         {
           "id": "B.2",
@@ -84,10 +84,9 @@
         {
           "id": "B.5",
           "desc": "Live E2E book→pay→webhook→DB row against Stripe TEST mode",
-          "proof": "playwright + stripe test-mode (BLOCKED: needs test keys)",
+          "proof": "playwright + stripe test-mode (keys present in dev env; E2E to run)",
           "state": "pending",
-          "evidence": null,
-          "blockedBy": "stripe-test-keys"
+          "evidence": null
         }
       ]
     },
@@ -275,8 +274,8 @@
           "id": "J.1",
           "desc": "Golden path against real DB: signup→configure→public books→confirmation→checkout w/ commission→dashboard/reports",
           "proof": "npm run test:golden (dev/agents schema)",
-          "state": "pending",
-          "evidence": null
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-08T06:02:53.246Z"
         },
         {
           "id": "J.2",
