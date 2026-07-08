@@ -72,6 +72,9 @@ const processPaymentSchema = z
     // Gift-card code, REQUIRED when method === "gift_card" (enforced in the
     // refine below). Balance is read + decremented server-side in recordCheckout.
     giftCardCode: z.string().min(1).optional(),
+    // Optional idempotency key: a retried/duplicated submission with the SAME key
+    // returns the original payment instead of double-recording the sale.
+    idempotencyKey: z.string().min(1).max(100).optional(),
   })
   .refine((d) => d.method !== "gift_card" || !!d.giftCardCode, {
     message: "A gift card code is required to pay by gift card",
@@ -96,6 +99,7 @@ export async function processPayment(data: {
   method: "cash" | "card" | "online" | "gift_card" | "other"
   redeemPoints?: number
   giftCardCode?: string
+  idempotencyKey?: string
 }): Promise<ActionResult<{
   receiptId: string
   paymentReference: string
@@ -153,6 +157,7 @@ export async function processPayment(data: {
         method: input.method,
         redeemPoints: input.redeemPoints,
         giftCardCode: input.giftCardCode,
+        idempotencyKey: input.idempotencyKey,
       }),
       { timeout: 20000, maxWait: 15000 },
     )

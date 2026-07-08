@@ -1,5 +1,8 @@
 import { randomBytes } from "node:crypto"
-import type { Prisma } from "@/generated/prisma"
+// Value import (not `import type`): `Prisma.Decimal`/`Prisma.TransactionClient` are
+// types, but `Prisma.PrismaClientKnownRequestError` is used as a runtime value in
+// the idempotency P2002 guard, so the namespace must survive to runtime.
+import { Prisma } from "@/generated/prisma"
 import {
   NoPayrollPeriodError,
   resolvePayrollPeriod,
@@ -97,6 +100,13 @@ export type RecordCheckoutInput = {
   // cover the FULL server-computed total (no partial/split redemption in beta);
   // balance is read + decremented server-side inside the same transaction.
   giftCardCode?: string
+  // Optional client-supplied idempotency key. When present, a retried/duplicated
+  // submission with the SAME key returns the ORIGINAL payment instead of
+  // double-recording (double charge, double gift-card spend, duplicate
+  // commission/inventory/loyalty). Critical for appointment-less walk-ins, which
+  // have no other idempotency guard. Enforced by a fast-path lookup here + the
+  // UNIQUE (businessId, idempotencyKey) index.
+  idempotencyKey?: string
 }
 
 export type RecordCheckoutResult = {
@@ -206,6 +216,31 @@ export async function recordCheckout(
   businessId: string,
   data: RecordCheckoutInput,
 ): Promise<RecordCheckoutResult> {
+  // IDEMPOTENCY (fast path). If the caller supplies a key and a payment with that
+  // (businessId, key) already exists, this is a retry/duplicate — return the
+  // ORIGINAL payment WITHOUT re-recording anything (no second charge, no second
+  // gift-card decrement, no duplicate commission/inventory/loyalty). This covers
+  // appointment-less walk-ins, which have no other idempotency guard. A true
+  // concurrent duplicate (both requests miss this read) is caught by the UNIQUE
+  // index at the payment.create below. Cheap short-circuit: runs before any other
+  // read/write.
+  if (data.idempotencyKey) {
+    const prior = await tx.payment.findFirst({
+      where: { businessId, idempotencyKey: data.idempotencyKey },
+      select: { id: true, paymentReference: true, amount: true, totalAmount: true },
+    })
+    if (prior) {
+      return {
+        payment: { id: prior.id, paymentReference: prior.paymentReference },
+        commissions: [],
+        subtotal: Number(prior.amount),
+        amount: Number(prior.amount),
+        total: Number(prior.totalAmount),
+        loyalty: { redeemedPoints: 0, redeemedAmount: 0, earnedPoints: 0 },
+      }
+    }
+  }
+
   const serviceIds = Array.from(new Set(data.items.filter((i) => i.type === "service").map((i) => i.id)))
   const productIds = Array.from(new Set(data.items.filter((i) => i.type === "product").map((i) => i.id)))
 
@@ -515,12 +550,16 @@ export async function recordCheckout(
     }
   }
 
-  const payment = await tx.payment.create({
+  let payment: { id: string; paymentReference: string }
+  try {
+    payment = await tx.payment.create({
     data: {
       businessId,
       clientId: resolvedClientId ?? null,
       appointmentId: data.appointmentId ?? null,
       paymentReference: generatePaymentReference(),
+      // Persisted so a later retry with the same key hits the fast-path above.
+      idempotencyKey: data.idempotencyKey ?? null,
       type: "payment",
       method: data.method,
       // Masked gift-card code (last 4) for gift_card tenders; null otherwise.
@@ -536,7 +575,22 @@ export async function recordCheckout(
       notes: customNotes.length > 0 ? `Quick Sale items:\n${customNotes.join("\n")}` : null,
       processedAt: new Date(),
     },
-  })
+    })
+  } catch (e) {
+    // A UNIQUE (businessId, idempotencyKey) violation means a concurrent request
+    // with the SAME key already inserted its payment — a true simultaneous
+    // duplicate the fast-path read missed. Fail THIS one cleanly (its tx rolls
+    // back, so nothing is double-recorded); the client can retry and hit the
+    // fast-path. Any other error propagates unchanged.
+    if (
+      data.idempotencyKey &&
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      throw new RecordCheckoutError("BAD_REQUEST", "This sale was already recorded (duplicate request).")
+    }
+    throw e
+  }
 
   if (data.appointmentId) {
     await tx.appointment.update({

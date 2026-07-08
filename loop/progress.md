@@ -78,7 +78,22 @@ online Connect charge).
 - A.4's board checkbox joins A.5 in `L-019` for your review (both mean editing the
   owner-protected gate file).
 
+## Heartbeat iteration 3 (Jul 8) — checkout idempotency (the double-charge fix)
+- Shipped `L-016`, the biggest of the payment-audit findings: a retried or
+  double-submitted **walk-in / gift-card** sale could previously charge twice or
+  drain a gift card twice. Now every checkout can carry an **idempotency key** — a
+  repeat with the same key returns the *original* sale instead of recording a new
+  one, and a database uniqueness rule blocks a true simultaneous duplicate.
+- This needed a **database migration** (a new column + uniqueness rule), which I
+  applied to the safe **dev** database and then re-proved the whole money path
+  end-to-end against it. The key is accepted on all three checkout paths (the
+  dashboard, the public API — including the standard `Idempotency-Key` header — and
+  the AI/MCP tool). 4 new tests; full suite **582**.
+- One small follow-up (`L-020`): wire the dashboard's pay dialog to actually send a
+  key, so the primary UI benefits too (the server side is ready; API/MCP clients
+  already send their own).
+
 ## Next
-- `L-005` (per-tenant structured logging — observability), the `L-016`
-  checkout-idempotency epic (needs a migration), or `L-002` once `fast-check` is
-  approved. `L-001` (live Stripe E2E) still wants a hands-on session.
+- `L-005` (per-tenant structured logging — observability), `L-020` (dashboard key),
+  or `L-002` once `fast-check` is approved. `L-001` (live Stripe E2E) still wants a
+  hands-on session with a dev server + `stripe listen`.

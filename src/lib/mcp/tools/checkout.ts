@@ -67,8 +67,11 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
       method: z.enum(["cash", "other", "gift_card"]).describe("Payment method (cash/other/gift_card; card and online are not live in beta)"),
       // Gift-card code, required when method === "gift_card".
       giftCardCode: z.string().min(1).optional().describe("Gift card code (required when method is gift_card)"),
+      // Optional idempotency key: resend the SAME value on a retry and the
+      // original payment is returned instead of double-recording the sale.
+      idempotencyKey: z.string().min(1).max(100).optional().describe("Idempotency key — resend on retry to avoid a duplicate charge/sale"),
     },
-    async ({ clientId, appointmentId, items, customItems, discount, tip, method, giftCardCode }) => {
+    async ({ clientId, appointmentId, items, customItems, discount, tip, method, giftCardCode, idempotencyKey }) => {
       try {
         if (method === "gift_card" && !giftCardCode) {
           return err("A gift card code is required to pay by gift card")
@@ -129,6 +132,7 @@ export function registerCheckoutTools(server: McpServer, ctx: ApiContext) {
             tip,
             method,
             giftCardCode,
+            idempotencyKey,
           }),
           { timeout: 20000, maxWait: 15000 },
         )
