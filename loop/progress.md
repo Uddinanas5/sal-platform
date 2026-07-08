@@ -103,8 +103,21 @@ online Connect charge).
 - Skipped `L-005` (per-shop logging): doing it right needs request-scoped context
   plumbing — more than one clean iteration; deferred.
 
+## Heartbeat iteration 5 (Jul 8) — dependency-vulnerability gate (Gate G.3)
+- Added a **dependency security gate** (`npm run check:audit`): it fails the build
+  if any production dependency has a high/critical vulnerability that hasn't been
+  triaged, and prints all of them transparently. 5 tests lock the logic.
+- ⚠️ **It surfaced 4 real HIGH-severity CVEs today** (0 critical) — all
+  denial-of-service / ReDoS / path-traversal class, not remote-code-execution or
+  data-leak. They're documented + accepted-for-now in `audit-allowlist.json` so the
+  gate is green, but the **real fix needs your decision** (see below) — tracked as
+  `L-022`.
+- **NEEDS YOU (`L-022`):** three are transitive and fixable via package overrides
+  (a lockfile sync); the fourth is **Next.js itself**, whose only fix is a **major
+  upgrade (14 → 16)** — a breaking change I won't do autonomously. This is the one
+  thing this iteration is escalating.
+
 ## Next
-- `L-020` (dashboard idempotency key — small UI), `L-021` (dependency CVE scan
-  gate), `L-015` (charge the booked price, not the later catalog price), or `L-002`
-  once `fast-check` is approved. `L-001` (live Stripe E2E) still wants a hands-on
-  session with a dev server + `stripe listen`.
+- `L-022` (the CVE remediation — needs you), `L-020` (dashboard idempotency key),
+  `L-015` (charge the booked price), or `L-002` once `fast-check` is approved.
+  `L-001` (live Stripe E2E) still wants a hands-on session.

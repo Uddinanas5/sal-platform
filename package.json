@@ -17,6 +17,7 @@
     "check:orphans": "node scripts/orphan-sweep.mjs",
     "check:restore": "node scripts/verify-restore.mjs",
     "check:rawsql": "node scripts/check-raw-sql-tenancy.mjs",
+    "check:audit": "node scripts/check-audit.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:tz": "TZ=UTC vitest run && TZ=America/New_York vitest run",
