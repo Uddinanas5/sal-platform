@@ -1,9 +1,9 @@
 {
   "version": 1,
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
-  "lastGoodSha": "c8907c0",
-  "lastRunAt": "2026-07-08T07:55:00Z",
-  "runCounter": 4,
+  "lastGoodSha": "c41b4f1",
+  "lastRunAt": "2026-07-08T08:42:00Z",
+  "runCounter": 5,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -19,6 +19,7 @@
     { "seq": 4, "type": "VERIFIED", "at": "2026-07-08T06:02:53Z", "detail": "Money path PROVEN on dev schema: golden-path (book→check-in→pay→ledger→calendar) exit 0, commission $18 @ 40% non-zero and ledgered. Gate checks flipped from observed evidence: B.1 pass (secret scan), J.1 pass (golden path). 14 checks now green; verdict still PENDING (A.4/A.5/B.5/C.2/C.3/E.1/E.3/G.*/H.1/H.2/J.4/J.5 remain)." },
     { "seq": 5, "type": "AUDIT", "at": "2026-07-08T07:00:00Z", "detail": "Payments-hardening audit (20-agent workflow, 5 dimensions × adversarial verify): 15 raw findings, 11 confirmed (4 rejected as not-a-bug/unreachable). 2 P1, 6 P2, 3 P3." },
     { "seq": 6, "type": "FIXED", "at": "2026-07-08T07:12:00Z", "detail": "Fixed 6 of 11 payments findings, full suite green (568/568, +4 tests). WITH TESTS: #1 P1 commission half-cent invariant false-trip (blocked legit sales); #2 P1 webhook succeeded resurrecting a refunded charge; #5 P2 webhook failed clobbering a completed/refunded payment. FIX-ONLY (tests queued L-018): #3 api/bookings tax-inclusive finalPrice; #7 custom-line tax toggle; #11 createRefund reverse_transfer. Queued: L-015 (price snapshot), L-016 (checkout idempotency keys — schema), L-017 (connect already-paid, latent)." },
-    { "seq": 7, "type": "HEARTBEAT", "at": "2026-07-08T07:55:00Z", "detail": "Iteration: skipped L-001 (Stripe live E2E needs a dev server + `stripe listen` — not available headless; stays top P0). Completed L-004 (Gate A.5): new scripts/check-raw-sql-tenancy.mjs raw-SQL tenant guard + `npm run check:rawsql` + 7-test suite. Codebase clean (6 raw-SQL sites, all safe). Full suite green 575/575, typecheck+lint clean, gate verdict PENDING. A.5 board-wiring deferred to owner (L-019) — gate.mjs is frozen." }
+    { "seq": 7, "type": "HEARTBEAT", "at": "2026-07-08T07:55:00Z", "detail": "Iteration: skipped L-001 (Stripe live E2E needs a dev server + `stripe listen` — not available headless; stays top P0). Completed L-004 (Gate A.5): new scripts/check-raw-sql-tenancy.mjs raw-SQL tenant guard + `npm run check:rawsql` + 7-test suite. Codebase clean (6 raw-SQL sites, all safe). Full suite green 575/575, typecheck+lint clean, gate verdict PENDING. A.5 board-wiring deferred to owner (L-019) — gate.mjs is frozen." },
+    { "seq": 8, "type": "HEARTBEAT", "at": "2026-07-08T08:42:00Z", "detail": "Iteration (user 'keep going'): completed L-003 (Gate A.4 tenant-override). Deferred L-002 (fc.scheduledModelRun) — fast-check not installed, won't add a dep autonomously; existing booking-contention-sim already proves 1-winner. New tests/cross-tenant/tenant-override.a4.test.ts (3 tests): drives v1 appointments [id] GET+PATCH with hostile businessId in body+query+X-Tenant-ID; asserts every Prisma where + access gate scope to the AUTH tenant. Full suite green 578/578, typecheck+lint clean. A.4 board-wiring deferred to owner (L-019, joins A.5)." }
   ]
 }

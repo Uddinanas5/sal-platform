@@ -67,6 +67,18 @@ online Connect charge).
   (`L-019`) because it means editing the owner-protected gate file — the loop won't
   edit its own grader.
 
+## Heartbeat iteration 2 (Jul 8) — Gate A.4 tenant-override
+- Shipped `L-003`: a test proving a caller can't **impersonate another shop** by
+  smuggling a `businessId` into the request body, the query string, or an
+  `X-Tenant-ID` header — the route ignores all of it and stays scoped to the
+  logged-in shop. (3 tests; full suite **578/578**.)
+- Deferred `L-002` (the fuzzed-concurrency booking oracle): it needs a new library
+  (`fast-check`) and the loop won't add dependencies on its own; the existing
+  one-winner concurrency test already covers the core case.
+- A.4's board checkbox joins A.5 in `L-019` for your review (both mean editing the
+  owner-protected gate file).
+
 ## Next
-- `L-002` (interleaved-concurrency booking oracle), `L-003` (tenant-override
-  property test), then the `L-016` checkout-idempotency epic (needs a migration).
+- `L-005` (per-tenant structured logging — observability), the `L-016`
+  checkout-idempotency epic (needs a migration), or `L-002` once `fast-check` is
+  approved. `L-001` (live Stripe E2E) still wants a hands-on session.
