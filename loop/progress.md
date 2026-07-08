@@ -93,7 +93,18 @@ online Connect charge).
   key, so the primary UI benefits too (the server side is ready; API/MCP clients
   already send their own).
 
+## Heartbeat iteration 4 (Jul 8) — security headers locked (Gate G.4)
+- The app's security headers (HSTS, a strict content-security-policy, clickjacking
+  protection) were already set up well — but nothing *guarded* them, so a future
+  edit could quietly drop protection. I moved the policy into a small tested module
+  and added a test that **fails if HSTS, clickjacking protection, or the CSP are
+  weakened** (e.g. someone allowing `eval` in production). Verified with a full
+  production build. 5 new tests.
+- Skipped `L-005` (per-shop logging): doing it right needs request-scoped context
+  plumbing — more than one clean iteration; deferred.
+
 ## Next
-- `L-005` (per-tenant structured logging — observability), `L-020` (dashboard key),
-  or `L-002` once `fast-check` is approved. `L-001` (live Stripe E2E) still wants a
-  hands-on session with a dev server + `stripe listen`.
+- `L-020` (dashboard idempotency key — small UI), `L-021` (dependency CVE scan
+  gate), `L-015` (charge the booked price, not the later catalog price), or `L-002`
+  once `fast-check` is approved. `L-001` (live Stripe E2E) still wants a hands-on
+  session with a dev server + `stripe listen`.
