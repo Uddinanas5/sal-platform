@@ -1,9 +1,9 @@
 {
   "version": 1,
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
-  "lastGoodSha": "18bfc714ab87cef163121343bdae87c1f3974d76",
-  "lastRunAt": "2026-07-08T06:02:53Z",
-  "runCounter": 2,
+  "lastGoodSha": "0f8cb79",
+  "lastRunAt": "2026-07-08T07:12:00Z",
+  "runCounter": 3,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -16,6 +16,8 @@
     { "seq": 1, "type": "BOOTSTRAP", "at": "2026-07-08T05:45:00Z", "detail": "Loop engine harness created on branch loop/engine-bootstrap: LOOP.md charter, feature_board.json gate battery (A–J), backlog.json, gate.mjs runner. Wired to existing test:all / trust / check:* / test:golden / soak-test spine." },
     { "seq": 2, "type": "GATE_RUN", "at": "2026-07-08T05:50:39Z", "detail": "First no-DB battery run: 12 checks green (A.1-3 tenant isolation, B.2-4 payments logic, C.1 sentry, E.2 migrations, F.2 rate-limit, H.3 deletion, J.2 invariants, J.3 fake-success). Verdict PENDING — many P0 oracles still pending/blocked (correctly not declaring launch-ready)." },
     { "seq": 3, "type": "UNBLOCK", "at": "2026-07-08T06:02:53Z", "detail": "Stripe TEST keys located in local .env (sk_test_ secret + whsec_ + pk_test_), .env gitignored+untracked, DB on dev schema — payments gate was never truly blocked. Added reproducible B.1 secret-scan runner + --only subset mode to gate.mjs. L-001 unblocked (state open)." },
-    { "seq": 4, "type": "VERIFIED", "at": "2026-07-08T06:02:53Z", "detail": "Money path PROVEN on dev schema: golden-path (book→check-in→pay→ledger→calendar) exit 0, commission $18 @ 40% non-zero and ledgered. Gate checks flipped from observed evidence: B.1 pass (secret scan), J.1 pass (golden path). 14 checks now green; verdict still PENDING (A.4/A.5/B.5/C.2/C.3/E.1/E.3/G.*/H.1/H.2/J.4/J.5 remain)." }
+    { "seq": 4, "type": "VERIFIED", "at": "2026-07-08T06:02:53Z", "detail": "Money path PROVEN on dev schema: golden-path (book→check-in→pay→ledger→calendar) exit 0, commission $18 @ 40% non-zero and ledgered. Gate checks flipped from observed evidence: B.1 pass (secret scan), J.1 pass (golden path). 14 checks now green; verdict still PENDING (A.4/A.5/B.5/C.2/C.3/E.1/E.3/G.*/H.1/H.2/J.4/J.5 remain)." },
+    { "seq": 5, "type": "AUDIT", "at": "2026-07-08T07:00:00Z", "detail": "Payments-hardening audit (20-agent workflow, 5 dimensions × adversarial verify): 15 raw findings, 11 confirmed (4 rejected as not-a-bug/unreachable). 2 P1, 6 P2, 3 P3." },
+    { "seq": 6, "type": "FIXED", "at": "2026-07-08T07:12:00Z", "detail": "Fixed 6 of 11 payments findings, full suite green (568/568, +4 tests). WITH TESTS: #1 P1 commission half-cent invariant false-trip (blocked legit sales); #2 P1 webhook succeeded resurrecting a refunded charge; #5 P2 webhook failed clobbering a completed/refunded payment. FIX-ONLY (tests queued L-018): #3 api/bookings tax-inclusive finalPrice; #7 custom-line tax toggle; #11 createRefund reverse_transfer. Queued: L-015 (price snapshot), L-016 (checkout idempotency keys — schema), L-017 (connect already-paid, latent)." }
   ]
 }

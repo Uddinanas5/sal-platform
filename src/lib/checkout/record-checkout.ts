@@ -281,7 +281,11 @@ export async function recordCheckout(
       throw new RecordCheckoutError("BAD_REQUEST", "Custom item quantity must be a positive integer")
     }
     const lineAmount = Math.round(c.unitPrice * c.quantity * 100) / 100
-    lines.push({ amount: lineAmount, taxRate: taxConfig.defaultRate })
+    // Honor the business's tax toggles: if it taxes neither services nor products,
+    // a "no tax" shop, a Quick Sale line must be untaxed too (previously it was
+    // always taxed at the default rate, over-charging a tax-off business).
+    const customTaxRate = taxConfig.taxOnServices || taxConfig.taxOnProducts ? taxConfig.defaultRate : 0
+    lines.push({ amount: lineAmount, taxRate: customTaxRate })
     subtotal += lineAmount
     const name = c.name.trim() || "Quick Sale"
     customNotes.push(`${name} x${c.quantity} @ ${c.unitPrice.toFixed(2)} = ${lineAmount.toFixed(2)}`)
@@ -664,8 +668,14 @@ export async function recordCheckout(
     // AC 14: single-expression compute, no intermediate variables. Same
     // `c.commissionRate` snapshotted into the row.
     const commissionAmount = Math.round((c.grossAmount * c.commissionRate) / 100 * 100) / 100
-    // AC 14 invariant: amount must reconcile with the snapshotted rate at insert time.
-    if (Math.abs(commissionAmount - (c.grossAmount * c.commissionRate) / 100) >= 0.005) {
+    // AC 14 invariant: amount must reconcile with the snapshotted rate at insert
+    // time. Rounding to cents has a max legitimate error of exactly a half-cent
+    // (0.005), so the tolerance must be STRICTLY greater than that (plus a tiny
+    // epsilon for float noise) — otherwise a commission that lands exactly on a
+    // half-cent boundary (e.g. gross 45.30 @ 25% = 11.325 → 11.33) would false-trip
+    // and roll back a legitimate sale. Only a genuine rate/gross mismatch (≥ ~1¢)
+    // trips now.
+    if (Math.abs(commissionAmount - (c.grossAmount * c.commissionRate) / 100) > 0.005 + 1e-9) {
       throw new RecordCheckoutError(
         "INVARIANT_FAILED",
         `Commission invariant tripped (staff=${c.staffId} gross=${c.grossAmount} rate=${c.commissionRate} amount=${commissionAmount})`,

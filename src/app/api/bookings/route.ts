@@ -391,12 +391,14 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
           durationMinutes: svc.durationMinutes,
           price: svc.price,
           discountAmount: 0,
-          taxAmount: svc.isTaxable && svc.taxRate 
-            ? Number(svc.price) * Number(svc.taxRate) / 100 
+          taxAmount: svc.isTaxable && svc.taxRate
+            ? Number(svc.price) * Number(svc.taxRate) / 100
             : 0,
-          finalPrice: svc.isTaxable && svc.taxRate
-            ? Number(svc.price) * (1 + Number(svc.taxRate) / 100)
-            : Number(svc.price),
+          // finalPrice is the TAX-EXCLUSIVE service price (tax is captured
+          // separately in taxAmount above). Every other creation path stores it
+          // this way; storing a tax-inclusive value here made commission be paid on
+          // sales tax at checkout (grossAmount = finalPrice).
+          finalPrice: Number(svc.price),
           startTime: svc.startTime,
           endTime: svc.endTime,
           status: 'scheduled',

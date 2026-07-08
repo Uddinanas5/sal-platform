@@ -32,6 +32,27 @@
   rollback drill), G.* (authz/auth/secrets/headers), H.1/H.2 (backups + restore),
   J.4/J.5 (browser E2E).
 
+## Payments hardening — first real loop output (Jul 8)
+A 20-agent adversarial audit swept the money subsystem: **15 findings raised, 11
+confirmed** (4 rejected by the verifiers as not-real / unreachable — the anti-false-
+positive discipline working). **6 fixed, full suite green (568/568):**
+- 🟢 **P1** — a commission rounding check was tripping on legitimate half-cent
+  commissions (e.g. a $45.30 cut at 25%) and **rolling back the whole sale** — the
+  cashier literally couldn't ring it up. Fixed + regression test.
+- 🟢 **P1** — a retried/out-of-order Stripe "succeeded" webhook could flip a
+  **refunded** charge back to "completed" (counting a refund as revenue). Fixed +
+  test.
+- 🟢 **P2** — a stale "failed" webhook could clobber an already-completed payment.
+  Fixed + test.
+- 🟢 **P2×3** (fix shipped, tests queued as L-018) — public-booking stored tax
+  inside the price (commission paid on tax); Quick-Sale lines ignored the shop's
+  tax-off toggles; refunds didn't reverse the connected-account transfer.
+
+**Queued (need a schema migration or are latent until payments go live):** L-015
+(charge the booked price, not the later catalog price), L-016 (idempotency keys so a
+retried walk-in/gift-card sale can't double-charge), L-017 (already-paid guard on the
+online Connect charge).
+
 ## Next
-- Work the top open backlog item (`L-002`: interleaved-concurrency booking oracle),
-  then `L-003`/`L-004` (tenant guards).
+- Work `L-002` (interleaved-concurrency booking oracle), then `L-003`/`L-004`
+  (tenant guards), then the L-016 checkout-idempotency epic.

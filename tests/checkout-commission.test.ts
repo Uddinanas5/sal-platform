@@ -137,6 +137,23 @@ describe("recordCheckout — writes a Commission row on a dashboard checkout", (
     expect(Number(row.commissionAmount)).toBe(20)
   })
 
+  it("records a commission whose exact value lands on a half-cent without tripping the reconcile invariant (regression)", async () => {
+    // gross 45.30 @ 25% = 11.325 → rounds to 11.33. The rounding error is exactly a
+    // half-cent (0.005), which previously tripped the `>= 0.005` invariant and rolled
+    // back the ENTIRE checkout — a barber literally could not ring up a $45.30 cut at
+    // 25%. The tolerance is now strictly-greater-than a half-cent, so this legit sale
+    // records instead of throwing.
+    const tx = fakeTx({ staffCommissionRate: 25, finalPrice: 45.3 })
+
+    await expect(recordCheckout(tx, BIZ, apptInput())).resolves.toBeDefined()
+
+    expect(tx.commission.create).toHaveBeenCalledTimes(1)
+    const row = tx.commission.create.mock.calls[0][0].data
+    expect(Number(row.grossAmount)).toBe(45.3)
+    expect(Number(row.commissionRate)).toBe(25)
+    expect(Number(row.commissionAmount)).toBe(11.33)
+  })
+
   it("records a 0 commission (never a fake default rate) when the staff rate is 0", async () => {
     const tx = fakeTx({ staffCommissionRate: 0, finalPrice: 80 })
 

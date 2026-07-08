@@ -212,6 +212,11 @@ export async function createRefund({
       payment_intent: paymentIntentId,
       amount,
       reason,
+      // Charges are Connect DESTINATION charges (transfer_data.destination), so a
+      // refund must also reverse the transfer already sent to the connected
+      // account — otherwise the platform refunds the customer from its own balance
+      // while the salon keeps the funds, and the platform eats the full refund.
+      reverse_transfer: true,
     })
 
     return {
