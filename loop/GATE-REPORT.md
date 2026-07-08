@@ -1,11 +1,11 @@
 # Gate Report — PENDING
 
-_generated 2026-07-08T06:02:53.246Z · run `node loop/gate.mjs`_
+_generated 2026-07-08T07:54:50.747Z · run `node loop/gate.mjs`_
 
 **Verdict: PENDING** — PUBLIC-GA requires every P0 check green.
 
 - pass: 14 · fail: 0 · pending: 19 · blocked: 0
-- checks run this pass: 2 (no-DB set — add `--with-db` for golden path / soak / e2e / restore)
+- checks run this pass: 13 (no-DB set — add `--with-db` for golden path / soak / e2e / restore)
 
 ## P0 status (a single red here = not launchable)
 - 🟢 A.1 — Cross-tenant reads: seed as Shop A, auth as Shop B, every read/list/report returns 0 rows of A (404/403)
@@ -38,5 +38,16 @@ _generated 2026-07-08T06:02:53.246Z · run `node loop/gate.mjs`_
 - ⚪️ J.5 — Owner appointment + checkout E2E green in a real browser
 
 ## This run
+- ✅ A.1 [P0] exit 0
+- ✅ A.2 [P0] exit 0
+- ✅ A.3 [P0] exit 0
 - ✅ B.1 [P0] .env gitignored+untracked; no live/real secret in tracked files
-- ✅ J.1 [P0] exit 0
+- ✅ B.2 [P0] exit 0
+- ✅ B.3 [P0] exit 0
+- ✅ B.4 [P0] exit 0
+- ✅ C.1 [P0] present: sentry.server.config.ts
+- ✅ E.2 [P0] exit 0
+- ✅ F.2 [P1] present: src/lib/rate-limit.ts
+- ✅ H.3 [P0] exit 0
+- ✅ J.2 [P0] exit 0
+- ✅ J.3 [P0] exit 0

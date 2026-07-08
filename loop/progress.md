@@ -53,6 +53,20 @@ positive discipline working). **6 fixed, full suite green (568/568):**
 retried walk-in/gift-card sale can't double-charge), L-017 (already-paid guard on the
 online Connect charge).
 
+## Heartbeat iteration (Jul 8) — Gate A.5 raw-SQL tenant guard
+- Skipped `L-001` (the live Stripe test-mode E2E) — it needs a running dev server
+  plus `stripe listen`, which a headless heartbeat can't stand up. It stays the top
+  P0 for a hands-on session.
+- Shipped `L-004`: a guard (`npm run check:rawsql`) that scans every hand-written
+  SQL escape hatch and **fails the build unless it's provably tenant-safe** — the
+  main way multi-tenant apps leak across shops. Today's codebase is clean (6 sites:
+  the advisory locks are keyed by shop id, the health check reads no data). Its real
+  job is to catch the *next* unsafe query before it ships. + a 7-test suite; full
+  suite green **575/575**.
+- The board still reads **PENDING**. A.5's board checkbox is left for you to flip
+  (`L-019`) because it means editing the owner-protected gate file — the loop won't
+  edit its own grader.
+
 ## Next
-- Work `L-002` (interleaved-concurrency booking oracle), then `L-003`/`L-004`
-  (tenant guards), then the L-016 checkout-idempotency epic.
+- `L-002` (interleaved-concurrency booking oracle), `L-003` (tenant-override
+  property test), then the `L-016` checkout-idempotency epic (needs a migration).

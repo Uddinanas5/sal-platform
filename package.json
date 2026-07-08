@@ -16,6 +16,7 @@
     "check:db": "node --env-file=.env scripts/db-health-check.mjs",
     "check:orphans": "node scripts/orphan-sweep.mjs",
     "check:restore": "node scripts/verify-restore.mjs",
+    "check:rawsql": "node scripts/check-raw-sql-tenancy.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:tz": "TZ=UTC vitest run && TZ=America/New_York vitest run",
