@@ -128,7 +128,16 @@ online Connect charge).
   (golden path) passes on the real dev database, and a new test proves a $50 catalog
   price still charges the booked $40.
 
+## Heartbeat iteration 7 (Jul 8) — paid down owed test debt
+- Two earlier one-line payment fixes had shipped WITHOUT their own tests (I'd
+  logged that debt honestly). Now they're locked with regression tests: refunds on
+  Connect charges must claw back the salon's transfer (#11), and a "no sales tax"
+  shop must not tax a Quick Sale line (#7). Both tests are written so that undoing
+  the fix flips the result — real guards, not rubber stamps.
+- The third (`/api/bookings` tax-exclusive price, #3) needs heavy route mocking for
+  a one-liner already aligned to every other path — split to `L-023` (low priority).
+
 ## Next
 - `L-022` (the CVE remediation — needs you), `L-020` (dashboard idempotency key),
-  `L-018` (owed tests for 3 one-liner fixes), or `L-002` once `fast-check` is
-  approved. `L-001` (live Stripe E2E) still wants a hands-on session.
+  `L-011`/`L-010` (DR restore + rollback drills — need infra), or `L-002` once
+  `fast-check` is approved. `L-001` (live Stripe E2E) still wants a hands-on session.

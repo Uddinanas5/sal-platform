@@ -1,6 +1,6 @@
 # Gate Report — PENDING
 
-_generated 2026-07-08T16:54:03.720Z · run `node loop/gate.mjs`_
+_generated 2026-07-08T19:51:28.129Z · run `node loop/gate.mjs`_
 
 **Verdict: PENDING** — PUBLIC-GA requires every P0 check green.
 
