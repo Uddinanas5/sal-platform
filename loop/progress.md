@@ -117,7 +117,18 @@ online Connect charge).
   upgrade (14 → 16)** — a breaking change I won't do autonomously. This is the one
   thing this iteration is escalating.
 
+## Heartbeat iteration 6 (Jul 8) — charge the booked price (payments #4)
+- Fixed a real overcharge: if a shop **raised a service's price after a client
+  booked**, checkout (via the API/AI path) was charging the *new, higher* price
+  instead of the price the client actually booked — and the books didn't reconcile
+  (revenue vs. commission were computed off different prices). Now checkout charges
+  the **booked price snapshot**, matching what the client agreed to and what
+  commission is paid on. Walk-in sales and products are unaffected.
+- Verified end-to-end: the new database lookup is tenant-scoped, the money proof
+  (golden path) passes on the real dev database, and a new test proves a $50 catalog
+  price still charges the booked $40.
+
 ## Next
 - `L-022` (the CVE remediation — needs you), `L-020` (dashboard idempotency key),
-  `L-015` (charge the booked price), or `L-002` once `fast-check` is approved.
-  `L-001` (live Stripe E2E) still wants a hands-on session.
+  `L-018` (owed tests for 3 one-liner fixes), or `L-002` once `fast-check` is
+  approved. `L-001` (live Stripe E2E) still wants a hands-on session.

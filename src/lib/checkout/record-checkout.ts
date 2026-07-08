@@ -271,11 +271,27 @@ export async function recordCheckout(
   if (services.length !== serviceIds.length) throw new RecordCheckoutError("NOT_FOUND", "One or more services not found")
   if (products.length !== productIds.length) throw new RecordCheckoutError("NOT_FOUND", "One or more products not found")
 
+  // When checking out against a BOOKED appointment, charge each service line at the
+  // price the client booked (AppointmentService.finalPrice snapshot), NOT the current
+  // catalog price. Otherwise a catalog price change between booking and checkout
+  // overcharges/undercharges the client and desyncs recorded revenue from the
+  // commission base (which already uses finalPrice). Walk-in / POS service lines and
+  // ALL products keep the live DB price (there is no booking snapshot for them).
+  // Scoped by the appointment's businessId for tenant isolation.
+  const bookedServicePrice = new Map<string, number>()
+  if (data.appointmentId) {
+    const booked = await tx.appointmentService.findMany({
+      where: { appointmentId: data.appointmentId, appointment: { businessId } },
+      select: { serviceId: true, finalPrice: true },
+    })
+    for (const b of booked) bookedServicePrice.set(b.serviceId, Number(b.finalPrice))
+  }
+
   // Per-item price + tax rate, taken from the DB (never the caller).
   const priceMap = new Map<string, { price: number; taxRate: number }>()
   for (const s of services)
     priceMap.set(`service:${s.id}`, {
-      price: Number(s.price),
+      price: bookedServicePrice.get(s.id) ?? Number(s.price),
       taxRate: taxRateFor(s.isTaxable && taxConfig.taxOnServices, s.taxRate, taxConfig.defaultRate),
     })
   for (const p of products)
