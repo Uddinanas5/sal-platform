@@ -137,7 +137,25 @@ online Connect charge).
 - The third (`/api/bookings` tax-exclusive price, #3) needs heavy route mocking for
   a one-liner already aligned to every other path — split to `L-023` (low priority).
 
+## Heartbeat iteration 8 (Jul 8) — dashboard checkout is now retry-safe
+- Completed the checkout double-charge protection end-to-end: the dashboard pay
+  dialog now carries a per-sale key so a double-click or a network hiccup that
+  retries can't charge twice — the server recognizes the repeat and returns the
+  original sale. (The no-double-charge rule itself is already covered by tests;
+  this connects the dashboard to it.)
+
+## Convergence: the loop has done the code-only hardening it can
+Eight iterations in, the backlog items that remain all need **something the loop
+can't self-serve**:
+- **You:** merge PR #45; the CVE remediation (`L-022`, incl. the Next.js 16 upgrade
+  call).
+- **Infrastructure:** a staging env (rollback drill), a real backup-restore, and a
+  live Stripe `stripe listen` session (payments E2E).
+- **A dependency approval:** `fast-check` for the fuzz-concurrency oracle.
+- Or the loop **generates new findings** — a fresh adversarial audit of a subsystem
+  not yet deeply reviewed (booking/availability, auth) — which is the natural next
+  move when the curated backlog thins (LOOP.md §5).
+
 ## Next
-- `L-022` (the CVE remediation — needs you), `L-020` (dashboard idempotency key),
-  `L-011`/`L-010` (DR restore + rollback drills — need infra), or `L-002` once
-  `fast-check` is approved. `L-001` (live Stripe E2E) still wants a hands-on session.
+- Founder enablers above, OR a fresh booking/availability + auth audit round to
+  refill the backlog with new verified findings.
