@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "note": "Priority queue. priority = gate severity (P0>P1>P2) × blast radius × evidence strength. The loop pulls the top OPEN, non-blocked item each iteration. New work is appended from: red gates, adversarial disproofs, shrunk property counterexamples, surviving mutants, coverage-ratchet misses, and (when dry) fresh audit rounds. See LOOP.md §5.",
+  "updatedAt": null,
+  "items": [
+    { "id": "L-001", "title": "Wire Stripe TEST-mode E2E: book → pay → webhook → DB row + idempotent replay (Gate B.5)", "gate": "B", "priority": "P0", "state": "blocked", "blockedBy": "founder: Stripe TEST secret + webhook-signing keys for a preview/dev env", "notes": "Hard blocker for the whole payments gate. Escalated to founder. Never live keys." },
+    { "id": "L-002", "title": "Concurrency oracle: fc.scheduledModelRun harness asserting no-overlap + exactly-one-racer-wins on booking (Gate A/J)", "gate": "J", "priority": "P0", "state": "open", "notes": "Strengthen beyond the existing advisory-lock sim to interleaved async commands; fix must be DB constraint / serializable txn, not app check-then-write." },
+    { "id": "L-003", "title": "Tenant-override property test: fuzz X-Tenant-ID / body / query; assert server-session tenant wins (Gate A.4)", "gate": "A", "priority": "P0", "state": "open", "notes": "Universal property, not example-based." },
+    { "id": "L-004", "title": "Raw-SQL tenant-predicate grep guard for every $queryRaw/$executeRaw (Gate A.5)", "gate": "A", "priority": "P0", "state": "open", "notes": "Static guard added to check:* scripts." },
+    { "id": "L-005", "title": "Structured-log audit: requestId + shopId on every server log line (Gate C.2)", "gate": "C", "priority": "P0", "state": "open", "notes": "Per-tenant sliceability is launch-critical for multi-tenant." },
+    { "id": "L-006", "title": "Set up StrykerJS mutation testing on booking/checkout/auth; gate: new test must lift mutation score, not just coverage", "gate": "meta", "priority": "P1", "state": "open", "notes": "Meta-oracle proving invariants are non-vacuous. Surviving-mutant reports are INTERNAL signal, never handed to the code-writing step." },
+    { "id": "L-007", "title": "Metamorphic tests for availability/search API: adding a filter ⇒ Subset; Cardinality never increases (Gate J)", "gate": "J", "priority": "P1", "state": "open", "notes": "No golden output needed; scales to unlabeled inputs." },
+    { "id": "L-008", "title": "Adversarial-verifier harness: fresh-context critic re-derives each fix from raw artifacts and tries to disprove it", "gate": "meta", "priority": "P1", "state": "open", "notes": "Every self-reported PASS stays pending until the critic concurs (defeats self-preference bias)." },
+    { "id": "L-009", "title": "Secret scan + security headers (TLS/HSTS/CSP) audit as gates (Gate G.3/G.4)", "gate": "G", "priority": "P0", "state": "open", "notes": "No secrets in source; ASVS L1 min / L2 for money+PII." },
+    { "id": "L-010", "title": "Staging rollback drill: deploy N → N+1 → revert to N; measure (Gate E.3)", "gate": "E", "priority": "P0", "state": "open", "blockedBy": "founder: a staging env mirroring prod", "notes": "Rollback tested, not imagined." },
+    { "id": "L-011", "title": "Restore drill wired into CI: actual restore into scratch env, verify row counts + app boots (Gate H.2)", "gate": "H", "priority": "P0", "state": "open", "notes": "A backup that can't be restored isn't a backup. scripts/verify-restore.mjs exists — prove it end-to-end." },
+    { "id": "L-012", "title": "Coverage ratchet: ~80% patch coverage on changed lines; fail only if project coverage decreases", "gate": "meta", "priority": "P1", "state": "open", "notes": "Cheapest 'quality only goes up' mechanism." },
+    { "id": "L-013", "title": "Per-business staff roles (deferred P1 from TASKS2) — schema migration", "gate": "G", "priority": "P1", "state": "open", "notes": "Carried from round-2 trim mission." },
+    { "id": "L-014", "title": "ROADMAP: self-serve API-key + MCP connection UI ('connect your AI agent') — build after P0 battery green", "gate": "feature", "priority": "P2", "state": "open", "notes": "Founder's public product feature. Explicitly LATER — hardening first." }
+  ]
+}
