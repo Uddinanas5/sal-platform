@@ -73,6 +73,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
     }
 
+    // Already-paid guard — mirrors the three in-person checkout paths
+    // (actions/checkout, v1/checkout, mcp/checkout). The hourly idempotency key
+    // only dedupes retries WITHIN the same hour; without this, a second call in a
+    // later hour mints a fresh PaymentIntent and charges the client's card again.
+    // A COMPLETED payment means the appointment is settled — never re-charge it.
+    const alreadyPaid = await prisma.payment.findFirst({
+      where: { appointmentId, businessId: user.businessId, type: 'payment', status: 'completed' },
+      select: { id: true },
+    })
+    if (alreadyPaid) {
+      return NextResponse.json(
+        { error: 'This appointment has already been paid.' },
+        { status: 400 }
+      )
+    }
+
     amount = Number(appointment.totalAmount)
     clientId = appointment.clientId
 

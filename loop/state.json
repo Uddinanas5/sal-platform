@@ -3,7 +3,7 @@
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
   "lastGoodSha": "9bdb64f",
   "lastRunAt": "2026-07-09T09:00:00Z",
-  "runCounter": 24,
+  "runCounter": 25,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -174,6 +174,12 @@
       "type": "VERIFIED",
       "at": "2026-07-09T02:50:00Z",
       "detail": "Iteration (auth-audit fuel): completed L-040 (account deletion revoked no credentials). requestAccountDeletion() now revokes ApiKey + OAuthAccessToken (revokedAt=now) inside the atomic deletion tx — a leaked/previously-issued API key or OAuth token no longer survives 'delete my account'. Chose L-040 over the P2 auth findings this tick because L-040 is a server ACTION (cleanly unit-testable via the established getBusinessContext+prisma mock harness) and additive/low-risk, whereas L-034 needs a schema migration on the session path, L-035 is the authorize() closure + middleware IP-throttle, and L-036 is a server component (all want a dedicated, careful pass — NOT an unattended tick). Scope kept safe: businessId-scoped revocation only; global User.role/status left untouched to avoid the cross-tenant blast radius (same class the L-041/role-guard fix addressed). VERIFIED: account-deletion suite 11/11; full gate green — tsc --noEmit clean, 15/15 invariants, 623/623 unit tests (was 621, +2). VERDICT still PENDING (unchanged — remaining reds are P0 infra/owner gates: observability wiring, staging rollback, restore drill, live-Stripe E2E, A.4/A.5 board wiring). Remaining cleanly-code-doable auth fuel: L-034/L-035/L-036 (P2, need dedicated passes), L-037/L-038/L-039 (P3)."
+    },
+    {
+      "seq": 16,
+      "type": "VERIFIED",
+      "at": "2026-07-09T03:15:00Z",
+      "detail": "Iteration: completed L-017 (online Connect charge had no already-paid guard -> cross-hour double-charge). POST /api/stripe/create-payment-intent now runs the same guard the three in-person checkout paths use (payment.findFirst type=payment status=completed) BEFORE creating the PaymentIntent — a settled appointment returns 400 with no new PI and no new payment row. Skipped the two higher-priority-looking neighbours by charter: L-028 explicitly NEEDS A PRODUCT DECISION (un-cancel legality contradiction — flagged, not guessed); the P0s are all infra/owner (Stripe E2E, drills, structured logs). ADVERSARIAL CHECK: verified createPaymentIntent is the ONLY online-charge caller (chargeCard is dead/uncalled), so no sibling path was left unguarded. Logged the honest residual as L-041 (P3): the guard is COMPLETED-only, so two PENDING PIs can still coexist across hours — a narrower race whose safe fix (pending reuse + stale expiry) belongs with go-live (L-001). VERIFIED: guard suite 3/3 + existing idempotency 3/3; full gate green — tsc clean, 15/15 invariants, 626/626 unit tests (was 623, +3). Verdict PENDING (unchanged — remaining reds are P0 infra/owner)."
     }
   ]
 }

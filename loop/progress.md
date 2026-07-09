@@ -252,6 +252,24 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 17 (Jul 9) — closed a "charge the client twice" gap before it can bite
+- Fixed `L-017`: the **online card-payment** path (the one that runs when you turn on
+  SAL Payments and take a card online) didn't check whether the appointment had
+  **already been paid**. It had a safety net that only covered repeat clicks within
+  the *same hour* — so an hour later, the same appointment could be sent to the card
+  a **second time**. The three in-person checkout paths already had this check; the
+  online one was the odd one out. Now it does the same check first: if the
+  appointment is already paid, it refuses and charges nothing.
+- **Timing matters:** this path is switched *off* in the beta (online payments aren't
+  live yet), so no client was ever affected — but it's exactly the kind of thing you
+  fix *before* flipping the switch, not after. I also double-checked there's no other
+  online-charge path hiding elsewhere (there isn't — one entry point, now guarded).
+- **Honest footnote:** I logged one narrower leftover (`L-041`, low priority): the
+  new check catches an *already-completed* payment, but not two half-finished ones
+  started in different hours. The clean fix for that belongs with the go-live payment
+  work, and I noted exactly why rather than bolting on something that could lock a
+  real client out of paying. Scoreboard green: 626 tests, 15/15 rules, types clean.
+
 ## Heartbeat iteration 16 (Jul 9) — "delete my account" now actually cuts off access
 - Fixed `L-040`: when an owner requested account deletion, the app cancelled their
   subscription and logged the request — but any **API key or app-connection token

@@ -139,9 +139,10 @@
       "title": "Online Connect charge has no already-paid guard → appointment can be charged twice across the hourly idempotency window",
       "gate": "B",
       "priority": "P2",
-      "state": "open",
+      "state": "done",
       "source": "payments-audit #8 (create-payment-intent/route.ts:63)",
-      "notes": "LATENT today (Connect onboarding not active in beta + StripePayment UI unmounted). Becomes P1 the instant online payments go live — fix before enabling. Add the already-paid query the other two money paths already use."
+      "notes": "LATENT today (Connect onboarding not active in beta + StripePayment UI unmounted). Becomes P1 the instant online payments go live — fix before enabling. Add the already-paid query the other two money paths already use.",
+      "resolution": "FIXED on loop/engine-bootstrap: POST /api/stripe/create-payment-intent now runs the same already-paid guard as the three in-person checkout paths — a COMPLETED payment for the appointment returns 400 and mints NO new PaymentIntent + NO new payment row. Closes the cross-hour double-charge (the hourly idempotency key only dedupes within one hour). Verified createPaymentIntent is the ONLY online-charge entrypoint (chargeCard has zero callers), so no other path was missed. Test: tests/stripe-create-payment-intent-already-paid.test.ts (3 cases: rejects+charges-nothing on completed payment; guard scoped to appt+business+completed; still charges when none)."
     },
     {
       "id": "L-018",
@@ -353,6 +354,15 @@
       "source": "auth-audit (account.ts:110)",
       "notes": "requestAccountDeletion only sets subscriptionStatus=cancelled + audit log; billing gate no-ops for never-subscribed salons, so API keys, OAuth tokens, and the JWT session all keep full owner access and PII persists. Fix: in the deletion tx revoke apiKey/oAuthAccessToken (revokedAt), set user.status non-active/deletedAt, queue PII anonymization.",
       "resolution": "FIXED on loop/engine-bootstrap: requestAccountDeletion() now revokes the tenant's ApiKey + OAuthAccessToken (revokedAt=now) INSIDE the deletion tx, so a leaked/previously-issued API key or OAuth access token stops authenticating immediately. businessId-scoped (no cross-tenant blast radius); global User.role/status deliberately left alone (a shared member must not be logged out everywhere). Session-JWT watermark + PII anonymization tracked separately (L-034 covers session invalidation). Test: tests/account-deletion.test.ts +2 cases (revokes both tables in-tx with businessId+revokedAt:null scope; revokes nothing when authz fails)."
+    },
+    {
+      "id": "L-041",
+      "title": "Residual: create-payment-intent guard checks COMPLETED only — two PENDING PaymentIntents can still coexist across hours",
+      "gate": "B",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-017 residual (create-payment-intent/route.ts)",
+      "notes": "The L-017 guard blocks re-charging an appointment whose payment already COMPLETED. It does NOT block a second PaymentIntent while an earlier one is still PENDING (different hour bucket -> new idempotency key). Narrow race (client would have to complete two different clientSecrets), and a strict pending-guard risks permanently blocking legit re-payment when an abandoned PI leaves a stale 'pending' row that no webhook ever resolves. Proper fix needs pending-intent reuse (return the existing PI's clientSecret) + stale-pending expiry, or moving to a single canonical PaymentIntent per appointment. LATENT while Connect online payments are off; fix before go-live alongside L-001."
     }
   ]
 }
