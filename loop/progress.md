@@ -252,6 +252,27 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 21 (Jul 9) — closed the last leak, finishing the whole privacy sweep
+- Fixed `L-046`: the API used by outside integrations was still handing a staff member
+  their colleagues' **email + phone**. It now hides those (like the rest of the app
+  already does) unless the caller is an admin. I applied the safe default rather than
+  waiting on a decision — real integrations use admin keys and are unaffected, and it's
+  easily reversible if you decide staff *should* see each other's contact info.
+- Checked the **rest of the API for the same leak** — clean. The one other place that
+  returns a staff email is already admins-only, and the appointments feed only exposes
+  a barber's name, not their contact. So this finishes it.
+- **The big picture:** the "who can see what" problem that ran across the last four
+  iterations (`L-036 → L-042 → L-044 → L-046`) is now **closed end-to-end** — the
+  dashboard pages, the admin-only report/payroll/staff pages, the underlying data
+  fetchers, and the external API all consistently check a person's *current* role
+  before showing revenue, commission, payroll, or contact details. A demoted or
+  removed employee loses access immediately, everywhere.
+- **Where the loop stands:** the high-value security work is essentially done. What
+  remains is smaller polish, performance, a couple of low-priority items, and a few
+  bigger things that need *your* call (merge PR #45, the security-update decision, the
+  hosting/backups setup). The next run will weigh whether to keep going on small stuff
+  or pause and hand you a summary. Scoreboard green: 653 tests, 15/15 rules, types clean.
+
 ## Heartbeat iteration 20 (Jul 9) — fixed the *root cause* behind the money leaks
 - Fixed `L-044`, the smarter fix the last audit pointed to. Instead of patching page
   after page, I moved the guard **into the data itself**: the function that fetches

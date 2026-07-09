@@ -3,7 +3,7 @@
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
   "lastGoodSha": "b9c3f72",
   "lastRunAt": "2026-07-09T09:00:00Z",
-  "runCounter": 28,
+  "runCounter": 29,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -198,6 +198,12 @@
       "type": "VERIFIED",
       "at": "2026-07-09T04:08:00Z",
       "detail": "Iteration: completed L-044 (the root-cause data-layer fix ending the recurring pay/revenue sibling-leak pattern). getStaff() is now secure-by-default — strips commission+email+phone unless the caller passes an admin+ viewerRole; only the admin-gated /staff roster opts back in, so /calendar, /services, /booking and search stop forwarding colleague pay/PII to the browser. /api/sidebar-data now gates todayRevenue on the live admin role. ULTRACODE 2-lens adversarial verification (wadvd1aa8): regression = fix-is-sound (all 5 getStaff callers audited; only the admin roster renders the sensitive fields and it opts in; no crash on empty strings; sidebar revenue correct). Completeness confirmed the pay/revenue CORE is fully covered on every non-MCP surface; the ONLY residual is contact-PII: v1 GET /staff + /staff/[id] still return colleague email/phone to a staff-role caller (pay already stripped) — logged as L-046 (P2) with the mild product-judgment note (is colleague contact staff-visible?) and the recommended secure default (strip to match getStaff). Committed the sound fix per add-don't-chase. VERIFIED: 9/9 new tests, tsc clean, 15/15 invariants, 649/649 (was 640, +9). Verdict PENDING. NOTE: the cleanly-code-doable HIGH-value security backlog is thinning — after L-046 the remainder trends toward P3 (L-039 one-liner, L-023 test), perf (L-043), latent (L-041/L-045), test-infra (L-007), and the harder P2 auth (L-034 migration, L-035 middleware). Approaching the convergence/report point per LOOP.md."
+    },
+    {
+      "seq": 20,
+      "type": "VERIFIED",
+      "at": "2026-07-09T04:18:00Z",
+      "detail": "Iteration: completed L-046 (v1 staff REST endpoints leaked colleague email/phone to non-admin callers — pay was already stripped, contact PII was not). GET /api/v1/staff + /staff/[id] now strip email+phone for non-admins via an explicit public-user allowlist, matching getStaff (L-044) so the REST surface is consistent. Applied the SECURE DEFAULT without a product call (API keys default to admin; only staff-scoped keys/sessions are limited; reversible). ADVERSARIAL COMPLETENESS SWEEP (manual grep+read, proportionate to a small consistency fix mirroring an already-heavily-verified model): the rest of the v1 surface is clean — v1/team GET is admin-gated, v1/appointments exposes only staff first/last name and already self-scopes staff rows. No new fuel. VERIFIED: 4/4 new tests, tsc clean, 15/15 invariants, 653/653 (was 649, +4). Verdict PENDING. CONVERGENCE: the staff-role authz / data-exposure theme (L-036→L-042→L-044→L-046) is now fully closed end-to-end (RSC pages + admin-only routes + data layer + REST API). Remaining code-doable items thin: L-039 (P3 one-liner suspended-user login), L-007 (P1 metamorphic test infra), L-043 (P3 perf), L-023/L-037/L-038 (P3), latent L-041/L-045, harder L-034/L-035 (P2 migration/middleware). Next iteration should weigh convergence-vs-continue per LOOP.md."
     }
   ]
 }

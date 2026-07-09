@@ -28,13 +28,18 @@ export async function GET(req: Request) {
     orderBy: { user: { firstName: "asc" } },
   })
 
-  // Pay fields (commission rate, hourly rate, employment terms) are admin-only —
-  // strip them for staff-role callers so colleagues can't read each other's pay.
+  // Pay fields (commission rate, hourly rate, employment terms) AND contact PII
+  // (email, phone) are admin-only — strip them for staff-role callers so colleagues
+  // can't read each other's pay or contact info. Mirrors getStaff's data-layer model
+  // so the REST surface stays consistent (L-046). Explicit public allowlist for user.
   const sanitized = isAdmin
     ? staff
-    : staff.map(({ commissionRate, hourlyRate, employmentType, employeeId, hireDate, ...rest }) => {
+    : staff.map(({ commissionRate, hourlyRate, employmentType, employeeId, hireDate, user, ...rest }) => {
         void commissionRate; void hourlyRate; void employmentType; void employeeId; void hireDate
-        return rest
+        return {
+          ...rest,
+          user: { id: user.id, firstName: user.firstName, lastName: user.lastName, avatarUrl: user.avatarUrl, role: user.role },
+        }
       })
 
   return apiSuccess(sanitized)

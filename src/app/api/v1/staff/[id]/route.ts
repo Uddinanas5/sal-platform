@@ -20,11 +20,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   })
   if (!staff) return ERRORS.NOT_FOUND("Staff member")
 
-  // Pay fields are admin-only.
+  // Pay fields AND contact PII (email/phone) are admin-only — mirrors getStaff's
+  // data-layer model so the REST surface can't leak a colleague's pay or contact
+  // info to a staff-role caller (L-046). Explicit public allowlist for user.
   if (!hasRole(ctx.role, "admin")) {
-    const { commissionRate, hourlyRate, employmentType, employeeId, hireDate, ...rest } = staff
+    const { commissionRate, hourlyRate, employmentType, employeeId, hireDate, user, ...rest } = staff
     void commissionRate; void hourlyRate; void employmentType; void employeeId; void hireDate
-    return apiSuccess(rest)
+    return apiSuccess({
+      ...rest,
+      user: { id: user.id, firstName: user.firstName, lastName: user.lastName, avatarUrl: user.avatarUrl, role: user.role },
+    })
   }
   return apiSuccess(staff)
 }
