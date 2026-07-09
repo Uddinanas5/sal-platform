@@ -370,9 +370,10 @@
       "title": "Admin-only READ routes (/reports, /reports/payday, /staff list) enforce role-LEVEL only via stale-JWT middleware — demoted admin reads revenue/payroll/commission/PII for up to 7 days",
       "gate": "G",
       "priority": "P1",
-      "state": "open",
+      "state": "done",
       "source": "L-036 adversarial verify (data-exposure lens, ws1x0th4t)",
-      "notes": "Distinct from L-036: these pages have NO page-level role gate — they gate role-LEVEL only through middleware STAFF_BLOCKED_ROUTES, which reads req.auth.user.role = the 7-day JWT (auth.config.ts maxAge 7d; token.role set at login, never refreshed). layout's resolveBusinessRole only redirects on NULL membership (removed/suspended), never enforces the admin LEVEL these routes require. So a demoted admin's JWT still says 'admin' -> middleware passes -> layout resolveBusinessRole returns non-null 'staff' -> no redirect -> data renders. Surfaces: reports/page.tsx:33-66 (shop revenue + per-barber commission, P1); reports/payday/page.tsx:34-52 (payroll statements, P1); staff/page.tsx:8-16 -> getStaff selects commissionRate+email+phone (P2). Queries (getStaffPerformance/getRevenueByDay/getPayrollStatement/getStaff) enforce businessId only, no role. FIX (defense-in-depth, its own iteration): either (a) layout maps route->minRole and enforces it via the live resolveBusinessRole, or (b) convert each admin-only page to resolveBusinessRole AND push role checks down into the sensitive queries. Architectural completion of L-036."
+      "notes": "Distinct from L-036: these pages have NO page-level role gate — they gate role-LEVEL only through middleware STAFF_BLOCKED_ROUTES, which reads req.auth.user.role = the 7-day JWT (auth.config.ts maxAge 7d; token.role set at login, never refreshed). layout's resolveBusinessRole only redirects on NULL membership (removed/suspended), never enforces the admin LEVEL these routes require. So a demoted admin's JWT still says 'admin' -> middleware passes -> layout resolveBusinessRole returns non-null 'staff' -> no redirect -> data renders. Surfaces: reports/page.tsx:33-66 (shop revenue + per-barber commission, P1); reports/payday/page.tsx:34-52 (payroll statements, P1); staff/page.tsx:8-16 -> getStaff selects commissionRate+email+phone (P2). Queries (getStaffPerformance/getRevenueByDay/getPayrollStatement/getStaff) enforce businessId only, no role. FIX (defense-in-depth, its own iteration): either (a) layout maps route->minRole and enforces it via the live resolveBusinessRole, or (b) convert each admin-only page to resolveBusinessRole AND push role checks down into the sensitive queries. Architectural completion of L-036.",
+      "resolution": "FIXED on loop/engine-bootstrap. Added a LIVE-role admin gate at the top of the 3 exposed admin-only pages — reports/page.tsx, reports/payday/page.tsx, staff/page.tsx: `const liveRole = await resolveBusinessRole(userId, businessId); if (!hasRole(liveRole, 'admin')) redirect('/dashboard')` — placed BEFORE any sensitive fetch. Even when the stale-JWT middleware lets a demoted admin through, the page re-checks the current DB role and bounces them. Locked by tests/reports-staff-admin-gate.test.ts (behavioural: hasRole admin-predicate staff/null denied, admin/owner allowed; + source-guard: each page wires the live-role redirect). 2-lens adversarial workflow (wdk0eh3e4): correctness = fix-is-sound (legit admin/owner pass; gate precedes every fetch; no redirect loop; null fail-closed; redirect not swallowed). Completeness DISPROVED total coverage → 2 more sibling leaks of the SAME data class logged as L-044 (P2) + L-045 (P3). Gate: tsc clean, 15/15 invariants, 640/640."
     },
     {
       "id": "L-043",
@@ -382,6 +383,24 @@
       "state": "open",
       "source": "L-036 adversarial verify (correctness lens)",
       "notes": "layout.tsx calls resolveBusinessRole (3 parallel queries) on every dashboard route, and dashboard/calendar/staff[id]/clients[id]/settings each call it again on the same request. Correctness is fine (verifier: fix-is-sound) — only added latency. Wrap resolveBusinessRole in React cache() so it resolves once per request. Low risk, low priority."
+    },
+    {
+      "id": "L-044",
+      "title": "Sensitive queries return pay/revenue fields to non-admins by default → commissionRate leaks via /calendar + /services, todayRevenue leaks via /api/sidebar-data",
+      "gate": "G",
+      "priority": "P2",
+      "state": "open",
+      "source": "L-042 adversarial verify (completeness lens, wdk0eh3e4)",
+      "notes": "ROOT CAUSE (the recurring sibling-leak pattern): src/lib/queries/reports.ts + payroll.ts + staff.ts enforce businessId ONLY, never role — so every caller must remember to gate, and two forgot. (1) getStaff() (staff.ts:70) returns `commission: Number(s.commissionRate)` for every staffer with no role param; /calendar (calendar/page.tsx:36→CalendarClient) and /services (services/page.tsx:19→ServicesClient) forward the full array to the client, and BOTH are staff-accessible (minRole staff, not in STAFF_BLOCKED_ROUTES) → a staff/demoted-admin reads every barber's commission from the RSC flight payload. (2) /api/sidebar-data (route.ts:60) returns dashboardStats.todayRevenue with NO role check; sidebar.tsx:342 renders it for all roles → staff GETs shop revenue. FIX (defense-in-depth root fix that closes both + any future caller): make getStaff / getStaffPerformance / getRevenueBy* / getPayrollStatement accept the caller role and STRIP pay/revenue fields (or refuse) for non-admins; and add a role check to /api/sidebar-data before returning todayRevenue. This SUPERSEDES per-caller whack-a-mole. Verified queries currently role-blind (info finding)."
+    },
+    {
+      "id": "L-045",
+      "title": "MCP list-staff / get-staff-member return commissionRate + full user row (incl passwordHash) with no admin gate — LATENT (MCP disabled)",
+      "gate": "G",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-042 adversarial verify (completeness lens, wdk0eh3e4)",
+      "notes": "src/lib/mcp/tools/staff.ts:16 list-staff does prisma.staff.findMany with no `select` (returns commissionRate/hourlyRate/employmentType/employeeId/hireDate), and get-staff-member uses `include:{user:true}` returning the full User row INCLUDING passwordHash — neither calls isAdmin(). Via OAuth withV1Auth resolves the granting user's real role, so a staff-role MCP caller would receive all colleagues' pay + PII + passwordHash. NOT currently reachable: src/app/api/mcp/route.ts hard-404s unless MCP_ENABLED==='true' (tool layer intentionally off until hardened). Close before MCP ships: add `select` (drop passwordHash + pay for non-admins) + isAdmin() gate. Mirror the REST /api/v1/staff field-stripping."
     }
   ]
 }

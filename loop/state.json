@@ -3,7 +3,7 @@
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
   "lastGoodSha": "e16c9d0",
   "lastRunAt": "2026-07-09T09:00:00Z",
-  "runCounter": 26,
+  "runCounter": 27,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -186,6 +186,12 @@
       "type": "VERIFIED",
       "at": "2026-07-09T03:42:00Z",
       "detail": "Iteration: completed L-036 (dashboard read pages trusted the stale 7-day JWT role -> a demoted admin kept full calendar / shop-revenue / per-barber-performance / colleague-PII visibility for up to 7 days). SENSE found the P0/P1 leaders all infra/owner/dep-blocked; picked the top code-doable P2. Scoping the sweep revealed 6 page-level stale-role gates (not the 2 named): layout, calendar, dashboard, staff/[id], clients/[id], settings/page.tsx — all now resolve the LIVE role via resolveBusinessRole(), failing closed to least-privilege on null. Locked with a source-guard fitness test (RSCs aren't behaviourally unit-testable; live-role behaviour already covered by membership-revocation.test.ts). ULTRACODE adversarial verification (3-lens workflow ws1x0th4t): correctness lens = fix-is-sound (no legit-user regression, fail-closed null); completeness + data-exposure lenses DISPROVED completeness — found the same bug class in ADMIN-ONLY routes gated role-LEVEL only by the stale-JWT middleware (STAFF_BLOCKED_ROUTES reads the 7-day token, never refreshed; layout only blocks null membership, not role level). Logged that as L-042 (P1: /reports revenue+commission, /reports/payday payroll, /staff list commission+PII) + L-043 (P3 perf: memoize resolveBusinessRole via React cache()). Committed the sound page-level fix per add-don't-chase; L-042 is its own architectural iteration. VERIFIED: source-guard 6/6, tsc clean, 15/15 invariants, 632/632 (was 631, +1 net after fixing a false-positive in the guard regex). Verdict PENDING."
+    },
+    {
+      "seq": 18,
+      "type": "VERIFIED",
+      "at": "2026-07-09T03:55:00Z",
+      "detail": "Iteration: completed L-042 (admin-only READ routes leaked revenue/payroll/commission/PII to a demoted admin because role-LEVEL was enforced only by the stale-JWT middleware). Added a live-role admin gate (resolveBusinessRole + hasRole(_, 'admin') → redirect) at the top of reports/page.tsx, reports/payday/page.tsx, staff/page.tsx, before any sensitive fetch. Locked with tests/reports-staff-admin-gate.test.ts (behavioural hasRole predicate + source-guard wiring). ULTRACODE 2-lens adversarial verification (wdk0eh3e4): correctness=fix-is-sound (no legit-user regression, gate-before-fetch confirmed per page, no redirect loop, null fail-closed). Completeness DISPROVED total coverage AGAIN — the SAME data class leaks through 2 more side doors: getStaff() commissionRate via staff-accessible /calendar + /services (P2), and /api/sidebar-data todayRevenue with no role check (P2); plus latent MCP staff-tool leak incl passwordHash (P3, MCP disabled). Root cause: the reports/payroll/staff QUERIES enforce businessId only, never role, so protection depends on each caller. Logged L-044 (P2, root-cause query-level fix that closes both leaks + future callers) and L-045 (P3, MCP). Committed the sound page-level fix per add-don't-chase; the query-level root fix (L-044) is the higher-leverage next move that ends the whack-a-mole. VERIFIED: 8/8 new tests, tsc clean, 15/15 invariants, 640/640 (was 632, +8). Verdict PENDING."
     }
   ]
 }

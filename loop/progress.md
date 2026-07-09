@@ -252,6 +252,29 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 19 (Jul 9) — locked the Reports, Payroll & Staff pages to current admins
+- Fixed `L-042` (the follow-up the last audit found): the **Reports** (shop revenue +
+  every barber's commission), **Payroll**, and **Staff list** (commission rates +
+  contact info) pages were only protected by the *old* badge system with the 7-day
+  stale flaw — so a just-demoted admin could still open them for a week. Each page now
+  **re-checks the person's current role in the database and bounces anyone who isn't
+  an admin right now**, before it loads any of that data.
+- **The audit earned its keep again.** I ran another independent 2-way review. One
+  reviewer confirmed the fix is solid (real admins still get in, no redirect loops,
+  removed staff are locked out). The other found the **same kind of data leaking
+  through two *other* doors**: the **calendar** and **services** pages were quietly
+  handing every barber's commission rate to the browser, and a behind-the-scenes
+  data feed (`sidebar-data`) was sending **today's revenue to everyone**, staff
+  included.
+- **The real lesson:** these leaks keep happening because the underlying data-fetchers
+  hand back money figures to *anyone* who asks — the safety check lives in each page,
+  not in the data itself. I logged the root-cause fix as **`L-044`** (put the money
+  guard *inside the data layer* so a forgotten page can't leak by default) — that one
+  change closes both new leaks and prevents future ones. Also logged a low-priority
+  note (`L-045`) for the AI-connector tools, which are currently switched off anyway.
+- Net: the 3 named pages are locked and proven; the smarter root fix is queued next.
+  Scoreboard green: 640 tests, 15/15 rules, types clean.
+
 ## Heartbeat iteration 18 (Jul 9) — a demoted admin no longer keeps access for a week
 - Fixed `L-036`: when you **demote a manager from admin to staff**, their login used
   to still *think* they were an admin for up to **7 days** (their access badge is
