@@ -3,6 +3,17 @@
 export const ROLE_HIERARCHY = ["staff", "admin", "owner"] as const
 export type AppRole = (typeof ROLE_HIERARCHY)[number]
 
+/**
+ * A user account may authenticate / hold a live session only while its status is
+ * "active". Suspended or deactivated accounts (UserStatus enum: active | inactive
+ * | suspended) must be refused at every session/role boundary. Shared by the
+ * credentials authorize() and resolveBusinessRole so the two can never disagree
+ * about who is allowed in. Pure (no Prisma) so both the edge and node layers use it.
+ */
+export function isActiveStatus(status: string | null | undefined): boolean {
+  return status === "active"
+}
+
 export function hasRole(
   userRole: string | undefined | null,
   minimum: AppRole

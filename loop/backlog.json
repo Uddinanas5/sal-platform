@@ -342,9 +342,10 @@
       "title": "authorize() never checks user.status -> a suspended user can still mint a session",
       "gate": "G",
       "priority": "P3",
-      "state": "open",
+      "state": "done",
       "source": "auth-audit (auth.ts:32)",
-      "notes": "resolveBusinessRole blocks suspended users on getBusinessContext surfaces, but the 4 onboarding.ts actions authorize by ownerId only, so a suspended owner can still log in + edit business config. Fix: add 'if (user.status !== active) return null' in authorize(); optionally route onboarding through getBusinessContext. (status set out-of-band today -> P3.)"
+      "notes": "resolveBusinessRole blocks suspended users on getBusinessContext surfaces, but the 4 onboarding.ts actions authorize by ownerId only, so a suspended owner can still log in + edit business config. Fix: add 'if (user.status !== active) return null' in authorize(); optionally route onboarding through getBusinessContext. (status set out-of-band today -> P3.)",
+      "resolution": "FIXED on loop/engine-bootstrap. authorize() in src/lib/auth.ts now refuses a non-active account AFTER a correct password check (if (!isActiveStatus(user.status)) return null), so a suspended/deactivated owner can no longer mint a session and reach the ownerId-only onboarding actions. Introduced a shared pure predicate isActiveStatus(status) in src/lib/permissions.ts (no Prisma -> no auth/auth-utils circular import) and DRY-refactored resolveBusinessRole to use it, so the login path and the live-role path can never disagree. Placed after password validation to avoid leaking suspension via timing to a wrong-password guesser. Tests: tests/is-active-status.test.ts (predicate active->true, suspended/inactive/null/undefined/unknown->false, + source-guard that auth.ts wires it); resolveBusinessRole suspended->null already covered by membership-revocation.test.ts (still green after refactor). Gate: tsc clean, 15/15 invariants, 658/658."
     },
     {
       "id": "L-040",
@@ -412,6 +413,15 @@
       "source": "L-044 adversarial verify (completeness lens, wadvd1aa8)",
       "notes": "GET /api/v1/staff (route.ts:35) has no admin gate on the caller and its non-admin sanitize strips ONLY pay (commissionRate/hourlyRate/employmentType/employeeId/hireDate), leaving user.email + user.phone (selected at :25) in the response; GET /api/v1/staff/[id] has the identical gap. A staff-role session cookie or staff-scoped API key can enumerate every colleague's email+phone. The pay/revenue concern is already covered — this is contact-PII only. It CONTRADICTS L-044's dashboard model, where getStaff now strips email/phone for non-admins. MILD PRODUCT JUDGMENT (flagged, not guessed): decide whether staff may see colleague contact info. RECOMMENDED default (consistent + least-privilege): strip email/phone for non-admin callers in both v1 handlers, mirroring the pay strip already there. Note API keys default to role=admin, so blast radius is only staff-scoped keys/sessions. Low-risk one-surface fix once the policy is confirmed.",
       "resolution": "FIXED on loop/engine-bootstrap. GET /api/v1/staff + /api/v1/staff/[id] now strip user.email + user.phone for non-admin callers (in addition to the pay fields they already stripped), via an explicit public-user allowlist {id,firstName,lastName,avatarUrl,role} — consistent with getStaff (L-044). Adversarial completeness sweep of the whole v1 surface: v1/team GET is already admin-gated (FORBIDDEN for non-admins, so its email select is fine); v1/appointments exposes only staff firstName/lastName (no contact) and already scopes staff to their own rows; no other staff-contact-PII leak. Applied the SECURE DEFAULT (strip) rather than waiting on a policy call — API keys default to role=admin so blast radius is only staff-scoped keys/sessions; Anas can opt staff back in later if desired. Test: tests/v1-staff-pii-strip.test.ts (4: list+detail × staff/admin). Gate: tsc clean, 15/15 invariants, 653/653."
+    },
+    {
+      "id": "L-047",
+      "title": "API-key Bearer path does not re-validate the key creator's live status/membership — a suspended or removed user keeps API/MCP access via an un-revoked key",
+      "gate": "G",
+      "priority": "P2",
+      "state": "open",
+      "source": "L-039 adversarial check (src/lib/api/auth.ts:65)",
+      "notes": "withV1Auth's Bearer API-key branch returns {userId:apiKey.createdById, businessId:apiKey.businessId, role:apiKey.role} WITHOUT calling resolveBusinessRole, so unlike the OAuth path (:76) and the session path (:94) it never checks whether the key creator is still an ACTIVE member. A suspended user (or one removed from the business) keeps full REST + MCP access through any un-revoked, un-expired API key they created. Same class as L-039, different credential surface. NUANCE: do NOT just swap in resolveBusinessRole(createdById) — an API key intentionally carries its OWN configured role (apiKey.role), which may differ from the creator's role (e.g. an admin mints a read-only key); overriding it would break the key-role model. CORRECT FIX: additionally look up the creator's status (and optionally live membership) and refuse the key when the creator is non-active, WITHOUT changing the key's configured role. Also weigh whether a key should die when its creator loses membership vs only on explicit revoke (L-040 covers deletion). Its own careful iteration."
     }
   ]
 }

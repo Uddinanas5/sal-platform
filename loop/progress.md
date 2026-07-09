@@ -252,6 +252,23 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 22 (Jul 9) — a suspended account can no longer log in
+- Fixed `L-039`: the login check confirmed your password but **never checked whether
+  your account was still active** — so a suspended or deactivated user could still log
+  in (and slip past a couple of setup screens that only checked "are you the owner").
+  Login now refuses any non-active account, using the *same* active-check the rest of
+  the app already uses (I unified them into one shared rule so they can't drift apart).
+- **The audit found the next one.** I checked every way a login/token can be issued:
+  the website login (now fixed), the "sign in with your account" tokens, and the
+  browser session all correctly re-check your live status. But **API keys** (used by
+  outside tools/integrations) don't re-check whether the person who made the key is
+  still active — so a suspended employee's leftover key could keep working until it's
+  manually switched off. Logged as `L-047` to fix next; it needs care because a key
+  deliberately carries its own permission level, so the fix can't be a blunt swap.
+- Scoreboard green: 658 tests, 15/15 rules, types clean. Note: I'd said the security
+  work was nearly done, but the audits keep turning up real gaps — so there's still
+  genuine high-value work in the queue (not just polish).
+
 ## Heartbeat iteration 21 (Jul 9) — closed the last leak, finishing the whole privacy sweep
 - Fixed `L-046`: the API used by outside integrations was still handing a staff member
   their colleagues' **email + phone**. It now hides those (like the rest of the app

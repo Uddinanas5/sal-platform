@@ -1,6 +1,6 @@
 import { auth } from "./auth"
 import { prisma } from "./prisma"
-import { hasRole, type AppRole } from "./permissions"
+import { hasRole, isActiveStatus, type AppRole } from "./permissions"
 
 export type BusinessContext = {
   userId: string
@@ -32,7 +32,7 @@ export async function resolveBusinessRole(
       select: { id: true },
     }),
   ])
-  if (!user || user.status !== "active") return null
+  if (!user || !isActiveStatus(user.status)) return null
   if (ownedBusiness) return user.role === "owner" ? "owner" : "admin"
   if (staffProfile) return user.role // honor the user's real role (staff/admin)
   return null // no live membership in this business

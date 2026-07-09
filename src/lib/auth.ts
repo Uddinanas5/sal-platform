@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs"
 import { prisma } from "./prisma"
 import { authConfig } from "./auth.config"
 import { rateLimit } from "./rate-limit"
+import { isActiveStatus } from "./permissions"
 
 const MAX_LOGIN_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -54,6 +55,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           })
           return null
         }
+
+        // A suspended/deactivated account must not mint a session even with a
+        // correct password. resolveBusinessRole already blocks such a user on the
+        // dashboard/API surfaces, but the onboarding actions authorize by ownerId
+        // only — so enforce it at the session boundary too. (L-039)
+        if (!isActiveStatus(user.status)) return null
 
         // Reset failed attempts on successful login
         if (user.failedLoginAttempts > 0 || user.lockedUntil) {
