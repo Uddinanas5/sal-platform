@@ -252,6 +252,42 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## ⏸️ CONVERGED — loop paused, your move (Jul 9)
+
+The self-paced run has done all the clean, high-value work it can do without you. It's
+**pausing on purpose** (not stuck, not broken) rather than inventing low-value busywork.
+Everything below shipped to the same open PR (**#45**), with the full test scoreboard
+green the entire time. The last candidate (a small speed-up) was **declined** — the tool
+it needs isn't available in our current setup, and forcing it onto the most security-
+critical code wasn't worth the risk for a minor gain.
+
+**What this run shipped (9 fixes, ~30+ new tests, now 666 passing):**
+1. "Delete my account" now switches off API keys + app tokens (not just cancels billing).
+2. Closed a "charge the client twice" gap on the online-payment path (before it goes live).
+3. Demoted/removed staff lose access **immediately** across every dashboard page…
+4. …and across the admin-only Reports, Payroll, and Staff pages…
+5. …and in the underlying data itself (staff pay + revenue can't leak by a forgotten page)…
+6. …and in the external API (colleague email/phone no longer exposed to staff).
+7. Suspended accounts can no longer log in.
+8. A suspended employee's leftover API key stops working on its own.
+9. Added "always-true" safety-net tests around the booking engine (never double-book).
+
+**Net:** every way in — website login, app tokens, API keys, browser sessions — now
+re-checks a person's *live* status, and every place that shows money or private info
+checks their *current* role. This whole area is locked down end-to-end.
+
+**Why the launch scoreboard still says "PENDING" (it's not a code problem — it's you):**
+- **Merge PR #45** into your working branch so all of the above lands.
+- **Security update (`L-022`)** — a Next.js/dependency version bump; your call to run it.
+- **Hosting/ops setup** — a staging rollback test, a backup-restore test, error monitoring,
+  and one live test-mode Stripe payment run. These need real infrastructure, not code.
+- **Two bigger login items** — logging everyone out when a password is reset (needs a
+  database change) and blocking login-lockout abuse (needs a per-visitor rate limit). Both
+  touch the login system enough that I want your OK before doing them.
+
+Tell me which of these to pick up (I can do the two login items and the security bump on
+your say-so) and I'll restart the loop, or we point it at new product work.
+
 ## Heartbeat iteration 24 (Jul 9) — a smarter safety net for the booking engine
 - Did `L-007`: added a new kind of test around the **availability/booking engine** (the
   code that decides which time slots to offer). Instead of checking "did it output

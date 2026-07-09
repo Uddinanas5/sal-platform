@@ -384,7 +384,7 @@
       "priority": "P3",
       "state": "open",
       "source": "L-036 adversarial verify (correctness lens)",
-      "notes": "layout.tsx calls resolveBusinessRole (3 parallel queries) on every dashboard route, and dashboard/calendar/staff[id]/clients[id]/settings each call it again on the same request. Correctness is fine (verifier: fix-is-sound) — only added latency. Wrap resolveBusinessRole in React cache() so it resolves once per request. Low risk, low priority."
+      "notes": "layout.tsx calls resolveBusinessRole (3 parallel queries) on every dashboard route, and dashboard/calendar/staff[id]/clients[id]/settings each call it again on the same request. Correctness is fine (verifier: fix-is-sound) — only added latency. Wrap resolveBusinessRole in React cache() so it resolves once per request. Low risk, low priority. || ASSESSED + DECLINED (Jul 9 self-paced run): react.cache is undefined in this React 18.3.1 + vitest environment (it is only exposed under the RSC 'react-server' export condition, not the node/CJS context). Wrapping resolveBusinessRole in cache() would break every test that imports @/lib/auth-utils, or require a fragile bundler-interop-dependent guard (cache ?? identity) on the single most security-critical function — disproportionate risk for a P3 perf gain. REVISIT after a React 19 / Next upgrade (stable cache), or memoize per-request via a bundler-safe approach (e.g. an explicit request-scoped store) rather than react.cache."
     },
     {
       "id": "L-044",
