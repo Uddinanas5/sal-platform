@@ -191,9 +191,15 @@ can't self-serve**:
   spring-forward date. (`L-026` is the same helper wired into the AI tool — a quick
   follow-up.)
 
+## Heartbeat iteration 12 (Jul 8) — the AI recurring tool is now consistent too
+- Finished `L-026`: the AI/MCP "book a repeating appointment" tool now uses the same
+  DST-safe helper as the dashboard, so it no longer drifts across daylight-saving and
+  its "monthly" is a real calendar month (it used to be a flat 30 days). Both
+  recurring paths are now atomic *and* timezone-correct, proven end-to-end.
+
 ## Next
-- Booking fuel remaining: `L-026` (wire the helper into the MCP tool), `L-027`
-  (turnover buffers not reserved), `L-029`–`L-032` (timezone edges, soft-deleted
-  service still bookable, stale reactivation flags).
+- Booking fuel remaining: `L-027` (turnover buffers not reserved between
+  appointments), `L-029`–`L-032` (timezone edges, soft-deleted service still
+  bookable, stale reactivation flags).
 - Highest leverage still yours: merge PR #45, the Next.js/CVE call, and the infra
   gates (staging/restore/observability/live-Stripe).

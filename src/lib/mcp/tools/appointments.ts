@@ -10,6 +10,7 @@ import {
   ERR_OUTSIDE_WORKING_HOURS,
   ERR_ON_APPROVED_TIME_OFF,
 } from "@/lib/scheduling/working-hours"
+import { generateRecurrenceDates } from "@/lib/scheduling/recurrence"
 import { z } from "zod"
 
 class GroupFullError extends Error {}
@@ -426,8 +427,11 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       const seriesId = crypto.randomUUID()
       const start = new Date(startTime)
       const endDate = new Date(recurrenceEndDate)
-      const intervalDays = recurrenceRule === "weekly" ? 7 : recurrenceRule === "biweekly" ? 14 : 30
       const price = Number(service.price)
+      // Occurrence instants advanced in the SALON timezone (DST-safe; 'monthly' =
+      // calendar month, not +30 days) — the same tested helper the recurring server
+      // action uses.
+      const dates = generateRecurrenceDates({ start, rule: recurrenceRule, endDate, timezone })
 
       let appointments: { id: string; startTime: Date }[] = []
 
@@ -442,12 +446,9 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
           async (tx) => {
             await lockStaffSchedule(tx, ctx.businessId, staffId)
             const created: { id: string; startTime: Date }[] = []
-            let current = new Date(start)
-            let count = 0
 
-            while (current <= endDate && count < 52) {
-              const occurrenceStart = new Date(current)
-              const occurrenceEnd = new Date(current.getTime() + service.durationMinutes * 60000)
+            for (const occurrenceStart of dates) {
+              const occurrenceEnd = new Date(occurrenceStart.getTime() + service.durationMinutes * 60000)
 
               await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd, timezone)
 
@@ -497,8 +498,6 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
               })
 
               created.push({ id: createdAppt.id, startTime: createdAppt.startTime })
-              current = new Date(current.getTime() + intervalDays * 86400000)
-              count++
             }
 
             return created

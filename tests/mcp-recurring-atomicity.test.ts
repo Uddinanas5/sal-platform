@@ -108,6 +108,30 @@ describe("MCP create-recurring-appointment — atomic series (audit L-024)", () 
     expect(body.appointmentsCreated).toBe(3)
   })
 
+  it("advances occurrences in the SALON timezone (DST-safe) — the week after spring-forward stays 9 AM local", async () => {
+    // 2026-03-02 09:00 EST (14:00Z) weekly across the 2026-03-08 spring-forward.
+    H.businessFindUnique.mockResolvedValue({ timezone: "America/New_York" })
+    const createdStarts: Date[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    H.txApptCreate.mockImplementation(async (args: any) => {
+      createdStarts.push(args.data.startTime)
+      return { id: "appt", startTime: args.data.startTime }
+    })
+
+    const res = await loadTool("create-recurring-appointment")({
+      ...seriesArgs,
+      startTime: "2026-03-02T14:00:00Z",
+      recurrenceEndDate: "2026-03-16T23:59:59Z", // 03-02, 03-09, 03-16
+    })
+
+    expect(res.isError).toBeFalsy()
+    expect(createdStarts.map((d) => d.toISOString())).toEqual([
+      "2026-03-02T14:00:00.000Z", // 9 AM EST
+      "2026-03-09T13:00:00.000Z", // 9 AM EDT (after DST) — NOT the drifted 14:00Z
+      "2026-03-16T13:00:00.000Z",
+    ])
+  })
+
   it("a mid-series conflict aborts the whole series (single tx → all-or-nothing), returning an error", async () => {
     // Occurrence 1 free, occurrence 2 conflicts.
     H.txApptSvcFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "conflict" })
