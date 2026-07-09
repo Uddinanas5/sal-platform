@@ -252,6 +252,28 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 18 (Jul 9) — a demoted admin no longer keeps access for a week
+- Fixed `L-036`: when you **demote a manager from admin to staff**, their login used
+  to still *think* they were an admin for up to **7 days** (their access badge is
+  baked in when they log in and wasn't being re-checked). So a just-demoted person
+  could still open the **calendar** (everyone's bookings), the **dashboard** (shop
+  revenue), any **barber's performance page** (their earnings), a **client's notes**,
+  and the **team roster** (colleagues' emails) — until their badge happened to expire.
+- The fix makes all **6 of those pages re-check the person's *current* role against
+  the database** on every visit, so a demotion takes effect **immediately**. If
+  someone's been removed entirely, they're locked out on the spot (fail-safe).
+- **This is where it gets good:** after fixing it, I ran a **3-way independent audit**
+  (three fresh reviewers each trying to prove me wrong). One confirmed the fix is
+  correct and doesn't lock out legitimate staff. The other two **found the same leak
+  still open on three *other* pages** I hadn't touched — the **Reports** page (shop
+  revenue + every barber's commission), the **Payroll** page, and the **Staff list**
+  (commission rates + contact info). Those are protected by a *different, older*
+  mechanism that has the same 7-day-stale flaw. I logged that as a **high-priority
+  follow-up (`L-042`)** to fix next, rather than rushing it into this change.
+- Net: the 6 pages that guarded themselves are fixed and proven; the 3 that lean on
+  the old shared guard are documented and queued. Scoreboard green: 632 tests,
+  15/15 rules, types clean.
+
 ## Heartbeat iteration 17 (Jul 9) — closed a "charge the client twice" gap before it can bite
 - Fixed `L-017`: the **online card-payment** path (the one that runs when you turn on
   SAL Payments and take a card online) didn't check whether the appointment had

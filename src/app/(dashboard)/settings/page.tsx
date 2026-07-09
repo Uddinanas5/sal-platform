@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
+import { resolveBusinessRole } from "@/lib/auth-utils"
 import { prisma } from "@/lib/prisma"
 import { stripe } from "@/lib/stripe"
 import { reconcileCheckoutSession } from "@/lib/billing/plan"
@@ -24,8 +25,10 @@ export default async function SettingsPage({
   const businessId = (session?.user as any)?.businessId as string | undefined
   if (!businessId) redirect("/onboarding")
   const userId = session?.user?.id as string | undefined
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const role = ((session?.user as any)?.role as string | undefined) ?? "staff"
+  // LIVE DB role (not the stale 7-day JWT): a demoted admin must lose the team
+  // roster + pending-invitation fetch (colleague email/role/avatar PII) below
+  // immediately. Null (revoked) → least-privilege "staff".
+  const role = (userId ? await resolveBusinessRole(userId, businessId) : null) ?? "staff"
 
   const isAdminOrOwner = hasRole(role, "admin")
 

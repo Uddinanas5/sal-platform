@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
+import { resolveBusinessRole } from "@/lib/auth-utils"
 import { getAppointments } from "@/lib/queries/appointments"
 import { getStaff } from "@/lib/queries/staff"
 import { getServices } from "@/lib/queries/services"
@@ -13,9 +14,11 @@ export default async function CalendarPage() {
   const session = await auth()
   const businessId = session?.user?.businessId ?? undefined
   if (!businessId) redirect("/onboarding")
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const role = (session?.user as any)?.role as string | undefined
   const userId = session?.user?.id as string | undefined
+  // LIVE DB role (not the stale 7-day JWT claim): a demoted admin must be scoped
+  // to their own appointments immediately, not whenever their cookie expires.
+  // Null (revoked mid-session) → least-privilege "staff".
+  const role = userId ? ((await resolveBusinessRole(userId, businessId)) ?? "staff") : "staff"
 
   // Staff users only see their own appointments
   let staffIdFilter: string | undefined

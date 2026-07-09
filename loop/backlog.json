@@ -314,9 +314,10 @@
       "title": "Dashboard staff/client detail pages trust the STALE JWT role -> demoted admin keeps admin visibility",
       "gate": "G",
       "priority": "P2",
-      "state": "open",
+      "state": "done",
       "source": "auth-audit (staff/[id]/page.tsx:39)",
-      "notes": "JWT role baked at login (7 days), never refreshed; a demoted admin still reads role=admin and staff/[id] ships every colleague's revenue+commission. Fix: derive role from resolveBusinessRole/getBusinessContext (live DB) in staff/[id] + clients/[id] pages; ideally refresh token.role in the jwt callback."
+      "notes": "JWT role baked at login (7 days), never refreshed; a demoted admin still reads role=admin and staff/[id] ships every colleague's revenue+commission. Fix: derive role from resolveBusinessRole/getBusinessContext (live DB) in staff/[id] + clients/[id] pages; ideally refresh token.role in the jwt callback.",
+      "resolution": "FIXED on loop/engine-bootstrap. Scoping revealed 6 page-level stale-role gates, not the 2 named: layout.tsx, calendar, dashboard, staff/[id], clients/[id], settings/page.tsx all gated data visibility on the 7-day JWT role (session.user.role). All now resolve the LIVE role via resolveBusinessRole() (the source the server actions + REST/MCP already use), failing closed to least-privilege on a revoked null. layout hoists the live role it already computed and reuses it (killing the stale read at :36). Locked by tests/dashboard-live-role-authz.test.ts (source-guard fitness function — RSCs aren't behaviourally unit-testable; the live-role behaviour itself is already covered by membership-revocation.test.ts). A 3-lens adversarial workflow (ws1x0th4t) confirmed correctness (no legit-user regression, fail-closed on null) and surfaced the sibling gap now tracked as L-042. Gate: tsc clean, 15/15 invariants, 632/632."
     },
     {
       "id": "L-037",
@@ -363,6 +364,24 @@
       "state": "open",
       "source": "L-017 residual (create-payment-intent/route.ts)",
       "notes": "The L-017 guard blocks re-charging an appointment whose payment already COMPLETED. It does NOT block a second PaymentIntent while an earlier one is still PENDING (different hour bucket -> new idempotency key). Narrow race (client would have to complete two different clientSecrets), and a strict pending-guard risks permanently blocking legit re-payment when an abandoned PI leaves a stale 'pending' row that no webhook ever resolves. Proper fix needs pending-intent reuse (return the existing PI's clientSecret) + stale-pending expiry, or moving to a single canonical PaymentIntent per appointment. LATENT while Connect online payments are off; fix before go-live alongside L-001."
+    },
+    {
+      "id": "L-042",
+      "title": "Admin-only READ routes (/reports, /reports/payday, /staff list) enforce role-LEVEL only via stale-JWT middleware — demoted admin reads revenue/payroll/commission/PII for up to 7 days",
+      "gate": "G",
+      "priority": "P1",
+      "state": "open",
+      "source": "L-036 adversarial verify (data-exposure lens, ws1x0th4t)",
+      "notes": "Distinct from L-036: these pages have NO page-level role gate — they gate role-LEVEL only through middleware STAFF_BLOCKED_ROUTES, which reads req.auth.user.role = the 7-day JWT (auth.config.ts maxAge 7d; token.role set at login, never refreshed). layout's resolveBusinessRole only redirects on NULL membership (removed/suspended), never enforces the admin LEVEL these routes require. So a demoted admin's JWT still says 'admin' -> middleware passes -> layout resolveBusinessRole returns non-null 'staff' -> no redirect -> data renders. Surfaces: reports/page.tsx:33-66 (shop revenue + per-barber commission, P1); reports/payday/page.tsx:34-52 (payroll statements, P1); staff/page.tsx:8-16 -> getStaff selects commissionRate+email+phone (P2). Queries (getStaffPerformance/getRevenueByDay/getPayrollStatement/getStaff) enforce businessId only, no role. FIX (defense-in-depth, its own iteration): either (a) layout maps route->minRole and enforces it via the live resolveBusinessRole, or (b) convert each admin-only page to resolveBusinessRole AND push role checks down into the sensitive queries. Architectural completion of L-036."
+    },
+    {
+      "id": "L-043",
+      "title": "Memoize resolveBusinessRole per-request (React cache()) — layout + page each re-resolve the role (~6 role queries/nav)",
+      "gate": "F",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-036 adversarial verify (correctness lens)",
+      "notes": "layout.tsx calls resolveBusinessRole (3 parallel queries) on every dashboard route, and dashboard/calendar/staff[id]/clients[id]/settings each call it again on the same request. Correctness is fine (verifier: fix-is-sound) — only added latency. Wrap resolveBusinessRole in React cache() so it resolves once per request. Low risk, low priority."
     }
   ]
 }

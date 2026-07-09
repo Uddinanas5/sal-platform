@@ -3,7 +3,7 @@
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
   "lastGoodSha": "37fa785",
   "lastRunAt": "2026-07-09T09:00:00Z",
-  "runCounter": 25,
+  "runCounter": 26,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -180,6 +180,12 @@
       "type": "VERIFIED",
       "at": "2026-07-09T03:15:00Z",
       "detail": "Iteration: completed L-017 (online Connect charge had no already-paid guard -> cross-hour double-charge). POST /api/stripe/create-payment-intent now runs the same guard the three in-person checkout paths use (payment.findFirst type=payment status=completed) BEFORE creating the PaymentIntent — a settled appointment returns 400 with no new PI and no new payment row. Skipped the two higher-priority-looking neighbours by charter: L-028 explicitly NEEDS A PRODUCT DECISION (un-cancel legality contradiction — flagged, not guessed); the P0s are all infra/owner (Stripe E2E, drills, structured logs). ADVERSARIAL CHECK: verified createPaymentIntent is the ONLY online-charge caller (chargeCard is dead/uncalled), so no sibling path was left unguarded. Logged the honest residual as L-041 (P3): the guard is COMPLETED-only, so two PENDING PIs can still coexist across hours — a narrower race whose safe fix (pending reuse + stale expiry) belongs with go-live (L-001). VERIFIED: guard suite 3/3 + existing idempotency 3/3; full gate green — tsc clean, 15/15 invariants, 626/626 unit tests (was 623, +3). Verdict PENDING (unchanged — remaining reds are P0 infra/owner)."
+    },
+    {
+      "seq": 17,
+      "type": "VERIFIED",
+      "at": "2026-07-09T03:42:00Z",
+      "detail": "Iteration: completed L-036 (dashboard read pages trusted the stale 7-day JWT role -> a demoted admin kept full calendar / shop-revenue / per-barber-performance / colleague-PII visibility for up to 7 days). SENSE found the P0/P1 leaders all infra/owner/dep-blocked; picked the top code-doable P2. Scoping the sweep revealed 6 page-level stale-role gates (not the 2 named): layout, calendar, dashboard, staff/[id], clients/[id], settings/page.tsx — all now resolve the LIVE role via resolveBusinessRole(), failing closed to least-privilege on null. Locked with a source-guard fitness test (RSCs aren't behaviourally unit-testable; live-role behaviour already covered by membership-revocation.test.ts). ULTRACODE adversarial verification (3-lens workflow ws1x0th4t): correctness lens = fix-is-sound (no legit-user regression, fail-closed null); completeness + data-exposure lenses DISPROVED completeness — found the same bug class in ADMIN-ONLY routes gated role-LEVEL only by the stale-JWT middleware (STAFF_BLOCKED_ROUTES reads the 7-day token, never refreshed; layout only blocks null membership, not role level). Logged that as L-042 (P1: /reports revenue+commission, /reports/payday payroll, /staff list commission+PII) + L-043 (P3 perf: memoize resolveBusinessRole via React cache()). Committed the sound page-level fix per add-don't-chase; L-042 is its own architectural iteration. VERIFIED: source-guard 6/6, tsc clean, 15/15 invariants, 632/632 (was 631, +1 net after fixing a false-positive in the guard regex). Verdict PENDING."
     }
   ]
 }

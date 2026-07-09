@@ -32,20 +32,19 @@ export default async function Layout({
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const role = (session?.user as any)?.role as string | undefined
-
   let billingBanner: "past_due" | "paused" | null = null
 
   // Re-validate LIVE tenant membership before rendering any dashboard read page.
   // The 12 dashboard pages read businessId straight from the 7-day JWT, so a
   // removed/deactivated member would otherwise keep loading tenant data until the
   // cookie expires. resolveBusinessRole is the single source of truth for "still
-  // a live owner/active-staff of this business". (Server actions + the API already
-  // gate on it; this closes the SSR read-page path.)
+  // a live owner/active-staff of this business" AND for the user's CURRENT role —
+  // never the stale JWT claim, so a demotion takes effect immediately here too.
+  // (Server actions + the API already gate on it; this closes the SSR read path.)
+  let role: string | null = null
   if (businessId && session?.user?.id) {
-    const liveRole = await resolveBusinessRole(session.user.id, businessId)
-    if (!liveRole) redirect("/login")
+    role = await resolveBusinessRole(session.user.id, businessId)
+    if (!role) redirect("/login")
   }
 
   if (businessId) {
