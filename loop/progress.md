@@ -210,9 +210,16 @@ can't self-serve**:
   *route*, on top of the two already fixed) — filed as `L-033`, same one-line-ish
   fix using the helper.
 
+## Heartbeat iteration 14 (Jul 8) — daylight-saving bug now fully closed
+- Fixed `L-033`, the last of three copies of the recurring daylight-saving bug (the
+  API route). All three ways of creating a repeating appointment — dashboard, API,
+  and AI tool — now share **one tested helper**, so a standing appointment holds its
+  time across the clock change everywhere. Proven end-to-end on the real API handler.
+
 ## Next
-- Booking fuel: `L-033` (API recurring route DST — quick), `L-029`/`L-030` (timezone
-  day-boundary edges), `L-032` (stale reactivation flags). `L-027` awaits your buffer
-  call.
+- Booking fuel remaining: `L-029`/`L-030` (a couple of timezone day-boundary
+  off-by-ones on the far-future booking limit and a list filter), `L-032` (stale
+  no-show flags after un-cancelling). `L-027` (buffers) and `L-028` (un-cancel
+  policy) await your product calls.
 - Highest leverage still yours: merge PR #45, the Next.js/CVE call, and the infra
   gates (staging/restore/observability/live-Stripe).
