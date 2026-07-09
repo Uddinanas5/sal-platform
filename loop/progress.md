@@ -252,6 +252,23 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 16 (Jul 9) — "delete my account" now actually cuts off access
+- Fixed `L-040`: when an owner requested account deletion, the app cancelled their
+  subscription and logged the request — but any **API key or app-connection token
+  they'd handed out kept working**, so a leaked key could still read the shop's data
+  after they asked to be deleted. Now, in the **same all-or-nothing step** as the
+  cancellation, every API key and connected-app token for that shop is switched off
+  immediately.
+- Kept it **surgical and safe**: it only touches *that shop's* keys — a person who
+  also works at another salon isn't logged out everywhere (the same cross-tenant
+  trap we closed for role changes). Proven by two new tests (revokes both on
+  deletion; revokes nothing if the caller wasn't allowed to delete).
+- **Why this one now:** it's a self-contained server action, so it's cleanly
+  testable and low-risk. The three bigger auth items left (a stolen login surviving
+  a password reset, a login-lockout abuse angle, and a demoted admin keeping their
+  old view for a few days) each need a more careful dedicated pass — not an
+  unattended tick. Full scoreboard green: 623 tests, 15/15 rules, types clean.
+
 ## Heartbeat iteration 15 (Jul 9) — far-future booking limit fixed for Dubai-style shops
 - Fixed `L-029`: the "you can book up to N days ahead" limit was measured on the
   server's clock, not the shop's — so for a shop **ahead of UTC (like Dubai)**, a

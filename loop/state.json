@@ -1,9 +1,9 @@
 {
   "version": 1,
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
-  "lastGoodSha": "d6868b7",
+  "lastGoodSha": "e06471e",
   "lastRunAt": "2026-07-09T09:00:00Z",
-  "runCounter": 23,
+  "runCounter": 24,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -13,31 +13,167 @@
     "consecutiveCleanRunsRequired": 2
   },
   "events": [
-    { "seq": 1, "type": "BOOTSTRAP", "at": "2026-07-08T05:45:00Z", "detail": "Loop engine harness created on branch loop/engine-bootstrap: LOOP.md charter, feature_board.json gate battery (A–J), backlog.json, gate.mjs runner. Wired to existing test:all / trust / check:* / test:golden / soak-test spine." },
-    { "seq": 2, "type": "GATE_RUN", "at": "2026-07-08T05:50:39Z", "detail": "First no-DB battery run: 12 checks green (A.1-3 tenant isolation, B.2-4 payments logic, C.1 sentry, E.2 migrations, F.2 rate-limit, H.3 deletion, J.2 invariants, J.3 fake-success). Verdict PENDING — many P0 oracles still pending/blocked (correctly not declaring launch-ready)." },
-    { "seq": 3, "type": "UNBLOCK", "at": "2026-07-08T06:02:53Z", "detail": "Stripe TEST keys located in local .env (sk_test_ secret + whsec_ + pk_test_), .env gitignored+untracked, DB on dev schema — payments gate was never truly blocked. Added reproducible B.1 secret-scan runner + --only subset mode to gate.mjs. L-001 unblocked (state open)." },
-    { "seq": 4, "type": "VERIFIED", "at": "2026-07-08T06:02:53Z", "detail": "Money path PROVEN on dev schema: golden-path (book→check-in→pay→ledger→calendar) exit 0, commission $18 @ 40% non-zero and ledgered. Gate checks flipped from observed evidence: B.1 pass (secret scan), J.1 pass (golden path). 14 checks now green; verdict still PENDING (A.4/A.5/B.5/C.2/C.3/E.1/E.3/G.*/H.1/H.2/J.4/J.5 remain)." },
-    { "seq": 5, "type": "AUDIT", "at": "2026-07-08T07:00:00Z", "detail": "Payments-hardening audit (20-agent workflow, 5 dimensions × adversarial verify): 15 raw findings, 11 confirmed (4 rejected as not-a-bug/unreachable). 2 P1, 6 P2, 3 P3." },
-    { "seq": 6, "type": "FIXED", "at": "2026-07-08T07:12:00Z", "detail": "Fixed 6 of 11 payments findings, full suite green (568/568, +4 tests). WITH TESTS: #1 P1 commission half-cent invariant false-trip (blocked legit sales); #2 P1 webhook succeeded resurrecting a refunded charge; #5 P2 webhook failed clobbering a completed/refunded payment. FIX-ONLY (tests queued L-018): #3 api/bookings tax-inclusive finalPrice; #7 custom-line tax toggle; #11 createRefund reverse_transfer. Queued: L-015 (price snapshot), L-016 (checkout idempotency keys — schema), L-017 (connect already-paid, latent)." },
-    { "seq": 7, "type": "HEARTBEAT", "at": "2026-07-08T07:55:00Z", "detail": "Iteration: skipped L-001 (Stripe live E2E needs a dev server + `stripe listen` — not available headless; stays top P0). Completed L-004 (Gate A.5): new scripts/check-raw-sql-tenancy.mjs raw-SQL tenant guard + `npm run check:rawsql` + 7-test suite. Codebase clean (6 raw-SQL sites, all safe). Full suite green 575/575, typecheck+lint clean, gate verdict PENDING. A.5 board-wiring deferred to owner (L-019) — gate.mjs is frozen." },
-    { "seq": 8, "type": "HEARTBEAT", "at": "2026-07-08T08:42:00Z", "detail": "Iteration (user 'keep going'): completed L-003 (Gate A.4 tenant-override). Deferred L-002 (fc.scheduledModelRun) — fast-check not installed, won't add a dep autonomously; existing booking-contention-sim already proves 1-winner. New tests/cross-tenant/tenant-override.a4.test.ts (3 tests): drives v1 appointments [id] GET+PATCH with hostile businessId in body+query+X-Tenant-ID; asserts every Prisma where + access gate scope to the AUTH tenant. Full suite green 578/578, typecheck+lint clean. A.4 board-wiring deferred to owner (L-019, joins A.5)." },
-    { "seq": 9, "type": "FIXED", "at": "2026-07-08T09:15:00Z", "detail": "Iteration (user 'keep going'): completed L-016 (checkout idempotency epic — payments-audit #6/#9). Schema: Payment.idempotencyKey + @@unique([businessId, idempotencyKey]); migration 20260708100000 applied to dev. recordCheckout: fast-path returns original payment on repeat key + P2002 catch for concurrent dup; changed `import type {Prisma}`→value import (P2002 class needed at runtime). Plumbed through all 3 entry points (+ Idempotency-Key header on v1). tests/checkout-idempotency.test.ts (4). VERIFIED: typecheck+lint clean, full suite 582/582, check:migrations pass, golden-path green on migrated dev DB, gate PENDING. Follow-ups: L-020 (dashboard client key), #10 stays with L-017." },
-    { "seq": 10, "type": "HEARTBEAT", "at": "2026-07-08T10:05:00Z", "detail": "Iteration: completed L-009 (Gate G.4 security headers). Headers were already configured in next.config.mjs but UNGUARDED — extracted policy to pure module src/lib/security-headers.mjs (next.config imports it) + regression-locked with tests/security-headers.test.ts (5). Locks HSTS prod-only, X-Frame DENY on app routes, /book/* embeddable, no unsafe-eval in prod, Stripe allowlist. VERIFIED: new test 5/5, typecheck+lint clean, FULL next build green (config change), gate PENDING. Skipped L-005 (per-tenant logging — needs AsyncLocalStorage request-context, >1 iteration). G.3 dep-CVE scan split to L-021." },
-    { "seq": 11, "type": "HEARTBEAT", "at": "2026-07-08T10:55:00Z", "detail": "Iteration: completed L-021 (Gate G.3 dependency-audit gate). SENSE found 4 HIGH prod-dep CVEs (next/fast-uri/path-to-regexp/picomatch — all DoS/ReDoS/path-traversal, 0 critical). Chose to ship the GATE (safe, no dep changes) rather than do risky dep surgery: scripts/check-audit.mjs + `npm run check:audit` + audit-allowlist.json + tests/check-audit.test.ts (5). Fails on any UNTRIAGED high/critical; the 4 knowns documented+allowlisted with reviewBy. ESCALATED remediation as L-022 (owner: next 16 major upgrade + transitive overrides + pnpm lockfile sync — human decision). VERIFIED: check:audit exit 0, test 5/5, typecheck+lint clean, full suite green, gate PENDING." },
-    { "seq": 12, "type": "FIXED", "at": "2026-07-08T11:45:00Z", "detail": "Iteration: completed L-015 (payments-audit #4 — appointment checkout overcharge). recordCheckout now charges each appointment service line at the BOOKED AppointmentService.finalPrice snapshot (tenant-scoped query where appointment.businessId), not the live catalog price, so a price change between booking and checkout no longer overcharges the client and the charge reconciles with the commission base (which already used finalPrice). Walk-in/POS + products keep live price. tests/checkout-commission.test.ts +1 (catalog 50 vs booked 40 → charges 40). VERIFIED: commission 7/7, typecheck+lint clean, golden-path green on dev DB (new query valid Postgres), full suite green, gate PENDING." },
-    { "seq": 13, "type": "VERIFIED", "at": "2026-07-08T12:35:00Z", "detail": "Iteration: completed L-018 (owed regression tests for shipped one-liner payment fixes). tests/stripe-refund.test.ts (2): mocks the Stripe SDK, runs REAL createRefund, asserts reverse_transfer:true (audit #11) + failure surfaces as {success:false}. tests/checkout-custom-tax.test.ts (2): a both-toggles-off shop leaves a $100 Quick Sale at $100, default config taxes it (audit #7). Both non-vacuous (reverting either fix flips the assertion). #3 (api/bookings route test) split to L-023 (P3, heavy route mocking). VERIFIED: 4 new tests green, typecheck+lint clean, full suite green, gate PENDING." },
-    { "seq": 26, "type": "AUDIT+FIXED", "at": "2026-07-09T09:00:00Z", "detail": "Generated fuel: AUTH/SESSION/AUTHZ/ONBOARDING adversarial audit (15-agent workflow, 4 dims × verify). 11 findings, ALL 11 confirmed (~9 unique after dedup) — highest signal rate of the 3 audits. FIXED the top P1 same iteration: cross-tenant privilege escalation via PATCH /api/v1/team/[userId] — it rewrote the GLOBAL User.role with NO multi-business guard, so Tenant A's owner could silently make a shared staff member admin at Tenant B. The server action already had the belongsToAnotherBusiness guard; the REST route + MCP tool omitted it (drift). FIX: extracted src/lib/team/role-change-guard.ts (shared belongsToAnotherBusiness + CROSS_TENANT_ROLE_CHANGE_ERROR), wired into ALL THREE (server action DRY'd + REST route + MCP tool #5) so it can't drift again. tests/team-role-change-guard.test.ts (4) + tests/v1-team-role-cross-tenant.test.ts (2, cross-tenant target → 400 no-write). VERIFIED: 621/621 (typecheck-aware gate), lint clean, gate PENDING. Filed 7 remaining auth findings L-034..L-040 (session-invalidation-on-reset P2, lockout-DoS P2, stale-JWT-role P2, register-enumeration P3, timing side-channel P3, no-status-check P3, incomplete-deletion P3) — backlog refilled with real fuel." },
-    { "seq": 25, "type": "PREEMPT+GATE-FIX", "at": "2026-07-09T08:10:00Z", "detail": "⚠ SMOKE RED at SENSE (typecheck ❌) → preempted the planned auth audit to fix the regression (per LOOP.md DECIDE). Cause: last iteration's L-030 test (bookings-date-filter-timezone) called the withSafeErrors-wrapped GET with 1 arg (type wants 2); it slipped through because I ran typecheck BEFORE writing the test, vitest doesn't type-check, and the FULL gate (node loop/gate.mjs) only runs typecheck under --smoke, not in J.2. This is the SECOND gate blind spot (after the check-invariants full-suite gap). FIX: (1) test now calls GET via a callGet(url) helper passing the route ctx → typecheck green; (2) strengthened scripts/check-invariants.mjs to run `tsc --noEmit` FIRST and exit 1 on any type error, so J.2 now = typecheck + full suite + 15 invariants. VERIFIED: smoke green, 615/615, gate green. AUTH/SESSION audit deferred to next heartbeat." },
-    { "seq": 24, "type": "FIXED+CONVERGED", "at": "2026-07-09T07:25:00Z", "detail": "Iteration: completed L-030 (GET /api/bookings date filter now salon-tz, matching v1 route). tests/bookings-date-filter-timezone.test.ts (3). 615/615, gate PENDING. ⭐ CONVERGENCE: this was the LAST fixable booking-audit item. The code-doable backlog is now EXHAUSTED — every remaining OPEN non-owner item is dep-blocked (L-002 fast-check, L-006 Stryker, L-012 coverage tooling), infra-blocked (L-001 stripe listen+dev server, L-011 restore, + owner L-010 staging), architectural/big (L-005 AsyncLocalStorage logging, L-008 verifier harness), DB-heavier (L-007 metamorphic), product/migration (L-013), LATER (L-014), latent (L-017), or disproportionate (L-023). Per LOOP.md §5 the NEXT heartbeat should GENERATE FUEL via a fresh subsystem audit — AUTH/SESSION/ONBOARDING is the obvious untested target (payments ✓ + booking ✓ done). Two full audits (payments, booking) have produced 21 fixed findings across the session; board still PENDING pending founder infra/decisions + merge of PR #45." },
-    { "seq": 23, "type": "FIXED", "at": "2026-07-09T06:40:00Z", "detail": "Iteration: completed L-032 (reactivation left stale cancellation flags). On reactivation (cancelled/no_show → active), the code left cancelledAt/noShowAt at `undefined` (Prisma omits → unchanged) and never touched cancellation metadata, so a reactivated appt still read as a no-show. Fixed via a reactivationData object that explicitly NULLS cancelledAt/noShowAt/cancellationInitiator/cancellationReasonCode/cancellationReason/cancelledBy — applied to ALL THREE reactivation paths (server action + v1 PATCH + MCP tool). Strengthened tests/appointment-reactivation-guard.test.ts to assert the update data nulls the flags. VERIFIED: 612/612 (strengthened gate), typecheck+lint clean, gate PENDING. The reactivation guard+clear is now in 3 places → strengthens the case for the L-028 shared-helper extraction. Booking-audit code fuel now down to L-030 (lowest value, no live consumer)." },
-    { "seq": 22, "type": "FIXED", "at": "2026-07-09T05:55:00Z", "detail": "Iteration: completed L-029 (advance-booking ceiling used server-local day → rejected valid far-boundary slots for ahead-of-UTC salons like Dubai). Added maxAdvanceDateKey() to zoned-time.ts (salon-local YYYY-MM-DD ceiling, matching /api/availability), wired both write sites (createPublicBooking + reschedulePublicBooking). tests/max-advance-timezone.test.ts (3, pure): Dubai UTC+4 boundary → ceiling 08-08 (salon) vs 08-07 (server), boundary allowed/next-day rejected, rollover. VERIFIED: 3/3, 612/612 full suite (now gated by the strengthened check-invariants), typecheck+lint clean, gate PENDING." },
-    { "seq": 21, "type": "REGRESSION+GATE-FIX", "at": "2026-07-09T05:40:00Z", "detail": "⚠ FALSE-GREEN CAUGHT (while gathering stats for a founder review, ran the FULL `npx vitest run` and found 12 FAILING tests the board had been showing green). Root cause: L-015 (seq 17) added `tx.appointmentService.findMany` to recordCheckout, but 3 older checkout test fakeTxs (double-submit, loyalty, product-line) don't mock appointmentService → TypeError. The gate MISSED it: check-invariants runs the whole suite but only exited non-zero if one of the 15 mapped invariant RULES failed — unrelated test failures were counted but not gated. FIX: (1) added appointmentService.findMany:[] to the 3 fakeTxs → 609/609 green; (2) strengthened scripts/check-invariants.mjs to also exit 1 when passedTests<totalTests, closing the blind spot so J.2 now fails on ANY unit-test failure. Not a frozen file. VERIFIED: 609/609, typecheck+lint clean, gate green. This is the val-vs-holdout divergence LOOP.md §4 warns about — the loop's own oracle gave false green for ~6 iterations." },
-    { "seq": 20, "type": "FIXED", "at": "2026-07-09T04:55:00Z", "detail": "Iteration: completed L-033 (v1 recurring ROUTE DST drift — the 3rd instance). Replaced its inline addWeeks/addMonths loop with the shared generateRecurrenceDates helper (route already fetched timezone + was already atomic). tests/v1-recurring-dst.test.ts (1): real POST handler over mocked auth+prisma, NY weekly across 2026-03-08 spring-forward → 9AM-local occurrences (03-09=13:00Z). VERIFIED: 1/1, typecheck+lint clean, full suite green, gate PENDING. Recurring DST drift now CLOSED across all 3 paths (server action + MCP + v1 route) via one tested helper." },
-    { "seq": 19, "type": "FIXED", "at": "2026-07-09T04:05:00Z", "detail": "Iteration: completed L-031 (soft-deleted service bookable via v1 group+recurring routes). Added deletedAt:null to both service.findFirst where clauses (matching the canonical v1 appointments route). tests/v1-booking-soft-delete-service.test.ts (2): drives both route handlers over mocked v1-auth+prisma, asserts the lookup is scoped to deletedAt:null (soft-deleted → 404). VERIFIED: 2/2, typecheck+lint clean, full suite green, gate PENDING. FLAGGED L-027 owner:true (buffer-composition semantics = product decision + it modifies the safety-critical availability engine → wants a supervised pass). FILED L-033: the v1 recurring ROUTE is a 3rd instance of the recurring DST drift (uses addWeeks/addMonths) — wire to the shared helper." },
-    { "seq": 18, "type": "FIXED", "at": "2026-07-09T03:15:00Z", "detail": "Iteration: completed L-026 (MCP recurring DST + monthly=30d). Replaced the MCP create-recurring tool's fixed-ms interval loop with the shared generateRecurrenceDates() helper (from L-025), iterated inside the single tx from L-024 — so the MCP recurring path is now atomic AND DST-safe AND monthly=calendar-month, fully consistent with the server action. Strengthened tests/mcp-recurring-atomicity.test.ts (+1 DST assertion: NY weekly across 2026-03-08 spring-forward → occurrences at 9AM local, 03-09=13:00Z). VERIFIED: 6 recurring tests + full suite green, typecheck+lint clean, gate PENDING. Both recurring DST bugs now closed via one tested helper." },
-    { "seq": 17, "type": "FIXED", "at": "2026-07-09T02:30:00Z", "detail": "Iteration: completed L-025 (recurring-series DST drift). Extracted src/lib/scheduling/recurrence.ts generateRecurrenceDates() — advances in the salon IANA timezone via TZDate/@date-fns/tz so a standing appt keeps its salon-local wall-clock across DST + 'monthly'=calendar month (not +30d). Wired into recurring.ts server action. tests/recurrence-dst.test.ts (3, pure): weekly 9AM NY stays 9AM local across spring-forward (03-09→13:00Z EDT not 14:00Z); monthly keeps day-15; caps. VERIFIED: 3/3 + 16 recurring tests + full suite green, typecheck+lint clean, gate PENDING. L-026 reduced to a fast follow (wire the SAME helper into the MCP tool)." },
-    { "seq": 16, "type": "FIXED", "at": "2026-07-09T01:20:00Z", "detail": "Iteration (fuel from booking audit): completed L-024 (MCP create-recurring atomicity). Hoisted a single prisma.$transaction around the whole occurrence loop (lock once up front), mirroring recurring.ts — a mid-series conflict now rolls back every occurrence (all-or-nothing) instead of leaving orphaned confirmed appointments + a misleading 'nothing created' error. tests/mcp-recurring-atomicity.test.ts (2): whole series in ONE tx; mid-series conflict → error. VERIFIED: 2/2, typecheck+lint clean, full suite green, gate PENDING. FLAGGED L-028 (illegal status transitions) as owner:true — it's CONTRADICTORY: getValidStatusTransitions forbids all terminal-state transitions but the server/v1/MCP deliberately allow cancelled/no_show→active (un-cancel). Whether un-cancel is legal is a product decision; the loop won't guess." },
-    { "seq": 15, "type": "AUDIT+FIXED", "at": "2026-07-09T00:10:00Z", "detail": "Backlog was dry → generated fuel: booking/availability adversarial audit (17-agent workflow, 4 dimensions × verify). 13 raw findings, 12 confirmed (1 rejected as unreachable), 10 UNIQUE bugs (top P1 reported 3×). FIXED the P1 same iteration: MCP update-appointment-status reactivated cancelled/no_show appts with NO conflict re-check → silent double-booking on the AI-facing surface (the exact reactivation guard already on the server action + v1 REST, missing on MCP). Ported the guard (advisory lock + in-tx conflict re-check + CONFLICT→clean error) into mcp/tools/appointments.ts + tests/mcp-update-status-reactivation.test.ts (3, non-vacuous). VERIFIED: new test 3/3, typecheck+lint clean, full suite green, gate PENDING. Filed remaining 9 as L-024..L-032 (recurring atomicity, DST drift ×2, buffer-not-reserved, illegal transitions, 3× tz-boundary, soft-deleted-service booking, stale-reactivation-flags)." },
-    { "seq": 14, "type": "FIXED", "at": "2026-07-08T13:25:00Z", "detail": "Iteration: completed L-020 (dashboard idempotency key — completes the L-016 story). payment-dialog.tsx mints a crypto.randomUUID() key per checkout session (useRef, reset on dialog reopen), kept across retries, passed to processPayment so a double-click/network-blip retry dedupes to the original payment. VERIFIED: typecheck+lint clean, full production build green, full suite green; the no-double-charge invariant is already locked by tests/checkout-idempotency.test.ts (no component-test infra to unit-test the UI wiring). CONVERGENCE NOTE: the cleanly code-doable + testable backlog is now essentially exhausted — remaining items are owner-gated (L-019/L-022), infra (L-001/L-010/L-011), dep-blocked (L-002/L-006/L-012), architectural (L-005/L-008), DB-metamorphic (L-007), product/migration (L-013), or disproportionate (L-023). Next heartbeats should GENERATE fuel (fresh subsystem audit — booking/availability/auth not yet deeply audited) per LOOP.md §5, or await founder enablers." }
+    {
+      "seq": 1,
+      "type": "BOOTSTRAP",
+      "at": "2026-07-08T05:45:00Z",
+      "detail": "Loop engine harness created on branch loop/engine-bootstrap: LOOP.md charter, feature_board.json gate battery (A–J), backlog.json, gate.mjs runner. Wired to existing test:all / trust / check:* / test:golden / soak-test spine."
+    },
+    {
+      "seq": 2,
+      "type": "GATE_RUN",
+      "at": "2026-07-08T05:50:39Z",
+      "detail": "First no-DB battery run: 12 checks green (A.1-3 tenant isolation, B.2-4 payments logic, C.1 sentry, E.2 migrations, F.2 rate-limit, H.3 deletion, J.2 invariants, J.3 fake-success). Verdict PENDING — many P0 oracles still pending/blocked (correctly not declaring launch-ready)."
+    },
+    {
+      "seq": 3,
+      "type": "UNBLOCK",
+      "at": "2026-07-08T06:02:53Z",
+      "detail": "Stripe TEST keys located in local .env (sk_test_ secret + whsec_ + pk_test_), .env gitignored+untracked, DB on dev schema — payments gate was never truly blocked. Added reproducible B.1 secret-scan runner + --only subset mode to gate.mjs. L-001 unblocked (state open)."
+    },
+    {
+      "seq": 4,
+      "type": "VERIFIED",
+      "at": "2026-07-08T06:02:53Z",
+      "detail": "Money path PROVEN on dev schema: golden-path (book→check-in→pay→ledger→calendar) exit 0, commission $18 @ 40% non-zero and ledgered. Gate checks flipped from observed evidence: B.1 pass (secret scan), J.1 pass (golden path). 14 checks now green; verdict still PENDING (A.4/A.5/B.5/C.2/C.3/E.1/E.3/G.*/H.1/H.2/J.4/J.5 remain)."
+    },
+    {
+      "seq": 5,
+      "type": "AUDIT",
+      "at": "2026-07-08T07:00:00Z",
+      "detail": "Payments-hardening audit (20-agent workflow, 5 dimensions × adversarial verify): 15 raw findings, 11 confirmed (4 rejected as not-a-bug/unreachable). 2 P1, 6 P2, 3 P3."
+    },
+    {
+      "seq": 6,
+      "type": "FIXED",
+      "at": "2026-07-08T07:12:00Z",
+      "detail": "Fixed 6 of 11 payments findings, full suite green (568/568, +4 tests). WITH TESTS: #1 P1 commission half-cent invariant false-trip (blocked legit sales); #2 P1 webhook succeeded resurrecting a refunded charge; #5 P2 webhook failed clobbering a completed/refunded payment. FIX-ONLY (tests queued L-018): #3 api/bookings tax-inclusive finalPrice; #7 custom-line tax toggle; #11 createRefund reverse_transfer. Queued: L-015 (price snapshot), L-016 (checkout idempotency keys — schema), L-017 (connect already-paid, latent)."
+    },
+    {
+      "seq": 7,
+      "type": "HEARTBEAT",
+      "at": "2026-07-08T07:55:00Z",
+      "detail": "Iteration: skipped L-001 (Stripe live E2E needs a dev server + `stripe listen` — not available headless; stays top P0). Completed L-004 (Gate A.5): new scripts/check-raw-sql-tenancy.mjs raw-SQL tenant guard + `npm run check:rawsql` + 7-test suite. Codebase clean (6 raw-SQL sites, all safe). Full suite green 575/575, typecheck+lint clean, gate verdict PENDING. A.5 board-wiring deferred to owner (L-019) — gate.mjs is frozen."
+    },
+    {
+      "seq": 8,
+      "type": "HEARTBEAT",
+      "at": "2026-07-08T08:42:00Z",
+      "detail": "Iteration (user 'keep going'): completed L-003 (Gate A.4 tenant-override). Deferred L-002 (fc.scheduledModelRun) — fast-check not installed, won't add a dep autonomously; existing booking-contention-sim already proves 1-winner. New tests/cross-tenant/tenant-override.a4.test.ts (3 tests): drives v1 appointments [id] GET+PATCH with hostile businessId in body+query+X-Tenant-ID; asserts every Prisma where + access gate scope to the AUTH tenant. Full suite green 578/578, typecheck+lint clean. A.4 board-wiring deferred to owner (L-019, joins A.5)."
+    },
+    {
+      "seq": 9,
+      "type": "FIXED",
+      "at": "2026-07-08T09:15:00Z",
+      "detail": "Iteration (user 'keep going'): completed L-016 (checkout idempotency epic — payments-audit #6/#9). Schema: Payment.idempotencyKey + @@unique([businessId, idempotencyKey]); migration 20260708100000 applied to dev. recordCheckout: fast-path returns original payment on repeat key + P2002 catch for concurrent dup; changed `import type {Prisma}`→value import (P2002 class needed at runtime). Plumbed through all 3 entry points (+ Idempotency-Key header on v1). tests/checkout-idempotency.test.ts (4). VERIFIED: typecheck+lint clean, full suite 582/582, check:migrations pass, golden-path green on migrated dev DB, gate PENDING. Follow-ups: L-020 (dashboard client key), #10 stays with L-017."
+    },
+    {
+      "seq": 10,
+      "type": "HEARTBEAT",
+      "at": "2026-07-08T10:05:00Z",
+      "detail": "Iteration: completed L-009 (Gate G.4 security headers). Headers were already configured in next.config.mjs but UNGUARDED — extracted policy to pure module src/lib/security-headers.mjs (next.config imports it) + regression-locked with tests/security-headers.test.ts (5). Locks HSTS prod-only, X-Frame DENY on app routes, /book/* embeddable, no unsafe-eval in prod, Stripe allowlist. VERIFIED: new test 5/5, typecheck+lint clean, FULL next build green (config change), gate PENDING. Skipped L-005 (per-tenant logging — needs AsyncLocalStorage request-context, >1 iteration). G.3 dep-CVE scan split to L-021."
+    },
+    {
+      "seq": 11,
+      "type": "HEARTBEAT",
+      "at": "2026-07-08T10:55:00Z",
+      "detail": "Iteration: completed L-021 (Gate G.3 dependency-audit gate). SENSE found 4 HIGH prod-dep CVEs (next/fast-uri/path-to-regexp/picomatch — all DoS/ReDoS/path-traversal, 0 critical). Chose to ship the GATE (safe, no dep changes) rather than do risky dep surgery: scripts/check-audit.mjs + `npm run check:audit` + audit-allowlist.json + tests/check-audit.test.ts (5). Fails on any UNTRIAGED high/critical; the 4 knowns documented+allowlisted with reviewBy. ESCALATED remediation as L-022 (owner: next 16 major upgrade + transitive overrides + pnpm lockfile sync — human decision). VERIFIED: check:audit exit 0, test 5/5, typecheck+lint clean, full suite green, gate PENDING."
+    },
+    {
+      "seq": 12,
+      "type": "FIXED",
+      "at": "2026-07-08T11:45:00Z",
+      "detail": "Iteration: completed L-015 (payments-audit #4 — appointment checkout overcharge). recordCheckout now charges each appointment service line at the BOOKED AppointmentService.finalPrice snapshot (tenant-scoped query where appointment.businessId), not the live catalog price, so a price change between booking and checkout no longer overcharges the client and the charge reconciles with the commission base (which already used finalPrice). Walk-in/POS + products keep live price. tests/checkout-commission.test.ts +1 (catalog 50 vs booked 40 → charges 40). VERIFIED: commission 7/7, typecheck+lint clean, golden-path green on dev DB (new query valid Postgres), full suite green, gate PENDING."
+    },
+    {
+      "seq": 13,
+      "type": "VERIFIED",
+      "at": "2026-07-08T12:35:00Z",
+      "detail": "Iteration: completed L-018 (owed regression tests for shipped one-liner payment fixes). tests/stripe-refund.test.ts (2): mocks the Stripe SDK, runs REAL createRefund, asserts reverse_transfer:true (audit #11) + failure surfaces as {success:false}. tests/checkout-custom-tax.test.ts (2): a both-toggles-off shop leaves a $100 Quick Sale at $100, default config taxes it (audit #7). Both non-vacuous (reverting either fix flips the assertion). #3 (api/bookings route test) split to L-023 (P3, heavy route mocking). VERIFIED: 4 new tests green, typecheck+lint clean, full suite green, gate PENDING."
+    },
+    {
+      "seq": 26,
+      "type": "AUDIT+FIXED",
+      "at": "2026-07-09T09:00:00Z",
+      "detail": "Generated fuel: AUTH/SESSION/AUTHZ/ONBOARDING adversarial audit (15-agent workflow, 4 dims × verify). 11 findings, ALL 11 confirmed (~9 unique after dedup) — highest signal rate of the 3 audits. FIXED the top P1 same iteration: cross-tenant privilege escalation via PATCH /api/v1/team/[userId] — it rewrote the GLOBAL User.role with NO multi-business guard, so Tenant A's owner could silently make a shared staff member admin at Tenant B. The server action already had the belongsToAnotherBusiness guard; the REST route + MCP tool omitted it (drift). FIX: extracted src/lib/team/role-change-guard.ts (shared belongsToAnotherBusiness + CROSS_TENANT_ROLE_CHANGE_ERROR), wired into ALL THREE (server action DRY'd + REST route + MCP tool #5) so it can't drift again. tests/team-role-change-guard.test.ts (4) + tests/v1-team-role-cross-tenant.test.ts (2, cross-tenant target → 400 no-write). VERIFIED: 621/621 (typecheck-aware gate), lint clean, gate PENDING. Filed 7 remaining auth findings L-034..L-040 (session-invalidation-on-reset P2, lockout-DoS P2, stale-JWT-role P2, register-enumeration P3, timing side-channel P3, no-status-check P3, incomplete-deletion P3) — backlog refilled with real fuel."
+    },
+    {
+      "seq": 25,
+      "type": "PREEMPT+GATE-FIX",
+      "at": "2026-07-09T08:10:00Z",
+      "detail": "⚠ SMOKE RED at SENSE (typecheck ❌) → preempted the planned auth audit to fix the regression (per LOOP.md DECIDE). Cause: last iteration's L-030 test (bookings-date-filter-timezone) called the withSafeErrors-wrapped GET with 1 arg (type wants 2); it slipped through because I ran typecheck BEFORE writing the test, vitest doesn't type-check, and the FULL gate (node loop/gate.mjs) only runs typecheck under --smoke, not in J.2. This is the SECOND gate blind spot (after the check-invariants full-suite gap). FIX: (1) test now calls GET via a callGet(url) helper passing the route ctx → typecheck green; (2) strengthened scripts/check-invariants.mjs to run `tsc --noEmit` FIRST and exit 1 on any type error, so J.2 now = typecheck + full suite + 15 invariants. VERIFIED: smoke green, 615/615, gate green. AUTH/SESSION audit deferred to next heartbeat."
+    },
+    {
+      "seq": 24,
+      "type": "FIXED+CONVERGED",
+      "at": "2026-07-09T07:25:00Z",
+      "detail": "Iteration: completed L-030 (GET /api/bookings date filter now salon-tz, matching v1 route). tests/bookings-date-filter-timezone.test.ts (3). 615/615, gate PENDING. ⭐ CONVERGENCE: this was the LAST fixable booking-audit item. The code-doable backlog is now EXHAUSTED — every remaining OPEN non-owner item is dep-blocked (L-002 fast-check, L-006 Stryker, L-012 coverage tooling), infra-blocked (L-001 stripe listen+dev server, L-011 restore, + owner L-010 staging), architectural/big (L-005 AsyncLocalStorage logging, L-008 verifier harness), DB-heavier (L-007 metamorphic), product/migration (L-013), LATER (L-014), latent (L-017), or disproportionate (L-023). Per LOOP.md §5 the NEXT heartbeat should GENERATE FUEL via a fresh subsystem audit — AUTH/SESSION/ONBOARDING is the obvious untested target (payments ✓ + booking ✓ done). Two full audits (payments, booking) have produced 21 fixed findings across the session; board still PENDING pending founder infra/decisions + merge of PR #45."
+    },
+    {
+      "seq": 23,
+      "type": "FIXED",
+      "at": "2026-07-09T06:40:00Z",
+      "detail": "Iteration: completed L-032 (reactivation left stale cancellation flags). On reactivation (cancelled/no_show → active), the code left cancelledAt/noShowAt at `undefined` (Prisma omits → unchanged) and never touched cancellation metadata, so a reactivated appt still read as a no-show. Fixed via a reactivationData object that explicitly NULLS cancelledAt/noShowAt/cancellationInitiator/cancellationReasonCode/cancellationReason/cancelledBy — applied to ALL THREE reactivation paths (server action + v1 PATCH + MCP tool). Strengthened tests/appointment-reactivation-guard.test.ts to assert the update data nulls the flags. VERIFIED: 612/612 (strengthened gate), typecheck+lint clean, gate PENDING. The reactivation guard+clear is now in 3 places → strengthens the case for the L-028 shared-helper extraction. Booking-audit code fuel now down to L-030 (lowest value, no live consumer)."
+    },
+    {
+      "seq": 22,
+      "type": "FIXED",
+      "at": "2026-07-09T05:55:00Z",
+      "detail": "Iteration: completed L-029 (advance-booking ceiling used server-local day → rejected valid far-boundary slots for ahead-of-UTC salons like Dubai). Added maxAdvanceDateKey() to zoned-time.ts (salon-local YYYY-MM-DD ceiling, matching /api/availability), wired both write sites (createPublicBooking + reschedulePublicBooking). tests/max-advance-timezone.test.ts (3, pure): Dubai UTC+4 boundary → ceiling 08-08 (salon) vs 08-07 (server), boundary allowed/next-day rejected, rollover. VERIFIED: 3/3, 612/612 full suite (now gated by the strengthened check-invariants), typecheck+lint clean, gate PENDING."
+    },
+    {
+      "seq": 21,
+      "type": "REGRESSION+GATE-FIX",
+      "at": "2026-07-09T05:40:00Z",
+      "detail": "⚠ FALSE-GREEN CAUGHT (while gathering stats for a founder review, ran the FULL `npx vitest run` and found 12 FAILING tests the board had been showing green). Root cause: L-015 (seq 17) added `tx.appointmentService.findMany` to recordCheckout, but 3 older checkout test fakeTxs (double-submit, loyalty, product-line) don't mock appointmentService → TypeError. The gate MISSED it: check-invariants runs the whole suite but only exited non-zero if one of the 15 mapped invariant RULES failed — unrelated test failures were counted but not gated. FIX: (1) added appointmentService.findMany:[] to the 3 fakeTxs → 609/609 green; (2) strengthened scripts/check-invariants.mjs to also exit 1 when passedTests<totalTests, closing the blind spot so J.2 now fails on ANY unit-test failure. Not a frozen file. VERIFIED: 609/609, typecheck+lint clean, gate green. This is the val-vs-holdout divergence LOOP.md §4 warns about — the loop's own oracle gave false green for ~6 iterations."
+    },
+    {
+      "seq": 20,
+      "type": "FIXED",
+      "at": "2026-07-09T04:55:00Z",
+      "detail": "Iteration: completed L-033 (v1 recurring ROUTE DST drift — the 3rd instance). Replaced its inline addWeeks/addMonths loop with the shared generateRecurrenceDates helper (route already fetched timezone + was already atomic). tests/v1-recurring-dst.test.ts (1): real POST handler over mocked auth+prisma, NY weekly across 2026-03-08 spring-forward → 9AM-local occurrences (03-09=13:00Z). VERIFIED: 1/1, typecheck+lint clean, full suite green, gate PENDING. Recurring DST drift now CLOSED across all 3 paths (server action + MCP + v1 route) via one tested helper."
+    },
+    {
+      "seq": 19,
+      "type": "FIXED",
+      "at": "2026-07-09T04:05:00Z",
+      "detail": "Iteration: completed L-031 (soft-deleted service bookable via v1 group+recurring routes). Added deletedAt:null to both service.findFirst where clauses (matching the canonical v1 appointments route). tests/v1-booking-soft-delete-service.test.ts (2): drives both route handlers over mocked v1-auth+prisma, asserts the lookup is scoped to deletedAt:null (soft-deleted → 404). VERIFIED: 2/2, typecheck+lint clean, full suite green, gate PENDING. FLAGGED L-027 owner:true (buffer-composition semantics = product decision + it modifies the safety-critical availability engine → wants a supervised pass). FILED L-033: the v1 recurring ROUTE is a 3rd instance of the recurring DST drift (uses addWeeks/addMonths) — wire to the shared helper."
+    },
+    {
+      "seq": 18,
+      "type": "FIXED",
+      "at": "2026-07-09T03:15:00Z",
+      "detail": "Iteration: completed L-026 (MCP recurring DST + monthly=30d). Replaced the MCP create-recurring tool's fixed-ms interval loop with the shared generateRecurrenceDates() helper (from L-025), iterated inside the single tx from L-024 — so the MCP recurring path is now atomic AND DST-safe AND monthly=calendar-month, fully consistent with the server action. Strengthened tests/mcp-recurring-atomicity.test.ts (+1 DST assertion: NY weekly across 2026-03-08 spring-forward → occurrences at 9AM local, 03-09=13:00Z). VERIFIED: 6 recurring tests + full suite green, typecheck+lint clean, gate PENDING. Both recurring DST bugs now closed via one tested helper."
+    },
+    {
+      "seq": 17,
+      "type": "FIXED",
+      "at": "2026-07-09T02:30:00Z",
+      "detail": "Iteration: completed L-025 (recurring-series DST drift). Extracted src/lib/scheduling/recurrence.ts generateRecurrenceDates() — advances in the salon IANA timezone via TZDate/@date-fns/tz so a standing appt keeps its salon-local wall-clock across DST + 'monthly'=calendar month (not +30d). Wired into recurring.ts server action. tests/recurrence-dst.test.ts (3, pure): weekly 9AM NY stays 9AM local across spring-forward (03-09→13:00Z EDT not 14:00Z); monthly keeps day-15; caps. VERIFIED: 3/3 + 16 recurring tests + full suite green, typecheck+lint clean, gate PENDING. L-026 reduced to a fast follow (wire the SAME helper into the MCP tool)."
+    },
+    {
+      "seq": 16,
+      "type": "FIXED",
+      "at": "2026-07-09T01:20:00Z",
+      "detail": "Iteration (fuel from booking audit): completed L-024 (MCP create-recurring atomicity). Hoisted a single prisma.$transaction around the whole occurrence loop (lock once up front), mirroring recurring.ts — a mid-series conflict now rolls back every occurrence (all-or-nothing) instead of leaving orphaned confirmed appointments + a misleading 'nothing created' error. tests/mcp-recurring-atomicity.test.ts (2): whole series in ONE tx; mid-series conflict → error. VERIFIED: 2/2, typecheck+lint clean, full suite green, gate PENDING. FLAGGED L-028 (illegal status transitions) as owner:true — it's CONTRADICTORY: getValidStatusTransitions forbids all terminal-state transitions but the server/v1/MCP deliberately allow cancelled/no_show→active (un-cancel). Whether un-cancel is legal is a product decision; the loop won't guess."
+    },
+    {
+      "seq": 15,
+      "type": "AUDIT+FIXED",
+      "at": "2026-07-09T00:10:00Z",
+      "detail": "Backlog was dry → generated fuel: booking/availability adversarial audit (17-agent workflow, 4 dimensions × verify). 13 raw findings, 12 confirmed (1 rejected as unreachable), 10 UNIQUE bugs (top P1 reported 3×). FIXED the P1 same iteration: MCP update-appointment-status reactivated cancelled/no_show appts with NO conflict re-check → silent double-booking on the AI-facing surface (the exact reactivation guard already on the server action + v1 REST, missing on MCP). Ported the guard (advisory lock + in-tx conflict re-check + CONFLICT→clean error) into mcp/tools/appointments.ts + tests/mcp-update-status-reactivation.test.ts (3, non-vacuous). VERIFIED: new test 3/3, typecheck+lint clean, full suite green, gate PENDING. Filed remaining 9 as L-024..L-032 (recurring atomicity, DST drift ×2, buffer-not-reserved, illegal transitions, 3× tz-boundary, soft-deleted-service booking, stale-reactivation-flags)."
+    },
+    {
+      "seq": 14,
+      "type": "FIXED",
+      "at": "2026-07-08T13:25:00Z",
+      "detail": "Iteration: completed L-020 (dashboard idempotency key — completes the L-016 story). payment-dialog.tsx mints a crypto.randomUUID() key per checkout session (useRef, reset on dialog reopen), kept across retries, passed to processPayment so a double-click/network-blip retry dedupes to the original payment. VERIFIED: typecheck+lint clean, full production build green, full suite green; the no-double-charge invariant is already locked by tests/checkout-idempotency.test.ts (no component-test infra to unit-test the UI wiring). CONVERGENCE NOTE: the cleanly code-doable + testable backlog is now essentially exhausted — remaining items are owner-gated (L-019/L-022), infra (L-001/L-010/L-011), dep-blocked (L-002/L-006/L-012), architectural (L-005/L-008), DB-metamorphic (L-007), product/migration (L-013), or disproportionate (L-023). Next heartbeats should GENERATE fuel (fresh subsystem audit — booking/availability/auth not yet deeply audited) per LOOP.md §5, or await founder enablers."
+    },
+    {
+      "seq": 15,
+      "type": "VERIFIED",
+      "at": "2026-07-09T02:50:00Z",
+      "detail": "Iteration (auth-audit fuel): completed L-040 (account deletion revoked no credentials). requestAccountDeletion() now revokes ApiKey + OAuthAccessToken (revokedAt=now) inside the atomic deletion tx — a leaked/previously-issued API key or OAuth token no longer survives 'delete my account'. Chose L-040 over the P2 auth findings this tick because L-040 is a server ACTION (cleanly unit-testable via the established getBusinessContext+prisma mock harness) and additive/low-risk, whereas L-034 needs a schema migration on the session path, L-035 is the authorize() closure + middleware IP-throttle, and L-036 is a server component (all want a dedicated, careful pass — NOT an unattended tick). Scope kept safe: businessId-scoped revocation only; global User.role/status left untouched to avoid the cross-tenant blast radius (same class the L-041/role-guard fix addressed). VERIFIED: account-deletion suite 11/11; full gate green — tsc --noEmit clean, 15/15 invariants, 623/623 unit tests (was 621, +2). VERDICT still PENDING (unchanged — remaining reds are P0 infra/owner gates: observability wiring, staging rollback, restore drill, live-Stripe E2E, A.4/A.5 board wiring). Remaining cleanly-code-doable auth fuel: L-034/L-035/L-036 (P2, need dedicated passes), L-037/L-038/L-039 (P3)."
+    }
   ]
 }

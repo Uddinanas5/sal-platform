@@ -13,6 +13,8 @@ const { prismaMock, getBusinessContextMock, sendEmailMock, revalidatePathMock } 
   const txMock = {
     business: { update: vi.fn() },
     auditLog: { create: vi.fn() },
+    apiKey: { updateMany: vi.fn() },
+    oAuthAccessToken: { updateMany: vi.fn() },
   }
   const prismaMock = {
     business: { findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
@@ -164,6 +166,34 @@ describe("requestAccountDeletion — recorded effects (no hard-delete)", () => {
 
     // NEVER a hard delete of a business with bookings.
     expect(prismaMock.business.delete).not.toHaveBeenCalled()
+  })
+
+  it("revokes the tenant's API keys and OAuth access tokens in the same transaction", async () => {
+    // Auth audit L-040: a leaked/previously-issued API key or OAuth token must not
+    // keep authenticating after the owner requests deletion. Both revocations run
+    // INSIDE the atomic tx (so they can't half-apply) and are businessId-scoped.
+    const res = await requestAccountDeletion({ confirmName: BIZ_NAME })
+    expect(res.success).toBe(true)
+
+    expect(prismaMock.__tx.apiKey.updateMany).toHaveBeenCalledTimes(1)
+    const keyCall = prismaMock.__tx.apiKey.updateMany.mock.calls[0][0]
+    expect(keyCall.where).toEqual({ businessId: BIZ, revokedAt: null })
+    expect(keyCall.data.revokedAt).toBeInstanceOf(Date)
+
+    expect(prismaMock.__tx.oAuthAccessToken.updateMany).toHaveBeenCalledTimes(1)
+    const tokCall = prismaMock.__tx.oAuthAccessToken.updateMany.mock.calls[0][0]
+    expect(tokCall.where).toEqual({ businessId: BIZ, revokedAt: null })
+    expect(tokCall.data.revokedAt).toBeInstanceOf(Date)
+  })
+
+  it("does NOT revoke any credentials when authorization fails (no tx at all)", async () => {
+    getBusinessContextMock.mockResolvedValue({ userId: OTHER_USER, businessId: BIZ, role: "admin" })
+
+    const res = await requestAccountDeletion({ confirmName: BIZ_NAME })
+
+    expect(res.success).toBe(false)
+    expect(prismaMock.__tx.apiKey.updateMany).not.toHaveBeenCalled()
+    expect(prismaMock.__tx.oAuthAccessToken.updateMany).not.toHaveBeenCalled()
   })
 
   it("still succeeds when the notification email fails (request is the source of truth)", async () => {

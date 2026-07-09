@@ -113,6 +113,15 @@ export async function requestAccountDeletion(data: {
         data: { subscriptionStatus: "cancelled", lastBillingEventAt: new Date() },
       })
 
+      // Revoke the tenant's API credentials so a leaked or previously-issued API key
+      // / OAuth access token stops authenticating immediately, instead of surviving
+      // the "delete account" request. Both are businessId-scoped, so this does not
+      // touch other tenants; the GLOBAL User.role/status is intentionally left alone
+      // here (a shared cross-tenant member must not be logged out everywhere).
+      const revokedAt = new Date()
+      await tx.apiKey.updateMany({ where: { businessId, revokedAt: null }, data: { revokedAt } })
+      await tx.oAuthAccessToken.updateMany({ where: { businessId, revokedAt: null }, data: { revokedAt } })
+
       await tx.auditLog.create({
         data: {
           businessId,
