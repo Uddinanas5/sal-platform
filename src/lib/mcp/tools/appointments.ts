@@ -429,82 +429,82 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       const intervalDays = recurrenceRule === "weekly" ? 7 : recurrenceRule === "biweekly" ? 14 : 30
       const price = Number(service.price)
 
-      const appointments: { id: string; startTime: Date }[] = []
-      let current = new Date(start)
-      let count = 0
+      let appointments: { id: string; startTime: Date }[] = []
 
       try {
-        while (current <= endDate && count < 52) {
-          const occurrenceStart = new Date(current)
-          const occurrenceEnd = new Date(current.getTime() + service.durationMinutes * 60000)
-
-          // ONE TRANSACTION PER OCCURRENCE: assertSlotAllowed needs a tx client,
-          // so each occurrence is written under its own transaction with the
-          // guard in front. The try/catch wraps the WHOLE loop (not each
-          // occurrence): a working-hours / approved-time-off violation (or a
-          // conflict) on any occurrence throws out of the loop and aborts the
-          // series — matching HEAD's semantics — so the caller gets a single
-          // slot/conflict error rather than a partially-booked series.
-          const appt = await prisma.$transaction(async (tx) => {
-            // Same working-hours / break / approved-time-off guard the server
-            // actions and v1 API use (BOOKING-RESIDUAL): lock -> assertSlotAllowed
-            // -> conflict check -> create. Salon timezone anchors the @db.Time
-            // hours on any host.
+        // ATOMIC SERIES: wrap the WHOLE loop in ONE transaction (mirrors the server
+        // action createRecurringAppointment) so a mid-series conflict / working-hours
+        // violation rolls back EVERY occurrence — never a partially-booked series with
+        // orphaned appointments while the caller is told nothing was created. Lock the
+        // staff schedule once up front (same staff for every occurrence); conflict-check
+        // each occurrence. Salon timezone anchors assertSlotAllowed's @db.Time hours.
+        appointments = await prisma.$transaction(
+          async (tx) => {
             await lockStaffSchedule(tx, ctx.businessId, staffId)
-            await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd, timezone)
+            const created: { id: string; startTime: Date }[] = []
+            let current = new Date(start)
+            let count = 0
 
-            const conflict = await tx.appointmentService.findFirst({
-              where: {
-                staffId,
-                appointment: { status: { notIn: ["cancelled", "no_show"] } },
-                startTime: { lt: occurrenceEnd },
-                endTime: { gt: occurrenceStart },
-              },
-            })
-            if (conflict) throw new Error("CONFLICT")
+            while (current <= endDate && count < 52) {
+              const occurrenceStart = new Date(current)
+              const occurrenceEnd = new Date(current.getTime() + service.durationMinutes * 60000)
 
-            const created = await tx.appointment.create({
-              data: {
-                businessId: ctx.businessId,
-                locationId: location.id,
-                clientId,
-                bookingReference: generateBookingReference(),
-                status: "confirmed",
-                source: "pos",
-                startTime: occurrenceStart,
-                endTime: occurrenceEnd,
-                totalDuration: service.durationMinutes,
-                subtotal: price,
-                taxAmount: 0,
-                totalAmount: price,
-                notes,
-                seriesId,
-                recurrenceRule,
-                recurrenceEndDate: endDate,
-              },
-            })
+              await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd, timezone)
 
-            await tx.appointmentService.create({
-              data: {
-                appointmentId: created.id,
-                serviceId,
-                staffId,
-                name: service.name,
-                durationMinutes: service.durationMinutes,
-                price,
-                finalPrice: price,
-                startTime: occurrenceStart,
-                endTime: occurrenceEnd,
-              },
-            })
+              const conflict = await tx.appointmentService.findFirst({
+                where: {
+                  staffId,
+                  appointment: { status: { notIn: ["cancelled", "no_show"] } },
+                  startTime: { lt: occurrenceEnd },
+                  endTime: { gt: occurrenceStart },
+                },
+              })
+              if (conflict) throw new Error("CONFLICT")
+
+              const createdAppt = await tx.appointment.create({
+                data: {
+                  businessId: ctx.businessId,
+                  locationId: location.id,
+                  clientId,
+                  bookingReference: generateBookingReference(),
+                  status: "confirmed",
+                  source: "pos",
+                  startTime: occurrenceStart,
+                  endTime: occurrenceEnd,
+                  totalDuration: service.durationMinutes,
+                  subtotal: price,
+                  taxAmount: 0,
+                  totalAmount: price,
+                  notes,
+                  seriesId,
+                  recurrenceRule,
+                  recurrenceEndDate: endDate,
+                },
+              })
+
+              await tx.appointmentService.create({
+                data: {
+                  appointmentId: createdAppt.id,
+                  serviceId,
+                  staffId,
+                  name: service.name,
+                  durationMinutes: service.durationMinutes,
+                  price,
+                  finalPrice: price,
+                  startTime: occurrenceStart,
+                  endTime: occurrenceEnd,
+                },
+              })
+
+              created.push({ id: createdAppt.id, startTime: createdAppt.startTime })
+              current = new Date(current.getTime() + intervalDays * 86400000)
+              count++
+            }
 
             return created
-          }, { timeout: 20000, maxWait: 15000 })
-
-          appointments.push({ id: appt.id, startTime: appt.startTime })
-          current = new Date(current.getTime() + intervalDays * 86400000)
-          count++
-        }
+          },
+          { timeout: 20000, maxWait: 15000 },
+        )
       } catch (e) {
         if ((e as Error).message === "CONFLICT") return err("One or more recurring time slots are already booked")
         const slotErr = slotErrorMessage(e)

@@ -171,7 +171,19 @@ can't self-serve**:
   issues, and a soft-deleted service still being bookable via the API. None are
   emergencies (mostly P2/P3), but they're real and now queued.
 
+## Heartbeat iteration 10 (Jul 8) — recurring bookings are now all-or-nothing
+- Fixed `L-024`: creating a **repeating appointment** (e.g. a standing weekly cut)
+  via the AI tool used to book each week separately — so if week 4 hit a conflict,
+  weeks 1–3 were already on the calendar while the caller was told "nothing was
+  booked." Now the whole series books in one shot: if any week can't be booked,
+  none are (matching how the dashboard already works). Proven with 2 tests.
+- **Flagged `L-028` for you (didn't guess):** the code contradicts itself on whether
+  "un-cancelling" an appointment is allowed — the dashboard route forbids it, the
+  server/API/AI paths allow it. Deciding which is correct is a product call, so I
+  left it for you rather than pick a side.
+
 ## Next
-- The loop has fuel again (`L-024`–`L-032`) — future heartbeats can work these.
-- Still the highest leverage, in your court: merge PR #45, the CVE/Next.js call,
-  and the infra gates (staging/restore/observability/live-Stripe).
+- Booking fuel remaining: `L-025`/`L-026` (daylight-saving drift), `L-027` (turnover
+  buffers), `L-029`–`L-032` (timezone edges, soft-deleted service, stale flags).
+- Highest leverage still yours: merge PR #45, the Next.js/CVE call, and the infra
+  gates (staging/restore/observability/live-Stripe).
