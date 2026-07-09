@@ -216,6 +216,17 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
         ...(status === "no_show" ? { noShowAt: new Date() } : {}),
         ...(status === "checked_in" ? { checkedInAt: new Date() } : {}),
       }
+      // On reactivation, clear stale cancellation fields with explicit null (Prisma
+      // omits undefined) — mirrors the server action + v1 route.
+      const reactivationData = {
+        ...data,
+        cancelledAt: null,
+        noShowAt: null,
+        cancellationInitiator: null,
+        cancellationReasonCode: null,
+        cancellationReason: null,
+        cancelledBy: null,
+      }
 
       // REACTIVATION GUARD (mirrors the server action + v1 REST PATCH): cancelled/
       // no_show FREE the slot, so another booking may have taken it. Moving back to
@@ -244,7 +255,7 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
                   })
                   if (conflict) throw new Error("CONFLICT")
                 }
-                return tx.appointment.update({ where: { id, businessId: ctx.businessId }, data })
+                return tx.appointment.update({ where: { id, businessId: ctx.businessId }, data: reactivationData })
               },
               { timeout: 20000, maxWait: 15000 },
             )

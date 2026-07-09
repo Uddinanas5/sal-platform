@@ -331,6 +331,19 @@ export async function updateAppointmentStatus(
       cancelledAt: dbStatus === "cancelled" ? new Date() : undefined,
       noShowAt: dbStatus === "no_show" ? new Date() : undefined,
     }
+    // On REACTIVATION (cancelled/no_show → active), clear the stale cancellation
+    // fields — otherwise the reactivated appointment still reads as a no-show/
+    // cancelled to any consumer keyed on noShowAt/cancelledAt/cancellationReasonCode.
+    // Prisma omits `undefined`, so these must be explicit `null` to actually clear.
+    const reactivationData = {
+      ...updateData,
+      cancelledAt: null,
+      noShowAt: null,
+      cancellationInitiator: null,
+      cancellationReasonCode: null,
+      cancellationReason: null,
+      cancelledBy: null,
+    }
     const includeRels = { client: true, services: true, business: true } as const
 
     let appointment
@@ -350,7 +363,7 @@ export async function updateAppointmentStatus(
           })
           if (conflict) throw new Error("CONFLICT")
         }
-        return tx.appointment.update({ where: { id, businessId }, data: updateData, include: includeRels })
+        return tx.appointment.update({ where: { id, businessId }, data: reactivationData, include: includeRels })
       }, { timeout: 20000, maxWait: 15000 })
     } else {
       appointment = await prisma.appointment.update({

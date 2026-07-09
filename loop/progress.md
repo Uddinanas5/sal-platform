@@ -210,6 +210,14 @@ can't self-serve**:
   *route*, on top of the two already fixed) — filed as `L-033`, same one-line-ish
   fix using the helper.
 
+## Heartbeat iteration 16 (Jul 9) — un-cancelling now clears the "no-show" mark
+- Fixed `L-032`: when you restore a cancelled/no-show appointment, it used to keep
+  its old "no-show" / "cancelled" stamps, so it still looked like a no-show to any
+  report or fee later keyed on that. Now restoring properly clears those stamps —
+  in all three places it can happen (dashboard, API, and the AI tool). Proven with a
+  test. (These three copies of the same logic are now begging to be merged into one
+  shared helper — noted for a cleanup pass.)
+
 ## Heartbeat iteration 15 (Jul 9) — far-future booking limit fixed for Dubai-style shops
 - Fixed `L-029`: the "you can book up to N days ahead" limit was measured on the
   server's clock, not the shop's — so for a shop **ahead of UTC (like Dubai)**, a
