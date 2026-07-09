@@ -10,7 +10,7 @@
  * Run: `npm run check:invariants`
  * Add an invariant: add an entry below + the test that proves it.
  */
-import { execFileSync } from "node:child_process"
+import { execFileSync, spawnSync } from "node:child_process"
 import { readFileSync, rmSync, mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -87,6 +87,16 @@ export function runInvariantBoard({ quiet = false } = {}) {
 
 // Auto-run only when invoked directly (`node scripts/check-invariants.mjs`).
 if (import.meta.url === `file://${process.argv[1]}`) {
+  // A TYPE ERROR is a broken build — fail the board before anything else. vitest
+  // transpiles without type-checking, so a test (or source) that type-errors can
+  // otherwise pass the suite while `tsc` is red; this makes the gate catch it too.
+  console.log("Type-checking (tsc --noEmit)…")
+  const tc = spawnSync("npx", ["tsc", "--noEmit"], { cwd: process.cwd(), stdio: "inherit", shell: process.platform === "win32" })
+  if (tc.status !== 0) {
+    console.error("\n❌ Type-check failed. Fix type errors before merge.")
+    process.exit(1)
+  }
+
   const { rows, allGreen, passedTests, totalTests } = runInvariantBoard()
   const pad = (s, n) => String(s).padEnd(n)
   console.log("BUSINESS-INVARIANT BOARD")

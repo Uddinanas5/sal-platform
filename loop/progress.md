@@ -210,6 +210,14 @@ can't self-serve**:
   *route*, on top of the two already fixed) — filed as `L-033`, same one-line-ish
   fix using the helper.
 
+## ⚠️ Caught a second gate blind spot (and closed it)
+This heartbeat opened with the health check RED — a *type* error in last run's test
+had slipped through, because the scoreboard's main check runs the tests (which don't
+type-check) but not the type-checker itself; only the quick "smoke" check did. Fixed
+the test **and** made the scoreboard type-check first, so a broken build can't show
+green anymore. (That's now two self-caught blind spots — the loop is genuinely
+policing itself.) The planned login-system audit moves to the next tick.
+
 ## Heartbeat iteration 17 (Jul 9) — booking list shows the right day; booking backlog CLOSED
 - Fixed `L-030`: the appointments-list API filtered by the *server's* calendar day,
   not the shop's, so near midnight a non-UTC shop could see the wrong day's list.

@@ -26,6 +26,10 @@ import { GET } from "@/app/api/bookings/route"
 
 const BIZ = "11111111-1111-4111-8111-111111111111"
 
+// The route is wrapped by withSafeErrors, whose type expects Next's (req, ctx)
+// pair. The handler only reads req, so pass an empty route context.
+const callGet = (url: string) => GET(new NextRequest(url), undefined as never)
+
 beforeEach(() => {
   vi.clearAllMocks()
   getBusinessContext.mockResolvedValue({ businessId: BIZ, userId: "u1", role: "admin" })
@@ -36,7 +40,7 @@ beforeEach(() => {
 
 describe("GET /api/bookings — date filter windows on the SALON timezone (L-030)", () => {
   it("?date selects the salon's calendar day, not the server's UTC day", async () => {
-    const res = await GET(new NextRequest("http://localhost/api/bookings?date=2026-06-15"))
+    const res = await callGet("http://localhost/api/bookings?date=2026-06-15")
     expect(res.status).toBe(200)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where = (apptFindMany.mock.calls[0]![0] as any).where
@@ -46,12 +50,12 @@ describe("GET /api/bookings — date filter windows on the SALON timezone (L-030
   })
 
   it("rejects an impossible calendar date (2026-06-31) with 400", async () => {
-    const res = await GET(new NextRequest("http://localhost/api/bookings?date=2026-06-31"))
+    const res = await callGet("http://localhost/api/bookings?date=2026-06-31")
     expect(res.status).toBe(400)
   })
 
   it("does not fetch the timezone (no query) when there is no date filter", async () => {
-    const res = await GET(new NextRequest("http://localhost/api/bookings"))
+    const res = await callGet("http://localhost/api/bookings")
     expect(res.status).toBe(200)
     expect(businessFindUnique).not.toHaveBeenCalled()
   })
