@@ -299,7 +299,7 @@
       "priority": "P2",
       "state": "open",
       "source": "auth-audit (password-reset.ts:137)",
-      "notes": "Stateless 7-day JWT; resetPassword() never watermarks. A stolen session/JWT keeps full dashboard+API access after the victim resets. Fix: add User.sessionsValidAfter/passwordChangedAt (schema migration), stamp on reset, embed iat at login, reject stale tokens in resolveBusinessRole/withV1Auth; add log-out-everywhere. OWASP ASVS 3.3."
+      "notes": "Stateless 7-day JWT; resetPassword() never watermarks. A stolen session/JWT keeps full dashboard+API access after the victim resets. Fix: add User.sessionsValidAfter/passwordChangedAt (schema migration), stamp on reset, embed iat at login, reject stale tokens in resolveBusinessRole/withV1Auth; add log-out-everywhere. OWASP ASVS 3.3. || ENV NOTE (Jul 9): requires a Prisma migration (sessionsValidAfter) on the dev schema; the dev DB is currently UNREACHABLE from this environment (P1001), so the migration + cross-credential-path integration test cannot be run here. Needs the dev DB reachable (or a local Postgres) to execute safely."
     },
     {
       "id": "L-035",
@@ -308,7 +308,7 @@
       "priority": "P2",
       "state": "open",
       "source": "auth-audit (auth.ts:35)",
-      "notes": "5 wrong passwords lock a real account 15min; attacker re-locks every 15min to keep an owner out permanently (no per-IP throttle on /api/auth). Fix: per-IP throttle on the login callback, reset failedLoginAttempts once lockedUntil passes, prefer backoff/CAPTCHA over hard-lock, return null for locked."
+      "notes": "5 wrong passwords lock a real account 15min; attacker re-locks every 15min to keep an owner out permanently (no per-IP throttle on /api/auth). Fix: per-IP throttle on the login callback, reset failedLoginAttempts once lockedUntil passes, prefer backoff/CAPTCHA over hard-lock, return null for locked. || ENV NOTE (Jul 9): the serverless-safe per-IP throttle depends on RL-1's shared store (Upstash) — sequence RL-1 first. Blocked on the Upstash/owner decision."
     },
     {
       "id": "L-036",
@@ -334,9 +334,10 @@
       "title": "Login + password-reset leak account existence via response-timing side channel",
       "gate": "G",
       "priority": "P3",
-      "state": "open",
+      "state": "done",
       "source": "auth-audit (auth.ts:32)",
-      "notes": "authorize() returns before bcrypt.compare for a non-existent email; requestPasswordReset awaits sendEmail only for real emails. Fix: dummy bcrypt on the no-user branch; fire-and-forget sendEmail in reset. Lower priority than L-037 (the explicit register oracle dominates)."
+      "notes": "authorize() returns before bcrypt.compare for a non-existent email; requestPasswordReset awaits sendEmail only for real emails. Fix: dummy bcrypt on the no-user branch; fire-and-forget sendEmail in reset. Lower priority than L-037 (the explicit register oracle dominates).",
+      "resolution": "FIXED on loop/engine-bootstrap. Closed the login + password-reset timing side-channel: (1) authorize() now runs a dummy bcrypt.compare against a lazily-computed hash on the no-user / no-passwordHash branch, so a non-existent account takes the same time as a wrong password; (2) requestPasswordReset now fire-and-forgets the email send (void sendEmail(...).catch(...)) instead of awaiting it only on the user-exists branch. Test: tests/auth-timing-enumeration.test.ts (fire-and-forget proven by a never-resolving email mock that would hang the old code; + source-guard for the login closure). Gate: tsc clean, 15/15 invariants, 669/669."
     },
     {
       "id": "L-039",
@@ -424,6 +425,24 @@
       "source": "L-039 adversarial check (src/lib/api/auth.ts:65)",
       "notes": "withV1Auth's Bearer API-key branch returns {userId:apiKey.createdById, businessId:apiKey.businessId, role:apiKey.role} WITHOUT calling resolveBusinessRole, so unlike the OAuth path (:76) and the session path (:94) it never checks whether the key creator is still an ACTIVE member. A suspended user (or one removed from the business) keeps full REST + MCP access through any un-revoked, un-expired API key they created. Same class as L-039, different credential surface. NUANCE: do NOT just swap in resolveBusinessRole(createdById) — an API key intentionally carries its OWN configured role (apiKey.role), which may differ from the creator's role (e.g. an admin mints a read-only key); overriding it would break the key-role model. CORRECT FIX: additionally look up the creator's status (and optionally live membership) and refuse the key when the creator is non-active, WITHOUT changing the key's configured role. Also weigh whether a key should die when its creator loses membership vs only on explicit revoke (L-040 covers deletion). Its own careful iteration.",
       "resolution": "FIXED on loop/engine-bootstrap. The withV1Auth Bearer API-key branch (src/lib/api/auth.ts) now calls resolveBusinessRole(apiKey.createdById, apiKey.businessId) as a LIVENESS GATE and returns null if it's null — so a suspended/deactivated or removed creator's un-revoked key stops working, mirroring the OAuth + session paths. Crucially it still returns the key's OWN configured role (apiKey.role), NOT the resolved role, preserving the key-role model (an admin can still mint a read-only key). lastUsedAt is only bumped on a successful (accepted) use. Adversarial sweep: MCP reuses withV1Auth (covered); api-keys.ts hashing is key CREATION (owner-gated); the v1/api-keys/[id] route looks up by id for management (behind withV1Auth) — no other request-auth key path exists. Test: tests/v1-apikey-creator-status.test.ts (suspended creator → key rejected + no lastUsedAt bump; active creator → accepted with the KEY's staff role even though the creator resolves admin). Gate: tsc clean, 15/15 invariants, 660/660."
+    },
+    {
+      "id": "RL-1",
+      "title": "Rate limiter is in-memory (module-level map) — ineffective across serverless instances; not applied to all ~38 mutating v1 routes",
+      "gate": "F",
+      "priority": "P1",
+      "state": "blocked",
+      "source": "AUDIT.md §5 / external hardening plan #4",
+      "notes": "BLOCKED on an OWNER decision + enabler: needs a shared store (Upstash Redis via env var, fall back to in-memory for local dev) to be serverless-correct. Provisioning Upstash is a cost/account decision. src/lib/rate-limit.ts. L-035's per-IP login throttle depends on this — do RL-1 BEFORE L-035. DONE when limits hold across two simulated instances + a progress.md checklist maps every v1 route to its limit."
+    },
+    {
+      "id": "BK-1",
+      "title": "No DB-level exclusion constraint on bookings (advisory lock only; no btree_gist EXCLUDE as defense-in-depth)",
+      "gate": "A",
+      "priority": "P2",
+      "state": "blocked",
+      "source": "AUDIT.md §5 / external hardening plan #6",
+      "notes": "BLOCKED here on dev-DB reachability + the btree_gist extension. Add an EXCLUDE constraint on appointments (tstzrange over staff+time) via a dev-schema migration; audit every create/reschedule path for lock coverage. DONE when a raw-SQL overlapping insert is rejected by the DB itself and all booking tests stay green. (Migration cannot be applied/tested from the current environment — DB server unreachable, P1001.)"
     }
   ]
 }
