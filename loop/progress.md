@@ -210,6 +210,13 @@ can't self-serve**:
   *route*, on top of the two already fixed) — filed as `L-033`, same one-line-ish
   fix using the helper.
 
+## Heartbeat iteration 15 (Jul 9) — far-future booking limit fixed for Dubai-style shops
+- Fixed `L-029`: the "you can book up to N days ahead" limit was measured on the
+  server's clock, not the shop's — so for a shop **ahead of UTC (like Dubai)**, a
+  valid slot the booking page had just offered on the last allowed day could be
+  rejected. Now it uses the shop's local calendar day (matching the page), with a
+  test for the exact Dubai boundary case. Directly relevant to your Dubai shop.
+
 ## ⚠️ Important: caught a false "green" (and fixed the gate that allowed it)
 While pulling numbers for a review, I ran the FULL test suite directly and found
 **12 tests were actually failing** — even though the loop's scoreboard had been

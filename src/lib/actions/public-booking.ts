@@ -47,7 +47,7 @@ import {
   ERR_OUTSIDE_WORKING_HOURS,
   ERR_ON_APPROVED_TIME_OFF,
 } from "@/lib/scheduling/working-hours"
-import { formatInZone, localDateString } from "@/lib/scheduling/zoned-time"
+import { formatInZone, localDateString, maxAdvanceDateKey } from "@/lib/scheduling/zoned-time"
 
 const addToPublicWaitlistSchema = z.object({
   businessId: z.string().uuid(),
@@ -167,12 +167,12 @@ export async function createPublicBooking(data: {
     // calendar day is accepted — /api/availability advertises slots all day on
     // the boundary date (inclusive `date > maxDate` at midnight), and the write
     // must not reject every time-of-day except 00:00 on that same day.
+    // Anchor the advance-booking ceiling to the salon's LOCAL calendar day (matching
+    // /api/availability, which advertises slots by salon-local date). Server-local
+    // math rejected the boundary day for salons ahead of UTC (e.g. Dubai UTC+4) that
+    // the widget had just offered. Compare YYYY-MM-DD strings in the salon timezone.
     const maxDays = MAX_ADVANCE_DAYS[bookingSettings.maxAdvanceBooking] ?? 30
-    const maxDate = new Date()
-    maxDate.setHours(0, 0, 0, 0)
-    maxDate.setDate(maxDate.getDate() + maxDays)
-    maxDate.setHours(23, 59, 59, 999)
-    if (requestedStart > maxDate) {
+    if (localDateString(requestedStart, business.timezone) > maxAdvanceDateKey(maxDays, business.timezone)) {
       return { success: false, error: `Bookings can only be made up to ${maxDays} days in advance.` }
     }
     if (!service.isActive || !service.isOnlineBooking) {
@@ -712,11 +712,9 @@ export async function reschedulePublicBooking(
     // Advance-window ceiling — end-of-day so the whole last bookable calendar
     // day is accepted, matching /api/availability's inclusive boundary.
     const maxDays = MAX_ADVANCE_DAYS[settings.maxAdvanceBooking] ?? 30
-    const maxDate = new Date()
-    maxDate.setHours(0, 0, 0, 0)
-    maxDate.setDate(maxDate.getDate() + maxDays)
-    maxDate.setHours(23, 59, 59, 999)
-    if (startTime > maxDate) {
+    // Salon-local ceiling (see createPublicBooking) — never reject a boundary-day
+    // slot the availability read-path just offered for an ahead-of-UTC salon.
+    if (localDateString(startTime, appointment.business.timezone) > maxAdvanceDateKey(maxDays, appointment.business.timezone)) {
       return { success: false, error: `Bookings can only be made up to ${maxDays} days in advance.` }
     }
 

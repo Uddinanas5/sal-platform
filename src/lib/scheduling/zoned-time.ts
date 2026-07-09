@@ -120,3 +120,18 @@ export function localDateString(instant: Date, timezone: string): string {
   const get = (type: string) => parts.find((p) => p.type === type)?.value
   return `${get("year")}-${get("month")}-${get("day")}`
 }
+
+/**
+ * The last salon-local calendar day (YYYY-MM-DD) bookable within `maxDays` of the
+ * salon's *today*. The advance-booking ceiling must be anchored to the salon's
+ * local day (matching /api/availability, which advertises slots by salon-local
+ * date). Server-local math wrongly rejected the boundary day for salons AHEAD of
+ * UTC (e.g. Dubai, UTC+4) that the widget had just offered. Compare a requested
+ * slot's `localDateString(start, timezone)` against this key — lexical compare is
+ * date-correct for YYYY-MM-DD.
+ */
+export function maxAdvanceDateKey(maxDays: number, timezone: string, now: Date = new Date()): string {
+  const [y, m, d] = localDateString(now, timezone).split("-").map(Number)
+  const maxCivil = new Date(Date.UTC(y, m - 1, d + maxDays))
+  return `${maxCivil.getUTCFullYear()}-${String(maxCivil.getUTCMonth() + 1).padStart(2, "0")}-${String(maxCivil.getUTCDate()).padStart(2, "0")}`
+}
