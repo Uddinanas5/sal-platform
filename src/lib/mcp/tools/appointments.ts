@@ -201,20 +201,60 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       status: z.enum(["confirmed", "checked_in", "in_progress", "completed", "cancelled", "no_show"]).describe("New status"),
     },
     async ({ id, status }) => {
-      const appointment = await prisma.appointment.findFirst({ where: { id, businessId: ctx.businessId } })
-      if (!appointment) return err("Appointment not found")
-      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
-      const updated = await prisma.appointment.update({
+      const current = await prisma.appointment.findFirst({
         where: { id, businessId: ctx.businessId },
-        data: {
-          status,
-          ...(status === "completed" ? { completedAt: new Date() } : {}),
-          ...(status === "cancelled" ? { cancelledAt: new Date() } : {}),
-          ...(status === "no_show" ? { noShowAt: new Date() } : {}),
-          ...(status === "checked_in" ? { checkedInAt: new Date() } : {}),
-        },
+        select: { status: true, services: { select: { staffId: true, startTime: true, endTime: true } } },
       })
-      return ok(updated)
+      if (!current) return err("Appointment not found")
+      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
+
+      const data = {
+        status,
+        ...(status === "completed" ? { completedAt: new Date() } : {}),
+        ...(status === "cancelled" ? { cancelledAt: new Date() } : {}),
+        ...(status === "no_show" ? { noShowAt: new Date() } : {}),
+        ...(status === "checked_in" ? { checkedInAt: new Date() } : {}),
+      }
+
+      // REACTIVATION GUARD (mirrors the server action + v1 REST PATCH): cancelled/
+      // no_show FREE the slot, so another booking may have taken it. Moving back to
+      // an ACTIVE status must re-check for conflicts under the same staff advisory
+      // lock as create/reschedule — otherwise reactivating an old cancellation via
+      // this MCP tool silently double-books the staff member.
+      const FREE = ["cancelled", "no_show"]
+      const ACTIVE = ["confirmed", "checked_in", "in_progress", "completed"]
+      const isReactivation = FREE.includes(current.status) && ACTIVE.includes(status)
+
+      try {
+        const updated = isReactivation
+          ? await prisma.$transaction(
+              async (tx) => {
+                for (const svc of current.services) {
+                  if (!svc.staffId) continue
+                  await lockStaffSchedule(tx, ctx.businessId, svc.staffId)
+                  const conflict = await tx.appointmentService.findFirst({
+                    where: {
+                      staffId: svc.staffId,
+                      appointmentId: { not: id },
+                      appointment: { status: { notIn: ["cancelled", "no_show"] } },
+                      startTime: { lt: svc.endTime },
+                      endTime: { gt: svc.startTime },
+                    },
+                  })
+                  if (conflict) throw new Error("CONFLICT")
+                }
+                return tx.appointment.update({ where: { id, businessId: ctx.businessId }, data })
+              },
+              { timeout: 20000, maxWait: 15000 },
+            )
+          : await prisma.appointment.update({ where: { id, businessId: ctx.businessId }, data })
+        return ok(updated)
+      } catch (e) {
+        if ((e as Error)?.message === "CONFLICT" || isBookingContentionError(e)) {
+          return err("That time slot is no longer free — the appointment can't be reactivated.")
+        }
+        throw e
+      }
     }
   )
 

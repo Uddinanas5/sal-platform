@@ -156,6 +156,22 @@ can't self-serve**:
   not yet deeply reviewed (booking/availability, auth) — which is the natural next
   move when the curated backlog thins (LOOP.md §5).
 
+## Heartbeat iteration 9 (Jul 8) — booking-engine audit refilled the backlog + fixed a double-booking
+- The backlog was dry, so the loop ran a **deep audit of the booking engine** — the
+  same find-then-adversarially-verify approach that caught 11 payment bugs. It found
+  **10 real, verified booking bugs.**
+- **Fixed the worst one immediately:** the AI-agent tool for changing an
+  appointment's status could **un-cancel an appointment onto a slot someone else had
+  already taken — a silent double-booking.** The dashboard and public API already
+  block this; the AI/MCP path didn't. Now it re-checks and refuses, with a test that
+  proves it. (This matters directly for your "connect your AI agent" feature.)
+- **9 more filed as fresh work (`L-024`–`L-032`):** recurring bookings that aren't
+  all-or-nothing, standing appointments drifting an hour across daylight-saving,
+  turnover buffers not being reserved, a few timezone-boundary off-by-one-day
+  issues, and a soft-deleted service still being bookable via the API. None are
+  emergencies (mostly P2/P3), but they're real and now queued.
+
 ## Next
-- Founder enablers above, OR a fresh booking/availability + auth audit round to
-  refill the backlog with new verified findings.
+- The loop has fuel again (`L-024`–`L-032`) — future heartbeats can work these.
+- Still the highest leverage, in your court: merge PR #45, the CVE/Next.js call,
+  and the infra gates (staging/restore/observability/live-Stripe).
