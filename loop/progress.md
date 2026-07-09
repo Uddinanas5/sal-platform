@@ -252,6 +252,25 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 24 (Jul 9) — a smarter safety net for the booking engine
+- Did `L-007`: added a new kind of test around the **availability/booking engine** (the
+  code that decides which time slots to offer). Instead of checking "did it output
+  exactly these slots" (which breaks every time anything changes), these tests check
+  **rules that must ALWAYS be true**, e.g.: booking one appointment can only *remove*
+  open slots, never add one; a slot is never offered on top of an existing booking; a
+  longer service can only reduce the openings. These are the deep guarantees behind
+  "never double-book," now locked by tests — and they run without a database.
+- These are **tests only** — no change to how the app behaves, so zero risk. And the
+  loop's own scoreboard caught a small mistake in my test before it could land (a
+  type error the quick check missed but the full check caught) — the safety system
+  working as intended.
+- Scoreboard green: **666 tests**, 15/15 rules, types clean.
+- **Convergence is here.** The last big build-it item is done. One clean, low-risk
+  speed-up remains (making the app re-use a permission lookup instead of repeating it
+  ~6× per page — which also offsets the extra checks the security fixes added); the
+  next run does that and then **pauses to hand you a full summary**, because
+  everything after it either needs your decision or is minor polish.
+
 ## Heartbeat iteration 23 (Jul 9) — a suspended employee's leftover API key now dies too
 - Fixed `L-047` (the one the last audit flagged): **API keys** — the credentials that
   let outside tools/integrations talk to SAL — kept working even if the person who

@@ -56,8 +56,9 @@
       "title": "Metamorphic tests for availability/search API: adding a filter ⇒ Subset; Cardinality never increases (Gate J)",
       "gate": "J",
       "priority": "P1",
-      "state": "open",
-      "notes": "No golden output needed; scales to unlabeled inputs."
+      "state": "done",
+      "notes": "No golden output needed; scales to unlabeled inputs.",
+      "resolution": "DONE on loop/engine-bootstrap. Added tests/availability-metamorphic.test.ts — 6 metamorphic relations run against the REAL getAvailability with the 6 DB reads mocked (5 fixed, only appointments/duration/window vary), no live DB, ZERO production change. Relations locked: R1 adding an appointment only REMOVES slots (result subset of base, strictly fewer) — the booking-safety monotonicity behind 'never double-book'; R1b more appointments => fewer-or-equal (monotonic); R2 no offered slot overlaps a blocked appointment; R3 a longer service can only reduce availability (subset, fewer-or-equal); R4 narrowing the working window only removes slots (subset). Non-vacuous: the baseline (09:00-17:00, 60-min service, 15-min grid) asserts exactly 29 slots, proving the mocks faithfully drive the real slot computation. The strengthened gate caught a tsc-only blind spot (Set spread needs Array.from; vitest doesn't typecheck) before merge. Gate: tsc clean, 15/15 invariants, 666/666."
     },
     {
       "id": "L-008",

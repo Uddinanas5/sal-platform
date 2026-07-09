@@ -3,7 +3,7 @@
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
   "lastGoodSha": "d76f01a",
   "lastRunAt": "2026-07-09T09:00:00Z",
-  "runCounter": 31,
+  "runCounter": 32,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -216,6 +216,12 @@
       "type": "VERIFIED",
       "at": "2026-07-09T04:33:00Z",
       "detail": "Iteration: completed L-047 (API-key Bearer path didn't re-validate the key creator's live status/membership, so a suspended/removed user kept API+MCP access via an un-revoked key). Added a resolveBusinessRole liveness gate to the API-key branch of withV1Auth while PRESERVING the key's own configured role (apiKey.role) — the role-preserving nuance flagged when the item was logged. Now all three credential-minting/validating paths (login authorize L-039, OAuth token, API key L-047) plus the session path re-check live active membership. ADVERSARIAL SWEEP (proportionate manual grep+read): MCP reuses withV1Auth (covered); the only other apiKey lookups are key CREATION (owner-gated) and by-id management (behind withV1Auth) — no other request-auth key path. Clean, no new fuel. VERIFIED: 2/2 new tests + membership-revocation still green, tsc clean, 15/15 invariants, 660/660 (was 658, +2). Verdict PENDING. CONVERGENCE: the auth/authz/credential theme is now comprehensively closed (L-036/L-042/L-044/L-046 data-exposure + L-039/L-047/L-040 credential liveness). Remaining code-doable: L-007 (P1 metamorphic test infra — the main real item left), L-043/L-023/L-037/L-038 (P3), latent L-041/L-045, harder L-034/L-035 (P2, need migration/middleware — owner-aware). Next: attempt L-007; if not cleanly doable (needs live DB) or nothing high-value remains, write the convergence report and STOP."
+    },
+    {
+      "seq": 23,
+      "type": "VERIFIED",
+      "at": "2026-07-09T04:41:00Z",
+      "detail": "Iteration: completed L-007 (P1 — metamorphic test oracle for the availability/booking engine). Assessed getAvailability: DB-coupled but the slot computation is faithfully exercisable by mocking the 6 reads (only appointments/duration/window vary), so wrote metamorphic RELATIONS rather than brittle snapshots — R1 adding an appointment only removes slots (subset+strictly-fewer, the monotonicity behind no-double-book), R1b monotonic under more appointments, R2 no offered slot overlaps a blocked range, R3 longer service can only reduce availability, R4 narrowing the window only removes slots. Test-only, zero production risk; non-vacuous (baseline asserts exactly 29 slots so the mock genuinely drives the real engine). META: the strengthened check-invariants gate caught a tsc-only error (Set spread -> Array.from) that vitest passed — the loop policing itself, the 3rd self-inflicted blind-spot it has now caught. VERIFIED: 6/6 metamorphic tests, tsc clean, 15/15 invariants, 666/666 (was 660, +6). Verdict PENDING. CONVERGENCE: the last big code-doable item (L-007) is now done. Remaining: L-043 (P3 — memoize resolveBusinessRole via React cache(), a CLEAN low-risk win that directly offsets the extra per-nav role queries the L-036..L-047 security fixes added) as the FINAL clean win; after it, the rest is genuinely P3-polish (L-023/L-037/L-038), latent (L-041/L-045), or owner-gated (L-034 migration, L-035 middleware, + all infra) — so the next iteration does L-043 then CONVERGES and reports."
     }
   ]
 }
