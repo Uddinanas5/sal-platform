@@ -210,6 +210,17 @@ can't self-serve**:
   *route*, on top of the two already fixed) — filed as `L-033`, same one-line-ish
   fix using the helper.
 
+## Heartbeat iteration 17 (Jul 9) — booking list shows the right day; booking backlog CLOSED
+- Fixed `L-030`: the appointments-list API filtered by the *server's* calendar day,
+  not the shop's, so near midnight a non-UTC shop could see the wrong day's list.
+  Now it uses the shop's timezone (proven with a test). Last fixable booking bug.
+- **The loop has now closed both deep audits (payments + booking) — 21 verified
+  findings fixed this session.** Everything left in the queue needs *you* (merge, the
+  Next.js/CVE call, product decisions) or *infrastructure/dependencies* the loop
+  can't self-serve. So the next heartbeat will either run a **fresh audit of the
+  auth/login/onboarding area** (the obvious not-yet-reviewed part) to generate new
+  fuel, or simply report that it's waiting on you.
+
 ## Heartbeat iteration 16 (Jul 9) — un-cancelling now clears the "no-show" mark
 - Fixed `L-032`: when you restore a cancelled/no-show appointment, it used to keep
   its old "no-show" / "cancelled" stamps, so it still looked like a no-show to any

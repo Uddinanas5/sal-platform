@@ -259,9 +259,9 @@
       "title": "GET /api/bookings date filter windows on server-local midnight, not the salon timezone",
       "gate": "J",
       "priority": "P3",
-      "state": "open",
+      "state": "done",
       "source": "booking-audit (api/bookings/route.ts:65)",
-      "notes": "parseYmd(date) = server-local midnight vs @db.Timestamptz instants → near-midnight appts land on the wrong day. Sibling v1 route was fixed via combineDateWithTimeZoned; this legacy route wasn't. Low blast radius (no live frontend consumer). Fix: compute day bounds in business.timezone."
+      "notes": "DONE Jul 9 (heartbeat): GET /api/bookings now computes the date-filter day bounds in the SALON timezone (business.timezone + combineDateWithTimeZoned + ZERO_TIME, a local dayBounds() helper), matching /api/v1/appointments — a ?date filter selects the salon calendar day, not a server-local UTC-shifted window. Only fetches timezone when a date filter is present. tests/bookings-date-filter-timezone.test.ts (3): ?date=2026-06-15 → NY EDT bounds [04:00Z, next-day 03:59:59.999Z]; impossible date 400; no tz fetch when unfiltered. VERIFIED: 3/3, 615/615 full suite, typecheck+lint clean."
     },
     {
       "id": "L-031",
