@@ -289,6 +289,69 @@
       "state": "done",
       "source": "booking-audit (appointments.ts:327)",
       "notes": "DONE Jul 9 (heartbeat): the reactivation branch now uses a reactivationData object that explicitly nulls cancelledAt/noShowAt/cancellationInitiator/cancellationReasonCode/cancellationReason/cancelledBy (Prisma omits undefined, so null is required to clear). Applied to ALL THREE reactivation paths: server action, v1 REST PATCH, and the MCP tool. tests/appointment-reactivation-guard.test.ts strengthened (asserts the update data nulls the flags). VERIFIED: 612/612, typecheck+lint clean, gate green. NOTE: reactivation guard + clear-data now duplicated in 3 places -> feeds the L-028 extract-a-shared-reactivation-helper follow-up."
+    },
+    {
+      "id": "L-034",
+      "title": "Password reset does not invalidate existing sessions (stolen JWT survives 7 days)",
+      "gate": "G",
+      "priority": "P2",
+      "state": "open",
+      "source": "auth-audit (password-reset.ts:137)",
+      "notes": "Stateless 7-day JWT; resetPassword() never watermarks. A stolen session/JWT keeps full dashboard+API access after the victim resets. Fix: add User.sessionsValidAfter/passwordChangedAt (schema migration), stamp on reset, embed iat at login, reject stale tokens in resolveBusinessRole/withV1Auth; add log-out-everywhere. OWASP ASVS 3.3."
+    },
+    {
+      "id": "L-035",
+      "title": "Login lockout = unauthenticated targeted account-lockout DoS (+ residual enumeration)",
+      "gate": "G",
+      "priority": "P2",
+      "state": "open",
+      "source": "auth-audit (auth.ts:35)",
+      "notes": "5 wrong passwords lock a real account 15min; attacker re-locks every 15min to keep an owner out permanently (no per-IP throttle on /api/auth). Fix: per-IP throttle on the login callback, reset failedLoginAttempts once lockedUntil passes, prefer backoff/CAPTCHA over hard-lock, return null for locked."
+    },
+    {
+      "id": "L-036",
+      "title": "Dashboard staff/client detail pages trust the STALE JWT role -> demoted admin keeps admin visibility",
+      "gate": "G",
+      "priority": "P2",
+      "state": "open",
+      "source": "auth-audit (staff/[id]/page.tsx:39)",
+      "notes": "JWT role baked at login (7 days), never refreshed; a demoted admin still reads role=admin and staff/[id] ships every colleague's revenue+commission. Fix: derive role from resolveBusinessRole/getBusinessContext (live DB) in staff/[id] + clients/[id] pages; ideally refresh token.role in the jwt callback."
+    },
+    {
+      "id": "L-037",
+      "title": "Registration is an unthrottled account-enumeration oracle",
+      "gate": "G",
+      "priority": "P3",
+      "state": "open",
+      "source": "auth-audit (register.ts:42)",
+      "notes": "Distinct 'account already exists' message + per-EMAIL-only throttle + no IP cap on /register -> definitive yes/no per email. Inconsistent with hardened password-reset. Fix: uniform response (mirror requestPasswordReset) and/or per-IP rate limit on /register; ideally email verification before creation."
+    },
+    {
+      "id": "L-038",
+      "title": "Login + password-reset leak account existence via response-timing side channel",
+      "gate": "G",
+      "priority": "P3",
+      "state": "open",
+      "source": "auth-audit (auth.ts:32)",
+      "notes": "authorize() returns before bcrypt.compare for a non-existent email; requestPasswordReset awaits sendEmail only for real emails. Fix: dummy bcrypt on the no-user branch; fire-and-forget sendEmail in reset. Lower priority than L-037 (the explicit register oracle dominates)."
+    },
+    {
+      "id": "L-039",
+      "title": "authorize() never checks user.status -> a suspended user can still mint a session",
+      "gate": "G",
+      "priority": "P3",
+      "state": "open",
+      "source": "auth-audit (auth.ts:32)",
+      "notes": "resolveBusinessRole blocks suspended users on getBusinessContext surfaces, but the 4 onboarding.ts actions authorize by ownerId only, so a suspended owner can still log in + edit business config. Fix: add 'if (user.status !== active) return null' in authorize(); optionally route onboarding through getBusinessContext. (status set out-of-band today -> P3.)"
+    },
+    {
+      "id": "L-040",
+      "title": "Account deletion revokes no credentials (session/API-key/OAuth-token/PII residue) for beta salons",
+      "gate": "H",
+      "priority": "P3",
+      "state": "open",
+      "source": "auth-audit (account.ts:110)",
+      "notes": "requestAccountDeletion only sets subscriptionStatus=cancelled + audit log; billing gate no-ops for never-subscribed salons, so API keys, OAuth tokens, and the JWT session all keep full owner access and PII persists. Fix: in the deletion tx revoke apiKey/oAuthAccessToken (revokedAt), set user.status non-active/deletedAt, queue PII anonymization."
     }
   ]
 }

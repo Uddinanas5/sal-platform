@@ -4,6 +4,7 @@ import { z } from "zod"
 import { SignJWT, jwtVerify } from "jose"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { belongsToAnotherBusiness, CROSS_TENANT_ROLE_CHANGE_ERROR } from "@/lib/team/role-change-guard"
 import { revalidatePath } from "next/cache"
 import { requireMinRole } from "@/lib/auth-utils"
 import { sendEmail } from "@/lib/email"
@@ -332,29 +333,11 @@ export async function updateTeamMemberRole(data: {
 
     // User.role is a single GLOBAL column shared across every business a user
     // belongs to. Rewriting it here would change their privileges at OTHER
-    // businesses too (cross-tenant escalation/downgrade). Mirror acceptInvitation's
-    // guard: refuse to change the role of anyone who also belongs elsewhere.
-    // (Owner-role users are already rejected above.)
-    const [ownsOther, staffElsewhere] = await Promise.all([
-      prisma.business.findFirst({
-        where: { ownerId: parsed.targetUserId, id: { not: businessId } },
-        select: { id: true },
-      }),
-      prisma.staff.findFirst({
-        where: {
-          userId: parsed.targetUserId,
-          isActive: true,
-          deletedAt: null,
-          primaryLocation: { businessId: { not: businessId } },
-        },
-        select: { id: true },
-      }),
-    ])
-    if (ownsOther || staffElsewhere) {
-      return {
-        success: false,
-        error: "This person also belongs to another business, so their role can't be changed from here.",
-      }
+    // businesses too (cross-tenant escalation/downgrade). Refuse to change the role
+    // of anyone who also belongs elsewhere (owner-role users are rejected above).
+    // Shared with the REST route + MCP tool so the guard can't drift again.
+    if (await belongsToAnotherBusiness(parsed.targetUserId, businessId)) {
+      return { success: false, error: CROSS_TENANT_ROLE_CHANGE_ERROR }
     }
 
     await prisma.user.update({

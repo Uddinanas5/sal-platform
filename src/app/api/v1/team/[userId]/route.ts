@@ -2,6 +2,7 @@ import { withV1Auth } from "@/lib/api/auth"
 import { apiSuccess, ERRORS } from "@/lib/api/response"
 import { hasRole } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
+import { belongsToAnotherBusiness, CROSS_TENANT_ROLE_CHANGE_ERROR } from "@/lib/team/role-change-guard"
 import { z } from "zod"
 
 const updateRoleSchema = z.object({ newRole: z.enum(["staff", "admin"]) })
@@ -52,6 +53,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ userId
   })
   if (!staffProfile?.user) return ERRORS.NOT_FOUND("Team member")
   if (staffProfile.user.role === "owner") return ERRORS.BAD_REQUEST("Cannot change another owner's role")
+
+  // Cross-tenant guard (User.role is a GLOBAL column): refuse to change the role of
+  // a user who ALSO belongs to another business — otherwise this shop's owner would
+  // silently escalate/downgrade them at the other shop. Mirrors updateTeamMemberRole.
+  if (await belongsToAnotherBusiness(userId, ctx.businessId)) {
+    return ERRORS.BAD_REQUEST(CROSS_TENANT_ROLE_CHANGE_ERROR)
+  }
 
   await prisma.user.update({ where: { id: userId }, data: { role: parsed.data.newRole } })
   return apiSuccess({ updated: true, newRole: parsed.data.newRole })

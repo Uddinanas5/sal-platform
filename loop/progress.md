@@ -210,6 +210,21 @@ can't self-serve**:
   *route*, on top of the two already fixed) — filed as `L-033`, same one-line-ish
   fix using the helper.
 
+## Heartbeat iteration 18 (Jul 9) — auth audit + fixed a cross-tenant privilege escalation
+- Ran a deep security audit of **login / sessions / permissions / onboarding** — 11
+  findings, all 11 held up under adversarial review (the highest hit-rate of the
+  three audits). Fixed the worst one on the spot:
+- **The big one (P1):** the API route that changes a team member's role rewrote a
+  *global* role field with no cross-shop check — so **one shop's owner could
+  silently make a shared staff member an admin at another shop.** The dashboard
+  already guarded this; the API and AI-tool paths didn't. Now all three share one
+  guard (so it can't drift apart again), proven with tests.
+- **7 more real findings queued (`L-034`–`L-040`):** a password reset doesn't kick
+  out a stolen session; an attacker can lock an owner out of their account
+  repeatedly; a just-demoted admin keeps admin visibility for a while; a couple of
+  ways to probe which emails have accounts; and account deletion doesn't fully
+  revoke access. None are shop-ending, but all are real — good fuel for coming ticks.
+
 ## ⚠️ Caught a second gate blind spot (and closed it)
 This heartbeat opened with the health check RED — a *type* error in last run's test
 had slipped through, because the scoreboard's main check runs the tests (which don't
