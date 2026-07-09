@@ -1,6 +1,18 @@
 import { prisma } from "@/lib/prisma"
+import { hasRole } from "@/lib/permissions"
 
-export async function getStaff(businessId: string) {
+/**
+ * Roster of active staff for a business.
+ *
+ * SECURE BY DEFAULT (L-044): pay + contact PII (commission, email, phone) are
+ * stripped unless the CALLER is admin+. Most callers are staff-accessible pages
+ * (/calendar, /services, /booking, search) that forward this array straight to
+ * the browser and never display pay/PII — so a forgotten caller can no longer
+ * leak a colleague's commission or contact details by default. Admin surfaces
+ * (the /staff roster) pass their live role to opt back in.
+ */
+export async function getStaff(businessId: string, viewerRole?: string | null) {
+  const canSeeSensitive = hasRole(viewerRole, "admin")
   const staff = await prisma.staff.findMany({
     where: {
       isActive: true,
@@ -57,15 +69,16 @@ export async function getStaff(businessId: string) {
     return {
       id: s.id,
       name: `${s.user.firstName} ${s.user.lastName}`,
-      email: s.user.email,
-      phone: s.user.phone || "",
+      // Pay + contact PII stripped for non-admin callers (L-044).
+      email: canSeeSensitive ? s.user.email : "",
+      phone: canSeeSensitive ? s.user.phone || "" : "",
       avatar: s.user.avatarUrl || undefined,
       role: s.user.role === "admin" ? "admin" as const : s.user.role === "owner" ? "admin" as const : "staff" as const,
       services: s.staffServices.map((ss) => ss.serviceId),
       workingHours,
       color: s.color || "#059669",
       isActive: s.isActive,
-      commission: Number(s.commissionRate),
+      commission: canSeeSensitive ? Number(s.commissionRate) : 0,
     }
   })
 }

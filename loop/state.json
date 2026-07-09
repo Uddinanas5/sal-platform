@@ -3,7 +3,7 @@
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
   "lastGoodSha": "c85c487",
   "lastRunAt": "2026-07-09T09:00:00Z",
-  "runCounter": 27,
+  "runCounter": 28,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -192,6 +192,12 @@
       "type": "VERIFIED",
       "at": "2026-07-09T03:55:00Z",
       "detail": "Iteration: completed L-042 (admin-only READ routes leaked revenue/payroll/commission/PII to a demoted admin because role-LEVEL was enforced only by the stale-JWT middleware). Added a live-role admin gate (resolveBusinessRole + hasRole(_, 'admin') → redirect) at the top of reports/page.tsx, reports/payday/page.tsx, staff/page.tsx, before any sensitive fetch. Locked with tests/reports-staff-admin-gate.test.ts (behavioural hasRole predicate + source-guard wiring). ULTRACODE 2-lens adversarial verification (wdk0eh3e4): correctness=fix-is-sound (no legit-user regression, gate-before-fetch confirmed per page, no redirect loop, null fail-closed). Completeness DISPROVED total coverage AGAIN — the SAME data class leaks through 2 more side doors: getStaff() commissionRate via staff-accessible /calendar + /services (P2), and /api/sidebar-data todayRevenue with no role check (P2); plus latent MCP staff-tool leak incl passwordHash (P3, MCP disabled). Root cause: the reports/payroll/staff QUERIES enforce businessId only, never role, so protection depends on each caller. Logged L-044 (P2, root-cause query-level fix that closes both leaks + future callers) and L-045 (P3, MCP). Committed the sound page-level fix per add-don't-chase; the query-level root fix (L-044) is the higher-leverage next move that ends the whack-a-mole. VERIFIED: 8/8 new tests, tsc clean, 15/15 invariants, 640/640 (was 632, +8). Verdict PENDING."
+    },
+    {
+      "seq": 19,
+      "type": "VERIFIED",
+      "at": "2026-07-09T04:08:00Z",
+      "detail": "Iteration: completed L-044 (the root-cause data-layer fix ending the recurring pay/revenue sibling-leak pattern). getStaff() is now secure-by-default — strips commission+email+phone unless the caller passes an admin+ viewerRole; only the admin-gated /staff roster opts back in, so /calendar, /services, /booking and search stop forwarding colleague pay/PII to the browser. /api/sidebar-data now gates todayRevenue on the live admin role. ULTRACODE 2-lens adversarial verification (wadvd1aa8): regression = fix-is-sound (all 5 getStaff callers audited; only the admin roster renders the sensitive fields and it opts in; no crash on empty strings; sidebar revenue correct). Completeness confirmed the pay/revenue CORE is fully covered on every non-MCP surface; the ONLY residual is contact-PII: v1 GET /staff + /staff/[id] still return colleague email/phone to a staff-role caller (pay already stripped) — logged as L-046 (P2) with the mild product-judgment note (is colleague contact staff-visible?) and the recommended secure default (strip to match getStaff). Committed the sound fix per add-don't-chase. VERIFIED: 9/9 new tests, tsc clean, 15/15 invariants, 649/649 (was 640, +9). Verdict PENDING. NOTE: the cleanly-code-doable HIGH-value security backlog is thinning — after L-046 the remainder trends toward P3 (L-039 one-liner, L-023 test), perf (L-043), latent (L-041/L-045), test-infra (L-007), and the harder P2 auth (L-034 migration, L-035 middleware). Approaching the convergence/report point per LOOP.md."
     }
   ]
 }

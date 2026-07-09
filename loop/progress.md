@@ -252,6 +252,30 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 20 (Jul 9) — fixed the *root cause* behind the money leaks
+- Fixed `L-044`, the smarter fix the last audit pointed to. Instead of patching page
+  after page, I moved the guard **into the data itself**: the function that fetches
+  your staff roster now **hides commission rates and contact details unless the person
+  asking is currently an admin**. So the calendar and services pages (which never
+  needed that info) stop quietly shipping it to the browser — and any *future* page
+  that forgets to check is safe by default. Also plugged the background feed that was
+  sending **today's revenue to everyone**.
+- **Audit round three — and the money side is now clean.** Two reviewers again: one
+  confirmed nothing legitimate broke (real admins still see everything; the calendar,
+  services, booking and search pages don't use the hidden fields, so nothing crashes
+  or looks wrong). The other confirmed **every revenue/commission/payroll surface is
+  now covered** — the core money-leak problem that spanned the last three iterations
+  is closed.
+- **One small leftover:** the API (used by outside integrations) still hands a staff
+  member their colleagues' **email + phone** (but no pay). It's a consistency gap, and
+  there's a fair question of whether staff *should* see each other's contact info —
+  so I logged it as `L-046` for a deliberate decision rather than guessing. Pay and
+  revenue — the sensitive part — are fully locked.
+- Heads-up: the easy, high-value security fixes are nearly exhausted. What's left
+  trends toward smaller polish, performance, and a couple of bigger items that need
+  your call. The loop will keep going but may soon pause to report in. Scoreboard
+  green: 649 tests, 15/15 rules, types clean.
+
 ## Heartbeat iteration 19 (Jul 9) — locked the Reports, Payroll & Staff pages to current admins
 - Fixed `L-042` (the follow-up the last audit found): the **Reports** (shop revenue +
   every barber's commission), **Payroll**, and **Staff list** (commission rates +

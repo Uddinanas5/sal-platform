@@ -20,7 +20,8 @@ export default async function StaffPage() {
   const liveRole = userId ? await resolveBusinessRole(userId, businessId) : null
   if (!hasRole(liveRole, "admin")) redirect("/dashboard")
 
-  const [staff, services] = await Promise.all([getStaff(businessId), getServices(businessId)])
+  // Admin-gated above, so opt this roster back in to pay/contact fields (L-044).
+  const [staff, services] = await Promise.all([getStaff(businessId, liveRole), getServices(businessId)])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return <StaffClient initialStaff={staff as any} services={services as any} />
