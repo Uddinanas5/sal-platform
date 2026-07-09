@@ -197,9 +197,22 @@ can't self-serve**:
   its "monthly" is a real calendar month (it used to be a flat 30 days). Both
   recurring paths are now atomic *and* timezone-correct, proven end-to-end.
 
+## Heartbeat iteration 13 (Jul 8) — a removed service can no longer be booked
+- Fixed `L-031`: two API booking routes (group + recurring) looked up the service
+  without excluding **soft-deleted** ones, so an API caller could still book a
+  service you'd removed. Now both scope it out (matching every other path). Proven
+  with a test on both routes.
+- **Deferred `L-027` to you (turnover buffers):** the fix touches the safety-critical
+  double-booking engine AND involves a real product call — how two back-to-back
+  appointments' buffers should combine (add them, or take the larger?). Not
+  something to change on an unattended tick; flagged for a supervised pass.
+- **Spotted a 3rd copy of the daylight-saving bug** while in there (the API recurring
+  *route*, on top of the two already fixed) — filed as `L-033`, same one-line-ish
+  fix using the helper.
+
 ## Next
-- Booking fuel remaining: `L-027` (turnover buffers not reserved between
-  appointments), `L-029`–`L-032` (timezone edges, soft-deleted service still
-  bookable, stale reactivation flags).
+- Booking fuel: `L-033` (API recurring route DST — quick), `L-029`/`L-030` (timezone
+  day-boundary edges), `L-032` (stale reactivation flags). `L-027` awaits your buffer
+  call.
 - Highest leverage still yours: merge PR #45, the Next.js/CVE call, and the infra
   gates (staging/restore/observability/live-Stripe).
