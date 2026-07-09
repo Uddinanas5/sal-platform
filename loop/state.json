@@ -1,7 +1,7 @@
 {
   "version": 1,
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
-  "lastGoodSha": "9d0ab60",
+  "lastGoodSha": "9bf4396",
   "lastRunAt": "2026-07-09T09:00:00Z",
   "runCounter": 33,
   "config": {
