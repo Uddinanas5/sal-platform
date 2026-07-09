@@ -3,7 +3,7 @@
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
   "lastGoodSha": "dae3a07",
   "lastRunAt": "2026-07-09T09:00:00Z",
-  "runCounter": 30,
+  "runCounter": 31,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -210,6 +210,12 @@
       "type": "VERIFIED",
       "at": "2026-07-09T04:26:00Z",
       "detail": "Iteration: completed L-039 (authorize() never checked user.status, so a suspended/deactivated owner could still mint a session with a correct password and reach the ownerId-only onboarding actions). Added shared pure predicate isActiveStatus() in permissions.ts (no circular import), wired it into authorize() after password validation, and DRY-refactored resolveBusinessRole onto it so the login + live-role gates cannot disagree. ADVERSARIAL CHECK (proportionate manual grep+read of all credential-minting paths): OAuth token path and JWT session path both re-validate via resolveBusinessRole (status-checked); but the API-KEY Bearer path (api/auth.ts:65) returns the key's stored role/businessId WITHOUT re-checking the creator's live status/membership -> a suspended/removed user keeps API+MCP access via an un-revoked key. Same class, different surface, with a contract nuance (must not override the key's configured role) -> logged as L-047 (P2), not chased into this commit. VERIFIED: 5/5 new tests + membership-revocation still green, tsc clean, 15/15 invariants, 658/658 (was 653, +5). Verdict PENDING. Convergence deferred: the adversarial pass keeps surfacing real P2 security gaps (now L-047), so genuine high-value work remains."
+    },
+    {
+      "seq": 22,
+      "type": "VERIFIED",
+      "at": "2026-07-09T04:33:00Z",
+      "detail": "Iteration: completed L-047 (API-key Bearer path didn't re-validate the key creator's live status/membership, so a suspended/removed user kept API+MCP access via an un-revoked key). Added a resolveBusinessRole liveness gate to the API-key branch of withV1Auth while PRESERVING the key's own configured role (apiKey.role) — the role-preserving nuance flagged when the item was logged. Now all three credential-minting/validating paths (login authorize L-039, OAuth token, API key L-047) plus the session path re-check live active membership. ADVERSARIAL SWEEP (proportionate manual grep+read): MCP reuses withV1Auth (covered); the only other apiKey lookups are key CREATION (owner-gated) and by-id management (behind withV1Auth) — no other request-auth key path. Clean, no new fuel. VERIFIED: 2/2 new tests + membership-revocation still green, tsc clean, 15/15 invariants, 660/660 (was 658, +2). Verdict PENDING. CONVERGENCE: the auth/authz/credential theme is now comprehensively closed (L-036/L-042/L-044/L-046 data-exposure + L-039/L-047/L-040 credential liveness). Remaining code-doable: L-007 (P1 metamorphic test infra — the main real item left), L-043/L-023/L-037/L-038 (P3), latent L-041/L-045, harder L-034/L-035 (P2, need migration/middleware — owner-aware). Next: attempt L-007; if not cleanly doable (needs live DB) or nothing high-value remains, write the convergence report and STOP."
     }
   ]
 }

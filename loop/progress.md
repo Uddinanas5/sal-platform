@@ -252,6 +252,27 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 23 (Jul 9) — a suspended employee's leftover API key now dies too
+- Fixed `L-047` (the one the last audit flagged): **API keys** — the credentials that
+  let outside tools/integrations talk to SAL — kept working even if the person who
+  made the key was suspended or removed, as long as nobody manually switched the key
+  off. Now every time a key is used, the system re-checks that its creator is still an
+  active member — if not, the key is refused on the spot. I kept the careful bit: a
+  key still carries its *own* permission level (an admin can still hand out a
+  limited-access key), so the fix locks out inactive people **without** changing what
+  a valid key is allowed to do.
+- With this, **every way in is consistent**: website login, "sign in with your
+  account" tokens, browser sessions, and API keys all now re-check a person's *live*
+  status before letting them act. A suspended or removed employee loses every form of
+  access immediately.
+- Checked there's no other back door (the AI-tools connector uses the same front door;
+  no other place validates a key) — clean. Scoreboard green: 660 tests, 15/15 rules,
+  types clean.
+- **Status:** the whole login/permissions/access-control area is now thoroughly locked
+  down end-to-end. The genuinely valuable remaining work is thinning to one bigger
+  testing-infrastructure task and a few items that need your call. The loop will keep
+  going but is close to pausing to hand you a summary.
+
 ## Heartbeat iteration 22 (Jul 9) — a suspended account can no longer log in
 - Fixed `L-039`: the login check confirmed your password but **never checked whether
   your account was still active** — so a suspended or deactivated user could still log
