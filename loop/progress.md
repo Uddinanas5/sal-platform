@@ -182,8 +182,18 @@ can't self-serve**:
   server/API/AI paths allow it. Deciding which is correct is a product call, so I
   left it for you rather than pick a side.
 
+## Heartbeat iteration 11 (Jul 8) — standing appointments survive daylight-saving
+- Fixed `L-025`: a **standing weekly appointment** (say a 9 AM Monday cut) used to
+  quietly shift to 10 AM after the clocks change, because the repeat math ran on the
+  server's clock, not the shop's. Now it advances in the **shop's timezone**, so 9 AM
+  stays 9 AM across daylight-saving — and "monthly" now means the same day next month,
+  not a flat 30 days. Extracted a small tested helper and proved it against the real
+  spring-forward date. (`L-026` is the same helper wired into the AI tool — a quick
+  follow-up.)
+
 ## Next
-- Booking fuel remaining: `L-025`/`L-026` (daylight-saving drift), `L-027` (turnover
-  buffers), `L-029`–`L-032` (timezone edges, soft-deleted service, stale flags).
+- Booking fuel remaining: `L-026` (wire the helper into the MCP tool), `L-027`
+  (turnover buffers not reserved), `L-029`–`L-032` (timezone edges, soft-deleted
+  service still bookable, stale reactivation flags).
 - Highest leverage still yours: merge PR #45, the Next.js/CVE call, and the infra
   gates (staging/restore/observability/live-Stripe).

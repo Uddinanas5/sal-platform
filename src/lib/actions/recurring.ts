@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { addWeeks, addMonths } from "date-fns"
+import { generateRecurrenceDates } from "@/lib/scheduling/recurrence"
 import { getBusinessContext } from "@/lib/auth-utils"
 import { lockStaffSchedule, lockAppointment, isBookingContentionError } from "@/lib/db/advisory-lock"
 import {
@@ -83,25 +83,16 @@ export async function createRecurringAppointment(data: {
     const tax = Math.round(price * taxRate * 100) / 100
     const seriesId = crypto.randomUUID()
 
-    // Generate all occurrence dates
-    const dates: Date[] = [baseStart]
-    let next = baseStart
-    while (true) {
-      switch (parsed.recurrenceRule) {
-        case "weekly":
-          next = addWeeks(next, 1)
-          break
-        case "biweekly":
-          next = addWeeks(next, 2)
-          break
-        case "monthly":
-          next = addMonths(next, 1)
-          break
-      }
-      if (next > endDate) break
-      dates.push(next)
-      if (dates.length > 52) break // Safety limit: max 1 year of weekly
-    }
+    // Generate occurrence dates advancing in the SALON timezone, so a standing
+    // appointment keeps the same salon-local wall-clock time across a DST boundary
+    // (plain date-fns on a UTC host drifts it by the offset). See
+    // generateRecurrenceDates. Capped at 52 (≈ 1 year weekly).
+    const dates = generateRecurrenceDates({
+      start: baseStart,
+      rule: parsed.recurrenceRule,
+      endDate,
+      timezone,
+    })
 
     // Create the whole series atomically: either every occurrence is booked or
     // none are (no partial/orphaned series). Lock the staff schedule once and
