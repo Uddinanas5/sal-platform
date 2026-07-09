@@ -50,6 +50,9 @@ function fakeTx(opts: { paidAlready: boolean }) {
       findMany: vi.fn(async () => [{ id: SVC, price: 40, taxRate: null, isTaxable: true }]),
     },
     product: { findMany: vi.fn(async () => []) },
+    // Booked-price snapshot lookup (GAP: charge the booked finalPrice); empty →
+    // falls back to the live catalog price used by this test.
+    appointmentService: { findMany: vi.fn(async () => []) },
     appointment: {
       findFirst: vi.fn(async () => ({
         clientId: CLIENT,

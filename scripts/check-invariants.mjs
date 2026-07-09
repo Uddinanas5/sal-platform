@@ -87,7 +87,7 @@ export function runInvariantBoard({ quiet = false } = {}) {
 
 // Auto-run only when invoked directly (`node scripts/check-invariants.mjs`).
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const { rows, allGreen } = runInvariantBoard()
+  const { rows, allGreen, passedTests, totalTests } = runInvariantBoard()
   const pad = (s, n) => String(s).padEnd(n)
   console.log("BUSINESS-INVARIANT BOARD")
   console.log("=".repeat(78))
@@ -95,10 +95,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`${r.state === "GREEN" ? "✅" : "❌"} ${pad(r.label, 52)} ${r.detail}`)
   }
   console.log("=".repeat(78))
-  console.log(`${rows.filter((r) => r.state === "GREEN").length}/${rows.length} invariants GREEN`)
+  console.log(`${rows.filter((r) => r.state === "GREEN").length}/${rows.length} invariants GREEN · ${passedTests}/${totalTests} unit tests passing`)
   if (!allGreen) {
     console.error("\n❌ One or more business invariants are RED. This change must not merge until green.")
     process.exit(1)
   }
-  console.log("\n✅ All business invariants GREEN.")
+  // Un-gaming the gate: runInvariantBoard runs the WHOLE unit suite, so ANY failing
+  // test (not only the 15 mapped invariants) must fail this check — otherwise an
+  // unrelated regression leaves the board green while the suite is red (exactly the
+  // false-green this loop is meant to prevent).
+  if (totalTests > 0 && passedTests < totalTests) {
+    console.error(`\n❌ ${totalTests - passedTests} unit test(s) failing outside the invariant board. Fix before merge.`)
+    process.exit(1)
+  }
+  console.log("\n✅ All business invariants GREEN and full unit suite passing.")
 }

@@ -52,6 +52,8 @@ function fakeTx(o: TxOptions = {}) {
     // taxRate null + isTaxable true → server uses the flat TAX_RATE fallback,
     // matching the schema default (these tests don't assert tax-dependent totals).
     service: { findMany: vi.fn(async () => [{ id: SVC, price: finalPrice, taxRate: null, isTaxable: true }]) },
+    // Booked-price snapshot lookup (empty → live catalog price, as this test expects).
+    appointmentService: { findMany: vi.fn(async () => []) },
     product: { findMany: vi.fn(async () => []) },
     appointment: {
       findFirst: vi.fn(async () => ({ clientId: CLIENT, services: appointmentServices })),

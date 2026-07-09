@@ -210,6 +210,16 @@ can't self-serve**:
   *route*, on top of the two already fixed) — filed as `L-033`, same one-line-ish
   fix using the helper.
 
+## ⚠️ Important: caught a false "green" (and fixed the gate that allowed it)
+While pulling numbers for a review, I ran the FULL test suite directly and found
+**12 tests were actually failing** — even though the loop's scoreboard had been
+showing green. Cause: an earlier fix (L-015, "charge the booked price") added a new
+database call that three older test files didn't account for. The scoreboard missed
+it because it only failed on 15 specific "business rule" tests, not on every test.
+**Fixed both:** the 3 tests now pass (609/609 green), and I tightened the scoreboard
+so it now fails on ANY failing test. Honest lesson — this is exactly the "looks green
+but isn't" trap the loop is designed to avoid; now it actually catches it.
+
 ## Heartbeat iteration 14 (Jul 8) — daylight-saving bug now fully closed
 - Fixed `L-033`, the last of three copies of the recurring daylight-saving bug (the
   API route). All three ways of creating a repeating appointment — dashboard, API,
