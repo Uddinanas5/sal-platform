@@ -6,7 +6,8 @@ import { notFound, redirect } from "next/navigation"
 import { ClientDetailClient } from "./client"
 
 export const dynamic = "force-dynamic"
-export default async function ClientDetailPage({ params }: { params: { id: string } }) {
+export default async function ClientDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId

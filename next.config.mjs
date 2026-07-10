@@ -23,11 +23,17 @@ const nextConfig = {
     )
     return config
   },
-  experimental: {
-    serverComponentsExternalPackages: ["@prisma/adapter-pg"],
-    // Required on Next 14.2 to load instrumentation.ts (Sentry init per runtime).
-    instrumentationHook: true,
+  // Next 16 builds with Turbopack by default — mirror the webpack alias above
+  // (kept for `next build --webpack` / older tooling).
+  turbopack: {
+    resolveAlias: {
+      "@/generated/prisma": "./prisma/generated/prisma/client/client.ts",
+    },
   },
+  // Renamed from experimental.serverComponentsExternalPackages in Next 15.
+  // (experimental.instrumentationHook was removed — instrumentation.ts is
+  // always loaded now.)
+  serverExternalPackages: ["@prisma/adapter-pg"],
 }
 
 export default withSentryConfig(nextConfig, {

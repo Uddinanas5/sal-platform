@@ -24,15 +24,16 @@ function firstParam(raw: string | string[] | undefined): string | undefined {
   return undefined
 }
 
-export default async function PaydayPage({
-  searchParams,
-}: {
-  searchParams?: {
-    from?: string | string[]
-    to?: string | string[]
-    period?: string | string[]
+export default async function PaydayPage(
+  props: {
+    searchParams?: Promise<{
+      from?: string | string[]
+      to?: string | string[]
+      period?: string | string[]
+    }>
   }
-}) {
+) {
+  const searchParams = await props.searchParams;
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined

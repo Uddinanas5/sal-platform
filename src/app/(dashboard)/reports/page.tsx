@@ -30,11 +30,12 @@ function parseDateParam(raw: string | string[] | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-export default async function ReportsPage({
-  searchParams,
-}: {
-  searchParams?: { from?: string | string[]; to?: string | string[] }
-}) {
+export default async function ReportsPage(
+  props: {
+    searchParams?: Promise<{ from?: string | string[]; to?: string | string[] }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined

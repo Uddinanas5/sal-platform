@@ -13,11 +13,12 @@ type SearchParams = Promise<{
   code_challenge_method?: string
 }>
 
-export default async function OAuthAuthorizePage({
-  searchParams,
-}: {
-  searchParams: SearchParams
-}) {
+export default async function OAuthAuthorizePage(
+  props: {
+    searchParams: Promise<SearchParams>
+  }
+) {
+  const searchParams = await props.searchParams;
   const params = await searchParams
   const {
     client_id: clientId,

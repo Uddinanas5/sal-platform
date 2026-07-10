@@ -152,7 +152,7 @@ async function throttleApi(req: NextRequest, bucket: string): Promise<Response |
   }
 }
 
-export default async function middleware(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
   if (pathname === "/api/v1" || pathname.startsWith("/api/v1/")) {
     return (await throttleApi(req, "v1")) ?? handleBearerOrSession(req)
