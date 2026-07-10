@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getRouteBusinessContext } from "@/lib/api/route-auth"
 import { prisma } from "@/lib/prisma"
 import { createDashboardLink } from "@/lib/stripe"
 
 export async function POST() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    // L-048: an Express dashboard login link is financial access — require a
+    // LIVE member (fresh role + session watermark), not a stale 7-day JWT.
+    const ctx = await getRouteBusinessContext()
+    if (!ctx) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -15,7 +17,7 @@ export async function POST() {
     // authenticated user mint a Stripe Express login link into another salon's
     // payment account (cross-tenant financial IDOR).
     const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id, deletedAt: null },
+      where: { ownerId: ctx.userId, deletedAt: null },
       select: { stripeAccountId: true },
     })
 

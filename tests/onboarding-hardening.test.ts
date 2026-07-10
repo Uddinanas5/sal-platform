@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 
 const { prismaMock, authMock } = vi.hoisted(() => {
   const prismaMock = {
+    user: { findUnique: vi.fn() }, // L-048: getLiveUserId re-checks status + watermark
     business: { findFirst: vi.fn() },
     serviceCategory: { findFirst: vi.fn(), create: vi.fn() },
     service: { createMany: vi.fn() },
@@ -27,6 +28,7 @@ const BIZ = "11111111-1111-4111-8111-111111111111"
 beforeEach(() => {
   vi.clearAllMocks()
   authMock.mockResolvedValue({ user: { id: "owner-1" } })
+  prismaMock.user.findUnique.mockResolvedValue({ status: "active", sessionsValidAfter: null })
   prismaMock.business.findFirst.mockResolvedValue({ id: BIZ, locations: [{ id: "loc-1" }] })
   prismaMock.serviceCategory.findFirst.mockResolvedValue({ id: "cat-1" })
   prismaMock.service.createMany.mockResolvedValue({ count: 1 })
@@ -49,6 +51,30 @@ describe("addOnboardingServices — duplicate names", () => {
     expect(arg.skipDuplicates).toBe(true)
     // "Haircut" + "Beard" — the duplicate "haircut" was dropped.
     expect(arg.data.map((s: { name: string }) => s.name)).toEqual(["Haircut", "Beard"])
+  })
+})
+
+describe("onboarding actions — live-session gate (L-048)", () => {
+  it("denies a session issued before the invalidation watermark (no reads, no writes)", async () => {
+    authMock.mockResolvedValue({ user: { id: "owner-1" }, loginAt: 1000 })
+    prismaMock.user.findUnique.mockResolvedValue({ status: "active", sessionsValidAfter: new Date(2000) })
+    const res = await addOnboardingServices({
+      businessId: BIZ,
+      services: [{ name: "Haircut", durationMinutes: 30, price: 35 }],
+    })
+    expect(res).toEqual({ success: false, error: "Not authenticated" })
+    expect(prismaMock.business.findFirst).not.toHaveBeenCalled()
+    expect(prismaMock.service.createMany).not.toHaveBeenCalled()
+  })
+
+  it("denies a suspended account (live status, not the JWT)", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ status: "suspended", sessionsValidAfter: null })
+    const res = await saveWorkingHours({
+      businessId: BIZ,
+      hours: [{ dayOfWeek: 1, isClosed: false, openTime: "09:00", closeTime: "17:00" }],
+    })
+    expect(res).toEqual({ success: false, error: "Not authenticated" })
+    expect(prismaMock.$transaction).not.toHaveBeenCalled()
   })
 })
 

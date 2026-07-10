@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { resolveBusinessRole } from "@/lib/auth-utils"
+import { getRouteBusinessContext } from "@/lib/api/route-auth"
 import { hasRole } from "@/lib/permissions"
 import { getDashboardStats } from "@/lib/queries/appointments"
 import { getClients } from "@/lib/queries/clients"
@@ -11,31 +10,17 @@ export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
-    const session = await auth()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const businessId = (session?.user as any)?.businessId as string | undefined
-
-    if (!businessId) {
-      return NextResponse.json({
-        todayAppointments: 0,
-        clientsCount: 0,
-        lowStockCount: 0,
-        pendingReviewsCount: 0,
-        staffProfileId: null,
-        dashboardStats: {
-          todayRevenue: 0,
-          todayAppointments: 0,
-          completedAppointments: 0,
-          upcomingAppointments: 0,
-        },
-      })
+    // L-048: previously this resolved the live role WITHOUT the session
+    // watermark and only gated revenue instead of denying — a removed member or
+    // stale post-reset session still read appointment/client/review counts. The
+    // shared helper enforces liveness + watermark and we DENY on null.
+    const ctx = await getRouteBusinessContext()
+    if (!ctx) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    const userId = session?.user?.id as string | undefined
-    // LIVE role, not the stale JWT — shop revenue is admin-only (mirrors the
-    // dashboard page, which zeroes revenue for non-admins). A demoted admin must
-    // stop seeing todayRevenue in the sidebar immediately (L-044).
-    const liveRole = userId ? await resolveBusinessRole(userId, businessId) : null
+    const { userId, businessId, role: liveRole } = ctx
+    // Shop revenue stays admin-only (mirrors the dashboard page, which zeroes
+    // revenue for non-admins) — a demoted admin loses todayRevenue immediately (L-044).
     const canSeeRevenue = hasRole(liveRole, "admin")
 
     const [dashboardStats, clients, lowStockProducts, pendingReviewsCount] =
