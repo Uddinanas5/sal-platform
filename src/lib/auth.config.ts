@@ -13,6 +13,10 @@ export const authConfig = {
         token.userId = user.id
         token.role = user.role
         token.businessId = user.businessId
+        // L-034: stamp the session-start time ONCE at sign-in. It is preserved on
+        // every subsequent request (this branch only runs when `user` is present),
+        // giving a stable watermark to compare against User.sessionsValidAfter.
+        token.loginAt = Date.now()
       }
       return token
     },
@@ -22,6 +26,7 @@ export const authConfig = {
         session.user.role = token.role as string | undefined
         session.user.businessId = token.businessId as string | null | undefined
       }
+      session.loginAt = token.loginAt as number | undefined // L-034
       return session
     },
   },

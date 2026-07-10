@@ -101,7 +101,9 @@ export async function withV1Auth(req: Request): Promise<ApiContext | null> {
   if (!session?.user) return null
   const user = session.user as { id?: string; role?: string; businessId?: string }
   if (!user.id || !user.businessId) return null
-  const role = await resolveBusinessRole(user.id, user.businessId)
+  // L-034: pass the session's login time so a token issued before a password reset /
+  // log-out-everywhere is rejected here too (mirrors getBusinessContext).
+  const role = await resolveBusinessRole(user.id, user.businessId, { sessionLoginAt: session.loginAt })
   if (!role) return null
   return gateOrNull({ userId: user.id, businessId: user.businessId, role })
 }

@@ -43,7 +43,9 @@ export default async function Layout({
   // (Server actions + the API already gate on it; this closes the SSR read path.)
   let role: string | null = null
   if (businessId && session?.user?.id) {
-    role = await resolveBusinessRole(session.user.id, businessId)
+    // L-034: pass the session login time so a stale (pre-reset / pre-logout-everywhere)
+    // cookie is bounced from every dashboard read page, not just mutations.
+    role = await resolveBusinessRole(session.user.id, businessId, { sessionLoginAt: session.loginAt })
     if (!role) redirect("/login")
   }
 

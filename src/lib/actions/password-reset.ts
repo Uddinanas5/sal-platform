@@ -147,6 +147,9 @@ export async function resetPassword(
         metadata: metadataWithoutNonce,
         failedLoginAttempts: 0,
         lockedUntil: null,
+        // L-034: invalidate every session issued before now, so a stolen 7-day
+        // token stops working the instant the real user resets their password.
+        sessionsValidAfter: new Date(),
       },
     })
 

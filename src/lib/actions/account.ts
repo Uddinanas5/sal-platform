@@ -202,3 +202,32 @@ export async function requestAccountDeletion(data: {
   revalidatePath("/settings")
   return { success: true, data: undefined }
 }
+
+/**
+ * "Log out everywhere" (L-034). Stamps the caller's session-invalidation watermark
+ * to NOW, so every session/JWT issued before this moment — including this device's —
+ * is rejected on its next request (via resolveBusinessRole). The client should sign
+ * the user out after a success result. Use after a suspected compromise or password
+ * change; complements the automatic stamp on password reset.
+ */
+export async function logOutEverywhere(): Promise<ActionResult> {
+  let userId: string
+  try {
+    userId = (await getBusinessContext()).userId
+  } catch (e) {
+    const msg = (e as Error).message
+    return { success: false, error: msg === "Not authenticated" ? msg : "No business context" }
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { sessionsValidAfter: new Date() },
+    })
+  } catch (e) {
+    console.error("logOutEverywhere error:", e)
+    return { success: false, error: "Could not sign out your other sessions. Please try again." }
+  }
+
+  return { success: true, data: undefined }
+}

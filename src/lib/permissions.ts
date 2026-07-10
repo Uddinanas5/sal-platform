@@ -14,6 +14,26 @@ export function isActiveStatus(status: string | null | undefined): boolean {
   return status === "active"
 }
 
+/**
+ * Session-invalidation watermark check (L-034). A session is STALE (must be denied)
+ * when the user has a `sessionsValidAfter` watermark and the session was issued
+ * before it — i.e. it predates a password reset / "log out everywhere". No
+ * watermark, or an unknown login time, means "not stale" (fail open only when there
+ * is nothing to enforce). Pure so both edge and node layers can use it.
+ */
+export function isSessionWatermarkStale(
+  sessionLoginAtMs: number | null | undefined,
+  sessionsValidAfter: Date | null | undefined,
+): boolean {
+  if (!sessionsValidAfter) return false // no watermark set → nothing to invalidate
+  // A watermark IS set (the user reset / logged out everywhere). Fail CLOSED: a token
+  // with no login time is a pre-watermark legacy token — deny it too, so old sessions
+  // (incl. a stolen one) actually die. Rollout-safe: sessionsValidAfter is null for all
+  // existing users until they reset, so nobody is disrupted at deploy.
+  if (sessionLoginAtMs == null) return true
+  return sessionLoginAtMs < sessionsValidAfter.getTime()
+}
+
 export function hasRole(
   userRole: string | undefined | null,
   minimum: AppRole
