@@ -1,0 +1,311 @@
+{
+  "version": 1,
+  "note": "FROZEN GATE — owner-protected via CODEOWNERS. The loop reads this and flips check states ONLY from observed external-oracle evidence. Verdict = PUBLIC-GA iff every P0 check passes. The loop must never edit the check definitions or severities to make the board green (see LOOP.md §4).",
+  "updatedAt": "2026-07-10T09:20:42.737Z",
+  "verdict": "PENDING",
+  "gates": [
+    {
+      "id": "A",
+      "name": "Tenant Isolation",
+      "prr": "architecture + security",
+      "severity": "P0",
+      "checks": [
+        {
+          "id": "A.1",
+          "desc": "Cross-tenant reads: seed as Shop A, auth as Shop B, every read/list/report returns 0 rows of A (404/403)",
+          "proof": "vitest tests/cross-tenant",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "A.2",
+          "desc": "Cross-tenant mutations: Shop B cannot update/cancel A's appointment by guessing id",
+          "proof": "vitest tests/cross-tenant/appointments-id.idor.test.ts",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "A.3",
+          "desc": "Query helpers refuse a missing businessId (no cross-tenant fallback)",
+          "proof": "vitest tests/query-businessid-guard.test.ts",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "A.4",
+          "desc": "tenant_id derives from the server session only; X-Tenant-ID / body / query overrides are ignored",
+          "proof": "property test (to build)",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "A.5",
+          "desc": "Every $queryRaw/$executeRaw carries an explicit tenant predicate",
+          "proof": "grep guard (to build)",
+          "state": "pending",
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Payments / Stripe go-live",
+      "prr": "performance + change-management",
+      "severity": "P0",
+      "checks": [
+        {
+          "id": "B.1",
+          "desc": "No Stripe secret key in repo or non-Production env",
+          "proof": "secret scan (to build)",
+          "state": "pass",
+          "evidence": ".env gitignored+untracked; no live/real secret in tracked files @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "B.2",
+          "desc": "Commission is non-zero and correct on a real end-to-end checkout (guards the $0-commission bug)",
+          "proof": "vitest tests/checkout-commission.test.ts",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "B.3",
+          "desc": "Webhook idempotent: replay same event.id twice ⇒ single side-effect (no double charge/booking/SMS)",
+          "proof": "vitest tests/billing-reconcile-replay.test.ts",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "B.4",
+          "desc": "Price tampering rejected; totals recomputed server-side",
+          "proof": "vitest tests/checkout-price-tampering.test.ts",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "B.5",
+          "desc": "Live E2E book→pay→webhook→DB row against Stripe TEST mode",
+          "proof": "playwright + stripe test-mode (keys present in dev env; E2E to run)",
+          "state": "pending",
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Observability",
+      "prr": "instrumentation",
+      "severity": "P0",
+      "checks": [
+        {
+          "id": "C.1",
+          "desc": "Error tracker (Sentry) wired for server + client exceptions",
+          "proof": "presence of sentry.server.config.ts + DSN",
+          "state": "pass",
+          "evidence": "present: sentry.server.config.ts @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "C.2",
+          "desc": "Structured logs carry requestId + shopId on every line",
+          "proof": "log audit (to build)",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "C.3",
+          "desc": "Symptom alerts (booking-fail, checkout-fail, 5xx, auth-spike) each with a runbook and a real page path",
+          "proof": "alert config (to build)",
+          "state": "pending",
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "name": "SLOs & Error Budget",
+      "prr": "performance",
+      "severity": "P1",
+      "checks": [
+        {
+          "id": "D.1",
+          "desc": "Booking availability + checkout p95/p99 SLIs defined (start 99.5–99.9%)",
+          "proof": "SLO doc + measurement (to build)",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "D.2",
+          "desc": "Multi-window multi-burn-rate alerting configured",
+          "proof": "alert config (to build)",
+          "state": "pending",
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "id": "E",
+      "name": "Change Management / Deploy",
+      "prr": "change-management",
+      "severity": "P0",
+      "checks": [
+        {
+          "id": "E.1",
+          "desc": "CI green (build + typecheck + lint + tests) blocks merge to main",
+          "proof": "npm run test:all",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "E.2",
+          "desc": "Migrations use expand-and-contract (no destructive drop in the same deploy)",
+          "proof": "npm run check:migrations",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "E.3",
+          "desc": "Rollback tested: deploy N → N+1 → revert to N in staging",
+          "proof": "staging rollback drill (to build)",
+          "state": "pending",
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "id": "F",
+      "name": "Capacity & Abuse",
+      "prr": "capacity",
+      "severity": "P1",
+      "checks": [
+        {
+          "id": "F.1",
+          "desc": "Soak/load at 2× & 5× peak; 0 double-bookings, 0 500s, p95 under threshold, 3 clean runs",
+          "proof": "tsx scripts/soak-test.mts (dev/agents schema)",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "F.2",
+          "desc": "Rate limits on booking/login/reset/webhook (429 + Retry-After)",
+          "proof": "presence of src/lib/rate-limit.ts + middleware audit",
+          "state": "pass",
+          "evidence": "present: src/lib/rate-limit.ts @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "F.3",
+          "desc": "Hot booking queries indexed (no seq-scan on tenant-scoped hot paths)",
+          "proof": "query-plan audit (to build)",
+          "state": "pending",
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "id": "G",
+      "name": "Security",
+      "prr": "security",
+      "severity": "P0",
+      "checks": [
+        {
+          "id": "G.1",
+          "desc": "Server-side authorization on every mutating path (no client trust)",
+          "proof": "vitest authz suites",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "G.2",
+          "desc": "Auth edge cases: account enumeration, session fixation, password-reset abuse/rate-limit",
+          "proof": "vitest auth suites",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "G.3",
+          "desc": "No secrets in source; deps/SAST show no unaddressed critical/high CVE",
+          "proof": "npm run check:launch + audit (to build)",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "G.4",
+          "desc": "TLS + HSTS + CSP + security headers set",
+          "proof": "header audit (to build)",
+          "state": "pending",
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "id": "H",
+      "name": "Data Protection / DR",
+      "prr": "capacity + emergency-response",
+      "severity": "P0",
+      "checks": [
+        {
+          "id": "H.1",
+          "desc": "Automated backups enabled with defined retention",
+          "proof": "provider config",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "H.2",
+          "desc": "ACTUAL restore into scratch env verified (row counts, app boots)",
+          "proof": "npm run check:restore",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "H.3",
+          "desc": "Tenant deletion removes rows + cache + files with no residue",
+          "proof": "npm run check:orphans + account-deletion test",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        }
+      ]
+    },
+    {
+      "id": "J",
+      "name": "Functional End-to-End Correctness",
+      "prr": "performance",
+      "severity": "P0",
+      "checks": [
+        {
+          "id": "J.1",
+          "desc": "Golden path against real DB: signup→configure→public books→confirmation→checkout w/ commission→dashboard/reports",
+          "proof": "npm run test:golden (dev/agents schema)",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-08T06:02:53.246Z"
+        },
+        {
+          "id": "J.2",
+          "desc": "Business invariants (15-rule board) all green",
+          "proof": "npm run check:invariants",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "J.3",
+          "desc": "Every UI-advertised feature actually does something (no fake/inert 'done' features)",
+          "proof": "npm run check:fake-success + Playwright crawl",
+          "state": "pass",
+          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+        },
+        {
+          "id": "J.4",
+          "desc": "Public booking golden-path E2E green in a real browser",
+          "proof": "npm run test:e2e (public-booking.spec.ts)",
+          "state": "pending",
+          "evidence": null
+        },
+        {
+          "id": "J.5",
+          "desc": "Owner appointment + checkout E2E green in a real browser",
+          "proof": "npm run test:e2e (owner-*.spec.ts)",
+          "state": "pending",
+          "evidence": null
+        }
+      ]
+    }
+  ]
+}

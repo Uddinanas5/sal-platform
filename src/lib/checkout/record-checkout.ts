@@ -1,5 +1,8 @@
 import { randomBytes } from "node:crypto"
-import type { Prisma } from "@/generated/prisma"
+// Value import (not `import type`): `Prisma.Decimal`/`Prisma.TransactionClient` are
+// types, but `Prisma.PrismaClientKnownRequestError` is used as a runtime value in
+// the idempotency P2002 guard, so the namespace must survive to runtime.
+import { Prisma } from "@/generated/prisma"
 import {
   NoPayrollPeriodError,
   resolvePayrollPeriod,
@@ -97,6 +100,13 @@ export type RecordCheckoutInput = {
   // cover the FULL server-computed total (no partial/split redemption in beta);
   // balance is read + decremented server-side inside the same transaction.
   giftCardCode?: string
+  // Optional client-supplied idempotency key. When present, a retried/duplicated
+  // submission with the SAME key returns the ORIGINAL payment instead of
+  // double-recording (double charge, double gift-card spend, duplicate
+  // commission/inventory/loyalty). Critical for appointment-less walk-ins, which
+  // have no other idempotency guard. Enforced by a fast-path lookup here + the
+  // UNIQUE (businessId, idempotencyKey) index.
+  idempotencyKey?: string
 }
 
 export type RecordCheckoutResult = {
@@ -206,6 +216,31 @@ export async function recordCheckout(
   businessId: string,
   data: RecordCheckoutInput,
 ): Promise<RecordCheckoutResult> {
+  // IDEMPOTENCY (fast path). If the caller supplies a key and a payment with that
+  // (businessId, key) already exists, this is a retry/duplicate — return the
+  // ORIGINAL payment WITHOUT re-recording anything (no second charge, no second
+  // gift-card decrement, no duplicate commission/inventory/loyalty). This covers
+  // appointment-less walk-ins, which have no other idempotency guard. A true
+  // concurrent duplicate (both requests miss this read) is caught by the UNIQUE
+  // index at the payment.create below. Cheap short-circuit: runs before any other
+  // read/write.
+  if (data.idempotencyKey) {
+    const prior = await tx.payment.findFirst({
+      where: { businessId, idempotencyKey: data.idempotencyKey },
+      select: { id: true, paymentReference: true, amount: true, totalAmount: true },
+    })
+    if (prior) {
+      return {
+        payment: { id: prior.id, paymentReference: prior.paymentReference },
+        commissions: [],
+        subtotal: Number(prior.amount),
+        amount: Number(prior.amount),
+        total: Number(prior.totalAmount),
+        loyalty: { redeemedPoints: 0, redeemedAmount: 0, earnedPoints: 0 },
+      }
+    }
+  }
+
   const serviceIds = Array.from(new Set(data.items.filter((i) => i.type === "service").map((i) => i.id)))
   const productIds = Array.from(new Set(data.items.filter((i) => i.type === "product").map((i) => i.id)))
 
@@ -236,11 +271,27 @@ export async function recordCheckout(
   if (services.length !== serviceIds.length) throw new RecordCheckoutError("NOT_FOUND", "One or more services not found")
   if (products.length !== productIds.length) throw new RecordCheckoutError("NOT_FOUND", "One or more products not found")
 
+  // When checking out against a BOOKED appointment, charge each service line at the
+  // price the client booked (AppointmentService.finalPrice snapshot), NOT the current
+  // catalog price. Otherwise a catalog price change between booking and checkout
+  // overcharges/undercharges the client and desyncs recorded revenue from the
+  // commission base (which already uses finalPrice). Walk-in / POS service lines and
+  // ALL products keep the live DB price (there is no booking snapshot for them).
+  // Scoped by the appointment's businessId for tenant isolation.
+  const bookedServicePrice = new Map<string, number>()
+  if (data.appointmentId) {
+    const booked = await tx.appointmentService.findMany({
+      where: { appointmentId: data.appointmentId, appointment: { businessId } },
+      select: { serviceId: true, finalPrice: true },
+    })
+    for (const b of booked) bookedServicePrice.set(b.serviceId, Number(b.finalPrice))
+  }
+
   // Per-item price + tax rate, taken from the DB (never the caller).
   const priceMap = new Map<string, { price: number; taxRate: number }>()
   for (const s of services)
     priceMap.set(`service:${s.id}`, {
-      price: Number(s.price),
+      price: bookedServicePrice.get(s.id) ?? Number(s.price),
       taxRate: taxRateFor(s.isTaxable && taxConfig.taxOnServices, s.taxRate, taxConfig.defaultRate),
     })
   for (const p of products)
@@ -281,7 +332,11 @@ export async function recordCheckout(
       throw new RecordCheckoutError("BAD_REQUEST", "Custom item quantity must be a positive integer")
     }
     const lineAmount = Math.round(c.unitPrice * c.quantity * 100) / 100
-    lines.push({ amount: lineAmount, taxRate: taxConfig.defaultRate })
+    // Honor the business's tax toggles: if it taxes neither services nor products,
+    // a "no tax" shop, a Quick Sale line must be untaxed too (previously it was
+    // always taxed at the default rate, over-charging a tax-off business).
+    const customTaxRate = taxConfig.taxOnServices || taxConfig.taxOnProducts ? taxConfig.defaultRate : 0
+    lines.push({ amount: lineAmount, taxRate: customTaxRate })
     subtotal += lineAmount
     const name = c.name.trim() || "Quick Sale"
     customNotes.push(`${name} x${c.quantity} @ ${c.unitPrice.toFixed(2)} = ${lineAmount.toFixed(2)}`)
@@ -511,12 +566,16 @@ export async function recordCheckout(
     }
   }
 
-  const payment = await tx.payment.create({
+  let payment: { id: string; paymentReference: string }
+  try {
+    payment = await tx.payment.create({
     data: {
       businessId,
       clientId: resolvedClientId ?? null,
       appointmentId: data.appointmentId ?? null,
       paymentReference: generatePaymentReference(),
+      // Persisted so a later retry with the same key hits the fast-path above.
+      idempotencyKey: data.idempotencyKey ?? null,
       type: "payment",
       method: data.method,
       // Masked gift-card code (last 4) for gift_card tenders; null otherwise.
@@ -532,7 +591,22 @@ export async function recordCheckout(
       notes: customNotes.length > 0 ? `Quick Sale items:\n${customNotes.join("\n")}` : null,
       processedAt: new Date(),
     },
-  })
+    })
+  } catch (e) {
+    // A UNIQUE (businessId, idempotencyKey) violation means a concurrent request
+    // with the SAME key already inserted its payment — a true simultaneous
+    // duplicate the fast-path read missed. Fail THIS one cleanly (its tx rolls
+    // back, so nothing is double-recorded); the client can retry and hit the
+    // fast-path. Any other error propagates unchanged.
+    if (
+      data.idempotencyKey &&
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      throw new RecordCheckoutError("BAD_REQUEST", "This sale was already recorded (duplicate request).")
+    }
+    throw e
+  }
 
   if (data.appointmentId) {
     await tx.appointment.update({
@@ -664,8 +738,14 @@ export async function recordCheckout(
     // AC 14: single-expression compute, no intermediate variables. Same
     // `c.commissionRate` snapshotted into the row.
     const commissionAmount = Math.round((c.grossAmount * c.commissionRate) / 100 * 100) / 100
-    // AC 14 invariant: amount must reconcile with the snapshotted rate at insert time.
-    if (Math.abs(commissionAmount - (c.grossAmount * c.commissionRate) / 100) >= 0.005) {
+    // AC 14 invariant: amount must reconcile with the snapshotted rate at insert
+    // time. Rounding to cents has a max legitimate error of exactly a half-cent
+    // (0.005), so the tolerance must be STRICTLY greater than that (plus a tiny
+    // epsilon for float noise) — otherwise a commission that lands exactly on a
+    // half-cent boundary (e.g. gross 45.30 @ 25% = 11.325 → 11.33) would false-trip
+    // and roll back a legitimate sale. Only a genuine rate/gross mismatch (≥ ~1¢)
+    // trips now.
+    if (Math.abs(commissionAmount - (c.grossAmount * c.commissionRate) / 100) > 0.005 + 1e-9) {
       throw new RecordCheckoutError(
         "INVARIANT_FAILED",
         `Commission invariant tripped (staff=${c.staffId} gross=${c.grossAmount} rate=${c.commissionRate} amount=${commissionAmount})`,

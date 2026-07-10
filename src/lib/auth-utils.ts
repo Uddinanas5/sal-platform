@@ -1,6 +1,6 @@
 import { auth } from "./auth"
 import { prisma } from "./prisma"
-import { hasRole, type AppRole } from "./permissions"
+import { hasRole, isActiveStatus, isSessionWatermarkStale, type AppRole } from "./permissions"
 
 export type BusinessContext = {
   userId: string
@@ -22,17 +22,24 @@ export type BusinessContext = {
  */
 export async function resolveBusinessRole(
   userId: string,
-  businessId: string
+  businessId: string,
+  opts?: { sessionLoginAt?: number | null }
 ): Promise<string | null> {
   const [user, ownedBusiness, staffProfile] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { role: true, status: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true, status: true, sessionsValidAfter: true } }),
     prisma.business.findFirst({ where: { id: businessId, ownerId: userId }, select: { id: true } }),
     prisma.staff.findFirst({
       where: { userId, isActive: true, deletedAt: null, primaryLocation: { businessId } },
       select: { id: true },
     }),
   ])
-  if (!user || user.status !== "active") return null
+  if (!user || !isActiveStatus(user.status)) return null
+  // L-034: reject a session issued before the user's invalidation watermark (set on
+  // password reset / "log out everywhere"). ONLY session-based callers pass `opts`
+  // (getBusinessContext / withV1Auth session path / dashboard layout). The API-key
+  // liveness check (L-047) calls WITHOUT opts and is intentionally exempt — API keys
+  // are separate credentials with their own revocation, not sessions to watermark.
+  if (opts !== undefined && isSessionWatermarkStale(opts.sessionLoginAt, user.sessionsValidAfter)) return null
   if (ownedBusiness) return user.role === "owner" ? "owner" : "admin"
   if (staffProfile) return user.role // honor the user's real role (staff/admin)
   return null // no live membership in this business
@@ -47,7 +54,7 @@ export async function getBusinessContext(): Promise<BusinessContext> {
   // Re-validate membership on every call: a removed/deactivated user must lose
   // access immediately, not when their 7-day JWT expires. Also yields the fresh
   // role, so a demotion takes effect at once instead of persisting in the cookie.
-  const role = await resolveBusinessRole(session.user.id, businessId)
+  const role = await resolveBusinessRole(session.user.id, businessId, { sessionLoginAt: session.loginAt })
   if (!role) throw new Error("No business context")
   return { userId: session.user.id, businessId, role }
 }

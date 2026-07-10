@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import { resolveBusinessRole } from "@/lib/auth-utils"
+import { hasRole } from "@/lib/permissions"
 import { getDashboardStats } from "@/lib/queries/appointments"
 import { getClients } from "@/lib/queries/clients"
 import { getLowStockProducts } from "@/lib/queries/products"
@@ -29,9 +31,12 @@ export async function GET() {
       })
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userRole = (session?.user as any)?.role as string | undefined
     const userId = session?.user?.id as string | undefined
+    // LIVE role, not the stale JWT — shop revenue is admin-only (mirrors the
+    // dashboard page, which zeroes revenue for non-admins). A demoted admin must
+    // stop seeing todayRevenue in the sidebar immediately (L-044).
+    const liveRole = userId ? await resolveBusinessRole(userId, businessId) : null
+    const canSeeRevenue = hasRole(liveRole, "admin")
 
     const [dashboardStats, clients, lowStockProducts, pendingReviewsCount] =
       await Promise.all([
@@ -41,9 +46,9 @@ export async function GET() {
         prisma.review.count({ where: { businessId, response: null } }),
       ])
 
-    // Look up staff profile ID for staff users (for "My Profile" link)
+    // Look up staff profile ID for non-admin members (for the "My Profile" link)
     let staffProfileId: string | null = null
-    if (userRole === "staff" && userId && businessId) {
+    if (liveRole === "staff" && userId && businessId) {
       const staffProfile = await prisma.staff.findFirst({
         where: { userId, primaryLocation: { businessId }, isActive: true },
         select: { id: true },
@@ -58,7 +63,7 @@ export async function GET() {
       pendingReviewsCount,
       staffProfileId,
       dashboardStats: {
-        todayRevenue: dashboardStats.todayRevenue,
+        todayRevenue: canSeeRevenue ? dashboardStats.todayRevenue : 0,
         todayAppointments: dashboardStats.todayAppointments,
         completedAppointments: dashboardStats.completedAppointments,
         upcomingAppointments: dashboardStats.upcomingAppointments,

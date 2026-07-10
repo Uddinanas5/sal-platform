@@ -177,6 +177,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     cancelledAt: newStatus === "cancelled" ? new Date() : undefined,
     noShowAt: newStatus === "no_show" ? new Date() : undefined,
   }
+  // On reactivation (cancelled/no_show → active), clear stale cancellation fields
+  // with explicit null (Prisma omits undefined) — mirrors the server action.
+  const reactivationData = {
+    ...data,
+    cancelledAt: null,
+    noShowAt: null,
+    cancellationInitiator: null,
+    cancellationReasonCode: null,
+    cancellationReason: null,
+    cancelledBy: null,
+  }
 
   try {
     // Reactivation guard: cancelled/no_show free the slot, so reactivating must
@@ -206,7 +217,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           })
           if (conflict) throw new Error("CONFLICT")
         }
-        return tx.appointment.update({ where: { id, businessId: ctx.businessId }, data })
+        return tx.appointment.update({ where: { id, businessId: ctx.businessId }, data: reactivationData })
       }, { timeout: 20000, maxWait: 15000 })
     } else {
       appointment = await prisma.appointment.update({ where: { id, businessId: ctx.businessId }, data })

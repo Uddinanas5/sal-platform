@@ -60,6 +60,16 @@ describe("updateAppointmentStatus reactivation guard", () => {
     const res = await updateAppointmentStatus(APPT, "confirmed")
     expect(res.success).toBe(true)
     expect(prismaMock.__tx.appointment.update).toHaveBeenCalled()
+    // Reactivation must CLEAR the stale cancellation fields with explicit null —
+    // otherwise a reactivated (was no_show) appointment still reads as a no-show to
+    // any consumer keyed on noShowAt / cancellationReasonCode.
+    const data = (prismaMock.__tx.appointment.update.mock.calls[0]![0] as { data: Record<string, unknown> }).data
+    expect(data.noShowAt).toBeNull()
+    expect(data.cancelledAt).toBeNull()
+    expect(data.cancellationReasonCode).toBeNull()
+    expect(data.cancellationInitiator).toBeNull()
+    expect(data.cancellationReason).toBeNull()
+    expect(data.cancelledBy).toBeNull()
   })
 
   it("does NOT run the conflict check for a normal forward transition (confirmed→completed)", async () => {

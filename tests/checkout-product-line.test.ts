@@ -27,6 +27,8 @@ function fakeTx() {
     $executeRaw: vi.fn(),
     business: { findUnique: vi.fn(async () => ({ settings: {}, currency: "USD" })) },
     service: { findMany: vi.fn(async () => []) },
+    // Booked-price snapshot lookup (empty → live catalog price, as this test expects).
+    appointmentService: { findMany: vi.fn(async () => []) },
     product: {
       // name + retailPrice are what the AppointmentProduct line is built from.
       findMany: vi.fn(async () => [

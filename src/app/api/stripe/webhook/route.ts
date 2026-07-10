@@ -241,8 +241,13 @@ export async function POST(request: NextRequest) {
           }
 
           await prisma.$transaction(async (tx) => {
-            await tx.payment.update({
-              where: { id: succeededPayment.id },
+            // Only a PENDING payment may flip to completed. A retried/out-of-order
+            // payment_intent.succeeded must NOT resurrect a payment that was since
+            // refunded (or failed, or already completed) back to "completed" — that
+            // would count a refunded charge as revenue and wrongly re-confirm the
+            // appointment. The status guard makes this write idempotent + monotonic.
+            const flipped = await tx.payment.updateMany({
+              where: { id: succeededPayment.id, status: "pending" },
               data: {
                 status: "completed",
                 processedAt: new Date(),
@@ -250,7 +255,7 @@ export async function POST(request: NextRequest) {
               },
             })
 
-            if (succeededPayment.appointmentId) {
+            if (flipped.count > 0 && succeededPayment.appointmentId) {
               await tx.appointment.update({
                 where: {
                   id: succeededPayment.appointmentId,
@@ -281,8 +286,14 @@ export async function POST(request: NextRequest) {
         })
 
         if (failedPayment) {
-          await prisma.payment.update({
-            where: { id: failedPayment.id },
+          // Don't let a stale / out-of-order payment_intent.payment_failed overwrite
+          // a TERMINAL payment. A single PaymentIntent can emit both payment_failed
+          // (a declined attempt) and succeeded (the retry); if the failed event is
+          // delivered/retried after the charge already completed (or was refunded),
+          // clobbering it to "failed" would drop a real charge out of revenue while
+          // the appointment stays confirmed. Only a non-terminal payment may fail.
+          await prisma.payment.updateMany({
+            where: { id: failedPayment.id, status: { notIn: ["completed", "refunded"] } },
             data: { status: "failed" },
           })
         }

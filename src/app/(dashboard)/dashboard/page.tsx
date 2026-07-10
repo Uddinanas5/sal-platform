@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
+import { resolveBusinessRole } from "@/lib/auth-utils"
 import { getTodaysAppointments, getDashboardStats } from "@/lib/queries/appointments"
 import { getClients } from "@/lib/queries/clients"
 import { getRevenueByDay, getChannelBreakdown, getStaffPerformance } from "@/lib/queries/reports"
@@ -12,7 +13,12 @@ export default async function DashboardPage() {
   if (!businessId) redirect("/onboarding")
   // Staff are blocked from /reports; the dashboard must not leak the same
   // financial data (shop revenue, per-colleague earnings) as a side door.
-  const isStaff = session?.user?.role === "staff"
+  // Use the LIVE DB role (not the stale 7-day JWT): a demoted admin must stop
+  // seeing revenue immediately. Anything that isn't a live owner/admin (incl. a
+  // revoked null) is treated as staff → financials hidden (least privilege).
+  const userId = session?.user?.id as string | undefined
+  const liveRole = userId ? await resolveBusinessRole(userId, businessId) : null
+  const isStaff = liveRole !== "owner" && liveRole !== "admin"
 
   const [appointments, stats, clients, revenueData, channelData, staffData] = await Promise.all([
     getTodaysAppointments(businessId),

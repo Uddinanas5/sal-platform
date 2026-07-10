@@ -33,7 +33,9 @@ export async function POST(req: Request) {
   if (clientIds.length > maxParticipants) return ERRORS.BAD_REQUEST("Too many participants")
 
   const service = await prisma.service.findFirst({
-    where: { id: serviceId, businessId: ctx.businessId },
+    // deletedAt: null — a soft-deleted service must not be bookable (matches every
+    // other booking path, e.g. v1 appointments route).
+    where: { id: serviceId, businessId: ctx.businessId, deletedAt: null },
   })
   if (!service) return ERRORS.NOT_FOUND("Service")
 

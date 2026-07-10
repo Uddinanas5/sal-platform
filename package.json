@@ -16,6 +16,8 @@
     "check:db": "node --env-file=.env scripts/db-health-check.mjs",
     "check:orphans": "node scripts/orphan-sweep.mjs",
     "check:restore": "node scripts/verify-restore.mjs",
+    "check:rawsql": "node scripts/check-raw-sql-tenancy.mjs",
+    "check:audit": "node scripts/check-audit.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:tz": "TZ=UTC vitest run && TZ=America/New_York vitest run",
@@ -26,7 +28,10 @@
     "trust": "node scripts/trust-report.mjs",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "stripe:trigger": "stripe trigger",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "loop:gate": "node loop/gate.mjs",
+    "loop:smoke": "node loop/gate.mjs --smoke",
+    "loop:gate:db": "node loop/gate.mjs --with-db"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
