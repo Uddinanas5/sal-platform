@@ -1,37 +1,4 @@
 {
-  "note": "Triaged high/critical prod-dependency advisories that check:audit accepts (does NOT fail the build on). Every entry is a DOCUMENTED accepted-risk with a remediation plan + review date. A high/critical in a package NOT listed here fails the gate. This is the industry-standard 'audit ignore-file' pattern (audit-ci / .snyk). Re-triage on each reviewBy.",
-  "advisories": [
-    {
-      "package": "next",
-      "severity": "high",
-      "class": "DoS (Image Optimizer remotePatterns; HTTP request deserialization)",
-      "reason": "Framework-level. The only fix is a Next 16 MAJOR upgrade (isSemVerMajor) from the current 14.2.x — a breaking change needing a human decision + full regression pass; not safe to apply autonomously. DoS-class, not RCE/data-leak. Mitigations: app does not expose the Image Optimizer to untrusted remotePatterns.",
-      "reviewBy": "2026-08-01",
-      "refs": ["GHSA-9g9p-9gw9-jx7f", "GHSA-h25m-26qc-wcjf", "GHSA-g77x-44xx-532m"]
-    },
-    {
-      "package": "fast-uri",
-      "severity": "high",
-      "class": "path traversal / host confusion via percent-encoding",
-      "reason": "Transitive dep. Fix available via a package override, pending an npm + pnpm dual-lockfile sync (the Vercel build is pnpm --frozen-lockfile) + a build verification. Tracked for the next dependency-maintenance pass.",
-      "reviewBy": "2026-08-01",
-      "refs": ["GHSA-q3j6-qgpj-74h6", "GHSA-v39h-62p7-jpjc"]
-    },
-    {
-      "package": "path-to-regexp",
-      "severity": "high",
-      "class": "ReDoS (sequential optional groups / multiple wildcards)",
-      "reason": "Transitive dep. Fixable via override, pending the same dual-lockfile sync. ReDoS only reachable on attacker-controlled route patterns, which the app does not accept.",
-      "reviewBy": "2026-08-01",
-      "refs": ["GHSA-j3q9-mxjg-w52f", "GHSA-27v5-c462-wpq7"]
-    },
-    {
-      "package": "picomatch",
-      "severity": "high",
-      "class": "ReDoS via extglob quantifiers",
-      "reason": "Transitive (build/glob tooling). Fixable via override, pending the dual-lockfile sync. Not on a request path.",
-      "reviewBy": "2026-08-01",
-      "refs": ["GHSA-3v7f-55p6-f55p", "GHSA-c2c7-rcm5-vvqj"]
-    }
-  ]
+  "note": "Triaged high/critical prod-dependency advisories that check:audit accepts (does NOT fail the build on). Every entry is a DOCUMENTED accepted-risk with a remediation plan + review date. A high/critical in a package NOT listed here fails the gate. This is the industry-standard 'audit ignore-file' pattern (audit-ci / .snyk). Re-triage on each reviewBy. (Emptied 2026-07-10: the four triaged advisories \u2014 next DoS class, fast-uri, path-to-regexp, picomatch \u2014 were all REMEDIATED by the Next 16 upgrade + override pass, L-022. npm and pnpm audit are both 0 vulnerabilities.)",
+  "advisories": []
 }

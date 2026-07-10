@@ -1,7 +1,7 @@
 {
   "version": 1,
   "note": "Priority queue. priority = gate severity (P0>P1>P2) \u00d7 blast radius \u00d7 evidence strength. The loop pulls the top OPEN, non-blocked item each iteration. New work is appended from: red gates, adversarial disproofs, shrunk property counterexamples, surviving mutants, coverage-ratchet misses, and (when dry) fresh audit rounds. See LOOP.md \u00a75.",
-  "updatedAt": "2026-07-10T13:50:00Z",
+  "updatedAt": "2026-07-10T14:30:00Z",
   "items": [
     {
       "id": "L-001",
@@ -186,10 +186,11 @@
       "title": "ESCALATION: remediate the 4 triaged high CVEs (next / fast-uri / path-to-regexp / picomatch)",
       "gate": "G",
       "priority": "P1",
-      "state": "open",
+      "state": "done",
       "owner": true,
       "source": "L-021 findings",
-      "notes": "next [high, DoS] fix = Next 16 MAJOR upgrade (14.2.x\u219216) \u2014 human decision + full regression pass. fast-uri/path-to-regexp/picomatch [high, path-traversal/ReDoS, transitive] = fixable via package overrides but needs an npm + pnpm dual-lockfile sync (Vercel = pnpm --frozen-lockfile) + build verify. All DoS/ReDoS/path-traversal class, not RCE/data-leak. Details + reviewBy 2026-08-01 in audit-allowlist.json. || OWNER APPROVED the major bump (Jul 10, chat) \u2014 remediation in progress this session."
+      "notes": "next [high, DoS] fix = Next 16 MAJOR upgrade (14.2.x\u219216) \u2014 human decision + full regression pass. fast-uri/path-to-regexp/picomatch [high, path-traversal/ReDoS, transitive] = fixable via package overrides but needs an npm + pnpm dual-lockfile sync (Vercel = pnpm --frozen-lockfile) + build verify. All DoS/ReDoS/path-traversal class, not RCE/data-leak. Details + reviewBy 2026-08-01 in audit-allowlist.json. || OWNER APPROVED the major bump (Jul 10, chat) \u2014 remediation in progress this session.",
+      "resolution": "DONE @ 24bfa5a (owner approved the major bump in chat, Jul 10). next 14.2.35->16.2.10, react 18->19.2, eslint 8->9 (flat config; next lint removed upstream -> 'eslint .'), middleware.ts -> proxy.ts (Next 16 convention), async-request-API codemod, serverExternalPackages + turbopack.resolveAlias config migration, vite/postcss overrides, stripe apiVersion 2026-02-25.clover. BOTH lockfiles in sync. npm audit AND pnpm audit: 0 vulnerabilities (was 23 / 9 high). audit-allowlist emptied (all 4 triaged advisories remediated). Regression: 708/708 tests, 15/15 invariants, tsc+lint clean, pnpm build green with no deprecation warnings."
     },
     {
       "id": "L-023",
@@ -491,6 +492,15 @@
       "state": "open",
       "source": "L-048 adversarial verify (info-class residuals)",
       "notes": "(a) src/lib/actions/oauth.ts:23-25 'if (!ctx)' is dead code \u2014 getBusinessContext throws, so a denied caller gets an unhandled server-action error rather than {success:false}; (b) src/app/api/calendar/[appointmentId]/route.ts:101-104 unauthenticated -> 500 not 401; (c) /api/search + /api/notifications catch-alls return 200 with empty payloads, masking outages (no data leak). Denial IS enforced everywhere \u2014 these are correctness-of-shape fixes, not bypasses."
+    },
+    {
+      "id": "L-053",
+      "title": "Burn down the 38 react-hooks/set-state-in-effect + react-hooks/purity warnings (rules demoted from error during the L-022 eslint 9 migration)",
+      "gate": "E",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-022 (eslint-config-next 16 enables React-Compiler hooks rules)",
+      "notes": "eslint.config.mjs demotes the two new rules to 'warn' with a pointer here. ~38 pre-existing hits: setState-in-effect in calendar/services/staff/booking clients, Math.random-in-render in book/[businessSlug]/client.tsx confetti. Behavior-sensitive UI refactor \u2014 do file-by-file with visual checks, not as a sweep. Restore both rules to 'error' when the count hits 0."
     }
   ]
 }

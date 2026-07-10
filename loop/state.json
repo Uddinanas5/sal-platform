@@ -1,9 +1,9 @@
 {
  "version": 1,
  "note": "Append-only event log \u2014 the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
- "lastGoodSha": "e50848c",
- "lastRunAt": "2026-07-10T13:35:00Z",
- "runCounter": 36,
+ "lastGoodSha": "24bfa5a",
+ "lastRunAt": "2026-07-10T14:30:00Z",
+ "runCounter": 37,
  "config": {
   "schema": "dev",
   "stripeMode": "test",
@@ -246,6 +246,12 @@
    "type": "VERIFIED",
    "at": "2026-07-10T13:35:00Z",
    "detail": "Completed L-048 (P1) \u2014 internal /api/* routes + onboarding actions no longer trust the raw 7-day JWT. New shared helper src/lib/api/route-auth.ts (getRouteBusinessContext: live role + always-forwarded session watermark, null->401; getLiveUserId: pre-business liveness+watermark for onboarding). Converted the six bare-auth() surfaces incl. the financial mutation (/api/stripe/create-payment-intent) and sidebar-data's silent watermark skip (now DENIES on null role). Adversarial verification (4 lenses: helper-correctness / converted-routes / missed-siblings / test-honesty): CONFIRMED-SOLID, no bypass \u2014 best candidates (opts-undefined, loginAt laundering via session update, cross-tenant JWT businessId, approveOAuthConsent) all closed. Residuals logged add-don't-chase: L-050 (P3 /onboarding page read path bare auth), L-051 (P3 resolveBusinessRole owner lookup lacks deletedAt filter \u2014 pre-existing, needs product decision), L-052 (P3 error-shape: 500/200-empty instead of 401 on three surfaces). VERIFIED: 708/708 unit tests (was 685), tsc clean, lint clean, 15/15 invariants, node loop/gate.mjs all checks green, verdict PENDING (remaining P0s are owner/infra). lastGoodSha=e50848c. NOTE: this session works on branch claude/platform-readiness-check-dptsl1 (fast-forwarded from loop/engine-bootstrap b1f3da0; ancestor-clean)."
+  },
+  {
+   "seq": 28,
+   "type": "VERIFIED",
+   "at": "2026-07-10T14:30:00Z",
+   "detail": "OWNER-DIRECTED session (chat): (1) PR #45 MERGED into trim/barbershop-focus (owner authorized; merge sha 8fac162); (2) PR #46 (L-048) created+merged (85c9bd5); working branch claude/platform-readiness-check-dptsl1 restarted from the merged base. (3) L-049 DECLINED by owner \u2014 reset/logOutEverywhere will NOT revoke API keys/OAuth (recorded, item closed). (4) L-022 DONE (owner approved): Next 16.2.10 / React 19.2 / eslint 9 major upgrade + full CVE remediation \u2014 npm AND pnpm audit 0 vulnerabilities (was 23/9-high); audit-allowlist emptied; middleware->proxy; both lockfiles synced; 708/708 tests, 15/15 invariants, build green. New: L-053 (P3, hooks-rules warning burn-down). (5) RL-1 partially unblocked: owner created Upstash db 'sal-ratelimit' + supplied REST token in chat; limiter code already env-driven (src/lib/rate-limit.ts). REMAINING: owner must paste UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN into Vercel env; live smoke pending the URL. lastGoodSha=24bfa5a."
   }
  ],
  "status": "RUNNING"

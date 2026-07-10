@@ -252,6 +252,19 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 27 (Jul 10) — you unblocked me; big things landed
+- **Your security fixes are LIVE in the main working branch** — you gave the word and
+  both pull requests (#45 and #46) are merged.
+- **The big software update is DONE (`L-022`, you approved it):** the app now runs on
+  the newest framework (Next 16 + React 19). This wiped out **all 23 known security
+  warnings in our dependencies — including 9 rated "high" — down to ZERO.** Full
+  regression: 708/708 tests, all invariants, clean production build.
+- **Rate-limit protection (`RL-1`) is one paste away:** you created the "sal-ratelimit"
+  database on Upstash and sent the token. The code was already built to use it. Last
+  step: put the two values (URL + token) into Vercel's environment-variable settings.
+- **Your call recorded on `L-049`:** password reset will NOT wipe API keys — closed as
+  declined, per your decision.
+
 ## Heartbeat iteration 26 (Jul 10) — closed the last "back door" class: internal app endpoints
 - Did `L-048` (the top item from the last handoff). A handful of the app's **internal
   endpoints** (the ones the dashboard itself calls behind the scenes: global search,
