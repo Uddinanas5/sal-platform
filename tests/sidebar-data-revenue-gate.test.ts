@@ -43,11 +43,10 @@ describe("GET /api/sidebar-data — shop revenue gated on the live admin role (L
     expect(body.todayAppointments).toBe(5)
   })
 
-  it("zeroes todayRevenue for a revoked (null) member", async () => {
+  it("denies a revoked (null) member outright with 401 (L-048: deny, don't just zero)", async () => {
     resolveRoleMock.mockResolvedValue(null)
     const res = await GET()
-    const body = await res.json()
-    expect(body.dashboardStats.todayRevenue).toBe(0)
+    expect(res.status).toBe(401)
   })
 
   it("returns the real todayRevenue for an admin", async () => {

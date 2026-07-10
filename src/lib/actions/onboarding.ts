@@ -2,7 +2,10 @@
 
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+// L-048: bare auth() trusted the raw 7-day JWT. getLiveUserId re-checks account
+// status + the session-invalidation watermark on every action (no business is in
+// the JWT yet during onboarding, so the businessId-scoped helper can't be used).
+import { getLiveUserId } from "@/lib/api/route-auth"
 import { revalidatePath } from "next/cache"
 
 type ActionResult<T = void> =
@@ -73,12 +76,12 @@ export async function updateBusinessDetails(data: {
 }): Promise<ActionResult> {
   try {
     const parsed = updateBusinessDetailsSchema.parse(data)
-    const session = await auth()
-    if (!session?.user?.id) return { success: false, error: "Not authenticated" }
+    const userId = await getLiveUserId()
+    if (!userId) return { success: false, error: "Not authenticated" }
 
     // Verify ownership
     const business = await prisma.business.findFirst({
-      where: { id: parsed.businessId, ownerId: session.user.id },
+      where: { id: parsed.businessId, ownerId: userId },
       include: { locations: { where: { isPrimary: true } } },
     })
     if (!business) return { success: false, error: "Business not found" }
@@ -136,11 +139,11 @@ export async function saveWorkingHours(data: {
 }): Promise<ActionResult> {
   try {
     const parsed = saveWorkingHoursSchema.parse(data)
-    const session = await auth()
-    if (!session?.user?.id) return { success: false, error: "Not authenticated" }
+    const userId = await getLiveUserId()
+    if (!userId) return { success: false, error: "Not authenticated" }
 
     const business = await prisma.business.findFirst({
-      where: { id: parsed.businessId, ownerId: session.user.id },
+      where: { id: parsed.businessId, ownerId: userId },
       include: { locations: { where: { isPrimary: true } } },
     })
     if (!business) return { success: false, error: "Business not found" }
@@ -211,11 +214,11 @@ export async function addOnboardingServices(data: {
 }): Promise<ActionResult> {
   try {
     const parsed = addOnboardingServicesSchema.parse(data)
-    const session = await auth()
-    if (!session?.user?.id) return { success: false, error: "Not authenticated" }
+    const userId = await getLiveUserId()
+    if (!userId) return { success: false, error: "Not authenticated" }
 
     const business = await prisma.business.findFirst({
-      where: { id: parsed.businessId, ownerId: session.user.id },
+      where: { id: parsed.businessId, ownerId: userId },
     })
     if (!business) return { success: false, error: "Business not found" }
 
@@ -286,11 +289,11 @@ export async function completeOnboarding(data: {
 }): Promise<ActionResult> {
   try {
     const parsed = completeOnboardingSchema.parse(data)
-    const session = await auth()
-    if (!session?.user?.id) return { success: false, error: "Not authenticated" }
+    const userId = await getLiveUserId()
+    if (!userId) return { success: false, error: "Not authenticated" }
 
     const business = await prisma.business.findFirst({
-      where: { id: parsed.businessId, ownerId: session.user.id },
+      where: { id: parsed.businessId, ownerId: userId },
     })
     if (!business) return { success: false, error: "Business not found" }
 

@@ -16,6 +16,10 @@ import { NextRequest } from "next/server"
 const { authMock, prismaMock, createPaymentIntentMock, getOrCreateCustomerMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
   prismaMock: {
+    // user/staff back the L-048 live-membership resolution inside the route's
+    // getRouteBusinessContext (the route no longer trusts the raw JWT).
+    user: { findUnique: vi.fn() },
+    staff: { findFirst: vi.fn() },
     business: { findFirst: vi.fn() },
     appointment: { findFirst: vi.fn() },
     payment: { findFirst: vi.fn(), create: vi.fn() },
@@ -46,6 +50,8 @@ function req() {
 beforeEach(() => {
   vi.clearAllMocks()
   authMock.mockResolvedValue({ user: { id: "u1", businessId: BIZ } })
+  prismaMock.user.findUnique.mockResolvedValue({ role: "owner", status: "active", sessionsValidAfter: null })
+  prismaMock.staff.findFirst.mockResolvedValue(null)
   prismaMock.business.findFirst.mockResolvedValue({ stripeAccountId: "acct_1", stripeAccountStatus: "active" })
   prismaMock.appointment.findFirst.mockResolvedValue({ id: APPT, clientId: "c1", totalAmount: 45 })
   createPaymentIntentMock.mockResolvedValue({ success: true, clientSecret: "cs_1", paymentIntentId: "pi_1" })

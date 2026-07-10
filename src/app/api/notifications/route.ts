@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getRouteBusinessContext } from "@/lib/api/route-auth"
 import { prisma } from "@/lib/prisma"
 import { getLowStockProducts } from "@/lib/queries/products"
 import { subHours } from "date-fns"
@@ -8,13 +8,13 @@ export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
-    const session = await auth()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const businessId = (session?.user as any)?.businessId as string | undefined
-
-    if (!businessId) {
-      return NextResponse.json({ notifications: [] })
+    // L-048: notifications leak appointments, payment amounts, and reviews —
+    // require a LIVE member (fresh role + session watermark), not the raw JWT.
+    const ctx = await getRouteBusinessContext()
+    if (!ctx) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { businessId } = ctx
 
     const since = subHours(new Date(), 24)
 

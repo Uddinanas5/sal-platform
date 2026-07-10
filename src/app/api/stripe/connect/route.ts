@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getRouteBusinessContext } from "@/lib/api/route-auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, createConnectAccount } from "@/lib/stripe"
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    // L-048: onboarding a Stripe account is owner-surface — require a LIVE
+    // member (fresh role + session watermark); the ownerId filter below then
+    // pins the target business to the caller.
+    const ctx = await getRouteBusinessContext()
+    if (!ctx) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -24,7 +27,7 @@ export async function POST(request: NextRequest) {
     const business = await prisma.business.findFirst({
       where: {
         id: businessId,
-        ownerId: session.user.id,
+        ownerId: ctx.userId,
         deletedAt: null,
       },
     })

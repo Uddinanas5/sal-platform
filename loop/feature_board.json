@@ -1,7 +1,7 @@
 {
   "version": 1,
   "note": "FROZEN GATE — owner-protected via CODEOWNERS. The loop reads this and flips check states ONLY from observed external-oracle evidence. Verdict = PUBLIC-GA iff every P0 check passes. The loop must never edit the check definitions or severities to make the board green (see LOOP.md §4).",
-  "updatedAt": "2026-07-10T09:20:42.737Z",
+  "updatedAt": "2026-07-10T13:22:53.379Z",
   "verdict": "PENDING",
   "gates": [
     {
@@ -15,21 +15,21 @@
           "desc": "Cross-tenant reads: seed as Shop A, auth as Shop B, every read/list/report returns 0 rows of A (404/403)",
           "proof": "vitest tests/cross-tenant",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "A.2",
           "desc": "Cross-tenant mutations: Shop B cannot update/cancel A's appointment by guessing id",
           "proof": "vitest tests/cross-tenant/appointments-id.idor.test.ts",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "A.3",
           "desc": "Query helpers refuse a missing businessId (no cross-tenant fallback)",
           "proof": "vitest tests/query-businessid-guard.test.ts",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "A.4",
@@ -58,28 +58,28 @@
           "desc": "No Stripe secret key in repo or non-Production env",
           "proof": "secret scan (to build)",
           "state": "pass",
-          "evidence": ".env gitignored+untracked; no live/real secret in tracked files @ 2026-07-10T09:20:42.737Z"
+          "evidence": ".env gitignored+untracked; no live/real secret in tracked files @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "B.2",
           "desc": "Commission is non-zero and correct on a real end-to-end checkout (guards the $0-commission bug)",
           "proof": "vitest tests/checkout-commission.test.ts",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "B.3",
           "desc": "Webhook idempotent: replay same event.id twice ⇒ single side-effect (no double charge/booking/SMS)",
           "proof": "vitest tests/billing-reconcile-replay.test.ts",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "B.4",
           "desc": "Price tampering rejected; totals recomputed server-side",
           "proof": "vitest tests/checkout-price-tampering.test.ts",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "B.5",
@@ -101,7 +101,7 @@
           "desc": "Error tracker (Sentry) wired for server + client exceptions",
           "proof": "presence of sentry.server.config.ts + DSN",
           "state": "pass",
-          "evidence": "present: sentry.server.config.ts @ 2026-07-10T09:20:42.737Z"
+          "evidence": "present: sentry.server.config.ts @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "C.2",
@@ -159,7 +159,7 @@
           "desc": "Migrations use expand-and-contract (no destructive drop in the same deploy)",
           "proof": "npm run check:migrations",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "E.3",
@@ -188,7 +188,7 @@
           "desc": "Rate limits on booking/login/reset/webhook (429 + Retry-After)",
           "proof": "presence of src/lib/rate-limit.ts + middleware audit",
           "state": "pass",
-          "evidence": "present: src/lib/rate-limit.ts @ 2026-07-10T09:20:42.737Z"
+          "evidence": "present: src/lib/rate-limit.ts @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "F.3",
@@ -260,7 +260,7 @@
           "desc": "Tenant deletion removes rows + cache + files with no residue",
           "proof": "npm run check:orphans + account-deletion test",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         }
       ]
     },
@@ -282,14 +282,14 @@
           "desc": "Business invariants (15-rule board) all green",
           "proof": "npm run check:invariants",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "J.3",
           "desc": "Every UI-advertised feature actually does something (no fake/inert 'done' features)",
           "proof": "npm run check:fake-success + Playwright crawl",
           "state": "pass",
-          "evidence": "exit 0 @ 2026-07-10T09:20:42.737Z"
+          "evidence": "exit 0 @ 2026-07-10T13:22:53.379Z"
         },
         {
           "id": "J.4",

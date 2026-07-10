@@ -252,6 +252,25 @@ policing itself.) The planned login-system audit moves to the next tick.
   test. (These three copies of the same logic are now begging to be merged into one
   shared helper — noted for a cleanup pass.)
 
+## Heartbeat iteration 26 (Jul 10) — closed the last "back door" class: internal app endpoints
+- Did `L-048` (the top item from the last handoff). A handful of the app's **internal
+  endpoints** (the ones the dashboard itself calls behind the scenes: global search,
+  the notification bell, the sidebar counters, and three payment-setup/charge
+  endpoints) were still trusting the raw 7-day login cookie. That meant a **removed
+  or demoted employee — or a stolen session that should have died on a password
+  reset — could still search client names/emails, see payment amounts, and even
+  start a card charge** for up to a week.
+- Fixed with **one shared gate** all of these now pass through: every call re-checks
+  the person's live membership *and* whether their session predates a password
+  reset. Dead sessions get a hard "unauthorized" before a single database read or
+  Stripe call. The account-setup (onboarding) steps got the same treatment.
+- **Independently attack-tested before shipping:** a separate adversarial review
+  tried to break the fix (stale sessions, forged shop IDs, token laundering,
+  hunting for missed sibling endpoints) — **no bypass found**. Three minor
+  low-risk leftovers were logged as new backlog items (`L-050`–`L-052`) rather
+  than rushed. Scoreboard: **708/708 tests green** (was 685), all 15 business
+  invariants, full gate green.
+
 ## ⏸️ CONVERGED — loop paused, your move (Jul 9)
 
 The self-paced run has done all the clean, high-value work it can do without you. It's
