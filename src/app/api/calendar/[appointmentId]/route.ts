@@ -3,17 +3,18 @@ import { getBusinessContext } from "@/lib/auth-utils"
 import { NextRequest, NextResponse } from "next/server"
 
 function escapeICS(text: string): string {
-  return text.replace(/[\\;,]/g, "\\$&").replace(/\n/g, "\\n")
+  return text.replace(/[\\;,]/g, "\\$&").replace(/\n/g, "\\n");
 }
 
 function formatICSDate(date: Date): string {
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { appointmentId: string } }
+  props: { params: Promise<{ appointmentId: string }> }
 ) {
+  const params = await props.params;
   try {
     // Tenant-scope the lookup: the ICS body exposes client PII (name, email),
     // staff names, notes, and the location address. Without a businessId filter

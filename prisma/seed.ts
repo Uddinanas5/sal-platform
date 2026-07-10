@@ -494,7 +494,7 @@ async function main() {
         locationId: location.id,
         clientId: clientIdMap[clientOldId],
         bookingReference: bookingRef,
-        status: status as any,
+        status: status as "pending" | "confirmed" | "checked_in" | "in_progress" | "completed" | "cancelled" | "no_show",
         source: "online",
         startTime,
         endTime,
