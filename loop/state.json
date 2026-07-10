@@ -1,9 +1,9 @@
 {
   "version": 1,
   "note": "Append-only event log — the loop's single source of truth. On crash/sleep the loop replays from here; it never loses committed work. Do not rewrite history; only append events and update lastGoodSha/lastRunAt.",
-  "lastGoodSha": "16cd93b",
+  "lastGoodSha": "a175dc5",
   "lastRunAt": "2026-07-09T09:00:00Z",
-  "runCounter": 34,
+  "runCounter": 35,
   "config": {
     "schema": "dev",
     "stripeMode": "test",
@@ -234,7 +234,13 @@
       "type": "VERIFIED",
       "at": "2026-07-09T10:20:00Z",
       "detail": "Owner supplied an external 'SAL HARDENING LOOP' agent prompt (built by another AI from AUDIT.md) authorizing the previously owner-gated items. EVALUATED it: safe (rails match ours), sound priority order, correct Definitions of Done — but with 3 caveats: (a) 'until gate says GO' is over-promised — several P0 checks (A.4/A.5) require editing the FROZEN feature_board.json/gate.mjs, which its own rules forbid, so a full GO is not autonomously reachable without the owner; (b) ordering nit — RL-1 (shared rate store) must precede L-035 (login throttle depends on it); (c) it assumes an execution environment that is only partly present. ENVIRONMENT REALITY CHECK (new intelligence the prompt lacked): local .env correctly targets the dev schema (not prod), but the dev DB server is UNREACHABLE (P1001) — so the migration-dependent items (L-034 sessionsValidAfter, BK-1 btree_gist) CANNOT be executed/verified here; RL-1/L-035 need Upstash (owner cost); npm audit confirms 23 vulns (9 high) with dual lockfiles (package-lock + pnpm-lock) making L-022 delicate. GO on the one clean, DB-free, fully-verifiable item: completed L-038 (login + reset timing side-channel) — dummy bcrypt on the no-user login branch + fire-and-forget reset email. Reconciled RL-1 + BK-1 into the backlog (blocked-on-enabler) and annotated L-034/L-035. VERIFIED: 3/3 new tests, tsc clean, 15/15 invariants, 669/669 (+3). ENABLERS NEEDED to proceed on the HIGHs: (1) make the dev DB reachable / a local Postgres → unblocks L-034 + BK-1; (2) provision Upstash (or accept in-memory + document) → unblocks RL-1 + L-035; (3) owner decision on the Next.js major bump (breaking) for L-022."
+    },
+    {
+      "seq": 26,
+      "type": "VERIFIED",
+      "at": "2026-07-10T05:30:00Z",
+      "detail": "Completed L-034 (server-side session invalidation) — the top HIGH item, unblocked after a full dev-DB recovery (accidental reset dropped the dev schema; user recreated it + granted CREATE via Supabase SQL editor; rebuilt 14 migrations + seed). Implemented a stable token.loginAt watermark vs User.sessionsValidAfter, stamped on password reset + a new logOutEverywhere action, enforced across all server actions (getBusinessContext), REST v1 (withV1Auth), and dashboard read pages (layout). Migration applied + VERIFIED against the real clean dev DB. Caught+fixed a self-introduced fail-closed flaw that would have killed API keys (added the session-caller opts gate). ULTRACODE 2-lens adversarial verification (wjdzjkctc): regression=fix-is-sound (loginAt persists like existing claims, post-reset login allowed, rollout-safe, no redirect loop); completeness=fix-has-gaps → a PRE-EXISTING systemic hole: internal /api/* routes (search, notifications, sidebar-data, stripe/create-payment-intent, stripe/connect, dashboard-link) + onboarding.ts use bare auth() and skip BOTH live-role (L-036) and the watermark (L-034); one is a financial mutation. Logged as L-048 (P1). Also logged L-049 (P2): reset/logOutEverywhere don't revoke OAuth/API keys. VERIFIED: 685/685 unit tests, tsc clean, 15/15 invariants. Verdict PENDING. lastGoodSha=a175dc5."
     }
   ],
-  "status": "CONVERGED"
+  "status": "RUNNING"
 }

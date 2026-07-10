@@ -297,9 +297,10 @@
       "title": "Password reset does not invalidate existing sessions (stolen JWT survives 7 days)",
       "gate": "G",
       "priority": "P2",
-      "state": "open",
+      "state": "done",
       "source": "auth-audit (password-reset.ts:137)",
-      "notes": "Stateless 7-day JWT; resetPassword() never watermarks. A stolen session/JWT keeps full dashboard+API access after the victim resets. Fix: add User.sessionsValidAfter/passwordChangedAt (schema migration), stamp on reset, embed iat at login, reject stale tokens in resolveBusinessRole/withV1Auth; add log-out-everywhere. OWASP ASVS 3.3. || ENV NOTE (Jul 9): requires a Prisma migration (sessionsValidAfter) on the dev schema; the dev DB is currently UNREACHABLE from this environment (P1001), so the migration + cross-credential-path integration test cannot be run here. Needs the dev DB reachable (or a local Postgres) to execute safely."
+      "notes": "Stateless 7-day JWT; resetPassword() never watermarks. A stolen session/JWT keeps full dashboard+API access after the victim resets. Fix: add User.sessionsValidAfter/passwordChangedAt (schema migration), stamp on reset, embed iat at login, reject stale tokens in resolveBusinessRole/withV1Auth; add log-out-everywhere. OWASP ASVS 3.3. || ENV NOTE (Jul 9): requires a Prisma migration (sessionsValidAfter) on the dev schema; the dev DB is currently UNREACHABLE from this environment (P1001), so the migration + cross-credential-path integration test cannot be run here. Needs the dev DB reachable (or a local Postgres) to execute safely.",
+      "resolution": "FIXED on loop/engine-bootstrap. Server-side session invalidation via a stable token.loginAt watermark (set once at sign-in, exposed as session.loginAt) compared against a new User.sessionsValidAfter column (stamped on password reset + a new logOutEverywhere() action). Enforced in resolveBusinessRole for every SESSION caller — getBusinessContext (all server actions), withV1Auth session-cookie path (all REST v1), and the dashboard layout (all RSC read pages). API keys/OAuth exempt (L-047); fail-closed on legacy tokens once a watermark is set; rollout-safe. Migration applied + verified on the rebuilt clean dev DB (watermark round-trips exactly; pre-reset session DENIED, post-reset ALLOWED, with cleanup). Caught + fixed a self-introduced flaw pre-commit (fail-closed would have killed API keys — added the opts!==undefined session-caller gate). 685/685 tests (+16). 2-lens adversarial pass: regression=fix-is-sound; completeness surfaced a PRE-EXISTING gap (internal /api/* bare-auth routes) → L-048."
     },
     {
       "id": "L-035",
@@ -443,6 +444,24 @@
       "state": "blocked",
       "source": "AUDIT.md §5 / external hardening plan #6",
       "notes": "BLOCKED here on dev-DB reachability + the btree_gist extension. Add an EXCLUDE constraint on appointments (tstzrange over staff+time) via a dev-schema migration; audit every create/reschedule path for lock coverage. DONE when a raw-SQL overlapping insert is rejected by the DB itself and all booking tests stay green. (Migration cannot be applied/tested from the current environment — DB server unreachable, P1001.)"
+    },
+    {
+      "id": "L-048",
+      "title": "Internal /api/* route handlers authenticate via bare auth() and skip BOTH the live-role check (L-036) and the session watermark (L-034) — stale/removed sessions read PII + initiate card charges",
+      "gate": "G",
+      "priority": "P1",
+      "state": "open",
+      "source": "L-034 adversarial verify (bypass lens, wjdzjkctc)",
+      "notes": "These /api/* routes live OUTSIDE the (dashboard) layout and do NOT use getBusinessContext or withV1Auth, so they trust the raw 7-day JWT businessId with no live-role and no watermark: /api/stripe/create-payment-intent (P2 — FINANCIAL MUTATION: mints a Stripe PaymentIntent + Payment row; no resolveBusinessRole at all), /api/search (P2 — leaks client names+emails, services, staff), /api/notifications (P2 — leaks appointments, payment amounts, reviews), /api/sidebar-data (P2 — calls resolveBusinessRole WITHOUT opts so the watermark is silently skipped; also only gates revenue, doesn't DENY on null role), /api/stripe/dashboard-link + /api/stripe/connect (P3 — stale owner keeps Stripe account access), src/lib/actions/onboarding.ts actions (info — bare auth()+ownerId, self-tenant). CONSEQUENCE: both a DEMOTED/REMOVED member (L-036 class) and a STALE post-reset session (L-034 class) still reach these. FIX: a shared route-handler auth helper (the getBusinessContext equivalent for /api routes) that resolves the LIVE role + enforces the watermark (passes {sessionLoginAt}) and returns 401 on null; route all bare-auth() /api handlers + onboarding actions through it. High-value: closes a financial-mutation + PII bypass in one systemic change."
+    },
+    {
+      "id": "L-049",
+      "title": "Password reset + logOutEverywhere do not revoke OAuth access tokens / API keys — a 'suspected compromise' reset leaves programmatic credentials fully alive",
+      "gate": "G",
+      "priority": "P2",
+      "state": "open",
+      "source": "L-034 adversarial verify (bypass lens, wjdzjkctc)",
+      "notes": "resetPassword (password-reset.ts) and logOutEverywhere (account.ts) stamp sessionsValidAfter (kills SESSIONS) but do NOT revoke apiKey / oAuthAccessToken — only requestAccountDeletion does (L-040). Since API keys + OAuth are watermark-exempt (L-047, correct), a compromise that triggers a reset / log-out-everywhere leaves any stolen API key or OAuth token with full programmatic access. logOutEverywhere's own doc says 'use after a suspected compromise', so leaving programmatic creds alive is a real gap. DECISION (product): should reset / log-out-everywhere also revoke the user's API keys + OAuth tokens? RECOMMENDED: logOutEverywhere revokes both (revokedAt=now) as the 'kill everything' action; password reset optionally too (or surface a prompt). Mirror the revocation already in requestAccountDeletion."
     }
   ]
 }
