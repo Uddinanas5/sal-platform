@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
+import { resolveBusinessRole } from "@/lib/auth-utils"
+import { hasRole } from "@/lib/permissions"
 import {
   getReportSummary,
   getRevenueByMonth,
@@ -28,15 +30,24 @@ function parseDateParam(raw: string | string[] | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-export default async function ReportsPage({
-  searchParams,
-}: {
-  searchParams?: { from?: string | string[]; to?: string | string[] }
-}) {
+export default async function ReportsPage(
+  props: {
+    searchParams?: Promise<{ from?: string | string[]; to?: string | string[] }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
   if (!businessId) redirect("/onboarding")
+
+  // Admin-only: /reports exposes shop revenue + every barber's commission. The
+  // STAFF_BLOCKED_ROUTES middleware gate keys on the STALE 7-day JWT role, so a
+  // demoted admin would otherwise still reach this for up to 7 days (L-042).
+  // Re-check the LIVE DB role here and bounce anyone not currently admin+.
+  const userId = session?.user?.id as string | undefined
+  const liveRole = userId ? await resolveBusinessRole(userId, businessId) : null
+  if (!hasRole(liveRole, "admin")) redirect("/dashboard")
 
   // Date-range filter from the picker (URL search params). Absent/invalid →
   // the queries default to the current month.

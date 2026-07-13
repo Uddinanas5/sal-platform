@@ -16,7 +16,7 @@ vi.mock("@/lib/prisma", () => ({
 import { getReviews, getReviewStats } from "@/lib/queries/reviews"
 import { getCampaignStats } from "@/lib/queries/marketing"
 import { getRevenueByDay, getChannelBreakdown } from "@/lib/queries/reports"
-import { getMemberships } from "@/lib/queries/memberships"
+import { getMembershipStats } from "@/lib/queries/memberships"
 import { getWaitlistEntries } from "@/lib/queries/waitlist"
 
 describe("query helpers refuse a missing businessId (no cross-tenant fallback)", () => {
@@ -35,8 +35,8 @@ describe("query helpers refuse a missing businessId (no cross-tenant fallback)",
   it("getChannelBreakdown throws", async () => {
     await expect(getChannelBreakdown(undefined)).rejects.toThrow(/businessId is required/)
   })
-  it("getMemberships throws", async () => {
-    await expect(getMemberships(undefined)).rejects.toThrow(/businessId is required/)
+  it("getMembershipStats throws", async () => {
+    await expect(getMembershipStats(undefined)).rejects.toThrow(/businessId is required/)
   })
   it("getWaitlistEntries throws", async () => {
     await expect(getWaitlistEntries(undefined)).rejects.toThrow(/businessId is required/)

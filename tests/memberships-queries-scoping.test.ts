@@ -17,7 +17,7 @@ const { prismaMock } = vi.hoisted(() => {
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }))
 
-import { getGiftCards, getMembershipPlans } from "@/lib/queries/memberships"
+import { getGiftCards } from "@/lib/queries/memberships"
 
 const BIZ = "11111111-1111-4111-8111-111111111111"
 
@@ -96,35 +96,5 @@ describe("getGiftCards — tenant scoping & serialization", () => {
 
     expect(cards.find((c) => c.code === "EXP")?.status).toBe("expired")
     expect(cards.find((c) => c.code === "RED")?.status).toBe("redeemed")
-  })
-})
-
-describe("getMembershipPlans — tenant scoping & member counts", () => {
-  it("scopes by businessId (active + inactive) and returns active member counts", async () => {
-    prismaMock.membershipPlan.findMany.mockResolvedValue([
-      {
-        id: "p1",
-        name: "Gold",
-        description: "Premium",
-        price: { toString: () => "149" },
-        billingCycle: "monthly",
-        sessionsIncluded: null,
-        discountPercent: { toString: () => "20" },
-        serviceIds: [],
-        benefits: ["20% off"],
-        isActive: false,
-        _count: { memberships: 7 },
-      },
-    ])
-
-    const plans = await getMembershipPlans(BIZ)
-
-    const args = prismaMock.membershipPlan.findMany.mock.calls[0][0]
-    // Scoped to the business, and NOT restricted to isActive (management view).
-    expect(args.where).toEqual({ businessId: BIZ })
-    expect(plans[0].price).toBe(149)
-    expect(plans[0].discountPercent).toBe(20)
-    expect(plans[0].activeMembers).toBe(7)
-    expect(plans[0].isActive).toBe(false)
   })
 })

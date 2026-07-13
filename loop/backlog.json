@@ -1,0 +1,506 @@
+{
+  "version": 1,
+  "note": "Priority queue. priority = gate severity (P0>P1>P2) \u00d7 blast radius \u00d7 evidence strength. The loop pulls the top OPEN, non-blocked item each iteration. New work is appended from: red gates, adversarial disproofs, shrunk property counterexamples, surviving mutants, coverage-ratchet misses, and (when dry) fresh audit rounds. See LOOP.md \u00a75.",
+  "updatedAt": "2026-07-10T14:30:00Z",
+  "items": [
+    {
+      "id": "L-001",
+      "title": "Wire Stripe TEST-mode E2E: book \u2192 pay \u2192 webhook \u2192 DB row + idempotent replay (Gate B.5)",
+      "gate": "B",
+      "priority": "P0",
+      "state": "open",
+      "notes": "UNBLOCKED Jul 8: Stripe TEST keys found in local .env (sk_test_ + whsec_ + pk_test_), .env gitignored+untracked, DB on dev schema. \u26a0 Re-verify STRIPE_WEBHOOK_SECRET (len 70) matches the actual delivering endpoint at runtime \u2014 use `npm run stripe:listen` which prints the session signing secret. Never live keys."
+    },
+    {
+      "id": "L-002",
+      "title": "Concurrency oracle: fc.scheduledModelRun harness asserting no-overlap + exactly-one-racer-wins on booking (Gate A/J)",
+      "gate": "J",
+      "priority": "P0",
+      "state": "open",
+      "notes": "Strengthen beyond the existing advisory-lock sim to interleaved async commands; fix must be DB constraint / serializable txn, not app check-then-write."
+    },
+    {
+      "id": "L-003",
+      "title": "Tenant-override property test: fuzz X-Tenant-ID / body / query; assert server-session tenant wins (Gate A.4)",
+      "gate": "A",
+      "priority": "P0",
+      "state": "done",
+      "notes": "DONE Jul 8 (heartbeat): tests/cross-tenant/tenant-override.a4.test.ts (3 tests) drives the v1 appointments [id] GET+PATCH route with a hostile businessId in body, query, AND X-Tenant-ID header and asserts every Prisma where + the access gate scope to the AUTH tenant, never the injected one. Representative of the withV1Auth/getBusinessContext-derived-tenant pattern; could extend to more routes later. Board-wiring in L-019."
+    },
+    {
+      "id": "L-004",
+      "title": "Raw-SQL tenant-predicate grep guard for every $queryRaw/$executeRaw (Gate A.5)",
+      "gate": "A",
+      "priority": "P0",
+      "state": "done",
+      "notes": "DONE Jul 8 (heartbeat): scripts/check-raw-sql-tenancy.mjs + `npm run check:rawsql` + tests/raw-sql-tenancy.test.ts (7 tests). Classifies every raw-SQL site: allows businessId-scoped, pg_advisory_xact_lock (tenant-keyed), SELECT 1 probe, or an explicit `raw-sql-allow:` review note; fails anything else (esp. *Unsafe). Current codebase clean (6 sites, all safe). Board-wiring of A.5 deferred to L-019 (needs owner-approved gate.mjs edit \u2014 frozen file)."
+    },
+    {
+      "id": "L-005",
+      "title": "Structured-log audit: requestId + shopId on every server log line (Gate C.2)",
+      "gate": "C",
+      "priority": "P0",
+      "state": "open",
+      "notes": "Per-tenant sliceability is launch-critical for multi-tenant."
+    },
+    {
+      "id": "L-006",
+      "title": "Set up StrykerJS mutation testing on booking/checkout/auth; gate: new test must lift mutation score, not just coverage",
+      "gate": "meta",
+      "priority": "P1",
+      "state": "open",
+      "notes": "Meta-oracle proving invariants are non-vacuous. Surviving-mutant reports are INTERNAL signal, never handed to the code-writing step."
+    },
+    {
+      "id": "L-007",
+      "title": "Metamorphic tests for availability/search API: adding a filter \u21d2 Subset; Cardinality never increases (Gate J)",
+      "gate": "J",
+      "priority": "P1",
+      "state": "done",
+      "notes": "No golden output needed; scales to unlabeled inputs.",
+      "resolution": "DONE on loop/engine-bootstrap. Added tests/availability-metamorphic.test.ts \u2014 6 metamorphic relations run against the REAL getAvailability with the 6 DB reads mocked (5 fixed, only appointments/duration/window vary), no live DB, ZERO production change. Relations locked: R1 adding an appointment only REMOVES slots (result subset of base, strictly fewer) \u2014 the booking-safety monotonicity behind 'never double-book'; R1b more appointments => fewer-or-equal (monotonic); R2 no offered slot overlaps a blocked appointment; R3 a longer service can only reduce availability (subset, fewer-or-equal); R4 narrowing the working window only removes slots (subset). Non-vacuous: the baseline (09:00-17:00, 60-min service, 15-min grid) asserts exactly 29 slots, proving the mocks faithfully drive the real slot computation. The strengthened gate caught a tsc-only blind spot (Set spread needs Array.from; vitest doesn't typecheck) before merge. Gate: tsc clean, 15/15 invariants, 666/666."
+    },
+    {
+      "id": "L-008",
+      "title": "Adversarial-verifier harness: fresh-context critic re-derives each fix from raw artifacts and tries to disprove it",
+      "gate": "meta",
+      "priority": "P1",
+      "state": "open",
+      "notes": "Every self-reported PASS stays pending until the critic concurs (defeats self-preference bias)."
+    },
+    {
+      "id": "L-009",
+      "title": "Secret scan + security headers (TLS/HSTS/CSP) audit as gates (Gate G.3/G.4)",
+      "gate": "G",
+      "priority": "P0",
+      "state": "done",
+      "notes": "DONE Jul 8 (heartbeat): G.4 headers were configured in next.config.mjs but UNGUARDED \u2014 extracted the policy to a pure module src/lib/security-headers.mjs + regression-locked it with tests/security-headers.test.ts (5 tests: HSTS prod-only, X-Frame DENY on app routes, /book/* embeddable via frame-ancestors *, nosniff/Referrer/Permissions/self-CSP, no unsafe-eval in prod, Stripe allowlisted). Full build green. Secret-in-source half was already covered by B.1 (secretScan). Remaining G.3 dependency-CVE scan \u2192 L-021."
+    },
+    {
+      "id": "L-010",
+      "title": "Staging rollback drill: deploy N \u2192 N+1 \u2192 revert to N; measure (Gate E.3)",
+      "gate": "E",
+      "priority": "P0",
+      "state": "open",
+      "blockedBy": "founder: a staging env mirroring prod",
+      "notes": "Rollback tested, not imagined."
+    },
+    {
+      "id": "L-011",
+      "title": "Restore drill wired into CI: actual restore into scratch env, verify row counts + app boots (Gate H.2)",
+      "gate": "H",
+      "priority": "P0",
+      "state": "open",
+      "notes": "A backup that can't be restored isn't a backup. scripts/verify-restore.mjs exists \u2014 prove it end-to-end."
+    },
+    {
+      "id": "L-012",
+      "title": "Coverage ratchet: ~80% patch coverage on changed lines; fail only if project coverage decreases",
+      "gate": "meta",
+      "priority": "P1",
+      "state": "open",
+      "notes": "Cheapest 'quality only goes up' mechanism."
+    },
+    {
+      "id": "L-013",
+      "title": "Per-business staff roles (deferred P1 from TASKS2) \u2014 schema migration",
+      "gate": "G",
+      "priority": "P1",
+      "state": "open",
+      "notes": "Carried from round-2 trim mission."
+    },
+    {
+      "id": "L-014",
+      "title": "ROADMAP: self-serve API-key + MCP connection UI ('connect your AI agent') \u2014 build after P0 battery green",
+      "gate": "feature",
+      "priority": "P2",
+      "state": "open",
+      "notes": "Founder's public product feature. Explicitly LATER \u2014 hardening first."
+    },
+    {
+      "id": "L-015",
+      "title": "Appointment checkout charges live catalog Service.price but commissions the booked finalPrice snapshot (overcharge + books don't reconcile)",
+      "gate": "B",
+      "priority": "P2",
+      "state": "done",
+      "source": "payments-audit #4 (record-checkout.ts:265)",
+      "notes": "DONE Jul 8 (heartbeat): recordCheckout now, when appointmentId is set, sources each service line's price from the booked AppointmentService.finalPrice snapshot (tenant-scoped query where appointment.businessId) instead of the live catalog price \u2014 charge now equals the commission base (which already used finalPrice). Walk-in/POS service lines + all products keep live price. tests/checkout-commission.test.ts +1 (catalog 50 raised vs booked 40 \u2192 charges 40). VERIFIED: commission suite 7/7, typecheck+lint clean, golden-path green on dev DB (new query valid), full suite green."
+    },
+    {
+      "id": "L-016",
+      "title": "No server-side idempotency on appointment-less (walk-in) checkouts \u2192 retry double-records sale, double-spends gift card",
+      "gate": "B",
+      "priority": "P2",
+      "state": "done",
+      "source": "payments-audit #6 + #9 (record-checkout.ts, checkout.ts)",
+      "notes": "DONE Jul 8 (keep-going): added Payment.idempotencyKey + @@unique([businessId, idempotencyKey]) (migration 20260708100000, applied to dev). recordCheckout: fast-path returns the original payment on a repeat key + P2002 catch for a true-concurrent duplicate; key plumbed through all 3 entry points (dashboard action, /api/v1/checkout incl. Idempotency-Key header, MCP tool). tests/checkout-idempotency.test.ts (4 tests). Full suite 582, golden-path green on migrated dev DB. NOTE: audit #10 (create-payment-intent phantom-pending Payment rows) is the ONLINE/Connect path \u2014 stays with L-017 (latent until Connect live)."
+    },
+    {
+      "id": "L-017",
+      "title": "Online Connect charge has no already-paid guard \u2192 appointment can be charged twice across the hourly idempotency window",
+      "gate": "B",
+      "priority": "P2",
+      "state": "done",
+      "source": "payments-audit #8 (create-payment-intent/route.ts:63)",
+      "notes": "LATENT today (Connect onboarding not active in beta + StripePayment UI unmounted). Becomes P1 the instant online payments go live \u2014 fix before enabling. Add the already-paid query the other two money paths already use.",
+      "resolution": "FIXED on loop/engine-bootstrap: POST /api/stripe/create-payment-intent now runs the same already-paid guard as the three in-person checkout paths \u2014 a COMPLETED payment for the appointment returns 400 and mints NO new PaymentIntent + NO new payment row. Closes the cross-hour double-charge (the hourly idempotency key only dedupes within one hour). Verified createPaymentIntent is the ONLY online-charge entrypoint (chargeCard has zero callers), so no other path was missed. Test: tests/stripe-create-payment-intent-already-paid.test.ts (3 cases: rejects+charges-nothing on completed payment; guard scoped to appt+business+completed; still charges when none)."
+    },
+    {
+      "id": "L-018",
+      "title": "Add regression tests for the shipped one-liner payments fixes (#7 custom-line tax toggle; #11 createRefund reverse_transfer)",
+      "gate": "meta",
+      "priority": "P2",
+      "state": "done",
+      "source": "payments-audit fixes #7/#11 shipped without dedicated tests",
+      "notes": "DONE Jul 8 (heartbeat): tests/stripe-refund.test.ts (2 \u2014 mocks the Stripe SDK, asserts createRefund passes reverse_transfer:true + surfaces failures) + tests/checkout-custom-tax.test.ts (2 \u2014 tax-off shop leaves a $100 Quick Sale at $100; default config taxes it). #3 (api/bookings tax-exclusive finalPrice) route test split to L-023 (disproportionate route mocking; the fix is a one-liner already aligned to every other creation path)."
+    },
+    {
+      "id": "L-019",
+      "title": "OWNER-APPROVED: wire Gates A.4 + A.5 into loop/gate.mjs (frozen file) so the board flips from the new tenant guards",
+      "gate": "A",
+      "priority": "P1",
+      "state": "open",
+      "owner": true,
+      "notes": "Add to RUNNERS: `\"A.5\": { needsDb: false, run: () => exec(\"npm\", [\"run\", \"check:rawsql\"]) }` and `\"A.4\": { needsDb: false, run: () => exec(\"npx\", [\"vitest\", \"run\", \"tests/cross-tenant/tenant-override.a4.test.ts\"]) }`. gate.mjs is CODEOWNERS-protected; the heartbeat won't self-edit its own grader. Merge via PR review."
+    },
+    {
+      "id": "L-020",
+      "title": "Dashboard: generate + send an idempotencyKey from payment-dialog.tsx per checkout attempt (make the server L-016 guard effective for the primary UI)",
+      "gate": "B",
+      "priority": "P2",
+      "state": "done",
+      "source": "L-016 follow-up",
+      "notes": "DONE Jul 8 (heartbeat): payment-dialog.tsx now holds a crypto.randomUUID() idempotency key per checkout session (useRef), minted on first submit, KEPT across retries so a double-click/network-blip retry dedupes to the original payment server-side, reset when the dialog reopens for a new sale. Passed to processPayment. VERIFIED: typecheck+lint clean, full production build green. The no-double-charge INVARIANT is already locked server-side by tests/checkout-idempotency.test.ts; this is thin client wiring into that guarded path (no component-test infra in the repo to unit-test the wiring itself). Completes the L-016 story end-to-end."
+    },
+    {
+      "id": "L-021",
+      "title": "Dependency vulnerability scan as a gate (Gate G.3): fail on unaddressed critical/high CVEs",
+      "gate": "G",
+      "priority": "P1",
+      "state": "done",
+      "source": "L-009 split",
+      "notes": "DONE Jul 8 (heartbeat): scripts/check-audit.mjs + `npm run check:audit` + audit-allowlist.json + tests/check-audit.test.ts (5). Fails on any high/critical prod-dep vuln NOT triaged in the allowlist; prints all high/critical transparently (accepted vs UNTRIAGED); warns on overdue reviewBy. Current scan: 0 critical, 4 high (all triaged & documented). Actual remediation of the 4 highs = L-022 (human-gated)."
+    },
+    {
+      "id": "L-022",
+      "title": "ESCALATION: remediate the 4 triaged high CVEs (next / fast-uri / path-to-regexp / picomatch)",
+      "gate": "G",
+      "priority": "P1",
+      "state": "done",
+      "owner": true,
+      "source": "L-021 findings",
+      "notes": "next [high, DoS] fix = Next 16 MAJOR upgrade (14.2.x\u219216) \u2014 human decision + full regression pass. fast-uri/path-to-regexp/picomatch [high, path-traversal/ReDoS, transitive] = fixable via package overrides but needs an npm + pnpm dual-lockfile sync (Vercel = pnpm --frozen-lockfile) + build verify. All DoS/ReDoS/path-traversal class, not RCE/data-leak. Details + reviewBy 2026-08-01 in audit-allowlist.json. || OWNER APPROVED the major bump (Jul 10, chat) \u2014 remediation in progress this session.",
+      "resolution": "DONE @ 24bfa5a (owner approved the major bump in chat, Jul 10). next 14.2.35->16.2.10, react 18->19.2, eslint 8->9 (flat config; next lint removed upstream -> 'eslint .'), middleware.ts -> proxy.ts (Next 16 convention), async-request-API codemod, serverExternalPackages + turbopack.resolveAlias config migration, vite/postcss overrides, stripe apiVersion 2026-02-25.clover. BOTH lockfiles in sync. npm audit AND pnpm audit: 0 vulnerabilities (was 23 / 9 high). audit-allowlist emptied (all 4 triaged advisories remediated). Regression: 708/708 tests, 15/15 invariants, tsc+lint clean, pnpm build green with no deprecation warnings."
+    },
+    {
+      "id": "L-023",
+      "title": "Route test for POST /api/bookings tax-exclusive finalPrice (payments-audit #3)",
+      "gate": "B",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-018 split",
+      "notes": "The #3 fix (store tax-exclusive finalPrice, matching every other creation path) shipped without a dedicated test \u2014 a route test needs heavy mocking (getBusinessContext + location/service/availability/appointment.createMany). Low risk (one-liner, aligned to all other paths); worth a focused route test when convenient."
+    },
+    {
+      "id": "L-024",
+      "title": "MCP create-recurring-appointment is NON-ATOMIC: a mid-series conflict leaves earlier occurrences committed while returning 'nothing created'",
+      "gate": "J",
+      "priority": "P2",
+      "state": "done",
+      "source": "booking-audit (mcp/tools/appointments.ts:408)",
+      "notes": "DONE Jul 8 (heartbeat): hoisted a single prisma.$transaction around the WHOLE occurrence loop (lock once up front, conflict-check each), mirroring the proven recurring.ts pattern \u2014 a mid-series conflict/working-hours violation now rolls back every occurrence (all-or-nothing), no orphans. tests/mcp-recurring-atomicity.test.ts (2): whole 3-occurrence series runs in ONE $transaction; a mid-series conflict \u2192 error + still one tx. VERIFIED: new test 2/2, typecheck+lint clean, full suite green."
+    },
+    {
+      "id": "L-025",
+      "title": "Recurring series drift 1h across a DST boundary (date-fns addWeeks/addMonths not tz-anchored)",
+      "gate": "J",
+      "priority": "P2",
+      "state": "done",
+      "source": "booking-audit (recurring.ts:92)",
+      "notes": "DONE Jul 8 (heartbeat): extracted src/lib/scheduling/recurrence.ts generateRecurrenceDates() \u2014 advances the cursor in the salon IANA timezone via TZDate/@date-fns/tz so a standing appointment keeps its salon-local wall-clock across DST (and 'monthly' = calendar month, not +30d). Wired into recurring.ts (server action). tests/recurrence-dst.test.ts (3): weekly 9AM NY stays 9AM local across spring-forward (03-09 = 13:00Z EDT, not 14:00Z); monthly preserves day-15; max/endDate caps. VERIFIED: 3/3 + 16 recurring tests green, typecheck+lint clean, full suite green."
+    },
+    {
+      "id": "L-026",
+      "title": "Wire the MCP create-recurring tool to the shared generateRecurrenceDates helper (fixes its DST drift + monthly=30d)",
+      "gate": "J",
+      "priority": "P2",
+      "state": "done",
+      "source": "booking-audit (mcp/tools/appointments.ts:465) + L-025 helper",
+      "notes": "DONE Jul 8 (heartbeat): replaced the MCP tool's fixed-ms interval loop (current += intervalDays*86400000) + monthly=30d with the shared generateRecurrenceDates() (salon-tz-anchored, DST-safe, monthly=calendar month), iterated inside the single tx from L-024. Both recurring paths (server action + MCP) now share one tested helper. Strengthened tests/mcp-recurring-atomicity.test.ts (+1): a NY weekly series across the 2026-03-08 spring-forward creates occurrences at 9AM local (03-09 = 13:00Z EDT, not 14:00Z). VERIFIED: 6 recurring tests + full suite green, typecheck+lint clean."
+    },
+    {
+      "id": "L-027",
+      "title": "Existing appointments' turnover buffer (bufferAfter / staff bookingBuffer) is not reserved \u2192 back-to-back slots offered",
+      "gate": "J",
+      "priority": "P2",
+      "state": "open",
+      "owner": true,
+      "source": "booking-audit (availability.ts:259)",
+      "notes": "\u26a0 NEEDS CARE + A SEMANTICS DECISION (loop deferred): getAvailability blocks only [start,end] of existing appts; the buffered footprint applies only to the NEW slot, so turnover silently vanishes and two services book back-to-back with 0 gap. Fix = pad each existing appt's blockedRange by its service bufferBefore/bufferAfter + staff bookingBuffer. BUT how two ADJACENT appts' buffers compose (sum of prior.bufferAfter + next.bufferBefore, vs max) is a product decision, and this modifies the safety-critical double-booking engine \u2014 so it wants a supervised pass, not an unattended tick. Testable via the availability-timezone/booking-dst mock-prisma harness (assert no slot offered within bufferAfter of an existing appt)."
+    },
+    {
+      "id": "L-028",
+      "title": "Illegal appointment status transitions unguarded in updateAppointmentStatus + v1 PATCH + MCP cancel (complete\u2192cancelled, revert completed, double check-in)",
+      "gate": "J",
+      "priority": "P2",
+      "state": "open",
+      "owner": true,
+      "source": "booking-audit (appointments.ts:356)",
+      "notes": "\u26a0 NEEDS A PRODUCT DECISION (loop flagged, didn't guess): /api/bookings/[id] uses getValidStatusTransitions where cancelled/no_show/completed have NO outgoing transitions \u2014 but the server action + v1 REST + MCP deliberately ALLOW cancelled/no_show\u2192active (the reactivation/un-cancel feature, guarded for conflicts). The two subsystems CONTRADICT each other on whether un-cancel is legal. Applying getValidStatusTransitions uniformly would DELETE the un-cancel feature. Decision needed: is un-cancel (and un-complete) allowed? Then build the transition matrix accordingly (block completed\u2192* and double check-in, but keep reactivation if desired). Also: extract the reactivation guard (now in 3 places) into one shared helper."
+    },
+    {
+      "id": "L-029",
+      "title": "Public booking/reschedule max-advance ceiling uses server-local now \u2192 valid far-boundary slots rejected for ahead-of-UTC salons",
+      "gate": "J",
+      "priority": "P3",
+      "state": "done",
+      "source": "booking-audit (public-booking.ts:171)",
+      "notes": "DONE Jul 9 (heartbeat): added maxAdvanceDateKey(maxDays, timezone, now) to zoned-time.ts (salon-local YYYY-MM-DD ceiling, matching the /api/availability read-path) + wired both write sites (createPublicBooking + reschedulePublicBooking) to compare localDateString(slot, tz) > maxAdvanceDateKey(...). tests/max-advance-timezone.test.ts (3): Dubai UTC+4 boundary \u2192 salon ceiling 2026-08-08 vs server-UTC 08-07; boundary-day slot allowed, next day rejected; month/year rollover. Relevant to Anas's Dubai shop. VERIFIED: 3/3, 612/612 full suite, typecheck+lint clean, gate green."
+    },
+    {
+      "id": "L-030",
+      "title": "GET /api/bookings date filter windows on server-local midnight, not the salon timezone",
+      "gate": "J",
+      "priority": "P3",
+      "state": "done",
+      "source": "booking-audit (api/bookings/route.ts:65)",
+      "notes": "DONE Jul 9 (heartbeat): GET /api/bookings now computes the date-filter day bounds in the SALON timezone (business.timezone + combineDateWithTimeZoned + ZERO_TIME, a local dayBounds() helper), matching /api/v1/appointments \u2014 a ?date filter selects the salon calendar day, not a server-local UTC-shifted window. Only fetches timezone when a date filter is present. tests/bookings-date-filter-timezone.test.ts (3): ?date=2026-06-15 \u2192 NY EDT bounds [04:00Z, next-day 03:59:59.999Z]; impossible date 400; no tz fetch when unfiltered. VERIFIED: 3/3, 615/615 full suite, typecheck+lint clean."
+    },
+    {
+      "id": "L-031",
+      "title": "v1 group + recurring booking routes look up the service WITHOUT deletedAt:null \u2192 a soft-deleted service can still be booked",
+      "gate": "J",
+      "priority": "P3",
+      "state": "done",
+      "source": "booking-audit (groups/route.ts:35 + recurring/route.ts:35)",
+      "notes": "DONE Jul 8 (heartbeat): added deletedAt:null to the service.findFirst where in both v1 group + recurring routes (matching the canonical v1 appointments route). tests/v1-booking-soft-delete-service.test.ts (2): drives both route handlers over mocked v1-auth + prisma and asserts the service lookup is scoped to deletedAt:null (a soft-deleted service \u2192 404, never booked). VERIFIED: 2/2, typecheck+lint clean, full suite green."
+    },
+    {
+      "id": "L-033",
+      "title": "v1 recurring ROUTE (api/v1/appointments/recurring) also has the DST drift \u2014 wire it to generateRecurrenceDates",
+      "gate": "J",
+      "priority": "P2",
+      "state": "done",
+      "source": "spotted during L-031 (recurring/route.ts:10 imports addWeeks/addMonths)",
+      "notes": "DONE Jul 8 (heartbeat): replaced the v1 recurring route's inline addWeeks/addMonths date loop with generateRecurrenceDates (it already fetched business.timezone + was already atomic). tests/v1-recurring-dst.test.ts (1): drives the real POST handler over mocked auth+prisma, asserts a NY weekly series across the 2026-03-08 spring-forward creates occurrences at 9AM local (03-09=13:00Z EDT, not 14:00Z). VERIFIED: 1/1, typecheck+lint clean, full suite green. ALL THREE recurring paths (server action L-025 + MCP tool L-026 + v1 route L-033) now share the one tested salon-tz-anchored helper \u2014 recurring DST drift fully closed."
+    },
+    {
+      "id": "L-032",
+      "title": "Reactivating cancelled/no_show \u2192 active never clears cancelledAt/noShowAt or cancellation metadata (stale flags)",
+      "gate": "J",
+      "priority": "P3",
+      "state": "done",
+      "source": "booking-audit (appointments.ts:327)",
+      "notes": "DONE Jul 9 (heartbeat): the reactivation branch now uses a reactivationData object that explicitly nulls cancelledAt/noShowAt/cancellationInitiator/cancellationReasonCode/cancellationReason/cancelledBy (Prisma omits undefined, so null is required to clear). Applied to ALL THREE reactivation paths: server action, v1 REST PATCH, and the MCP tool. tests/appointment-reactivation-guard.test.ts strengthened (asserts the update data nulls the flags). VERIFIED: 612/612, typecheck+lint clean, gate green. NOTE: reactivation guard + clear-data now duplicated in 3 places -> feeds the L-028 extract-a-shared-reactivation-helper follow-up."
+    },
+    {
+      "id": "L-034",
+      "title": "Password reset does not invalidate existing sessions (stolen JWT survives 7 days)",
+      "gate": "G",
+      "priority": "P2",
+      "state": "done",
+      "source": "auth-audit (password-reset.ts:137)",
+      "notes": "Stateless 7-day JWT; resetPassword() never watermarks. A stolen session/JWT keeps full dashboard+API access after the victim resets. Fix: add User.sessionsValidAfter/passwordChangedAt (schema migration), stamp on reset, embed iat at login, reject stale tokens in resolveBusinessRole/withV1Auth; add log-out-everywhere. OWASP ASVS 3.3. || ENV NOTE (Jul 9): requires a Prisma migration (sessionsValidAfter) on the dev schema; the dev DB is currently UNREACHABLE from this environment (P1001), so the migration + cross-credential-path integration test cannot be run here. Needs the dev DB reachable (or a local Postgres) to execute safely.",
+      "resolution": "FIXED on loop/engine-bootstrap. Server-side session invalidation via a stable token.loginAt watermark (set once at sign-in, exposed as session.loginAt) compared against a new User.sessionsValidAfter column (stamped on password reset + a new logOutEverywhere() action). Enforced in resolveBusinessRole for every SESSION caller \u2014 getBusinessContext (all server actions), withV1Auth session-cookie path (all REST v1), and the dashboard layout (all RSC read pages). API keys/OAuth exempt (L-047); fail-closed on legacy tokens once a watermark is set; rollout-safe. Migration applied + verified on the rebuilt clean dev DB (watermark round-trips exactly; pre-reset session DENIED, post-reset ALLOWED, with cleanup). Caught + fixed a self-introduced flaw pre-commit (fail-closed would have killed API keys \u2014 added the opts!==undefined session-caller gate). 685/685 tests (+16). 2-lens adversarial pass: regression=fix-is-sound; completeness surfaced a PRE-EXISTING gap (internal /api/* bare-auth routes) \u2192 L-048."
+    },
+    {
+      "id": "L-035",
+      "title": "Login lockout = unauthenticated targeted account-lockout DoS (+ residual enumeration)",
+      "gate": "G",
+      "priority": "P2",
+      "state": "open",
+      "source": "auth-audit (auth.ts:35)",
+      "notes": "5 wrong passwords lock a real account 15min; attacker re-locks every 15min to keep an owner out permanently (no per-IP throttle on /api/auth). Fix: per-IP throttle on the login callback, reset failedLoginAttempts once lockedUntil passes, prefer backoff/CAPTCHA over hard-lock, return null for locked. || ENV NOTE (Jul 9): the serverless-safe per-IP throttle depends on RL-1's shared store (Upstash) \u2014 sequence RL-1 first. Blocked on the Upstash/owner decision."
+    },
+    {
+      "id": "L-036",
+      "title": "Dashboard staff/client detail pages trust the STALE JWT role -> demoted admin keeps admin visibility",
+      "gate": "G",
+      "priority": "P2",
+      "state": "done",
+      "source": "auth-audit (staff/[id]/page.tsx:39)",
+      "notes": "JWT role baked at login (7 days), never refreshed; a demoted admin still reads role=admin and staff/[id] ships every colleague's revenue+commission. Fix: derive role from resolveBusinessRole/getBusinessContext (live DB) in staff/[id] + clients/[id] pages; ideally refresh token.role in the jwt callback.",
+      "resolution": "FIXED on loop/engine-bootstrap. Scoping revealed 6 page-level stale-role gates, not the 2 named: layout.tsx, calendar, dashboard, staff/[id], clients/[id], settings/page.tsx all gated data visibility on the 7-day JWT role (session.user.role). All now resolve the LIVE role via resolveBusinessRole() (the source the server actions + REST/MCP already use), failing closed to least-privilege on a revoked null. layout hoists the live role it already computed and reuses it (killing the stale read at :36). Locked by tests/dashboard-live-role-authz.test.ts (source-guard fitness function \u2014 RSCs aren't behaviourally unit-testable; the live-role behaviour itself is already covered by membership-revocation.test.ts). A 3-lens adversarial workflow (ws1x0th4t) confirmed correctness (no legit-user regression, fail-closed on null) and surfaced the sibling gap now tracked as L-042. Gate: tsc clean, 15/15 invariants, 632/632."
+    },
+    {
+      "id": "L-037",
+      "title": "Registration is an unthrottled account-enumeration oracle",
+      "gate": "G",
+      "priority": "P3",
+      "state": "open",
+      "source": "auth-audit (register.ts:42)",
+      "notes": "Distinct 'account already exists' message + per-EMAIL-only throttle + no IP cap on /register -> definitive yes/no per email. Inconsistent with hardened password-reset. Fix: uniform response (mirror requestPasswordReset) and/or per-IP rate limit on /register; ideally email verification before creation."
+    },
+    {
+      "id": "L-038",
+      "title": "Login + password-reset leak account existence via response-timing side channel",
+      "gate": "G",
+      "priority": "P3",
+      "state": "done",
+      "source": "auth-audit (auth.ts:32)",
+      "notes": "authorize() returns before bcrypt.compare for a non-existent email; requestPasswordReset awaits sendEmail only for real emails. Fix: dummy bcrypt on the no-user branch; fire-and-forget sendEmail in reset. Lower priority than L-037 (the explicit register oracle dominates).",
+      "resolution": "FIXED on loop/engine-bootstrap. Closed the login + password-reset timing side-channel: (1) authorize() now runs a dummy bcrypt.compare against a lazily-computed hash on the no-user / no-passwordHash branch, so a non-existent account takes the same time as a wrong password; (2) requestPasswordReset now fire-and-forgets the email send (void sendEmail(...).catch(...)) instead of awaiting it only on the user-exists branch. Test: tests/auth-timing-enumeration.test.ts (fire-and-forget proven by a never-resolving email mock that would hang the old code; + source-guard for the login closure). Gate: tsc clean, 15/15 invariants, 669/669."
+    },
+    {
+      "id": "L-039",
+      "title": "authorize() never checks user.status -> a suspended user can still mint a session",
+      "gate": "G",
+      "priority": "P3",
+      "state": "done",
+      "source": "auth-audit (auth.ts:32)",
+      "notes": "resolveBusinessRole blocks suspended users on getBusinessContext surfaces, but the 4 onboarding.ts actions authorize by ownerId only, so a suspended owner can still log in + edit business config. Fix: add 'if (user.status !== active) return null' in authorize(); optionally route onboarding through getBusinessContext. (status set out-of-band today -> P3.)",
+      "resolution": "FIXED on loop/engine-bootstrap. authorize() in src/lib/auth.ts now refuses a non-active account AFTER a correct password check (if (!isActiveStatus(user.status)) return null), so a suspended/deactivated owner can no longer mint a session and reach the ownerId-only onboarding actions. Introduced a shared pure predicate isActiveStatus(status) in src/lib/permissions.ts (no Prisma -> no auth/auth-utils circular import) and DRY-refactored resolveBusinessRole to use it, so the login path and the live-role path can never disagree. Placed after password validation to avoid leaking suspension via timing to a wrong-password guesser. Tests: tests/is-active-status.test.ts (predicate active->true, suspended/inactive/null/undefined/unknown->false, + source-guard that auth.ts wires it); resolveBusinessRole suspended->null already covered by membership-revocation.test.ts (still green after refactor). Gate: tsc clean, 15/15 invariants, 658/658."
+    },
+    {
+      "id": "L-040",
+      "title": "Account deletion revokes no credentials (session/API-key/OAuth-token/PII residue) for beta salons",
+      "gate": "H",
+      "priority": "P3",
+      "state": "done",
+      "source": "auth-audit (account.ts:110)",
+      "notes": "requestAccountDeletion only sets subscriptionStatus=cancelled + audit log; billing gate no-ops for never-subscribed salons, so API keys, OAuth tokens, and the JWT session all keep full owner access and PII persists. Fix: in the deletion tx revoke apiKey/oAuthAccessToken (revokedAt), set user.status non-active/deletedAt, queue PII anonymization.",
+      "resolution": "FIXED on loop/engine-bootstrap: requestAccountDeletion() now revokes the tenant's ApiKey + OAuthAccessToken (revokedAt=now) INSIDE the deletion tx, so a leaked/previously-issued API key or OAuth access token stops authenticating immediately. businessId-scoped (no cross-tenant blast radius); global User.role/status deliberately left alone (a shared member must not be logged out everywhere). Session-JWT watermark + PII anonymization tracked separately (L-034 covers session invalidation). Test: tests/account-deletion.test.ts +2 cases (revokes both tables in-tx with businessId+revokedAt:null scope; revokes nothing when authz fails)."
+    },
+    {
+      "id": "L-041",
+      "title": "Residual: create-payment-intent guard checks COMPLETED only \u2014 two PENDING PaymentIntents can still coexist across hours",
+      "gate": "B",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-017 residual (create-payment-intent/route.ts)",
+      "notes": "The L-017 guard blocks re-charging an appointment whose payment already COMPLETED. It does NOT block a second PaymentIntent while an earlier one is still PENDING (different hour bucket -> new idempotency key). Narrow race (client would have to complete two different clientSecrets), and a strict pending-guard risks permanently blocking legit re-payment when an abandoned PI leaves a stale 'pending' row that no webhook ever resolves. Proper fix needs pending-intent reuse (return the existing PI's clientSecret) + stale-pending expiry, or moving to a single canonical PaymentIntent per appointment. LATENT while Connect online payments are off; fix before go-live alongside L-001."
+    },
+    {
+      "id": "L-042",
+      "title": "Admin-only READ routes (/reports, /reports/payday, /staff list) enforce role-LEVEL only via stale-JWT middleware \u2014 demoted admin reads revenue/payroll/commission/PII for up to 7 days",
+      "gate": "G",
+      "priority": "P1",
+      "state": "done",
+      "source": "L-036 adversarial verify (data-exposure lens, ws1x0th4t)",
+      "notes": "Distinct from L-036: these pages have NO page-level role gate \u2014 they gate role-LEVEL only through middleware STAFF_BLOCKED_ROUTES, which reads req.auth.user.role = the 7-day JWT (auth.config.ts maxAge 7d; token.role set at login, never refreshed). layout's resolveBusinessRole only redirects on NULL membership (removed/suspended), never enforces the admin LEVEL these routes require. So a demoted admin's JWT still says 'admin' -> middleware passes -> layout resolveBusinessRole returns non-null 'staff' -> no redirect -> data renders. Surfaces: reports/page.tsx:33-66 (shop revenue + per-barber commission, P1); reports/payday/page.tsx:34-52 (payroll statements, P1); staff/page.tsx:8-16 -> getStaff selects commissionRate+email+phone (P2). Queries (getStaffPerformance/getRevenueByDay/getPayrollStatement/getStaff) enforce businessId only, no role. FIX (defense-in-depth, its own iteration): either (a) layout maps route->minRole and enforces it via the live resolveBusinessRole, or (b) convert each admin-only page to resolveBusinessRole AND push role checks down into the sensitive queries. Architectural completion of L-036.",
+      "resolution": "FIXED on loop/engine-bootstrap. Added a LIVE-role admin gate at the top of the 3 exposed admin-only pages \u2014 reports/page.tsx, reports/payday/page.tsx, staff/page.tsx: `const liveRole = await resolveBusinessRole(userId, businessId); if (!hasRole(liveRole, 'admin')) redirect('/dashboard')` \u2014 placed BEFORE any sensitive fetch. Even when the stale-JWT middleware lets a demoted admin through, the page re-checks the current DB role and bounces them. Locked by tests/reports-staff-admin-gate.test.ts (behavioural: hasRole admin-predicate staff/null denied, admin/owner allowed; + source-guard: each page wires the live-role redirect). 2-lens adversarial workflow (wdk0eh3e4): correctness = fix-is-sound (legit admin/owner pass; gate precedes every fetch; no redirect loop; null fail-closed; redirect not swallowed). Completeness DISPROVED total coverage \u2192 2 more sibling leaks of the SAME data class logged as L-044 (P2) + L-045 (P3). Gate: tsc clean, 15/15 invariants, 640/640."
+    },
+    {
+      "id": "L-043",
+      "title": "Memoize resolveBusinessRole per-request (React cache()) \u2014 layout + page each re-resolve the role (~6 role queries/nav)",
+      "gate": "F",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-036 adversarial verify (correctness lens)",
+      "notes": "layout.tsx calls resolveBusinessRole (3 parallel queries) on every dashboard route, and dashboard/calendar/staff[id]/clients[id]/settings each call it again on the same request. Correctness is fine (verifier: fix-is-sound) \u2014 only added latency. Wrap resolveBusinessRole in React cache() so it resolves once per request. Low risk, low priority. || ASSESSED + DECLINED (Jul 9 self-paced run): react.cache is undefined in this React 18.3.1 + vitest environment (it is only exposed under the RSC 'react-server' export condition, not the node/CJS context). Wrapping resolveBusinessRole in cache() would break every test that imports @/lib/auth-utils, or require a fragile bundler-interop-dependent guard (cache ?? identity) on the single most security-critical function \u2014 disproportionate risk for a P3 perf gain. REVISIT after a React 19 / Next upgrade (stable cache), or memoize per-request via a bundler-safe approach (e.g. an explicit request-scoped store) rather than react.cache."
+    },
+    {
+      "id": "L-044",
+      "title": "Sensitive queries return pay/revenue fields to non-admins by default \u2192 commissionRate leaks via /calendar + /services, todayRevenue leaks via /api/sidebar-data",
+      "gate": "G",
+      "priority": "P2",
+      "state": "done",
+      "source": "L-042 adversarial verify (completeness lens, wdk0eh3e4)",
+      "notes": "ROOT CAUSE (the recurring sibling-leak pattern): src/lib/queries/reports.ts + payroll.ts + staff.ts enforce businessId ONLY, never role \u2014 so every caller must remember to gate, and two forgot. (1) getStaff() (staff.ts:70) returns `commission: Number(s.commissionRate)` for every staffer with no role param; /calendar (calendar/page.tsx:36\u2192CalendarClient) and /services (services/page.tsx:19\u2192ServicesClient) forward the full array to the client, and BOTH are staff-accessible (minRole staff, not in STAFF_BLOCKED_ROUTES) \u2192 a staff/demoted-admin reads every barber's commission from the RSC flight payload. (2) /api/sidebar-data (route.ts:60) returns dashboardStats.todayRevenue with NO role check; sidebar.tsx:342 renders it for all roles \u2192 staff GETs shop revenue. FIX (defense-in-depth root fix that closes both + any future caller): make getStaff / getStaffPerformance / getRevenueBy* / getPayrollStatement accept the caller role and STRIP pay/revenue fields (or refuse) for non-admins; and add a role check to /api/sidebar-data before returning todayRevenue. This SUPERSEDES per-caller whack-a-mole. Verified queries currently role-blind (info finding).",
+      "resolution": "FIXED on loop/engine-bootstrap. Root-cause data-layer fix: getStaff(businessId, viewerRole?) now strips commission\u21920 + email\u2192'' + phone\u2192'' unless hasRole(viewerRole,'admin') (secure by default); only the admin-gated /staff roster passes its live role to opt back in, so the staff-accessible callers (search, /calendar, /services, /booking) can no longer leak pay/PII by default. /api/sidebar-data now gates todayRevenue on the live admin role (mirrors the dashboard page). 2-lens adversarial workflow (wadvd1aa8): regression lens = fix-is-sound (all 5 getStaff callers audited \u2014 only staff/client.tsx renders email/phone/commission and it always gets admin data; no crash on ''; no type break; sidebar revenue correct for admins, 0 for staff). Completeness lens confirmed the pay/revenue CORE fully covered across all non-MCP surfaces; the one residual is contact-PII only \u2192 logged L-046. Tests: tests/queries-staff-pii-strip.test.ts (5) + tests/sidebar-data-revenue-gate.test.ts (4). Gate: tsc clean, 15/15 invariants, 649/649."
+    },
+    {
+      "id": "L-045",
+      "title": "MCP list-staff / get-staff-member return commissionRate + full user row (incl passwordHash) with no admin gate \u2014 LATENT (MCP disabled)",
+      "gate": "G",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-042 adversarial verify (completeness lens, wdk0eh3e4)",
+      "notes": "src/lib/mcp/tools/staff.ts:16 list-staff does prisma.staff.findMany with no `select` (returns commissionRate/hourlyRate/employmentType/employeeId/hireDate), and get-staff-member uses `include:{user:true}` returning the full User row INCLUDING passwordHash \u2014 neither calls isAdmin(). Via OAuth withV1Auth resolves the granting user's real role, so a staff-role MCP caller would receive all colleagues' pay + PII + passwordHash. NOT currently reachable: src/app/api/mcp/route.ts hard-404s unless MCP_ENABLED==='true' (tool layer intentionally off until hardened). Close before MCP ships: add `select` (drop passwordHash + pay for non-admins) + isAdmin() gate. Mirror the REST /api/v1/staff field-stripping."
+    },
+    {
+      "id": "L-046",
+      "title": "REST GET /api/v1/staff + /staff/[id] return colleague email+phone to non-admin callers (pay already stripped) \u2014 inconsistent with getStaff's PII model",
+      "gate": "G",
+      "priority": "P2",
+      "state": "done",
+      "source": "L-044 adversarial verify (completeness lens, wadvd1aa8)",
+      "notes": "GET /api/v1/staff (route.ts:35) has no admin gate on the caller and its non-admin sanitize strips ONLY pay (commissionRate/hourlyRate/employmentType/employeeId/hireDate), leaving user.email + user.phone (selected at :25) in the response; GET /api/v1/staff/[id] has the identical gap. A staff-role session cookie or staff-scoped API key can enumerate every colleague's email+phone. The pay/revenue concern is already covered \u2014 this is contact-PII only. It CONTRADICTS L-044's dashboard model, where getStaff now strips email/phone for non-admins. MILD PRODUCT JUDGMENT (flagged, not guessed): decide whether staff may see colleague contact info. RECOMMENDED default (consistent + least-privilege): strip email/phone for non-admin callers in both v1 handlers, mirroring the pay strip already there. Note API keys default to role=admin, so blast radius is only staff-scoped keys/sessions. Low-risk one-surface fix once the policy is confirmed.",
+      "resolution": "FIXED on loop/engine-bootstrap. GET /api/v1/staff + /api/v1/staff/[id] now strip user.email + user.phone for non-admin callers (in addition to the pay fields they already stripped), via an explicit public-user allowlist {id,firstName,lastName,avatarUrl,role} \u2014 consistent with getStaff (L-044). Adversarial completeness sweep of the whole v1 surface: v1/team GET is already admin-gated (FORBIDDEN for non-admins, so its email select is fine); v1/appointments exposes only staff firstName/lastName (no contact) and already scopes staff to their own rows; no other staff-contact-PII leak. Applied the SECURE DEFAULT (strip) rather than waiting on a policy call \u2014 API keys default to role=admin so blast radius is only staff-scoped keys/sessions; Anas can opt staff back in later if desired. Test: tests/v1-staff-pii-strip.test.ts (4: list+detail \u00d7 staff/admin). Gate: tsc clean, 15/15 invariants, 653/653."
+    },
+    {
+      "id": "L-047",
+      "title": "API-key Bearer path does not re-validate the key creator's live status/membership \u2014 a suspended or removed user keeps API/MCP access via an un-revoked key",
+      "gate": "G",
+      "priority": "P2",
+      "state": "done",
+      "source": "L-039 adversarial check (src/lib/api/auth.ts:65)",
+      "notes": "withV1Auth's Bearer API-key branch returns {userId:apiKey.createdById, businessId:apiKey.businessId, role:apiKey.role} WITHOUT calling resolveBusinessRole, so unlike the OAuth path (:76) and the session path (:94) it never checks whether the key creator is still an ACTIVE member. A suspended user (or one removed from the business) keeps full REST + MCP access through any un-revoked, un-expired API key they created. Same class as L-039, different credential surface. NUANCE: do NOT just swap in resolveBusinessRole(createdById) \u2014 an API key intentionally carries its OWN configured role (apiKey.role), which may differ from the creator's role (e.g. an admin mints a read-only key); overriding it would break the key-role model. CORRECT FIX: additionally look up the creator's status (and optionally live membership) and refuse the key when the creator is non-active, WITHOUT changing the key's configured role. Also weigh whether a key should die when its creator loses membership vs only on explicit revoke (L-040 covers deletion). Its own careful iteration.",
+      "resolution": "FIXED on loop/engine-bootstrap. The withV1Auth Bearer API-key branch (src/lib/api/auth.ts) now calls resolveBusinessRole(apiKey.createdById, apiKey.businessId) as a LIVENESS GATE and returns null if it's null \u2014 so a suspended/deactivated or removed creator's un-revoked key stops working, mirroring the OAuth + session paths. Crucially it still returns the key's OWN configured role (apiKey.role), NOT the resolved role, preserving the key-role model (an admin can still mint a read-only key). lastUsedAt is only bumped on a successful (accepted) use. Adversarial sweep: MCP reuses withV1Auth (covered); api-keys.ts hashing is key CREATION (owner-gated); the v1/api-keys/[id] route looks up by id for management (behind withV1Auth) \u2014 no other request-auth key path exists. Test: tests/v1-apikey-creator-status.test.ts (suspended creator \u2192 key rejected + no lastUsedAt bump; active creator \u2192 accepted with the KEY's staff role even though the creator resolves admin). Gate: tsc clean, 15/15 invariants, 660/660."
+    },
+    {
+      "id": "RL-1",
+      "title": "Rate limiter is in-memory (module-level map) \u2014 ineffective across serverless instances; not applied to all ~38 mutating v1 routes",
+      "gate": "F",
+      "priority": "P1",
+      "state": "open",
+      "source": "AUDIT.md \u00a75 / external hardening plan #4",
+      "notes": "BLOCKED on an OWNER decision + enabler: needs a shared store (Upstash Redis via env var, fall back to in-memory for local dev) to be serverless-correct. Provisioning Upstash is a cost/account decision. src/lib/rate-limit.ts. L-035's per-IP login throttle depends on this \u2014 do RL-1 BEFORE L-035. DONE when limits hold across two simulated instances + a progress.md checklist maps every v1 route to its limit. || UNBLOCKED (Jul 10): owner created Upstash db 'sal-ratelimit' and supplied the REST token (URL pending). Implementing env-driven Upstash REST backend with in-memory fallback."
+    },
+    {
+      "id": "BK-1",
+      "title": "No DB-level exclusion constraint on bookings (advisory lock only; no btree_gist EXCLUDE as defense-in-depth)",
+      "gate": "A",
+      "priority": "P2",
+      "state": "blocked",
+      "source": "AUDIT.md \u00a75 / external hardening plan #6",
+      "notes": "BLOCKED here on dev-DB reachability + the btree_gist extension. Add an EXCLUDE constraint on appointments (tstzrange over staff+time) via a dev-schema migration; audit every create/reschedule path for lock coverage. DONE when a raw-SQL overlapping insert is rejected by the DB itself and all booking tests stay green. (Migration cannot be applied/tested from the current environment \u2014 DB server unreachable, P1001.)"
+    },
+    {
+      "id": "L-048",
+      "title": "Internal /api/* route handlers authenticate via bare auth() and skip BOTH the live-role check (L-036) and the session watermark (L-034) \u2014 stale/removed sessions read PII + initiate card charges",
+      "gate": "G",
+      "priority": "P1",
+      "state": "done",
+      "source": "L-034 adversarial verify (bypass lens, wjdzjkctc)",
+      "notes": "These /api/* routes live OUTSIDE the (dashboard) layout and do NOT use getBusinessContext or withV1Auth, so they trust the raw 7-day JWT businessId with no live-role and no watermark: /api/stripe/create-payment-intent (P2 \u2014 FINANCIAL MUTATION: mints a Stripe PaymentIntent + Payment row; no resolveBusinessRole at all), /api/search (P2 \u2014 leaks client names+emails, services, staff), /api/notifications (P2 \u2014 leaks appointments, payment amounts, reviews), /api/sidebar-data (P2 \u2014 calls resolveBusinessRole WITHOUT opts so the watermark is silently skipped; also only gates revenue, doesn't DENY on null role), /api/stripe/dashboard-link + /api/stripe/connect (P3 \u2014 stale owner keeps Stripe account access), src/lib/actions/onboarding.ts actions (info \u2014 bare auth()+ownerId, self-tenant). CONSEQUENCE: both a DEMOTED/REMOVED member (L-036 class) and a STALE post-reset session (L-034 class) still reach these. FIX: a shared route-handler auth helper (the getBusinessContext equivalent for /api routes) that resolves the LIVE role + enforces the watermark (passes {sessionLoginAt}) and returns 401 on null; route all bare-auth() /api handlers + onboarding actions through it. High-value: closes a financial-mutation + PII bypass in one systemic change.",
+      "resolution": "DONE @ e50848c. New shared helper src/lib/api/route-auth.ts: getRouteBusinessContext() (getBusinessContext equivalent for /api route handlers \u2014 live role + ALWAYS forwards {sessionLoginAt} so the L-034 watermark is enforced; returns null -> 401) and getLiveUserId() (pre-business variant: live status + watermark, for the onboarding actions which have no businessId in the JWT yet). Converted: /api/stripe/create-payment-intent, /api/search, /api/notifications, /api/sidebar-data (now DENIES on null role instead of only zeroing revenue), /api/stripe/connect, /api/stripe/dashboard-link, and all four src/lib/actions/onboarding.ts actions. All six routes 401 before any DB read/Stripe call/write. Adversarial verify (4 lenses): CONFIRMED-SOLID \u2014 opts can never be undefined, no loginAt laundering (auth.config stamps loginAt only on sign-in), forged/stale cross-tenant businessId resolves null, no missed session-authed siblings (billing-portal/subscription-checkout/bookings/calendar all use getBusinessContext; public routes verified public-by-design). Residuals logged as L-050/L-051/L-052. 31 new/updated tests; 708 unit green; 15/15 invariants."
+    },
+    {
+      "id": "L-049",
+      "title": "Password reset + logOutEverywhere do not revoke OAuth access tokens / API keys \u2014 a 'suspected compromise' reset leaves programmatic credentials fully alive",
+      "gate": "G",
+      "priority": "P2",
+      "state": "declined",
+      "source": "L-034 adversarial verify (bypass lens, wjdzjkctc)",
+      "notes": "resetPassword (password-reset.ts) and logOutEverywhere (account.ts) stamp sessionsValidAfter (kills SESSIONS) but do NOT revoke apiKey / oAuthAccessToken \u2014 only requestAccountDeletion does (L-040). Since API keys + OAuth are watermark-exempt (L-047, correct), a compromise that triggers a reset / log-out-everywhere leaves any stolen API key or OAuth token with full programmatic access. logOutEverywhere's own doc says 'use after a suspected compromise', so leaving programmatic creds alive is a real gap. DECISION (product): should reset / log-out-everywhere also revoke the user's API keys + OAuth tokens? RECOMMENDED: logOutEverywhere revokes both (revokedAt=now) as the 'kill everything' action; password reset optionally too (or surface a prompt). Mirror the revocation already in requestAccountDeletion.",
+      "resolution": "DECLINED by owner (Jul 10, chat): password reset / logOutEverywhere will NOT revoke API keys or OAuth tokens. Rationale: owner's product call \u2014 programmatic credentials are separate from sessions and have their own revocation (L-040 on account deletion, L-047 liveness gate). Sessions still die via the L-034 watermark. Re-open only if the owner changes policy."
+    },
+    {
+      "id": "L-050",
+      "title": "/onboarding page read path still uses bare auth() \u2014 a stale post-reset or suspended session can read the (own) business name/phone/address/hours while un-onboarded",
+      "gate": "G",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-048 adversarial verify (missed-siblings lens)",
+      "notes": "src/app/onboarding/page.tsx:9-27 renders business details with bare auth(), no liveness/watermark. Low impact: read-only, own-business only, and only while the business has no active services (line 34 redirects onboarded users into the watermark-checked dashboard layout). Fix: resolve the user via getLiveUserId() (src/lib/api/route-auth.ts) and redirect('/login') on null. The onboarding ACTIONS are already gated (L-048)."
+    },
+    {
+      "id": "L-051",
+      "title": "resolveBusinessRole's owner lookup has no deletedAt filter \u2014 the owner of a soft-deleted business still resolves a live role",
+      "gate": "G",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-048 adversarial verify (helper-correctness lens)",
+      "notes": "src/lib/auth-utils.ts:30 business.findFirst({id, ownerId}) lacks deletedAt: null, so a soft-deleted business's owner keeps a role and can read /api/search, /api/notifications, /api/sidebar-data (and any getBusinessContext surface) for the deleted business. Pre-existing (shared with getBusinessContext, predates L-048); the Stripe routes independently filter deletedAt. DECIDE first: is post-soft-delete owner access intended (grace period / restore window)? If not, add deletedAt: null to the owner lookup + a test."
+    },
+    {
+      "id": "L-052",
+      "title": "Error-shape cleanups: denied callers get 500/200-empty instead of 401 on three surfaces",
+      "gate": "G",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-048 adversarial verify (info-class residuals)",
+      "notes": "(a) src/lib/actions/oauth.ts:23-25 'if (!ctx)' is dead code \u2014 getBusinessContext throws, so a denied caller gets an unhandled server-action error rather than {success:false}; (b) src/app/api/calendar/[appointmentId]/route.ts:101-104 unauthenticated -> 500 not 401; (c) /api/search + /api/notifications catch-alls return 200 with empty payloads, masking outages (no data leak). Denial IS enforced everywhere \u2014 these are correctness-of-shape fixes, not bypasses."
+    },
+    {
+      "id": "L-053",
+      "title": "Burn down the 38 react-hooks/set-state-in-effect + react-hooks/purity warnings (rules demoted from error during the L-022 eslint 9 migration)",
+      "gate": "E",
+      "priority": "P3",
+      "state": "open",
+      "source": "L-022 (eslint-config-next 16 enables React-Compiler hooks rules)",
+      "notes": "eslint.config.mjs demotes the two new rules to 'warn' with a pointer here. ~38 pre-existing hits: setState-in-effect in calendar/services/staff/booking clients, Math.random-in-render in book/[businessSlug]/client.tsx confetti. Behavior-sensitive UI refactor \u2014 do file-by-file with visual checks, not as a sweep. Restore both rules to 'error' when the count hits 0."
+    }
+  ]
+}

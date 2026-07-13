@@ -119,7 +119,7 @@ describe("GET /api/calendar/[appointmentId] — tenant isolation", () => {
     // A foreign-tenant appointment resolves to null under the caller's businessId.
     prismaMock.appointment.findFirst.mockResolvedValue(null)
 
-    const res = await calendarGET({} as never, { params: { appointmentId: APPT } })
+    const res = await calendarGET({} as never, { params: Promise.resolve({ appointmentId: APPT }) })
 
     expect(res.status).toBe(404)
     // The lookup carried the caller's businessId — not just the bare id.
@@ -143,7 +143,7 @@ describe("GET /api/calendar/[appointmentId] — tenant isolation", () => {
       location: { name: "Main", addressLine1: "1 St", city: "NYC", state: "NY", postalCode: "10001" },
     })
 
-    const res = await calendarGET({} as never, { params: { appointmentId: APPT } })
+    const res = await calendarGET({} as never, { params: Promise.resolve({ appointmentId: APPT }) })
 
     expect(res.status).toBe(200)
     expect(res.headers.get("Content-Type")).toContain("text/calendar")

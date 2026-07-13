@@ -10,6 +10,7 @@ import {
   ERR_OUTSIDE_WORKING_HOURS,
   ERR_ON_APPROVED_TIME_OFF,
 } from "@/lib/scheduling/working-hours"
+import { generateRecurrenceDates } from "@/lib/scheduling/recurrence"
 import { z } from "zod"
 
 class GroupFullError extends Error {}
@@ -201,20 +202,71 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       status: z.enum(["confirmed", "checked_in", "in_progress", "completed", "cancelled", "no_show"]).describe("New status"),
     },
     async ({ id, status }) => {
-      const appointment = await prisma.appointment.findFirst({ where: { id, businessId: ctx.businessId } })
-      if (!appointment) return err("Appointment not found")
-      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
-      const updated = await prisma.appointment.update({
+      const current = await prisma.appointment.findFirst({
         where: { id, businessId: ctx.businessId },
-        data: {
-          status,
-          ...(status === "completed" ? { completedAt: new Date() } : {}),
-          ...(status === "cancelled" ? { cancelledAt: new Date() } : {}),
-          ...(status === "no_show" ? { noShowAt: new Date() } : {}),
-          ...(status === "checked_in" ? { checkedInAt: new Date() } : {}),
-        },
+        select: { status: true, services: { select: { staffId: true, startTime: true, endTime: true } } },
       })
-      return ok(updated)
+      if (!current) return err("Appointment not found")
+      if (!(await canAccessAppointment(ctx, id))) return err("Forbidden")
+
+      const data = {
+        status,
+        ...(status === "completed" ? { completedAt: new Date() } : {}),
+        ...(status === "cancelled" ? { cancelledAt: new Date() } : {}),
+        ...(status === "no_show" ? { noShowAt: new Date() } : {}),
+        ...(status === "checked_in" ? { checkedInAt: new Date() } : {}),
+      }
+      // On reactivation, clear stale cancellation fields with explicit null (Prisma
+      // omits undefined) — mirrors the server action + v1 route.
+      const reactivationData = {
+        ...data,
+        cancelledAt: null,
+        noShowAt: null,
+        cancellationInitiator: null,
+        cancellationReasonCode: null,
+        cancellationReason: null,
+        cancelledBy: null,
+      }
+
+      // REACTIVATION GUARD (mirrors the server action + v1 REST PATCH): cancelled/
+      // no_show FREE the slot, so another booking may have taken it. Moving back to
+      // an ACTIVE status must re-check for conflicts under the same staff advisory
+      // lock as create/reschedule — otherwise reactivating an old cancellation via
+      // this MCP tool silently double-books the staff member.
+      const FREE = ["cancelled", "no_show"]
+      const ACTIVE = ["confirmed", "checked_in", "in_progress", "completed"]
+      const isReactivation = FREE.includes(current.status) && ACTIVE.includes(status)
+
+      try {
+        const updated = isReactivation
+          ? await prisma.$transaction(
+              async (tx) => {
+                for (const svc of current.services) {
+                  if (!svc.staffId) continue
+                  await lockStaffSchedule(tx, ctx.businessId, svc.staffId)
+                  const conflict = await tx.appointmentService.findFirst({
+                    where: {
+                      staffId: svc.staffId,
+                      appointmentId: { not: id },
+                      appointment: { status: { notIn: ["cancelled", "no_show"] } },
+                      startTime: { lt: svc.endTime },
+                      endTime: { gt: svc.startTime },
+                    },
+                  })
+                  if (conflict) throw new Error("CONFLICT")
+                }
+                return tx.appointment.update({ where: { id, businessId: ctx.businessId }, data: reactivationData })
+              },
+              { timeout: 20000, maxWait: 15000 },
+            )
+          : await prisma.appointment.update({ where: { id, businessId: ctx.businessId }, data })
+        return ok(updated)
+      } catch (e) {
+        if ((e as Error)?.message === "CONFLICT" || isBookingContentionError(e)) {
+          return err("That time slot is no longer free — the appointment can't be reactivated.")
+        }
+        throw e
+      }
     }
   )
 
@@ -386,85 +438,83 @@ export function registerAppointmentTools(server: McpServer, ctx: ApiContext) {
       const seriesId = crypto.randomUUID()
       const start = new Date(startTime)
       const endDate = new Date(recurrenceEndDate)
-      const intervalDays = recurrenceRule === "weekly" ? 7 : recurrenceRule === "biweekly" ? 14 : 30
       const price = Number(service.price)
+      // Occurrence instants advanced in the SALON timezone (DST-safe; 'monthly' =
+      // calendar month, not +30 days) — the same tested helper the recurring server
+      // action uses.
+      const dates = generateRecurrenceDates({ start, rule: recurrenceRule, endDate, timezone })
 
-      const appointments: { id: string; startTime: Date }[] = []
-      let current = new Date(start)
-      let count = 0
+      let appointments: { id: string; startTime: Date }[] = []
 
       try {
-        while (current <= endDate && count < 52) {
-          const occurrenceStart = new Date(current)
-          const occurrenceEnd = new Date(current.getTime() + service.durationMinutes * 60000)
-
-          // ONE TRANSACTION PER OCCURRENCE: assertSlotAllowed needs a tx client,
-          // so each occurrence is written under its own transaction with the
-          // guard in front. The try/catch wraps the WHOLE loop (not each
-          // occurrence): a working-hours / approved-time-off violation (or a
-          // conflict) on any occurrence throws out of the loop and aborts the
-          // series — matching HEAD's semantics — so the caller gets a single
-          // slot/conflict error rather than a partially-booked series.
-          const appt = await prisma.$transaction(async (tx) => {
-            // Same working-hours / break / approved-time-off guard the server
-            // actions and v1 API use (BOOKING-RESIDUAL): lock -> assertSlotAllowed
-            // -> conflict check -> create. Salon timezone anchors the @db.Time
-            // hours on any host.
+        // ATOMIC SERIES: wrap the WHOLE loop in ONE transaction (mirrors the server
+        // action createRecurringAppointment) so a mid-series conflict / working-hours
+        // violation rolls back EVERY occurrence — never a partially-booked series with
+        // orphaned appointments while the caller is told nothing was created. Lock the
+        // staff schedule once up front (same staff for every occurrence); conflict-check
+        // each occurrence. Salon timezone anchors assertSlotAllowed's @db.Time hours.
+        appointments = await prisma.$transaction(
+          async (tx) => {
             await lockStaffSchedule(tx, ctx.businessId, staffId)
-            await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd, timezone)
+            const created: { id: string; startTime: Date }[] = []
 
-            const conflict = await tx.appointmentService.findFirst({
-              where: {
-                staffId,
-                appointment: { status: { notIn: ["cancelled", "no_show"] } },
-                startTime: { lt: occurrenceEnd },
-                endTime: { gt: occurrenceStart },
-              },
-            })
-            if (conflict) throw new Error("CONFLICT")
+            for (const occurrenceStart of dates) {
+              const occurrenceEnd = new Date(occurrenceStart.getTime() + service.durationMinutes * 60000)
 
-            const created = await tx.appointment.create({
-              data: {
-                businessId: ctx.businessId,
-                locationId: location.id,
-                clientId,
-                bookingReference: generateBookingReference(),
-                status: "confirmed",
-                source: "pos",
-                startTime: occurrenceStart,
-                endTime: occurrenceEnd,
-                totalDuration: service.durationMinutes,
-                subtotal: price,
-                taxAmount: 0,
-                totalAmount: price,
-                notes,
-                seriesId,
-                recurrenceRule,
-                recurrenceEndDate: endDate,
-              },
-            })
+              await assertSlotAllowed(tx, staffId, location.id, occurrenceStart, occurrenceEnd, timezone)
 
-            await tx.appointmentService.create({
-              data: {
-                appointmentId: created.id,
-                serviceId,
-                staffId,
-                name: service.name,
-                durationMinutes: service.durationMinutes,
-                price,
-                finalPrice: price,
-                startTime: occurrenceStart,
-                endTime: occurrenceEnd,
-              },
-            })
+              const conflict = await tx.appointmentService.findFirst({
+                where: {
+                  staffId,
+                  appointment: { status: { notIn: ["cancelled", "no_show"] } },
+                  startTime: { lt: occurrenceEnd },
+                  endTime: { gt: occurrenceStart },
+                },
+              })
+              if (conflict) throw new Error("CONFLICT")
+
+              const createdAppt = await tx.appointment.create({
+                data: {
+                  businessId: ctx.businessId,
+                  locationId: location.id,
+                  clientId,
+                  bookingReference: generateBookingReference(),
+                  status: "confirmed",
+                  source: "pos",
+                  startTime: occurrenceStart,
+                  endTime: occurrenceEnd,
+                  totalDuration: service.durationMinutes,
+                  subtotal: price,
+                  taxAmount: 0,
+                  totalAmount: price,
+                  notes,
+                  seriesId,
+                  recurrenceRule,
+                  recurrenceEndDate: endDate,
+                },
+              })
+
+              await tx.appointmentService.create({
+                data: {
+                  appointmentId: createdAppt.id,
+                  serviceId,
+                  staffId,
+                  name: service.name,
+                  durationMinutes: service.durationMinutes,
+                  price,
+                  finalPrice: price,
+                  startTime: occurrenceStart,
+                  endTime: occurrenceEnd,
+                },
+              })
+
+              created.push({ id: createdAppt.id, startTime: createdAppt.startTime })
+            }
 
             return created
-          }, { timeout: 20000, maxWait: 15000 })
-
-          appointments.push({ id: appt.id, startTime: appt.startTime })
-          current = new Date(current.getTime() + intervalDays * 86400000)
-          count++
-        }
+          },
+          { timeout: 20000, maxWait: 15000 },
+        )
       } catch (e) {
         if ((e as Error).message === "CONFLICT") return err("One or more recurring time slots are already booked")
         const slotErr = slotErrorMessage(e)

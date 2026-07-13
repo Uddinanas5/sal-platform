@@ -1,0 +1,4 @@
+{
+  "note": "Triaged high/critical prod-dependency advisories that check:audit accepts (does NOT fail the build on). Every entry is a DOCUMENTED accepted-risk with a remediation plan + review date. A high/critical in a package NOT listed here fails the gate. This is the industry-standard 'audit ignore-file' pattern (audit-ci / .snyk). Re-triage on each reviewBy. (Emptied 2026-07-10: the four triaged advisories \u2014 next DoS class, fast-uri, path-to-regexp, picomatch \u2014 were all REMEDIATED by the Next 16 upgrade + override pass, L-022. npm and pnpm audit are both 0 vulnerabilities.)",
+  "advisories": []
+}

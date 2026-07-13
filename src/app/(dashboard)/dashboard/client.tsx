@@ -44,6 +44,8 @@ interface DashboardClientProps {
   revenueData: Array<{ day: string; revenue: number; appointments: number }>
   channelData: Array<{ name: string; value: number; color: string }>
   staffData: Array<{ name: string; appointments: number; revenue: number; rating: number }>
+  /** Staff role: hide all financial widgets (revenue, per-colleague earnings). */
+  hideRevenue?: boolean
 }
 
 function getGreeting(): string {
@@ -147,6 +149,7 @@ export function DashboardClient(props: DashboardClientProps) {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {!props.hideRevenue && (
           <StatsCard
             title="Today's Revenue"
             value={formatCurrency(props.stats.todayRevenue)}
@@ -160,6 +163,7 @@ export function DashboardClient(props: DashboardClientProps) {
             sparklineData={props.revenueData.map((d) => d.revenue)}
             sparklineColor="#4fe6a6"
           />
+          )}
           <StatsCard
             title="Today's Appointments"
             value={props.stats.todayAppointments}
@@ -201,6 +205,7 @@ export function DashboardClient(props: DashboardClientProps) {
           transition={{ delay: 0.4 }}
           className="grid grid-cols-1 lg:grid-cols-3 gap-6"
         >
+          {!props.hideRevenue && (
           <AreaChartComponent
             data={props.revenueData}
             dataKey="revenue"
@@ -213,6 +218,7 @@ export function DashboardClient(props: DashboardClientProps) {
             formatValue={(v) => formatCurrency(v)}
             className="lg:col-span-2 border-cream-200"
           />
+          )}
           <PieChartComponent
             data={props.channelData}
             title="Booking Channels"
@@ -226,7 +232,8 @@ export function DashboardClient(props: DashboardClientProps) {
           />
         </motion.div>
 
-        {/* Staff Performance Bar Chart */}
+        {/* Staff Performance Bar Chart (owner/admin only — hides colleague earnings) */}
+        {!props.hideRevenue && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -244,6 +251,7 @@ export function DashboardClient(props: DashboardClientProps) {
             className="border-cream-200"
           />
         </motion.div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

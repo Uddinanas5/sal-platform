@@ -3,12 +3,14 @@ import { getServices } from "@/lib/queries/services"
 import { getAppointments } from "@/lib/queries/appointments"
 import { getStaffPerformanceById } from "@/lib/queries/reports"
 import { auth } from "@/lib/auth"
+import { resolveBusinessRole } from "@/lib/auth-utils"
 import { prisma } from "@/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { StaffDetailClient } from "./client"
 
 export const dynamic = "force-dynamic"
-export default async function StaffDetailPage({ params }: { params: { id: string } }) {
+export default async function StaffDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId
@@ -32,9 +34,12 @@ export default async function StaffDetailPage({ params }: { params: { id: string
 
   if (!staff) notFound()
 
-  // Staff role users can only view their own profile
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userRole = (session.user as any)?.role as string | undefined
+  // Staff role users can only view their own profile. Use the LIVE DB role
+  // (resolveBusinessRole), NOT the 7-day JWT claim — a demoted admin must lose
+  // access to other barbers' performance (revenue/commission) immediately, not
+  // whenever their cookie happens to expire. Null (revoked mid-session) → least
+  // privilege; the layout already redirects revoked members, this is belt-and-braces.
+  const userRole = (await resolveBusinessRole(session.user.id, businessId)) ?? "staff"
   const userId = session.user.id
   if (userRole === "staff" && staff.userId !== userId) {
     redirect("/dashboard")

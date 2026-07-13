@@ -1,0 +1,6 @@
+# Frozen loop-engine gate — owner-protected so the autonomous loop cannot edit the
+# contract it is graded against (see LOOP.md §4). Changes here require founder review.
+/LOOP.md                     @Uddinanas5
+/loop/feature_board.json     @Uddinanas5
+/loop/gate.mjs               @Uddinanas5
+/.github/CODEOWNERS          @Uddinanas5

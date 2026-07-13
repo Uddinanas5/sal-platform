@@ -263,6 +263,10 @@ model User {
   notificationPreferences Json       @default("{}") @map("notification_preferences")
   failedLoginAttempts     Int        @default(0) @map("failed_login_attempts")
   lockedUntil             DateTime?  @map("locked_until") @db.Timestamptz
+  // Session watermark (L-034): JWT/session tokens issued BEFORE this instant are
+  // rejected. Stamped on password reset/change and "log out everywhere" so a
+  // stolen 7-day session can be killed server-side. Null = no watermark (all valid).
+  sessionsValidAfter      DateTime?  @map("sessions_valid_after") @db.Timestamptz
   metadata                Json       @default("{}")
   createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime   @updatedAt @map("updated_at") @db.Timestamptz
@@ -903,6 +907,12 @@ model Payment {
   appointmentId     String?       @map("appointment_id") @db.Uuid
   clientId          String?       @map("client_id") @db.Uuid
   paymentReference  String        @unique @map("payment_reference") @db.VarChar(50)
+  // Optional client-supplied idempotency key. A retried/duplicated checkout that
+  // resends the SAME key must NOT double-record the sale (double charge, double
+  // gift-card spend, duplicate commission/inventory/loyalty). Enforced by a
+  // fast-path lookup in recordCheckout + the @@unique below. Nullable: cash /
+  // legacy rows and key-less checkouts are unaffected (Postgres NULLs are distinct).
+  idempotencyKey    String?       @map("idempotency_key") @db.VarChar(100)
   type              PaymentType
   method            PaymentMethod
   // GAP-037: free-text sub-tender note for `other` payments (e.g. "e-transfer")
@@ -939,6 +949,7 @@ model Payment {
   @@index([businessId, createdAt])
   @@index([appointmentId])
   @@index([clientId])
+  @@unique([businessId, idempotencyKey], map: "payments_business_id_idempotency_key_key")
   @@map("payments")
 
 }

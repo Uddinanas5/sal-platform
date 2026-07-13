@@ -65,8 +65,10 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
       toast.error("Name is required")
       return
     }
-    if (!email.trim()) {
-      toast.error("Email is required")
+    // Barbershop clients are often phone-only — email is optional, but require at
+    // least one way to reach them.
+    if (!email.trim() && !phone.trim()) {
+      toast.error("Add an email or a phone number")
       return
     }
 
@@ -78,7 +80,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
     const result = await updateClient(client.id, {
       firstName,
       lastName,
-      email: email.trim(),
+      email: email.trim() || undefined,
       phone: phone.trim(),
       notes,
       allergies,

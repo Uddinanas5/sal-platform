@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
+import { resolveBusinessRole } from "@/lib/auth-utils"
+import { hasRole } from "@/lib/permissions"
 import { getPayrollStatement, listPayrollPeriods } from "@/lib/queries/payroll"
 import { PaydayClient } from "./client"
 
@@ -22,20 +24,28 @@ function firstParam(raw: string | string[] | undefined): string | undefined {
   return undefined
 }
 
-export default async function PaydayPage({
-  searchParams,
-}: {
-  searchParams?: {
-    from?: string | string[]
-    to?: string | string[]
-    period?: string | string[]
+export default async function PaydayPage(
+  props: {
+    searchParams?: Promise<{
+      from?: string | string[]
+      to?: string | string[]
+      period?: string | string[]
+    }>
   }
-}) {
+) {
+  const searchParams = await props.searchParams;
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId as string | undefined
   // businessId is derived ONLY from the session — never from request input.
   if (!businessId) redirect("/onboarding")
+
+  // Admin-only: payroll statements expose every staffer's earnings/commission.
+  // The middleware gate keys on the STALE 7-day JWT role, so re-check the LIVE
+  // DB role here and bounce anyone not currently admin+ (L-042).
+  const userId = session?.user?.id as string | undefined
+  const liveRole = userId ? await resolveBusinessRole(userId, businessId) : null
+  if (!hasRole(liveRole, "admin")) redirect("/dashboard")
 
   const periodId = firstParam(searchParams?.period)
   const from = parseDateParam(searchParams?.from)

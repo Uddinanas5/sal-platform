@@ -7,7 +7,7 @@ import {
   ERR_OUTSIDE_WORKING_HOURS,
   ERR_ON_APPROVED_TIME_OFF,
 } from "@/lib/scheduling/working-hours"
-import { addWeeks, addMonths } from "date-fns"
+import { generateRecurrenceDates } from "@/lib/scheduling/recurrence"
 import { z } from "zod"
 
 const createRecurringSchema = z.object({
@@ -33,7 +33,9 @@ export async function POST(req: Request) {
   const { clientId, serviceId, staffId, startTime: startTimeStr, notes, recurrenceRule, recurrenceEndDate } = parsed.data
 
   const service = await prisma.service.findFirst({
-    where: { id: serviceId, businessId: ctx.businessId },
+    // deletedAt: null — a soft-deleted service must not be bookable (matches every
+    // other booking path, e.g. v1 appointments route).
+    where: { id: serviceId, businessId: ctx.businessId, deletedAt: null },
   })
   if (!service) return ERRORS.NOT_FOUND("Service")
 
@@ -69,16 +71,10 @@ export async function POST(req: Request) {
   const tax = Math.round(price * taxRate * 100) / 100
   const seriesId = crypto.randomUUID()
 
-  const dates: Date[] = [baseStart]
-  let next = baseStart
-  while (true) {
-    if (recurrenceRule === "weekly") next = addWeeks(next, 1)
-    else if (recurrenceRule === "biweekly") next = addWeeks(next, 2)
-    else next = addMonths(next, 1)
-    if (next > endDate) break
-    dates.push(next)
-    if (dates.length > 52) break
-  }
+  // Occurrence instants advanced in the SALON timezone (DST-safe; 'monthly' =
+  // calendar month, not +30 days) — the same tested helper the recurring server
+  // action + MCP tool use.
+  const dates = generateRecurrenceDates({ start: baseStart, rule: recurrenceRule, endDate, timezone })
 
   // Atomic series creation: any single conflict aborts the whole batch,
   // leaving no orphaned occurrences. Conflict check is tenant-scoped via

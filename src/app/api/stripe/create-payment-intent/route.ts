@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createPaymentIntent, getOrCreateCustomer } from '@/lib/stripe'
-import { auth } from '@/lib/auth'
+import { getRouteBusinessContext } from '@/lib/api/route-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -24,12 +24,14 @@ function generatePaymentReference() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    const user = session?.user as { id?: string; businessId?: string } | undefined
-    if (!user?.id || !user.businessId) {
+    // L-048: this mints a real card charge, so the raw JWT is not enough — the
+    // caller must be a LIVE member (fresh role + session watermark), same as
+    // every server action behind getBusinessContext.
+    const user = await getRouteBusinessContext()
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
+
     const body = await request.json()
     const parsed = createPaymentIntentSchema.safeParse(body)
     if (!parsed.success) {
@@ -73,6 +75,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
     }
 
+    // Already-paid guard — mirrors the three in-person checkout paths
+    // (actions/checkout, v1/checkout, mcp/checkout). The hourly idempotency key
+    // only dedupes retries WITHIN the same hour; without this, a second call in a
+    // later hour mints a fresh PaymentIntent and charges the client's card again.
+    // A COMPLETED payment means the appointment is settled — never re-charge it.
+    const alreadyPaid = await prisma.payment.findFirst({
+      where: { appointmentId, businessId: user.businessId, type: 'payment', status: 'completed' },
+      select: { id: true },
+    })
+    if (alreadyPaid) {
+      return NextResponse.json(
+        { error: 'This appointment has already been paid.' },
+        { status: 400 }
+      )
+    }
+
     amount = Number(appointment.totalAmount)
     clientId = appointment.clientId
 
@@ -92,7 +110,7 @@ export async function POST(request: NextRequest) {
         phone,
         metadata: {
           source: 'sal-platform',
-          userId: user.id,
+          userId: user.userId,
           businessId: user.businessId,
         },
       })
@@ -142,7 +160,7 @@ export async function POST(request: NextRequest) {
         currency: 'USD',
         processor: 'stripe',
         processorId: result.paymentIntentId,
-        processedBy: user.id,
+        processedBy: user.userId,
       },
     })
 

@@ -11,7 +11,9 @@ type ActionResult<T = void> = { success: true; data: T } | { success: false; err
 const updateBusinessSettingsSchema = z.object({
   name: z.string().min(1).optional(),
   phone: z.string().optional(),
-  email: z.string().email().optional(),
+  // Accept "" (cleared field) as "no email" — .optional() alone rejects empty
+  // string, which blocked saving General settings for any email-less business.
+  email: z.preprocess((v) => (v === "" ? undefined : v), z.string().email().optional()),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -261,7 +263,15 @@ const paymentSettingsSchema = z.object({
       splitPayment: z.boolean().default(false),
     })
     .default({ cash: true, card: true, giftCards: false, splitPayment: false }),
-  taxRate: z.string().default("8.875"),
+  // Validate as a number in [0,100]. A cleared field ("") becomes "0" (→ 0% tax),
+  // never silently reverting to the platform default. Out-of-range is rejected.
+  taxRate: z.preprocess(
+    (v) => (v === "" || v == null ? "0" : v),
+    z.string().refine((v) => {
+      const n = parseFloat(v)
+      return Number.isFinite(n) && n >= 0 && n <= 100
+    }, "Tax rate must be a number between 0 and 100")
+  ).default("8.875"),
   taxName: z.string().default("Sales Tax"),
   taxOnProducts: z.boolean().default(true),
   taxOnServices: z.boolean().default(true),

@@ -10,7 +10,13 @@ import {
 import { isSlotAvailable, generateBookingReference } from '@/lib/availability'
 import { withSafeErrors } from '@/lib/api/safe-handler'
 import { parseYmd } from '@/lib/date-utils'
+import { combineDateWithTimeZoned } from '@/lib/scheduling/zoned-time'
 import type { Prisma } from '@/generated/prisma'
+
+// The @db.Time "zero" instant. combineDateWithTimeZoned takes the calendar day
+// from the civil date and midnight from this, interpreted in the salon zone — i.e.
+// the salon-local start of that day. (Mirrors /api/v1/appointments.)
+const ZERO_TIME = new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0))
 
 /**
  * GET /api/bookings
@@ -59,49 +65,42 @@ export const GET = withSafeErrors('GET /api/bookings', async (request: NextReque
       }
     }
 
-    // Date filtering — parse YYYY-MM-DD strictly so impossible calendar dates
-    // like 2026-06-31 reject with 400 instead of silently rolling to July 1.
-    if (date) {
-      const startOfDay = parseYmd(date)
-      if (!startOfDay) {
-        return NextResponse.json(
-          { error: 'Invalid date. Use YYYY-MM-DD' },
-          { status: 400 }
-        )
+    // Date filtering. Day boundaries are computed in the SALON's timezone (not the
+    // server's), so a date filter selects the salon's calendar day rather than a
+    // UTC-shifted window — fixing a wrong-day list near midnight for non-UTC salons
+    // (matches /api/v1/appointments). YYYY-MM-DD is parsed strictly so impossible
+    // dates like 2026-06-31 reject with 400 instead of rolling to July 1.
+    if (date || dateFrom || dateTo) {
+      const biz = await prisma.business.findUnique({
+        where: { id: ctx.businessId },
+        select: { timezone: true },
+      })
+      const tz = biz?.timezone || 'UTC'
+      // Salon-local [start, end] instants for a YYYY-MM-DD civil day. null = invalid date.
+      const dayBounds = (ymd: string) => {
+        const civil = parseYmd(ymd)
+        if (!civil) return null
+        const next = new Date(civil.getFullYear(), civil.getMonth(), civil.getDate() + 1)
+        return {
+          start: combineDateWithTimeZoned(civil, ZERO_TIME, tz),
+          end: new Date(combineDateWithTimeZoned(next, ZERO_TIME, tz).getTime() - 1),
+        }
       }
-      const endOfDay = parseYmd(date)!
-      endOfDay.setHours(23, 59, 59, 999)
 
-      where.startTime = {
-        gte: startOfDay,
-        lte: endOfDay,
-      }
-    } else {
-      if (dateFrom) {
-        const from = parseYmd(dateFrom)
-        if (!from) {
-          return NextResponse.json(
-            { error: 'Invalid dateFrom. Use YYYY-MM-DD' },
-            { status: 400 }
-          )
+      if (date) {
+        const b = dayBounds(date)
+        if (!b) return NextResponse.json({ error: 'Invalid date. Use YYYY-MM-DD' }, { status: 400 })
+        where.startTime = { gte: b.start, lte: b.end }
+      } else {
+        if (dateFrom) {
+          const b = dayBounds(dateFrom)
+          if (!b) return NextResponse.json({ error: 'Invalid dateFrom. Use YYYY-MM-DD' }, { status: 400 })
+          where.startTime = { ...(where.startTime as object || {}), gte: b.start }
         }
-        where.startTime = {
-          ...(where.startTime as object || {}),
-          gte: from,
-        }
-      }
-      if (dateTo) {
-        const to = parseYmd(dateTo)
-        if (!to) {
-          return NextResponse.json(
-            { error: 'Invalid dateTo. Use YYYY-MM-DD' },
-            { status: 400 }
-          )
-        }
-        to.setHours(23, 59, 59, 999)
-        where.startTime = {
-          ...(where.startTime as object || {}),
-          lte: to,
+        if (dateTo) {
+          const b = dayBounds(dateTo)
+          if (!b) return NextResponse.json({ error: 'Invalid dateTo. Use YYYY-MM-DD' }, { status: 400 })
+          where.startTime = { ...(where.startTime as object || {}), lte: b.end }
         }
       }
     }
@@ -391,12 +390,14 @@ export const POST = withSafeErrors('POST /api/bookings', async (request: NextReq
           durationMinutes: svc.durationMinutes,
           price: svc.price,
           discountAmount: 0,
-          taxAmount: svc.isTaxable && svc.taxRate 
-            ? Number(svc.price) * Number(svc.taxRate) / 100 
+          taxAmount: svc.isTaxable && svc.taxRate
+            ? Number(svc.price) * Number(svc.taxRate) / 100
             : 0,
-          finalPrice: svc.isTaxable && svc.taxRate
-            ? Number(svc.price) * (1 + Number(svc.taxRate) / 100)
-            : Number(svc.price),
+          // finalPrice is the TAX-EXCLUSIVE service price (tax is captured
+          // separately in taxAmount above). Every other creation path stores it
+          // this way; storing a tax-inclusive value here made commission be paid on
+          // sales tax at checkout (grossAmount = finalPrice).
+          finalPrice: Number(svc.price),
           startTime: svc.startTime,
           endTime: svc.endTime,
           status: 'scheduled',

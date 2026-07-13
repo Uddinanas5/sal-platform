@@ -12,15 +12,21 @@ test("client books an appointment end-to-end and sees confirmation", async ({ pa
   await expect(page.getByRole("heading", { name: "Select a service" })).toBeVisible()
   await selectCardAndContinue(page, "Classic Haircut")
 
-  // Step 2 — pick any stylist.
+  // Step 2 — pick a specific stylist (deterministic availability).
   await expect(page.getByRole("heading", { name: "Choose your stylist" })).toBeVisible()
-  await selectCardAndContinue(page, "Any available")
+  await selectCardAndContinue(page, "Alex Morgan")
 
-  // Step 3 — pick the first available day, then the first open time.
+  // Step 3 — find a day that has open slots, then pick the first time. Each day
+  // click triggers an availability fetch; wait for the "Available times" heading
+  // (fetch settled) before checking, and try successive days if a day is full.
   await expect(page.getByRole("heading", { name: "Pick a date & time" })).toBeVisible()
-  await page.locator("button:not([disabled])").filter({ hasText: /^\d{1,2}$/ }).first().click()
-  await page.getByRole("heading", { name: /Available times/ }).waitFor()
-  await page.locator("button", { hasText: /^\d{1,2}:\d{2} (AM|PM)$/ }).first().click()
+  const timeSlot = page.locator("button", { hasText: /^\d{1,2}:\d{2} (AM|PM)$/ })
+  // Pick a mid-future enabled day (a specific barber with a clear calendar has
+  // open slots on a working weekday), then wait for the availability grid.
+  await page.locator("button[aria-label]:not([disabled])").filter({ hasText: /^\d{1,2}$/ }).nth(4).click()
+  await expect(page.getByRole("heading", { name: /Available times/ })).toBeVisible({ timeout: 20000 })
+  await expect(timeSlot.first()).toBeVisible({ timeout: 20000 })
+  await timeSlot.first().click()
   await expect(page.getByRole("button", { name: "Continue" })).toBeEnabled()
   await page.getByRole("button", { name: "Continue" }).click()
 

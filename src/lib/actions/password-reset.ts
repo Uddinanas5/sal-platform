@@ -68,11 +68,15 @@ export async function requestPasswordReset(email: string): Promise<ActionResult>
 
     const name = user.firstName || "there"
 
-    await sendEmail({
+    // Fire-and-forget (L-038): awaiting the email send ONLY on the user-exists
+    // branch leaks account existence via response timing. Send without blocking so
+    // both branches return in comparable time; failures are logged, not surfaced
+    // (the response is a uniform success either way).
+    void sendEmail({
       to: user.email,
       subject: "Reset Your Password - SAL Platform",
       html: passwordResetEmail({ name, resetUrl }),
-    })
+    }).catch((err) => console.error("Password reset email failed:", err))
 
     return { success: true }
   } catch (e) {
@@ -136,7 +140,17 @@ export async function resetPassword(
     ) as unknown as Prisma.InputJsonObject
     await prisma.user.update({
       where: { id: payload.userId },
-      data: { passwordHash, metadata: metadataWithoutNonce },
+      // Clear the login lockout too — otherwise a user who reset BECAUSE they were
+      // locked out (5 failed attempts) still can't log in with the new password.
+      data: {
+        passwordHash,
+        metadata: metadataWithoutNonce,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        // L-034: invalidate every session issued before now, so a stolen 7-day
+        // token stops working the instant the real user resets their password.
+        sessionsValidAfter: new Date(),
+      },
     })
 
     return { success: true }

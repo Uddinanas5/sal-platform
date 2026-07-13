@@ -9,7 +9,8 @@ type ActionResult<T = void> = { success: true; data: T } | { success: false; err
 
 const createClientSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
-  lastName: z.string().trim().min(1, "Last name is required"),
+  // Barbershop clients are often walk-ins with a single name — last name optional.
+  lastName: z.string().trim().optional().default(""),
   email: z.string().email().optional(),
   phone: z.string().optional(),
   notes: z.string().optional(),
@@ -19,7 +20,7 @@ const createClientSchema = z.object({
 
 const updateClientSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").optional(),
-  lastName: z.string().trim().min(1, "Last name is required").optional(),
+  lastName: z.string().trim().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
   notes: z.string().optional(),
@@ -54,8 +55,10 @@ export async function createClient(data: {
     const normalizedEmail = data.email?.trim().toLowerCase() || null
 
     if (normalizedEmail) {
+      // deletedAt:null so a previously-removed client's email doesn't block a
+      // fresh one (consistent with the CSV import dedup).
       const existing = await prisma.client.findFirst({
-        where: { businessId, email: normalizedEmail },
+        where: { businessId, email: normalizedEmail, deletedAt: null },
       })
       if (existing) return { success: false, error: "A client with this email already exists" }
     }
@@ -115,7 +118,7 @@ export async function updateClient(
     if (data.email) {
       const normalizedEmail = data.email.trim().toLowerCase()
       const existing = await prisma.client.findFirst({
-        where: { businessId, email: normalizedEmail, id: { not: id } },
+        where: { businessId, email: normalizedEmail, id: { not: id }, deletedAt: null },
       })
       if (existing) return { success: false, error: "A client with this email already exists" }
       data.email = normalizedEmail

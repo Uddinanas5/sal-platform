@@ -22,7 +22,7 @@ const { prismaMock, constructEventMock, headersGetMock } = vi.hoisted(() => {
   const prismaMock = {
     stripeEvent: { create: vi.fn(), findUnique: vi.fn() },
     business: { updateMany: vi.fn() },
-    payment: { findFirst: vi.fn(), update: vi.fn() },
+    payment: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     appointment: { update: vi.fn() },
     $transaction: vi.fn(),
   }
@@ -127,6 +127,56 @@ describe("stripe webhook — idempotency gate (record after success)", () => {
 
     expect(res.status).toBe(500)
     expect(prismaMock.stripeEvent.create).not.toHaveBeenCalled()
+  })
+
+  it("payment_intent.succeeded only flips a PENDING payment — never resurrects a refunded charge to completed", async () => {
+    // Out-of-order / retried succeeded delivery after the charge was refunded.
+    const PI = { id: "pi_1", amount: 5000, amount_received: 5000, currency: "usd" }
+    constructEventMock.mockReturnValue({ id: "evt_pi_succeeded", type: "payment_intent.succeeded", data: { object: PI } })
+    prismaMock.payment.findFirst.mockResolvedValue({
+      id: "pay_1", processorId: "pi_1", totalAmount: 50, currency: "USD",
+      businessId: "biz_1", appointmentId: "appt_1", appointment: { id: "appt_1" },
+    })
+    // The status guard matches no row (payment is "refunded", not "pending").
+    prismaMock.payment.updateMany.mockResolvedValue({ count: 0 })
+
+    const res = await POST(makeRequest("{}"))
+    expect(res.status).toBe(200)
+
+    // Write is guarded on status:"pending" (won't touch a refunded/terminal row)...
+    expect(prismaMock.payment.updateMany).toHaveBeenCalledTimes(1)
+    expect(prismaMock.payment.updateMany.mock.calls[0][0].where.status).toBe("pending")
+    // ...and because nothing flipped, the appointment is NOT re-confirmed.
+    expect(prismaMock.appointment.update).not.toHaveBeenCalled()
+  })
+
+  it("payment_intent.succeeded confirms the appointment only when a pending payment actually flips", async () => {
+    const PI = { id: "pi_2", amount: 5000, amount_received: 5000, currency: "usd" }
+    constructEventMock.mockReturnValue({ id: "evt_pi_succeeded_2", type: "payment_intent.succeeded", data: { object: PI } })
+    prismaMock.payment.findFirst.mockResolvedValue({
+      id: "pay_2", processorId: "pi_2", totalAmount: 50, currency: "USD",
+      businessId: "biz_1", appointmentId: "appt_2", appointment: { id: "appt_2" },
+    })
+    prismaMock.payment.updateMany.mockResolvedValue({ count: 1 })
+
+    const res = await POST(makeRequest("{}"))
+    expect(res.status).toBe(200)
+    expect(prismaMock.appointment.update).toHaveBeenCalledTimes(1)
+  })
+
+  it("payment_intent.payment_failed will NOT overwrite a completed or refunded payment", async () => {
+    const PI = { id: "pi_3", last_payment_error: { message: "declined" } }
+    constructEventMock.mockReturnValue({ id: "evt_pi_failed", type: "payment_intent.payment_failed", data: { object: PI } })
+    prismaMock.payment.findFirst.mockResolvedValue({ id: "pay_3", processorId: "pi_3" })
+    prismaMock.payment.updateMany.mockResolvedValue({ count: 0 })
+
+    const res = await POST(makeRequest("{}"))
+    expect(res.status).toBe(200)
+
+    // The failed write is guarded so a stale/out-of-order failure can't clobber a
+    // terminal (completed/refunded) payment.
+    expect(prismaMock.payment.updateMany).toHaveBeenCalledTimes(1)
+    expect(prismaMock.payment.updateMany.mock.calls[0][0].where.status).toEqual({ notIn: ["completed", "refunded"] })
   })
 
   it("swallows a P2002 on the post-success record (concurrent delivery already wrote it)", async () => {

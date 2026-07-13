@@ -7,7 +7,6 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { CampaignsTab } from "@/components/marketing/campaigns-tab"
-import { DealsTab } from "@/components/marketing/deals-tab"
 import { AutomatedMessagesTab } from "@/components/marketing/automated-messages-tab"
 import { CreateCampaignDialog } from "@/components/marketing/create-campaign-dialog"
 
@@ -29,22 +28,6 @@ export interface CampaignItem {
   createdAt: Date
 }
 
-export interface DealItem {
-  id: string
-  name: string
-  description: string
-  discountType: string
-  discountValue: number
-  code: string
-  status: string
-  appliesTo: string
-  serviceIds: string[]
-  usageLimit: number | null
-  usageCount: number
-  validFrom: Date
-  validUntil: Date
-  createdAt: Date
-}
 
 export interface MessageItem {
   id: string
@@ -68,17 +51,16 @@ export interface CampaignStats {
 
 interface MarketingClientProps {
   campaigns: CampaignItem[]
-  deals: DealItem[]
   automatedMessages: MessageItem[]
   campaignStats: CampaignStats
 }
 
-export function MarketingClient({ campaigns, deals, automatedMessages, campaignStats }: MarketingClientProps) {
+export function MarketingClient({ campaigns, automatedMessages, campaignStats }: MarketingClientProps) {
   const [createOpen, setCreateOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header title="Marketing" subtitle="Campaigns, deals & automation" />
+      <Header title="Marketing" subtitle="Campaigns & automation" />
 
       <div className="p-6 space-y-6">
         {/* Top Action Bar */}
@@ -94,19 +76,12 @@ export function MarketingClient({ campaigns, deals, automatedMessages, campaignS
         <Tabs defaultValue="campaigns" className="space-y-6">
           <TabsList>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="deals">Deals & Promotions</TabsTrigger>
             <TabsTrigger value="automated">Automated Messages</TabsTrigger>
           </TabsList>
 
           <TabsContent value="campaigns">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               <CampaignsTab campaigns={campaigns} stats={campaignStats} />
-            </motion.div>
-          </TabsContent>
-
-          <TabsContent value="deals">
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-              <DealsTab deals={deals} />
             </motion.div>
           </TabsContent>
 

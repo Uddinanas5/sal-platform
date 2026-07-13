@@ -15,14 +15,6 @@ const categoryColors: Record<string, string> = {
   Body: "#14b8a6",
 }
 
-const categoryRevenueContribution: Record<string, number> = {
-  Hair: 38,
-  Wellness: 22,
-  Nails: 15,
-  Skincare: 13,
-  "Brows & Lashes": 7,
-  Body: 5,
-}
 
 interface CategoryOverviewProps {
   services: Service[]
@@ -50,7 +42,6 @@ export function CategoryOverview({ services }: CategoryOverviewProps) {
               categoryServices.reduce((sum, s) => sum + s.price, 0) /
               categoryServices.length
             const color = categoryColors[category] ?? "#9ca3af"
-            const revenue = categoryRevenueContribution[category] ?? 0
 
             return (
               <motion.div
@@ -90,9 +81,6 @@ export function CategoryOverview({ services }: CategoryOverviewProps) {
                   <span className="text-xs font-normal text-muted-foreground">
                     {" "}avg
                   </span>
-                </p>
-                <p className="text-xs font-medium mt-1" style={{ color }}>
-                  {revenue}% revenue
                 </p>
               </motion.div>
             )

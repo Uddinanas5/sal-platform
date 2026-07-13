@@ -4,6 +4,7 @@ import { z } from "zod"
 import { SignJWT, jwtVerify } from "jose"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { belongsToAnotherBusiness, CROSS_TENANT_ROLE_CHANGE_ERROR } from "@/lib/team/role-change-guard"
 import { revalidatePath } from "next/cache"
 import { requireMinRole } from "@/lib/auth-utils"
 import { sendEmail } from "@/lib/email"
@@ -329,6 +330,15 @@ export async function updateTeamMemberRole(data: {
       where: { userId: parsed.targetUserId, primaryLocation: { businessId } },
     })
     if (!staffProfile) return { success: false, error: "User is not a member of this business" }
+
+    // User.role is a single GLOBAL column shared across every business a user
+    // belongs to. Rewriting it here would change their privileges at OTHER
+    // businesses too (cross-tenant escalation/downgrade). Refuse to change the role
+    // of anyone who also belongs elsewhere (owner-role users are rejected above).
+    // Shared with the REST route + MCP tool so the guard can't drift again.
+    if (await belongsToAnotherBusiness(parsed.targetUserId, businessId)) {
+      return { success: false, error: CROSS_TENANT_ROLE_CHANGE_ERROR }
+    }
 
     await prisma.user.update({
       where: { id: parsed.targetUserId },

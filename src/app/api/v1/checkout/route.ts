@@ -53,6 +53,10 @@ const processPaymentSchema = z
     redeemPoints: z.number().int().nonnegative().optional(),
     // Gift-card code, required when method === "gift_card".
     giftCardCode: z.string().min(1).optional(),
+    // Optional idempotency key (may also be sent as the Idempotency-Key header):
+    // a retried request with the SAME key returns the original payment instead of
+    // double-recording. Essential for API clients that retry on timeout.
+    idempotencyKey: z.string().min(1).max(100).optional(),
   })
   .refine((d) => d.method !== "gift_card" || !!d.giftCardCode, {
     message: "A gift card code is required to pay by gift card",
@@ -74,6 +78,9 @@ export async function POST(req: Request) {
   if (!parsed.success) return ERRORS.BAD_REQUEST(parsed.error.issues[0]?.message ?? "Invalid input")
 
   const data = parsed.data
+  // Accept the standard `Idempotency-Key` HTTP header as a fallback source (REST
+  // convention) so an external client can retry safely without changing the body.
+  const idempotencyKey = data.idempotencyKey ?? req.headers.get("idempotency-key") ?? undefined
 
   // Pre-transaction idempotency guard (mirrors the dashboard action): don't let
   // the same appointment be checked out twice — that would double-count revenue,
@@ -116,6 +123,7 @@ export async function POST(req: Request) {
         method: data.method,
         redeemPoints: data.redeemPoints,
         giftCardCode: data.giftCardCode,
+        idempotencyKey,
       }),
       { timeout: 20000, maxWait: 15000 },
     )

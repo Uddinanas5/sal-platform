@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Banknote,
@@ -107,6 +107,17 @@ export function PaymentDialog({
   const [receiptNumber, setReceiptNumber] = useState("")
   const [isSendingEmail, setIsSendingEmail] = useState(false)
 
+  // Idempotency key for THIS checkout session (one logical sale). Sent with the
+  // payment so a retry — a double-click that slips through, or a network blip
+  // where the first request actually succeeded server-side — reuses the same key
+  // and the server returns the ORIGINAL payment instead of charging again
+  // (recordCheckout's guard; see tests/checkout-idempotency.test.ts). Kept across
+  // retries within a session; regenerated when the dialog reopens for a new sale.
+  const idempotencyKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (open) idempotencyKeyRef.current = null
+  }, [open])
+
   // BETA: a gift card must cover the FULL total — no partial/split redemption
   // (post-beta feature). The Process button is gated on a verified card whose
   // balance >= total; an insufficient card shows an honest "use cash" message.
@@ -176,6 +187,9 @@ export function PaymentDialog({
 
     setStep("processing")
 
+    // Mint the session key on first submit; retries within this session reuse it.
+    if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID()
+
     try {
       // Catalog lines (price re-fetched from the DB server-side, GAP-034).
       const payableItems = items
@@ -213,6 +227,8 @@ export function PaymentDialog({
         redeemPoints: redeemPoints > 0 ? redeemPoints : undefined,
         // Gift-card tender (server re-reads + verifies the balance before charging).
         giftCardCode: paymentMethod === "gift_card" ? giftCardCode.trim() : undefined,
+        // Dedupe a retried/duplicate submit server-side (no double charge).
+        idempotencyKey: idempotencyKeyRef.current ?? undefined,
       })
 
       if (result.success) {

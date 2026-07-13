@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { type ApiContext } from "@/lib/api/auth"
 import { prisma } from "@/lib/prisma"
+import { belongsToAnotherBusiness, CROSS_TENANT_ROLE_CHANGE_ERROR } from "@/lib/team/role-change-guard"
 import { z } from "zod"
 import { SignJWT } from "jose"
 
@@ -62,8 +63,13 @@ export function registerTeamTools(server: McpServer, ctx: ApiContext) {
         include: { user: { select: { role: true } } },
       })
       if (!targetStaff) return err("Team member not found")
-      // Same guard as the REST route: cannot change another owner's role.
+      // Same guards as the REST route + server action: not another owner, and not a
+      // cross-tenant member (User.role is a GLOBAL column — changing it here would
+      // escalate/downgrade them at another business).
       if (targetStaff.user.role === "owner") return err("Cannot change another owner's role")
+      if (await belongsToAnotherBusiness(targetUserId, ctx.businessId)) {
+        return err(CROSS_TENANT_ROLE_CHANGE_ERROR)
+      }
       await prisma.user.update({ where: { id: targetUserId }, data: { role: newRole } })
       return ok({ userId: targetUserId, newRole })
     }

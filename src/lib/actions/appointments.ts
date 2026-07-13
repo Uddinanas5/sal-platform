@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { canAccessAppointment } from "@/lib/api/appointment-access"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail, appointmentCancelledEmail, appointmentRescheduledEmail } from "@/lib/email-templates"
 import { getBusinessContext } from "@/lib/auth-utils"
@@ -293,7 +294,10 @@ export async function updateAppointmentStatus(
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, id))) {
+      return { success: false, error: "You don't have access to this appointment" }
+    }
 
     const statusMap: Record<string, string> = {
       confirmed: "confirmed",
@@ -307,21 +311,67 @@ export async function updateAppointmentStatus(
 
     const dbStatus = statusMap[status] || status
 
-    const appointment = await prisma.appointment.update({
+    // REACTIVATION GUARD: cancelled/no_show FREE the slot, so another booking may
+    // have taken it. Moving back to an active status must re-check for conflicts
+    // under the same advisory lock as create/reschedule — otherwise reactivating
+    // an old cancellation silently double-books the staff member.
+    const FREE = ["cancelled", "no_show"]
+    const ACTIVE = ["confirmed", "pending", "checked_in", "in_progress", "completed"]
+    const current = await prisma.appointment.findUnique({
       where: { id, businessId },
-      data: {
-        status: dbStatus as never,
-        completedAt: dbStatus === "completed" ? new Date() : undefined,
-        checkedInAt: dbStatus === "checked_in" ? new Date() : undefined,
-        cancelledAt: dbStatus === "cancelled" ? new Date() : undefined,
-        noShowAt: dbStatus === "no_show" ? new Date() : undefined,
-      },
-      include: {
-        client: true,
-        services: true,
-        business: true,
-      },
+      select: { status: true, services: { select: { staffId: true, startTime: true, endTime: true } } },
     })
+    if (!current) return { success: false, error: "Appointment not found" }
+    const isReactivation = FREE.includes(current.status) && ACTIVE.includes(dbStatus)
+
+    const updateData = {
+      status: dbStatus as never,
+      completedAt: dbStatus === "completed" ? new Date() : undefined,
+      checkedInAt: dbStatus === "checked_in" ? new Date() : undefined,
+      cancelledAt: dbStatus === "cancelled" ? new Date() : undefined,
+      noShowAt: dbStatus === "no_show" ? new Date() : undefined,
+    }
+    // On REACTIVATION (cancelled/no_show → active), clear the stale cancellation
+    // fields — otherwise the reactivated appointment still reads as a no-show/
+    // cancelled to any consumer keyed on noShowAt/cancelledAt/cancellationReasonCode.
+    // Prisma omits `undefined`, so these must be explicit `null` to actually clear.
+    const reactivationData = {
+      ...updateData,
+      cancelledAt: null,
+      noShowAt: null,
+      cancellationInitiator: null,
+      cancellationReasonCode: null,
+      cancellationReason: null,
+      cancelledBy: null,
+    }
+    const includeRels = { client: true, services: true, business: true } as const
+
+    let appointment
+    if (isReactivation) {
+      appointment = await prisma.$transaction(async (tx) => {
+        for (const svc of current.services) {
+          if (!svc.staffId) continue
+          await lockStaffSchedule(tx, businessId, svc.staffId)
+          const conflict = await tx.appointmentService.findFirst({
+            where: {
+              staffId: svc.staffId,
+              appointmentId: { not: id },
+              appointment: { status: { notIn: ["cancelled", "no_show"] } },
+              startTime: { lt: svc.endTime },
+              endTime: { gt: svc.startTime },
+            },
+          })
+          if (conflict) throw new Error("CONFLICT")
+        }
+        return tx.appointment.update({ where: { id, businessId }, data: reactivationData, include: includeRels })
+      }, { timeout: 20000, maxWait: 15000 })
+    } else {
+      appointment = await prisma.appointment.update({
+        where: { id, businessId },
+        data: updateData,
+        include: includeRels,
+      })
+    }
 
     // Send cancellation email when status changes to cancelled
     if (dbStatus === "cancelled" && appointment.client?.email) {
@@ -352,8 +402,12 @@ export async function updateAppointmentStatus(
     revalidatePath("/dashboard")
     return { success: true, data: undefined }
   } catch (e) {
+    const msg = (e as Error).message
+    if (msg === "CONFLICT" || isBookingContentionError(e)) {
+      return { success: false, error: "That time slot is no longer free — another appointment now occupies it." }
+    }
     console.error("updateAppointmentStatus error:", e)
-    return { success: false, error: (e as Error).message }
+    return { success: false, error: msg }
   }
 }
 
@@ -404,7 +458,10 @@ export async function cancelAppointment(input: {
   }
 
   try {
-    const { businessId, userId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, parsed.id))) {
+      return { success: false, error: "You don't have access to this appointment" }
+    }
     const now = new Date()
 
     const appointment = await prisma.appointment.update({
@@ -470,7 +527,10 @@ export async function rescheduleAppointment(
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, id))) {
+      return { success: false, error: "You don't have access to this appointment" }
+    }
 
     const appointment = await prisma.appointment.findUnique({
       where: { id, businessId },
@@ -633,7 +693,10 @@ export async function resizeAppointment(
   }
 
   try {
-    const { businessId } = await getBusinessContext()
+    const { businessId, userId, role } = await getBusinessContext()
+    if (!(await canAccessAppointment({ userId, businessId, role }, id))) {
+      return { success: false, error: "You don't have access to this appointment" }
+    }
 
     const appointment = await prisma.appointment.findUnique({
       where: { id, businessId },

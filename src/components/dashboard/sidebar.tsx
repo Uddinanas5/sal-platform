@@ -16,14 +16,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ShoppingCart,
-  Package,
   BarChart3,
   Megaphone,
   Star,
-  CreditCard,
   Globe,
   Wallet,
   X,
+  Gift,
 } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { hasRole, NAV_PERMISSIONS } from "@/lib/permissions"
@@ -78,7 +77,6 @@ function buildNavSections(data: SidebarData | null, role?: string) {
       items: [
         { href: "/services", icon: Scissors, label: "Services" },
         { href: "/checkout", icon: ShoppingCart, label: "POS / Checkout" },
-        { href: "/inventory", icon: Package, label: "Inventory", badge: data?.lowStockCount || undefined },
       ],
     },
     {
@@ -88,7 +86,7 @@ function buildNavSections(data: SidebarData | null, role?: string) {
         { href: "/reports/payday", icon: Wallet, label: "Payday" },
         { href: "/marketing", icon: Megaphone, label: "Marketing" },
         { href: "/reviews", icon: Star, label: "Reviews", badge: data?.pendingReviewsCount || undefined },
-        { href: "/memberships", icon: CreditCard, label: "Memberships" },
+        { href: "/memberships", icon: Gift, label: "Gift Cards" },
       ],
     },
     {

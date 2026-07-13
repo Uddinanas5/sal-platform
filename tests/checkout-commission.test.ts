@@ -28,11 +28,16 @@ type TxOptions = {
   staffCommissionRate?: number
   staffServiceOverride?: number | null // null = no StaffService row
   finalPrice?: number
+  // Current CATALOG price (Service.price), which can DIFFER from the booked
+  // finalPrice snapshot after a price change. Defaults to finalPrice so the
+  // existing tests (catalog == booked) are unaffected.
+  catalogPrice?: number
 }
 
 function fakeTx(o: TxOptions = {}) {
   const periods: PayrollRow[] = o.payrollPeriods ?? []
   const finalPrice = o.finalPrice ?? 60
+  const catalogPrice = o.catalogPrice ?? finalPrice
 
   const appointmentServices = [
     {
@@ -53,11 +58,16 @@ function fakeTx(o: TxOptions = {}) {
     $executeRaw: vi.fn(),
     // taxRate null + isTaxable true → server uses the flat TAX_RATE fallback,
     // matching the schema default (these tests don't assert tax-dependent totals).
-    service: { findMany: vi.fn(async () => [{ id: SVC, price: finalPrice, taxRate: null, isTaxable: true }]) },
+    service: { findMany: vi.fn(async () => [{ id: SVC, price: catalogPrice, taxRate: null, isTaxable: true }]) },
     product: { findMany: vi.fn(async () => []) },
     appointment: {
       findFirst: vi.fn(async () => ({ clientId: CLIENT, services: appointmentServices })),
       update: vi.fn(async () => ({})),
+    },
+    // Booked-price snapshot lookup (charge the price the client booked, not a later
+    // catalog change). Returns the appointment's per-service finalPrice.
+    appointmentService: {
+      findMany: vi.fn(async () => [{ serviceId: SVC, finalPrice }]),
     },
     client: {
       // loyaltyPoints is read for redeem validation; 0 here since these tests
@@ -137,6 +147,23 @@ describe("recordCheckout — writes a Commission row on a dashboard checkout", (
     expect(Number(row.commissionAmount)).toBe(20)
   })
 
+  it("records a commission whose exact value lands on a half-cent without tripping the reconcile invariant (regression)", async () => {
+    // gross 45.30 @ 25% = 11.325 → rounds to 11.33. The rounding error is exactly a
+    // half-cent (0.005), which previously tripped the `>= 0.005` invariant and rolled
+    // back the ENTIRE checkout — a barber literally could not ring up a $45.30 cut at
+    // 25%. The tolerance is now strictly-greater-than a half-cent, so this legit sale
+    // records instead of throwing.
+    const tx = fakeTx({ staffCommissionRate: 25, finalPrice: 45.3 })
+
+    await expect(recordCheckout(tx, BIZ, apptInput())).resolves.toBeDefined()
+
+    expect(tx.commission.create).toHaveBeenCalledTimes(1)
+    const row = tx.commission.create.mock.calls[0][0].data
+    expect(Number(row.grossAmount)).toBe(45.3)
+    expect(Number(row.commissionRate)).toBe(25)
+    expect(Number(row.commissionAmount)).toBe(11.33)
+  })
+
   it("records a 0 commission (never a fake default rate) when the staff rate is 0", async () => {
     const tx = fakeTx({ staffCommissionRate: 0, finalPrice: 80 })
 
@@ -173,5 +200,21 @@ describe("recordCheckout — writes a Commission row on a dashboard checkout", (
 
     expect(tx.payment.create).toHaveBeenCalledTimes(1)
     expect(tx.commission.create).toHaveBeenCalledTimes(1)
+  })
+
+  it("charges the BOOKED finalPrice snapshot, not a later catalog price change (no overcharge; books reconcile)", async () => {
+    // Client booked the service at $40; the shop later raised the catalog price to
+    // $50. Checkout must charge $40 (what they booked) — not $50 — and commission
+    // must be on the same $40 so recorded revenue and the commission base reconcile.
+    const tx = fakeTx({ catalogPrice: 50, finalPrice: 40, staffCommissionRate: 30 })
+
+    await recordCheckout(tx, BIZ, apptInput())
+
+    // Charged the booked price, not the raised catalog price.
+    expect(Number(tx.payment.create.mock.calls[0][0].data.amount)).toBe(40)
+    // Commission base matches the charge.
+    const row = tx.commission.create.mock.calls[0][0].data
+    expect(Number(row.grossAmount)).toBe(40)
+    expect(Number(row.commissionAmount)).toBe(12)
   })
 })

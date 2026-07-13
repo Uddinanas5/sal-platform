@@ -1,17 +1,20 @@
 import { getClientById } from "@/lib/queries/clients"
 import { auth } from "@/lib/auth"
+import { resolveBusinessRole } from "@/lib/auth-utils"
 import { prisma } from "@/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { ClientDetailClient } from "./client"
 
 export const dynamic = "force-dynamic"
-export default async function ClientDetailPage({ params }: { params: { id: string } }) {
+export default async function ClientDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await auth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const businessId = (session?.user as any)?.businessId
   if (!session?.user || !businessId) redirect("/login")
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const role = (session.user as any).role as string | undefined
+  // LIVE DB role (not the stale 7-day JWT claim): a demoted admin must lose
+  // "delete any note" / elevated visibility immediately. Null → least privilege.
+  const role = (await resolveBusinessRole(session.user.id, businessId)) ?? "staff"
 
   const client = await getClientById(params.id, businessId)
   if (!client) notFound()

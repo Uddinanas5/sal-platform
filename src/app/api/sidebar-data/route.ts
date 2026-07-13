@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { getRouteBusinessContext } from "@/lib/api/route-auth"
+import { hasRole } from "@/lib/permissions"
 import { getDashboardStats } from "@/lib/queries/appointments"
 import { getClients } from "@/lib/queries/clients"
 import { getLowStockProducts } from "@/lib/queries/products"
@@ -9,29 +10,18 @@ export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
-    const session = await auth()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const businessId = (session?.user as any)?.businessId as string | undefined
-
-    if (!businessId) {
-      return NextResponse.json({
-        todayAppointments: 0,
-        clientsCount: 0,
-        lowStockCount: 0,
-        pendingReviewsCount: 0,
-        staffProfileId: null,
-        dashboardStats: {
-          todayRevenue: 0,
-          todayAppointments: 0,
-          completedAppointments: 0,
-          upcomingAppointments: 0,
-        },
-      })
+    // L-048: previously this resolved the live role WITHOUT the session
+    // watermark and only gated revenue instead of denying — a removed member or
+    // stale post-reset session still read appointment/client/review counts. The
+    // shared helper enforces liveness + watermark and we DENY on null.
+    const ctx = await getRouteBusinessContext()
+    if (!ctx) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userRole = (session?.user as any)?.role as string | undefined
-    const userId = session?.user?.id as string | undefined
+    const { userId, businessId, role: liveRole } = ctx
+    // Shop revenue stays admin-only (mirrors the dashboard page, which zeroes
+    // revenue for non-admins) — a demoted admin loses todayRevenue immediately (L-044).
+    const canSeeRevenue = hasRole(liveRole, "admin")
 
     const [dashboardStats, clients, lowStockProducts, pendingReviewsCount] =
       await Promise.all([
@@ -41,9 +31,9 @@ export async function GET() {
         prisma.review.count({ where: { businessId, response: null } }),
       ])
 
-    // Look up staff profile ID for staff users (for "My Profile" link)
+    // Look up staff profile ID for non-admin members (for the "My Profile" link)
     let staffProfileId: string | null = null
-    if (userRole === "staff" && userId && businessId) {
+    if (liveRole === "staff" && userId && businessId) {
       const staffProfile = await prisma.staff.findFirst({
         where: { userId, primaryLocation: { businessId }, isActive: true },
         select: { id: true },
@@ -58,7 +48,7 @@ export async function GET() {
       pendingReviewsCount,
       staffProfileId,
       dashboardStats: {
-        todayRevenue: dashboardStats.todayRevenue,
+        todayRevenue: canSeeRevenue ? dashboardStats.todayRevenue : 0,
         todayAppointments: dashboardStats.todayAppointments,
         completedAppointments: dashboardStats.completedAppointments,
         upcomingAppointments: dashboardStats.upcomingAppointments,
