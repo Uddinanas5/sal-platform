@@ -225,7 +225,7 @@ function CancelDialog({ booking, onClose, onCancelled }: CancelDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <div className="w-full max-w-md glass-popover rounded-panel shadow-2xl">
         <div className="p-6">
           <div className="mb-4 flex items-center gap-3">
@@ -429,7 +429,12 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
         toast.success("Your appointment has been rescheduled.")
         onRescheduled(result.data.startTime)
       } else {
-        setError(result.error ?? "Failed to reschedule appointment.")
+        const msg = result.error ?? "Failed to reschedule appointment."
+        setError(msg)
+        // Also surface as a toast: the inline error can otherwise sit below the
+        // fold on mobile (behind the sticky footer), making a blocked reschedule
+        // look like nothing happened.
+        toast.error(msg)
       }
     } catch {
       setError("An unexpected error occurred. Please try again.")
@@ -444,7 +449,7 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
   }).format(firstOfMonth)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden glass-popover rounded-panel shadow-2xl">
         <div className="flex items-start gap-3 border-b border-white/10 p-6 pb-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint/15">
@@ -577,32 +582,36 @@ function RescheduleDialog({ booking, onClose, onRescheduled }: RescheduleDialogP
             </div>
           )}
 
+        </div>
+
+        <div className="border-t border-white/10 p-6 pt-4">
+          {/* Error lives in the sticky footer (not the scroll area) so a blocked
+              reschedule is always visible above the buttons, never below the fold. */}
           {error && (
-            <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-400/10 px-3 py-2 text-sm text-red-300">
+            <div className="mb-3 flex items-center gap-2 rounded-lg bg-red-400/10 px-3 py-2 text-sm text-red-300">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
-        </div>
-
-        <div className="flex gap-3 border-t border-white/10 p-6 pt-4">
-          <Button variant="outline" className="h-11 flex-1" onClick={onClose} disabled={isSubmitting}>
-            Keep Current Time
-          </Button>
-          <Button
-            className="h-11 flex-1"
-            onClick={handleConfirm}
-            disabled={isSubmitting || !selectedSlot}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Rescheduling...
-              </>
-            ) : (
-              "Confirm New Time"
-            )}
-          </Button>
+          <div className="flex gap-3">
+            <Button variant="outline" className="h-11 flex-1" onClick={onClose} disabled={isSubmitting}>
+              Keep Current Time
+            </Button>
+            <Button
+              className="h-11 flex-1"
+              onClick={handleConfirm}
+              disabled={isSubmitting || !selectedSlot}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Rescheduling...
+                </>
+              ) : (
+                "Confirm New Time"
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

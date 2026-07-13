@@ -224,7 +224,11 @@
   /* ===== Portal'd menus: medium blur on a darker base for AA over
      arbitrary content ===== */
   .glass-popover {
-    background: rgba(10, 42, 30, 0.88);
+    /* 0.96 (was 0.88): when a popover/dialog is rendered inline rather than
+       portal'd, backdrop-filter can fail to composite and high-contrast page
+       text bleeds through the panel. Near-opaque keeps the glass look but stops
+       the bleed-through regardless of blur support (matches the no-blur fallback). */
+    background: rgba(10, 42, 30, 0.96);
     backdrop-filter: blur(24px) saturate(160%);
     -webkit-backdrop-filter: blur(24px) saturate(160%);
     border: 1px solid rgba(255, 255, 255, 0.16);

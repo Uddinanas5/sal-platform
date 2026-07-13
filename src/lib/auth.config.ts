@@ -3,6 +3,12 @@ import type { NextAuthConfig } from "next-auth"
 // Edge-compatible auth config (no Prisma imports)
 // Used by middleware for JWT session checks
 export const authConfig = {
+  // Trust the deploying host. On Vercel this is the default (VERCEL=1) so it's a
+  // no-op in production; it also lets the app run under a plain host
+  // (localhost / self-hosted) without an UntrustedHost error. Set here in the
+  // SHARED edge config so both the middleware instance and the main handler
+  // (which spread ...authConfig) honour it.
+  trustHost: true,
   session: { strategy: "jwt" as const, maxAge: 7 * 24 * 60 * 60 }, // 7 days
   pages: {
     signIn: "/login",
