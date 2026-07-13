@@ -311,7 +311,7 @@ export function DashboardClient(props: DashboardClientProps) {
                 <Button
                   variant="outline"
                   className="h-auto py-3 flex-col gap-1 border-cream-200 hover:bg-sal-50 hover:border-sal-200"
-                  onClick={() => router.push("/calendar")}
+                  onClick={() => router.push("/calendar?new=1")}
                 >
                   <Calendar className="w-5 h-5 text-mint-strong" />
                   <span className="text-xs">New Booking</span>

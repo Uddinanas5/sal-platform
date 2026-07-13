@@ -112,7 +112,7 @@ export function Header({ title, subtitle }: HeaderProps) {
         {/* New Appointment Button */}
         <Button
           className="hidden sm:flex gap-2"
-          onClick={() => router.push("/calendar")}
+          onClick={() => router.push("/calendar?new=1")}
         >
           <Plus className="w-4 h-4" />
           New Booking

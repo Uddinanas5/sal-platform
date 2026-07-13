@@ -50,12 +50,17 @@ interface SidebarData {
   }
 }
 
-// Pages hidden during beta because they are not backed by a real, tested
-// implementation yet. Keeping them out of the nav avoids showing salons
-// features that look functional but aren't. Marketing (real campaign send +
-// automated-message engine) and Memberships (DB-backed plans + gift cards)
-// shipped in the Phase-2 build, so the set is currently empty.
-const BETA_HIDDEN_HREFS = new Set<string>([])
+// Nav items hidden to keep the barbershop tool lean. These pages still exist and
+// work — they're just not core to a barbershop's day-to-day, so they're kept out
+// of the sidebar to reduce clutter. Delete an entry here to bring it back.
+//   /marketing   — email/SMS campaigns (most shops run this on Instagram)
+//   /memberships — Gift Cards (optional; re-add if the shop sells them)
+//   /reviews     — website-review management (shops usually use Google reviews)
+const BETA_HIDDEN_HREFS = new Set<string>([
+  "/marketing",
+  "/memberships",
+  "/reviews",
+])
 
 function buildNavSections(data: SidebarData | null, role?: string) {
   // For staff users, add a "My Profile" link pointing to their own staff profile

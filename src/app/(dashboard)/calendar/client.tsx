@@ -254,6 +254,17 @@ export function CalendarClient(props: CalendarClientProps) {
   const searchParams = useSearchParams()
   const deepLinkAppointmentId = searchParams.get("appointmentId")
   const lastOpenedDeepLinkId = useRef<string | null>(null)
+  // Deep-link: ?new=1 opens the New Booking form straight away, so the "New
+  // Booking" buttons on the dashboard/header land the owner right in the form
+  // instead of on an empty calendar they then have to hunt a button on.
+  const openNewParam = searchParams.get("new")
+  const openedNewFromParam = useRef(false)
+  useEffect(() => {
+    if (openNewParam && !openedNewFromParam.current) {
+      openedNewFromParam.current = true
+      setNewApptOpen(true)
+    }
+  }, [openNewParam])
   useEffect(() => {
     if (!deepLinkAppointmentId) return
     if (lastOpenedDeepLinkId.current === deepLinkAppointmentId) return

@@ -68,7 +68,6 @@ export const NAV_PERMISSIONS = [
   { href: "/clients", minRole: "staff" as AppRole },
   { href: "/services", minRole: "staff" as AppRole },
   { href: "/checkout", minRole: "staff" as AppRole },
-  { href: "/inventory", minRole: "admin" as AppRole },
   { href: "/reports", minRole: "admin" as AppRole },
   { href: "/reports/payday", minRole: "admin" as AppRole },
   { href: "/marketing", minRole: "admin" as AppRole },

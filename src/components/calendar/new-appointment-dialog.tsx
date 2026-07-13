@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { format, setHours, setMinutes, isSameDay, addWeeks, addMonths } from "date-fns"
 import { createAppointment } from "@/lib/actions/appointments"
+import { createClient } from "@/lib/actions/clients"
 import { createRecurringAppointment } from "@/lib/actions/recurring"
 import {
   Search,
@@ -16,6 +17,7 @@ import {
   Repeat,
   Users,
   ChevronDown,
+  UserPlus,
 } from "lucide-react"
 import {
   Dialog,
@@ -92,6 +94,15 @@ export function NewAppointmentDialog({
   const [step, setStep] = useState<Step>(1)
   const [clientSearch, setClientSearch] = useState("")
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  // Walk-in / new-client entry (inline). A brand-new customer standing at the
+  // chair should be bookable without leaving to the Clients page first — the
+  // owner just types their contact details here. Only a first name is required
+  // (barbershop walk-ins are often single-name); phone/email are optional.
+  const [addingNewClient, setAddingNewClient] = useState(false)
+  const [newFirstName, setNewFirstName] = useState("")
+  const [newLastName, setNewLastName] = useState("")
+  const [newPhone, setNewPhone] = useState("")
+  const [newEmail, setNewEmail] = useState("")
   // Multi-service: a cut + beard trim + line-up is ONE appointment. Services are
   // kept in pick order so they chain back-to-back the way the barber adds them.
   const [selectedServices, setSelectedServices] = useState<Service[]>([])
@@ -134,6 +145,11 @@ export function NewAppointmentDialog({
       setStep(1)
       setClientSearch("")
       setSelectedClient(null)
+      setAddingNewClient(false)
+      setNewFirstName("")
+      setNewLastName("")
+      setNewPhone("")
+      setNewEmail("")
       setSelectedServices([])
       setSelectedStaff(null)
       setSelectedDate(initialDate || new Date())
@@ -207,6 +223,14 @@ export function NewAppointmentDialog({
     )
   }, [staff, selectedServices])
 
+  // Single-barber shops (or a service only one person does) shouldn't force a
+  // staff pick — auto-select when there's exactly one qualified option.
+  React.useEffect(() => {
+    if (selectedServices.length > 0 && qualifiedStaff.length === 1 && !selectedStaff) {
+      setSelectedStaff(qualifiedStaff[0])
+    }
+  }, [qualifiedStaff, selectedServices, selectedStaff])
+
   function toggleService(service: Service) {
     setSelectedServices((prev) => {
       const exists = prev.some((s) => s.id === service.id)
@@ -246,8 +270,9 @@ export function NewAppointmentDialog({
   }
 
   async function handleSave() {
+    const hasClient = selectedClient !== null || (addingNewClient && newFirstName.trim().length > 0)
     if (
-      !selectedClient ||
+      !hasClient ||
       selectedServices.length === 0 ||
       !selectedStaff ||
       !selectedDate ||
@@ -299,11 +324,32 @@ export function NewAppointmentDialog({
 
     setIsSaving(true)
 
+    // Resolve the client id. For a walk-in, create the client first (name +
+    // optional contact details), then book against the new id. If creation
+    // fails (e.g. duplicate email), stop before booking so we never orphan.
+    let clientId = selectedClient?.id ?? ""
+    let clientName = selectedClient?.name ?? ""
+    if (addingNewClient) {
+      const created = await createClient({
+        firstName: newFirstName.trim(),
+        lastName: newLastName.trim(),
+        phone: newPhone.trim() || undefined,
+        email: newEmail.trim() || undefined,
+      })
+      if (!created.success) {
+        setIsSaving(false)
+        toast.error(created.error)
+        return
+      }
+      clientId = created.data.id
+      clientName = [newFirstName.trim(), newLastName.trim()].filter(Boolean).join(" ")
+    }
+
     const serviceSummary =
       selectedServices.length > 1
         ? `${selectedServices[0].name} +${selectedServices.length - 1} more`
         : selectedServices[0].name
-    const baseDescription = `${serviceSummary} with ${selectedStaff.name} on ${format(
+    const baseDescription = `${clientName ? `${clientName} — ` : ""}${serviceSummary} with ${selectedStaff.name} on ${format(
       startTime,
       "MMM d 'at' h:mm a"
     )}`
@@ -314,7 +360,7 @@ export function NewAppointmentDialog({
     // service so the series is unambiguous rather than silently dropping add-ons.
     if (isRecurring) {
       const result = await createRecurringAppointment({
-        clientId: selectedClient.id,
+        clientId,
         serviceId: selectedServices[0].id,
         staffId: selectedStaff.id,
         startTime: startTime.toISOString(),
@@ -352,7 +398,7 @@ export function NewAppointmentDialog({
     // Multi-service: send the full ordered list. The server recomputes duration
     // and price from the DB and writes one AppointmentService row per service.
     const result = await createAppointment({
-      clientId: selectedClient.id,
+      clientId,
       serviceIds: selectedServices.map((s) => s.id),
       staffId: selectedStaff.id,
       startTime: startTime.toISOString(),
@@ -373,7 +419,9 @@ export function NewAppointmentDialog({
   const canProceed = (): boolean => {
     switch (step) {
       case 1:
-        return selectedClient !== null
+        // Either an existing client is picked, or a walk-in is being added with
+        // at least a first name (the minimum createClient requires).
+        return selectedClient !== null || (addingNewClient && newFirstName.trim().length > 0)
       case 2:
         return selectedServices.length > 0
       case 3:
@@ -422,14 +470,87 @@ export function NewAppointmentDialog({
           {/* Step 1: Select Client */}
           {step === 1 && (
             <div className="flex flex-col gap-3 h-full">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
-                <Input
-                  placeholder="Search clients by name, email, or phone..."
-                  value={clientSearch}
-                  onChange={(e) => setClientSearch(e.target.value)}
-                  className="pl-9"
-                />
+              {addingNewClient ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-foreground">Walk-in details</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setAddingNewClient(false)}
+                    >
+                      Search existing instead
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">First name *</label>
+                      <Input
+                        autoFocus
+                        placeholder="First name"
+                        value={newFirstName}
+                        onChange={(e) => setNewFirstName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Last name</label>
+                      <Input
+                        placeholder="Optional"
+                        value={newLastName}
+                        onChange={(e) => setNewLastName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Phone</label>
+                    <Input
+                      type="tel"
+                      placeholder="Optional"
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Email</label>
+                    <Input
+                      type="email"
+                      placeholder="Optional"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground/70">
+                    Only a first name is needed to book. You can fill in the rest later
+                    from their profile.
+                  </p>
+                </div>
+              ) : (
+              <>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
+                  <Input
+                    placeholder="Search clients by name, email, or phone..."
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  className="shrink-0 gap-1.5"
+                  onClick={() => {
+                    // Prefill the new-client name from whatever was typed in search.
+                    const parts = clientSearch.trim().split(/\s+/).filter(Boolean)
+                    setNewFirstName(parts[0] ?? "")
+                    setNewLastName(parts.slice(1).join(" "))
+                    setSelectedClient(null)
+                    setAddingNewClient(true)
+                  }}
+                >
+                  <UserPlus className="h-4 w-4" /> New
+                </Button>
               </div>
               <ScrollArea className="flex-1 max-h-[340px]">
                 <div className="space-y-1">
@@ -483,6 +604,8 @@ export function NewAppointmentDialog({
                   )}
                 </div>
               </ScrollArea>
+              </>
+              )}
             </div>
           )}
 
@@ -751,7 +874,9 @@ export function NewAppointmentDialog({
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">Client</span>
                     <span className="text-sm font-medium text-foreground">
-                      {selectedClient?.name}
+                      {selectedClient?.name ??
+                        ([newFirstName.trim(), newLastName.trim()].filter(Boolean).join(" ") ||
+                          "New walk-in")}
                     </span>
                   </div>
                   <Separator />
