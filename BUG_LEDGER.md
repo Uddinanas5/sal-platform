@@ -31,6 +31,16 @@ Confirmed WORKING with evidence (not bugs):
 - Walk-in client feature: "New" → first-name-only form ("Only a first name is needed to book") → Next advances to Step 2. Works. (s3-01)
 - Cross-flow: the client created via public booking (QaTester) shows in the owner's client picker. (s2-03)
 
+| BUG-004 | P3 | Transactional emails (branding) | All customer emails show "Sent by SAL Platform" in the footer and the SAL platform logo in the header, not the *business* the customer booked with ("SAL Salon & Spa"). White-label off-brand for the end client. | email-confirmation-desktop | OPEN (polish) | — |
+
+Confirmed WORKING with evidence — emails (rendered from real template fns + screenshotted mobile/desktop):
+- **Confirmation email**: clean SAL-branded layout, Service/Staff/Date/Reference card, working "Manage Your Booking" button, contact line. **Accented name "Éloïse François" renders correctly** (no mojibake). (email-confirmation-desktop/mobile)
+- **Reschedule email**: previous time shown **struck-through**, new time prominent green, "View Booking Details" button — matches Fresha/Calendly standard. (email-reschedule-desktop)
+- **Cancel email**: renders cleanly. (email-cancel-desktop)
+- Note: emails aren't *delivered* locally (Resend key not set in the QA rig) — templates + content verified by rendering; live delivery is a production-only check.
+
+- Client CANCEL flow: manage SAL-0053 → Cancel → email verify → confirm. Result page "Cancelled" + DB status=cancelled. (s4-03). Slot-freeing on open days covered by availability-metamorphic tests; the day I happened to test (Jul 19) is a closed Sunday, so 0 slots there is correct.
+
 ## Status log — cycle 2 (multi-scenario sweep)
 Ran client full-booking + owner login + walk-in scenarios in the browser. All happy
 paths PASS with evidence. Found BUG-003 (dialog transparency, same root cause class as
