@@ -20,9 +20,23 @@ Severity: **P0** = a flow is broken · **P1** = wrong data / permissions ·
 | BUG-001 | P1 | Reschedule (client, mobile) | Manage a booking inside the change window (SAL-0014), Reschedule → pick date+time → "Confirm New Time". Rejection message ("Online changes close 24h before…") renders at the BOTTOM of the scroll area, below the slots and behind the sticky button footer → on mobile the user sees NOTHING happen. Looks broken. | reschedule-07/08 | ✅ CLOSED | reschedule-fixed-01: red error now shows above the buttons AND a toast fires — both read the reason, no scrolling needed |
 | BUG-002 | P2 | Reschedule + Cancel dialogs | Open the reschedule/cancel modal. Panel (`glass-popover`, 0.88 alpha, inline not portal'd → blur not compositing) lets page text ("Service Details", "$120.00", "Location"…) bleed through and overlap the calendar. | reschedule-02/08 | ✅ CLOSED | reschedule-fixed-02: panel raised to 0.96 + backdrop to 0.80 — readable bleed-through eliminated (faint edge ghosting only, acceptable) |
 
+| BUG-003 | P2 | New Appointment dialog (owner calendar) | Owner → New Booking. The dialog (`glass-panel`, whose background is only white-gradient films over a non-compositing backdrop-blur → no solid base) lets the calendar behind (staff columns, appointment blocks, time labels) bleed through and clutter the form. Same class → also affects other Dialog-based modals. | s2-03, s3-01 | ✅ CLOSED | c2-newappt-fixed: dialog now opaque/crisp; c2-dashboard-regression: dashboard cards/charts unaffected (dark base invisible over the dark app bg) |
+
 Confirmed WORKING with evidence (not bugs):
 - Reschedule HAPPY PATH end-to-end: SAL-0039 moved July 16 09:00 → **July 20 15:00** in the DB after picking a slot outside the window; dialog closed, no error. (reschedule-09)
 - Public booking page loads clean on 390px mobile, zero console errors. (client-01)
+- FULL public booking end-to-end (mobile): service → Any-available staff → date → 30 slots → 9:00 AM → details → Confirm. "Booking confirmed!" screen + DB row SAL-…25 @ Jul 17 13:00 UTC, confirmed. Zero errors. (s1-07)
+- Owner login → dashboard loads; nav trim VERIFIED (Marketing/Reviews/Gift Cards gone). (s2-02)
+- "New Booking" opens the appointment dialog directly (/calendar?new=1). (s2-03)
+- Walk-in client feature: "New" → first-name-only form ("Only a first name is needed to book") → Next advances to Step 2. Works. (s3-01)
+- Cross-flow: the client created via public booking (QaTester) shows in the owner's client picker. (s2-03)
+
+## Status log — cycle 2 (multi-scenario sweep)
+Ran client full-booking + owner login + walk-in scenarios in the browser. All happy
+paths PASS with evidence. Found BUG-003 (dialog transparency, same root cause class as
+BUG-002 but on the shared glass-panel). Fixed at the shared DialogContent/glass-panel
+level; verifying the dialog is clean AND the dashboard didn't regress from the
+glass-panel base-color change.
 
 ## Status log
 - (cycle 1) Stood up a local browser-testable full-stack env (local Postgres + seeded

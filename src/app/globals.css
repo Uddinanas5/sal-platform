@@ -156,9 +156,16 @@
      (sidebar, header, cards, dialogs, sheets) ===== */
   .glass-panel {
     position: relative;
+    /* The white-gradient films below carry no solid base — they relied entirely
+       on backdrop-filter blur to obscure whatever sits behind. When a panel is a
+       modal over busy content (e.g. the New Appointment dialog over the calendar)
+       and the blur doesn't composite, the content bled through and was readable.
+       The solid dark base (bottom background layer) fixes that with or without
+       blur; over the app's dark background it is visually indistinguishable. */
     background:
       radial-gradient(140% 90% at 12% -8%, rgba(255, 255, 255, 0.10), transparent 42%),
-      linear-gradient(152deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 42%, rgba(255, 255, 255, 0.025) 72%, rgba(255, 255, 255, 0.08) 100%);
+      linear-gradient(152deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 42%, rgba(255, 255, 255, 0.025) 72%, rgba(255, 255, 255, 0.08) 100%),
+      rgba(9, 38, 27, 0.94);
     backdrop-filter: blur(44px) saturate(180%);
     -webkit-backdrop-filter: blur(44px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.20);
